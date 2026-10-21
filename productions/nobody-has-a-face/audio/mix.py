@@ -42,7 +42,7 @@ OUT = os.path.join(ROOT, "out")
 VO_DEFAULT = os.path.join(ROOT, "audio", "vo", "narration_full.wav")
 
 VO_TARGET = -16.0            # narration stem, integrated (pre-master)
-MUSIC_TARGET = -21.0         # score (main + feature) integrated before ducking
+MUSIC_TARGET = -19.0         # score (main + feature) integrated before ducking
 SFX_BUS_DB = 0.0             # SFX are library-level (-16 LUFS at gain 0); scenes set gain_db
 AMB_BUS_DB = 0.0
 DUCK = dict(music=-9.0, feature=-5.0, sfx=-3.0, amb=-2.0, hits_hi=-4.0)
@@ -329,7 +329,7 @@ def master_chain(pre, ref):
     if tp > CEILING_DBTP:
         out *= db2lin(CEILING_DBTP - 0.05 - tp)
         info["post_trim_db"] = round(CEILING_DBTP - 0.05 - tp, 3)
-    out = dsp.fade(out, 0.002, 0.02)
+    out = dsp.fade(out, 0.002, 0.25)      # the last match flare is swallowed by the dark
     return out, info, g1 * cg * db2lin(gain_db)
 
 

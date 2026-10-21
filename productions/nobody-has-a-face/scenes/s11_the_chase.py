@@ -17,8 +17,6 @@ import math
 from engine import *
 from . import _lib_s11_s13 as L
 
-SEED = 11
-
 
 def _cuts(T):
     return [0.0, T.at("I"), T.at("red"), T.at("every"), T.end("town") - 0.42, T.at("All"),
@@ -78,6 +76,7 @@ def shot_mouth(f, t, T, lt, dur):
         L.draw_alley(f, P, G, t, puddles=puddles)
         for i, (X, Z, r) in enumerate(puddles):
             L.puddle_ripples(f, P, t, X, Z, r, seed=40 + i, alpha=0.5)
+        L.splashes3d(f, P, t, -430, 430, 180, 2600, n=70, seed=3)
         L.draw_can(f, P, -360, 1300, alpha=0.9)
         L.draw_box(f, P, 250, 420, 2150, 2400, 160, alpha=0.9)
         if u_pos is not None:
@@ -115,6 +114,7 @@ def shot_run_to_cam(f, t, T, lt, dur):
     with f.lit(lights, ambient=0.32):
         L.draw_cross_street(f, P, G, t, seed=9)
         L.draw_alley(f, P, G, t, puddles=((140, 900, 180), (-200, 1900, 200)))
+        L.splashes3d(f, P, t, -400, 400, 160, 2400, n=60, seed=4)
         L.draw_can(f, P, 330, 700, alpha=0.9)
         L.draw_box(f, P, -400, -250, 1500, 1700, 140)
         fx.rain(f, t, density=1.1, wind=-8, seed=22)
@@ -163,8 +163,8 @@ def _fire_escape_2d(f, alpha=1.0):
 
 
 def shot_fire_escape(f, t, T, lt, dur):
-    cy = L.ek(lt, 0, dur, 1150, 880, "inout")
-    cam = Camera(L.ek(lt, 0, dur, 570, 510), cy, 0.82, L.ek(lt, 0, dur, -2.0, 1.4)).shaken(
+    cy = L.ek(lt, 0, dur, 1120, 880, "inout")
+    cam = Camera(L.ek(lt, 0, dur, 575, 505), cy, 0.94, L.ek(lt, 0, dur, -2.0, 1.4)).shaken(
         t, amp=9, rot_amp=0.8, freq=2.2, seed=13)
     f.set_camera(cam)
     b = L.police_blue(t + 0.6, rate=1.6)
@@ -424,6 +424,7 @@ def shot_dead_end(f, t, T, lt, dur):
               Light.radial(mb, 420 * P.k(eZ) ** 0.5, intensity=0.95)]
     with f.lit(lights, ambient=0.25):
         L.draw_alley(f, P, G, t, puddles=((-190, 700, 150), (210, 1250, 140)))
+        L.splashes3d(f, P, t, -400, 400, 160, Zw - P.ez - 10, n=60, seed=5)
         L.draw_dead_end(f, P, 420.0, Zw)
         L.draw_box(f, P, 220, 390, 1250, 1480, 200, alpha=0.9)
         L.draw_can(f, P, -330, 1380, alpha=0.9)

@@ -28,7 +28,7 @@ from contextlib import nullcontext
 
 from engine import *
 from scenes._lib_s05_s07 import (ZTrack, cam_for, draw_back, reach_back, back_solve, glow_scaled,
-                                 desk_insert, ring_pop, zlerp)
+                                 desk_insert, ring_pop, zlerp, office_dust)
 
 O = sets.OFFICE
 WX, WY, WW, WH = O["window"]
@@ -206,6 +206,7 @@ def draw_office(f, t, k, cam):
             sets.office(f, t, umbrella=True, lamp_on=0.0)
             for (px, py, ang) in PHOTOS:
                 props.photo_card(f, (px, py), 82, 100, ang, alpha=0.75)
+        office_dust(f, t, 0.5 * (1 - smoothstep(k.push0, k.push0 + 0.5, t)), seed=15)
         if D > 0.05:
             draw_parted_slats(f, D)
         draw_back(f, p)

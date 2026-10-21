@@ -425,7 +425,7 @@ def cues(T):
         Cue(T.at("faces", 1), "pencil_scratch", gain_db=-9, dur=T.at("circles") + 0.3 - T.at("faces", 1)),
         Cue(T_D + 0.02, "whoosh", gain_db=-12, size=0.45),
         Cue(T_D + 0.1, "paper_rustle", gain_db=-14),
-        Cue(T_WHIP + 0.02, "whip", gain_db=-5),
+        Cue(T_WHIP + 0.14, "whip", gain_db=-5),
     ]
 
 

@@ -230,7 +230,7 @@ def alley_geom(seed=1, hw=450.0, L=4200.0, z0=350.0, fire=0.4, far=True, lit=0.0
 
 
 def draw_fire_escape(f, P, fe, alpha=1.0):
-    X, Xo, Xm, za, zb = fe["X"], fe["Xo"], fe["Xm"], fe["za"], fe["zb"]
+    X, Xo, za, zb = fe["X"], fe["Xo"], fe["za"], fe["zb"]
     lv = fe["levels"]
     side = 1 if X > 0 else -1
     for j, Y in enumerate(lv):
@@ -278,7 +278,7 @@ def draw_alley(f, P, G, t=0.0, alpha=1.0, far=True, far_lit=0.12, ground=True, p
             P.poly(f, q, w, alpha * a, min_px=2.5)
     for q in G["lits"]:
         if q[0][2] < zlim:
-            S = P.poly(f, q, 0, 0, fill=AMBER, fill_alpha=0.55 * alpha, glow=0.5, min_px=0)
+            P.poly(f, q, 0, 0, fill=AMBER, fill_alpha=0.55 * alpha, glow=0.5, min_px=0)
     for A, B in G["pipes"]:
         if A[2] < zlim:
             P.line(f, A, B, 2.0, alpha * 0.75)
@@ -734,7 +734,7 @@ def umbrella_lying(f, x, ground_y, angle, R, color=CRIMSON, t=0.0, alpha=1.0):
     angle = shaft direction from handle to canopy (deg); rocking = vary angle. Returns apex."""
     a = math.radians(angle)
     ux, uy = math.cos(a), math.sin(a)
-    px, py = -uy, ux
+    py = ux                                      # perpendicular (y component)
     shaft = R * 1.22
     depth = R * 0.5
     apex = (ux * shaft, uy * shaft)
@@ -764,3 +764,28 @@ def rack(f, radius, draw_fn, min_blur=6.0):
             draw_fn()
         with f.blurred(min_blur, alpha=c):
             draw_fn()
+
+
+def splashes3d(f, P, t, x0, x1, dz0, dz1, n=60, seed=0, alpha=0.55):
+    """Rain crown-splashes on a pseudo-3D floor (Y=0) between depths ez+dz0 .. ez+dz1 (world-anchored)."""
+    z0, z1 = P.ez + dz0, P.ez + dz1
+    for i in range(n):
+        per = 0.35 + 0.4 * hash01(seed, i)
+        ph = hash01(seed, i, 2)
+        cyc = math.floor(t / per + ph)
+        tau = (t / per + ph) - cyc
+        if tau > 0.3:
+            continue
+        # world-anchored cells so splashes do not slide when the camera dollies
+        Z = math.floor(z0 / 400.0) * 400.0 + (z1 - z0 + 400.0) * hash01(seed, i, cyc, 5)
+        if Z < z0 or Z > z1:
+            continue
+        X = x0 + (x1 - x0) * hash01(seed, i, cyc, 4)
+        k = P.k(Z)
+        gx, gy = P.p(X, 0.0, Z)
+        kk = tau / 0.3
+        r = (5 + 11 * kk) * k
+        h = 11 * k * math.sin(math.pi * kk)
+        a = alpha * (1 - 0.5 * kk) * P.fog(Z)
+        draw.line(f, (gx - r * 0.4, gy), (gx - r, gy - h), 1.5, WHITE, a)
+        draw.line(f, (gx + r * 0.4, gy), (gx + r, gy - h), 1.5, WHITE, a)

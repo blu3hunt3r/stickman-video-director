@@ -92,7 +92,6 @@ def ripples_top(f, t, box, rate=0.2, seed=9, alpha=0.4, slowmo=1.0, w=1.5):
     x0, y0, x1, y1 = box
     n = int(abs((x1 - x0) * (y1 - y0)) / 9000 * rate)
     sm = max(slowmo, 0.05)
-    ctx = f.ctx
     for i in range(n):
         per = (0.55 + 0.7 * hash01(seed, i)) / sm
         u = t / per + hash01(seed, i, 1)

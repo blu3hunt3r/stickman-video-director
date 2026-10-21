@@ -432,7 +432,7 @@ def cues(T):
     s = _strike(T)
     return [
         Cue(T.at("most") + 0.12, "thunder", gain_db=-9, pan=0.35, distance=0.85),
-        Cue(T_W0 - 0.02, "whip", gain_db=-6, pan=0.0),
+        Cue(T_W0 + 0.1, "whip", gain_db=-6, pan=0.0),
         Cue(T_CUT1 + 0.02, "whoosh", gain_db=-12, size=0.5),
         Cue(T_CUT1 + 0.25, "crowd_walla", gain_db=-20, dur=T_CUT2 - T_CUT1 - 0.2),
         Cue(3.30, "footstep", gain_db=-22, pan=-0.2, weight=0.4, wet=1),

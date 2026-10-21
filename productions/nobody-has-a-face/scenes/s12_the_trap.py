@@ -18,11 +18,13 @@ import math
 from engine import *
 from . import _lib_s11_s13 as L
 
-T_BLACK = 9.70
+def _t_black(T):
+    """SMASH TO BLACK just after "seven" ends (9.668 + 0.032 = 9.70 s: the first black frame is 233)."""
+    return T.end("seven") + 0.032
 
 
 def _cuts(T):
-    return [0.0, T.at("Friday"), T.at("So"), T.at("clock"), T.at("three"), T_BLACK, T.duration]
+    return [0.0, T.at("Friday"), T.at("So"), T.at("clock"), T.at("three"), _t_black(T), T.duration]
 
 
 def _car_occluder(f, alpha=1.0):
@@ -179,7 +181,6 @@ def shot_clock(f, t, T, lt, dur):
         with f.camera(Camera(540, 1650, 1.25, 0.0)):
             L.windshield_drops(f, t, t0=t0, alpha=0.6)
             L.draw_wipers(f, t, t0=t0, alpha=0.7)
-            (wx, wy), _ = L.juror_window()
         draw.glow_dot(f, (760, 330), 60, AMBER, 0.7, core=True)          # her window, far, defocused
     draw.line(f, (-200, 600), (1300, 600), 3.0, WHITE, 0.55)              # dash top edge
     draw.line(f, (-200, 640), (1300, 640), 1.6, WHITE, 0.35)
@@ -265,7 +266,7 @@ SHOTS = [shot_window, shot_lightning, shot_interior, shot_clock, shot_nod]
 
 
 def render(f, t, T):
-    if t >= T_BLACK:
+    if t >= _t_black(T):
         return                       # SMASH TO BLACK: nothing is drawn (pure black frame)
     i, lt, t0, t1 = L.shot_of(t, _cuts(T)[:-1])
     SHOTS[i](f, t, T, lt, t1 - t0)
@@ -273,6 +274,7 @@ def render(f, t, T):
 
 def cues(T):
     t_in = T.at("So")
+    T_BLACK = _t_black(T)
     return [
         Cue(T.at("rain") + 0.02, "thunder", gain_db=0.0, pan=0.25, distance=0.15),       # the strike on "rain"
         Cue(t_in, "wipers", gain_db=-7, pan=0.0, dur=T_BLACK - t_in - 0.02, period=L.WIPE_P),

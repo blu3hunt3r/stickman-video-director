@@ -4,17 +4,20 @@
  She watched me walk."
 
 Shot plan (scene seconds)
-  0.00-0.56  IN: the burnt match from S15 keeps tumbling from mid-frame and lands on the lineup
-             floor beside his LEFT foot - bounce, tiny smoke puff, the ember dies.
-  0.56-0.80  whip tilt up to the swinging bulb (S01's opening framing).
-  0.80-2.30  "They put me in the lineup." - fast tilt down the amber cone (faster echo of S01) onto
+  0.00-0.60  IN: S15's cold burnt match keeps tumbling exactly where S15 left it (centre (540, 960),
+             283.6 px, 76.6 deg = S15's last angle + 1 frame, 72 deg/s, camera roll -6 deg, room
+             racked out of focus); the follow-cam decelerates and levels while real-time gravity
+             takes over; it lands tip-first beside his LEFT foot, topples flat, two ash puffs.
+  0.60-0.84  whip tilt up to the swinging bulb (S01's opening framing).
+  0.84-2.30  "They put me in the lineup." - fast tilt down the amber cone (faster echo of S01) onto
              the height-chart wall: five identical figures, he stands at the CENTER position.
   2.30-3.15  "The witness..." - her huge trembling arm rises in the foreground (S01 design), finger
              wandering figure to figure; number one steps out of the line.
   3.15-5.55  THE WALK TEST: three low inserts on the taped walk line (hips down - no faces), one
              figure at a time, even gaits; every footfall sits on one 0.42 s metronome.
   5.55-8.29  "She watched me walk." - his legs in the same framing: short step, long step
-             (limp 0.85, re-timed so the RHYTHM limps); the camera rises with him; the arm stops
+             (limp 0.85, re-timed so the RHYTHM limps; amber "habit" rings mark where his feet
+             land); the camera rises with him; the arm stops
              trembling and points on "walk"; the bulb stops swinging, the cone closes on him, the
              others sink into darkness; he turns to the glass; push into his hollow head.
              OUT: head ring centered at (540, 960), r = 200 px, black elsewhere.
@@ -56,6 +59,7 @@ WIDE2 = Camera(540.0, 1196.0, 1.38)
 Z_INS = 4.8                              # walk-test inserts: hips down
 INS_FLOOR_SCREEN = 1330.0                # walk line on screen in the inserts (heads out of frame)
 MW = Camera(560.0, 1225.0, 1.52)         # medium-wide after the rise
+INS_HAND = (520.0, 1600.0)               # the witness's hand in the low inserts (clear of the feet)
 
 # ---------------------------------------------------------------- the falling match (continues S15)
 # S15 ends following its burnt match: centre at screen (540, 960), 283.6 px long, tip down,
@@ -384,7 +388,9 @@ def _render(f, t, T):
     # the bulb (S01 prop) - visible in the wide shots
     props.bulb(f, ANCHOR, CORD, swing=swing, on=on * (1 - focus), t=t, glow_r=150)
 
-    # ---------------- the witness's arm (S01 design)
+    # ---------------- the witness's arm (S01 design): her POV, unbroken from the wide through the
+    # walk test (the finger trembles after each walker) to the point on "walk"
+    w_walk = T.at("walk")
     if T_WIDE + 0.05 < t < T_CUT1:
         targets = Track([(2.36, 2.0), (2.62, 2.0), (2.78, 3.0, "out3"), (2.92, 3.0), (3.08, 0.0, "out3")])
         kf = targets(t)
@@ -393,16 +399,19 @@ def _render(f, t, T):
         h0 = rig.solve(_step_out_pose(t) if i0 == 0 else _line_pose(i0, t))["head"]
         h1 = rig.solve(_step_out_pose(t) if i1 == 0 else _line_pose(i1, t))["head"]
         tgt = cam.to_screen(lerp(h0, h1, kf - i0))
-        witness_arm(f, t, tgt, rise=ek("out3", T_WIDE + 0.05, T_WIDE + 0.62, t))
-    elif t > T_RISE0:
-        w_walk = 6.382
+        witness_arm(f, t, tgt, rise=ek("out3", T_WIDE + 0.05, T_WIDE + 0.62, t),
+                    hand_base=lerp((500.0, 1455.0), INS_HAND, ek("inout", 2.9, T_CUT1, t)))
+    elif t < T_HIS:
+        i = 0 if t < T_CUT2 else (1 if t < T_CUT3 else 2)
+        Jw = rig.solve(WALKERS[i].pose(t))
+        witness_arm(f, t, cam.to_screen((Jw["neck"][0], Jw["neck"][1] + 30)), hand_base=INS_HAND)
+    elif t >= T_HIS:
         tgt = cam.to_screen(J["head"])
-        rise = ek("out3", T_RISE0, T_RISE0 + 0.36, t)
+        hb = lerp(INS_HAND, (700.0, 1585.0), ek("inout", T_RISE0, T_RISE1, t))
         tremble = 1.0 - ek("out", w_walk - 0.04, w_walk + 0.08, t)
         jab = ease("outback", inv_lerp(w_walk, w_walk + 0.22, t)) - ek("inout", 6.9, 7.3, t) * 0.4
         drop = ek("in3", 7.25, 7.85, t)
-        witness_arm(f, t, tgt, rise=rise, drop=drop, tremble=tremble, jab=jab, hand_base=(660.0, 1640.0))
-
+        witness_arm(f, t, tgt, rise=1.0, drop=drop, tremble=tremble, jab=jab, hand_base=hb)
 
 
 def cues(T):

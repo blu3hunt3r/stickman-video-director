@@ -31,7 +31,7 @@ from contextlib import nullcontext
 from engine import *
 
 from scenes._lib_s05_s07 import (cam_for, zlerp, glow_scaled, stub_glow, matchbook_slot, striker_pts,
-                                 sparks, rain_top, pavement_top, crowd_top_exit, MB_W, MB_H)
+                                 sparks, rain_top, pavement_top, crowd_top_exit, office_dust, MB_W, MB_H)
 from scenes import s06_three_oh_seven as S06
 
 O = sets.OFFICE
@@ -288,6 +288,7 @@ def draw_macro(f, t, k):
     with f.lit(lights, ambient=amb, soften=3):
         with glow_scaled(f, 0.3 * open_k):
             sets.office(f, t, umbrella=True, lamp_on=0.0, window_light_alpha=0.09 * open_k)
+        office_dust(f, t + _T06().duration, 0.5 * (1 - smoothstep(0.08, 0.6, t)))   # continues S06's motes
         focus = ease("inout", inv_lerp(0.15, 0.95, t))          # rack focus: him -> the matchbook
         if focus > 0.02:
             with f.blurred(7.5 * focus, alpha=1.0 - 0.4 * focus):

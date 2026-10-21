@@ -28,7 +28,7 @@ from contextlib import nullcontext
 
 from engine import *
 from engine.timing import SceneTiming
-from scenes._lib_s05_s07 import cam_for, zlerp, desk_insert, glow_scaled
+from scenes._lib_s05_s07 import cam_for, zlerp, desk_insert, glow_scaled, office_dust
 
 O = sets.OFFICE
 S05_DUR = SceneTiming("s05").duration
@@ -351,6 +351,7 @@ def draw_office_end(f, t, k):
     with f.lit(lights, ambient=0.2 * (1 - dk), soften=4):
         with glow_scaled(f, 0.4 * (1 - dk)):
             sets.office(f, t, umbrella=True, lamp_on=0.0, window_light_alpha=0.16 * stripes_k)
+        office_dust(f, t, 0.5 * smoothstep(0.55, 1.0, ease("inout3", inv_lerp(k.merge1, k.pull1, t))))
         rig.draw_figure(f, p)
         x, ty, w, h = O["desk"]
         draw.fill(f, [(x - 22, ty + 2), (x + w + 22, ty + 2), (x + w + 22, ty + h + 4), (x - 22, ty + h + 4)], BLACK, 1.0)

@@ -27,7 +27,7 @@ from scenes import _lib_s02_s04 as L
 T_LAND = 0.42
 T_B = 2.30
 T_C = 4.40
-T_TILT = 8.70
+T_TILT = 8.52
 TILE = 1900.0
 
 
@@ -361,12 +361,12 @@ def _cam_d(t, T):
     pl = _place(t, T)
     if 0 <= pl < 3:
         z *= 1.0 + 0.035 * (pl + 1)
-    kt = ease("inout", inv_lerp(T_TILT, T.duration, t))
-    tilt = 0.55 * ease("in", inv_lerp(T_TILT, T.duration, t)) + 0.45 * kt
+    kt = ease("inout", inv_lerp(T_TILT, T.duration, t))     # tilt up with the smoke, settling on the cut
+    tilt = kt
     z = lerp(z, 3.0, kt)
     base, tip = _ember_tip()
     y0 = tip[1] - (1180.0 - 960.0) / z                          # ember low-center, smoke rises up the frame
-    y = lerp(y0, tip[1] - 1150.0, tilt)
+    y = lerp(y0, tip[1] - 860.0, tilt)
     x = lerp(tip[0] + 6.0, _wisp_x(y, t, T), ease("inout", inv_lerp(T_TILT, T_TILT + 0.35, t)))
     return Camera(x, y, z)
 
@@ -492,6 +492,8 @@ def cues(T):
 def motion_blur(t, T):
     if t < T_LAND - 0.08:
         return 3
+    if T_TILT + 0.25 < t < T.duration - 0.3:
+        return 2
     if T_C <= t < _d_start(T) and _speed_c(t, T) > 2500:
         return 2
     return 1

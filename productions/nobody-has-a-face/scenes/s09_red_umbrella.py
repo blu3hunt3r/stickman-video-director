@@ -249,7 +249,7 @@ def _memory_shot(f, t, T):
     with L.glow_scaled(f, gk):
         _memory(f, t, T, cam, alpha=1.0, red_k=red_k)
     if red_k > 0:
-        x, y, r, rot = _red_state(t)
+        x, y, r, _ = _red_state(t)
         draw.glow_dot(f, (x, y), r * 3.2, CRIMSON, 0.55 * pulse(t, tr, 0.04, 0.5), core=False)
 
 

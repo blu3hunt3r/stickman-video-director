@@ -90,6 +90,16 @@ def glow_scaled(f, k):
             f.g.paint_with_alpha(clamp(k))
 
 
+# ----------------------------------------------------------------------------- office atmosphere
+OFFICE_DUST_BOX = (320.0, 470.0, 1040.0, 1520.0)
+
+
+def office_dust(f, t, alpha, seed=16):
+    """Dust motes in the detective's office (draw inside f.lit: they only sparkle in the light)."""
+    if alpha > 0.01:
+        fx.dust(f, t, OFFICE_DUST_BOX, n=110, seed=seed, alpha=alpha)
+
+
 # ----------------------------------------------------------------------------- the pocket watch
 WATCH_C = (540.0, 960.0)        # S05 OUT / S06 IN: face centre on screen
 WATCH_R = 300.0                 # on-screen radius at the cut

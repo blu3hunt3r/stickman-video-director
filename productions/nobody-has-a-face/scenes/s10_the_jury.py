@@ -488,7 +488,6 @@ def _alley_shot(f, t, T, blur=2.2, dim=0.72):
     flash = max(f1, 0.7 * f2)
     cam = cam.shaken(t, amp=3.0 + 14 * flash, rot_amp=0.2 + 0.7 * flash, freq=1.0 + 6 * flash, seed=52)
     f.set_camera(cam)
-    lamp = props.streetlamp
     lamp_pt = (520.0, 640.0)
     lights = [Light.cone(lamp_pt, 90, 62, 900, intensity=0.95), Light.radial(MUZZLE, 900, 1.0 * flash),
               Light.full(0.42 * flash)]

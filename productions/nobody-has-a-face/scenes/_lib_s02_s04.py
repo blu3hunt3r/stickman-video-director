@@ -41,10 +41,6 @@ def frame_t(t):
     return round(t * FPS) / FPS
 
 
-def ease_k(name, t0, t1, t):
-    return ease(name, inv_lerp(t0, t1, t))
-
-
 def log_zoom(z0, z1, k):
     return math.exp(lerp(math.log(z0), math.log(z1), k))
 
@@ -308,25 +304,6 @@ def curl_wisp(f, x0, y0, t, height=1400.0, seed=0, alpha=0.6, w=2.0, strands=2, 
             prev = q
 
 
-def smoke_wisp(f, x, y, t, height=900.0, seed=0, alpha=0.6, w=2.2, sway=16.0, strands=2, rise=60.0):
-    """A long, thin cigarette-style wisp from (x, y) straight up (world), curling as it rises.
-    Fades with height but stays readable far up (used for the S04 -> S05 tilt)."""
-    for s in range(strands):
-        n = 42
-        pts = []
-        for i in range(n):
-            k = i / (n - 1)
-            yy = y - k * height
-            amp = sway * (0.25 + 1.6 * k) * (0.6 if s else 1.0)
-            xx = (x + amp * math.sin(k * 9.0 - t * 2.1 + s * 1.7 + seed)
-                  + 0.6 * amp * fbm1(k * 3.0 - t * 0.6 + rise * 0.0, seed + 13 * s) + 3 * s)
-            pts.append((xx, yy))
-        for i in range(n - 1):
-            k = i / (n - 1)
-            a = alpha * (1 - k) ** 0.9 * (0.65 if s else 1.0) * min(1.0, 4 * k + 0.35)
-            draw.line(f, pts[i], pts[i + 1], w * (1 - 0.45 * k), WHITE, a)
-
-
 # ----------------------------------------------------------------------------- the detective in S02/S03
 def det_walk_pose(t, x0, speed=96.0, facing=-1, limp=0.5):
     return rig.walk(t, x0, ST_GROUND, speed, facing=facing, s=1.0, limp=limp)
@@ -451,12 +428,6 @@ def soft(f, radius, alpha=1.0):
         bp.set_filter(cairo.FILTER_BILINEAR)
         ctx.set_source(bp)
         ctx.paint_with_alpha(alpha)
-
-
-def cut_camera():
-    """The S02-out / S03-in camera: flame mid-height at FLAME_SCREEN, flame ~100 px tall."""
-    p0, h, tip, mid = det_final()
-    return cam_put(mid, FLAME_SCREEN, CUT_ZOOM)
 
 
 # ----------------------------------------------------------------------------- S03 evidence props

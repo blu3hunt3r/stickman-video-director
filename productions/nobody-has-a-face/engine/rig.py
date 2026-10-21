@@ -154,21 +154,24 @@ def on_ground(p, ground_y):
 STEP_A = 22.0
 
 
+def _knee_curve(phl, load=10.0, peak=55.0):
+    """Periodic human-gait knee flexion for one leg (phl: 0 = heel contact, 0.5 = toe-off):
+    loading-response bump, near-straight mid-stance, pre-swing flexion, swing peak.
+    Smooth and continuous everywhere, so the planted-foot hip never jerks backwards."""
+    def bump(c, w):
+        d = abs(((phl - c + 0.5) % 1.0) - 0.5)
+        return math.exp(-(d / w) ** 2)
+    return 5.0 + load * bump(0.12, 0.09) + peak * bump(0.68, 0.16)
+
+
 def _walk_angles(base, ph, limp, stride, arm):
     p = base.copy()
-    if limp > 0:
-        ph = (ph + 0.07 * limp * math.sin(2 * math.pi * ph)) % 1.0
     c = math.cos(2 * math.pi * ph)
     aL = STEP_A * stride * (1 - 0.40 * limp)        # injured LEFT leg takes the short step
     aR = STEP_A * stride * (1 + 0.10 * limp)
     p.ll, p.rl = aL * c, -aR * c
-
-    def knee(phl, extra):
-        if phl < 0.5:
-            return 5 + extra + 6 * math.sin(math.pi * phl / 0.5)
-        return 8 + 50 * math.sin(math.pi * (phl - 0.5) / 0.5)
-    p.lk = knee(ph, 12 * limp)                      # dip onto the bad leg
-    p.rk = knee((ph + 0.5) % 1.0, 0.0)
+    p.lk = _knee_curve(ph, load=10.0 + 8.0 * limp)  # dips onto the bad leg
+    p.rk = _knee_curve((ph + 0.5) % 1.0)
     p.la, p.ra = -15 * arm * c + base.la * 0.3, 15 * arm * c + base.ra * 0.3
     p.le, p.re = 14 + 10 * arm * max(0, -c), 14 + 10 * arm * max(0, c)
     p.lean = base.lean + 3
@@ -193,8 +196,11 @@ def walk(t, x0, ground_y, speed, facing=1, s=1.0, limp=0.0, stride=1.0, arm=1.0,
     s_lr = abs(_foot_dx(pb, "r") - _foot_dx(pb, "l"))      # step that lands the right foot
     cyc = s_rl + s_lr
     P = phase0 + max(0.0, speed * t) / cyc
-    k = math.floor(P * 2.0)
-    ph = (P * 2.0 - k) * 0.5 + (0.5 if k % 2 else 0.0)
+    n_cyc = math.floor(P)
+    u = P - n_cyc
+    m = 0.5 - 0.10 * limp                         # limp: quicker stance on the injured LEFT leg
+    ph = 0.5 * u / m if u < m else 0.5 + 0.5 * (u - m) / (1.0 - m)
+    k = 2 * n_cyc + (1 if ph >= 0.5 else 0)
     pose = _walk_angles(base, ph, limp, stride, arm)
     # planted x of the current stance foot
     n_full = k // 2
