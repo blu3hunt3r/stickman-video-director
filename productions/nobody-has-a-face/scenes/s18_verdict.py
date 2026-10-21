@@ -180,7 +180,7 @@ ST = Persp((540.0, 1010.0), 2110.0, 0.9)
 K_CROSS = 0.42                           # depth of the crosswalk he crosses
 ROAD_X, WALL_X = 520.0, 760.0
 GAIT = Gait(0.0, 0.0, ST.s0 * K_CROSS, 1, limp=0.85, stride=0.9, arm=0.0, t0=5.45, h0=1.0,
-            d_left=0.30, d_right=0.48)
+            cycle=0.78)                  # the engine's limp rhythm: quick stance on the LEFT leg
 _GX0 = GAIT.pose(T_SPLIT0).x
 CROSS_X0 = 405.0                         # screen x where he is when the panel opens
 

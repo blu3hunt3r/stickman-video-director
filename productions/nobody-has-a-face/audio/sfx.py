@@ -4,10 +4,13 @@
 
 Level convention (library style): every sound renders at the same reference loudness,
 REF_LUFS = -16 (about narration level): one-shots by their loudest 400 ms (max momentary
-loudness), sustained textures by BS.1770 integrated loudness. A cue's gain_db then places
-it in the mix (S01 uses bulb_hum -14 dB, bulb_creak -16 dB, ...). Big designed hits get a
-small positive trim so gain 0 really is big. Param-dependent level (footstep weight, thunder
-distance, impact/whoosh size) is applied on top of the normalisation.
+loudness), sustained textures by BS.1770 integrated loudness - but never above a true-peak
+cap (-4 dBTP for small one-shots, -1 dBTP for designed hits and sustained textures), so short
+transients behave like a peak-normalised library instead of getting absurd peaks. A cue's
+gain_db then places it in the mix (S01 uses bulb_hum -14 dB, bulb_creak -16 dB, ...). Big
+designed hits get a small positive trim so gain 0 really is big. Param-dependent level
+(footstep weight, thunder distance, impact/whoosh size) is applied after the cap, so the
+contrast between a light and a heavy step always survives.
 
 Design: layered transient + body + tail, band-limited per source, seed-based variation
 (different seeds = different takes), fades on every edge. match_strike ignores the seed:
@@ -27,6 +30,7 @@ from .dsp import (SR, TWO_PI, ar_env, bandpass, biquad, crackle, db2lin, exp_env
 REF_LUFS = -16.0
 PEAK_CAP_DBTP = -4.0         # one-shots: loudness-normalised, but never above this true peak at gain 0
 HIT_PEAK_CAP_DBTP = -1.0     # designed hits (braam, impact, stinger, ...) may go hotter
+SUSTAINED_PEAK_CAP_DBTP = -1.0   # impulsive textures (clock_ticking, heartbeat) normalised by loudness
 _REG: dict = {}
 _CACHE: dict = {}
 
@@ -98,9 +102,11 @@ def render(name, dur=None, params=None, seed=0):
         # The parameter-dependent level (weight, size, distance) is applied after the cap so the
         # contrast between a light and a heavy step survives.
         cap = HIT_PEAK_CAP_DBTP if sp["hit"] else PEAK_CAP_DBTP
-        tp = dsp.true_peak_db(x)
-        if tp > cap:
-            x = x * db2lin(cap - tp)
+    else:
+        cap = SUSTAINED_PEAK_CAP_DBTP
+    tp = dsp.true_peak_db(x)
+    if tp > cap:
+        x = x * db2lin(cap - tp)
     x = x * db2lin(extra)
     if sp["kind"] == "oneshot":
         if dur is not None and dur > 0 and n_of(dur) < len(x):

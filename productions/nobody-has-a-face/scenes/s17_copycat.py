@@ -237,7 +237,7 @@ def _match_angle_front(t, beats):
 
 # walk away: the same short step / long step (re-timed limp), facing right, up the lane
 GAIT = Gait(0.0, 0.0, ST.s0, 1, limp=0.85, stride=0.9, arm=0.0, t0=T_WALK + 0.12, h0=1.0,
-            d_left=0.30, d_right=0.48)
+            cycle=0.78)                  # the engine's limp rhythm: quick stance on the LEFT leg
 _G_X0 = GAIT.pose(T_WALK).x
 
 

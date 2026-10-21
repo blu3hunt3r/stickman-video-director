@@ -50,29 +50,38 @@ def tglob(T, t):
 
 
 # ----------------------------------------------------------------------------- re-timed walk
+def limp_stance(limp):
+    """Fraction of rig.walk's cycle spent on the injured LEFT leg (mirrors engine/rig.py walk():
+    m = 0.5 - 0.10 * limp; the left foot lands at phase n, the right foot at n + m)."""
+    return 0.5 - 0.10 * limp
+
+
 class Gait:
-    """rig.walk (planted feet) driven by an explicit step schedule.
+    """rig.walk (planted feet, the engine's own limp) driven by an explicit footfall schedule.
 
-    rig.walk keeps every step the same duration, so a limp only shows in step LENGTH.
-    Here each half-step gets its own real duration: `d_left` for the step that lands the
-    LEFT foot (the injured, short one when limp > 0) and `d_right` for the step that lands
-    the right foot. That makes the limp audible: ta-TUM ... ta-TUM.
-
-    The walk is driven through rig.walk's phase (t=0, speed=0, phase0=P), so feet stay
-    planted exactly as in the engine. h = 2P counts half-steps: the left foot lands when h
-    reaches an even integer, the right foot at odd integers.
-    """
+    Every landing gets an exact time, so footfalls can sit on narration words, cuts and SFX
+    cues. h counts landings: the LEFT foot lands at even h, the right foot at odd h. h is
+    mapped onto rig.walk's phase (left lands at P = n, right at P = n + m), and the walk is
+    evaluated as rig.walk(t=0, speed=0, phase0=P), so the pose, knee curve and planted feet
+    are exactly the engine's.
+      d_right: duration of the interval that ends with the RIGHT foot landing (the stance on
+               the injured left leg - quick when limping)
+      d_left : duration of the interval that ends with the LEFT foot landing
+    Pass cycle=seconds instead to use the engine's natural limp ratio (m : 1 - m)."""
 
     def __init__(self, x0, ground_y, s=1.0, facing=1, limp=0.0, stride=1.0, arm=1.0, lean=0.0,
-                 head=0.0, t0=0.0, h0=0.0, d_left=0.42, d_right=0.42, t_stop=None):
+                 head=0.0, t0=0.0, h0=0.0, d_left=None, d_right=None, cycle=0.84, t_stop=None):
         self.x0, self.gy, self.s, self.facing = x0, ground_y, s, facing
         self.limp, self.stride, self.arm, self.lean, self.head = limp, stride, arm, lean, head
-        self.t0, self.h0, self.dl, self.dr = t0, h0, d_left, d_right
+        self.m = limp_stance(limp)
+        self.dr = d_right if d_right is not None else cycle * self.m
+        self.dl = d_left if d_left is not None else cycle * (1.0 - self.m)
+        self.t0, self.h0 = t0, h0
         self.t_stop = t_stop
 
-    def _dur(self, m):
-        # half-step [m, m+1) lands the left foot when m+1 is even
-        return self.dl if (m + 1) % 2 == 0 else self.dr
+    def _dur(self, j):
+        # interval [j, j+1) ends with the RIGHT foot landing when j+1 is odd
+        return self.dr if (j + 1) % 2 == 1 else self.dl
 
     def h(self, t):
         if self.t_stop is not None:
@@ -81,46 +90,51 @@ class Gait:
         h = self.h0
         if rem >= 0:
             for _ in range(400):
-                m = math.floor(h)
-                d = self._dur(m)
-                need = (m + 1 - h) * d
+                j = math.floor(h)
+                d = self._dur(j)
+                need = (j + 1 - h) * d
                 if rem < need:
                     return h + rem / d
                 rem -= need
-                h = m + 1
+                h = j + 1
             return h
         for _ in range(400):                      # run the schedule backwards
-            m = math.ceil(h) - 1
-            d = self._dur(m)
-            need = (h - m) * d
+            j = math.ceil(h) - 1
+            d = self._dur(j)
+            need = (h - j) * d
             if -rem < need:
                 return h + rem / d
             rem += need
-            h = m
+            h = j
         return h
 
-    def pose(self, t):
+    def phase(self, h):
+        """Landing coordinate h -> rig.walk phase P."""
+        n = math.floor(h / 2.0)
+        e = h - 2 * n
+        return n + (self.m * e if e < 1.0 else self.m + (1.0 - self.m) * (e - 1.0))
+
+    def _walk(self, P):
         return rig.walk(0.0, self.x0, self.gy, 0.0, facing=self.facing, s=self.s, limp=self.limp,
-                        stride=self.stride, arm=self.arm, lean=self.lean, head=self.head,
-                        phase0=self.h(t) / 2.0)
+                        stride=self.stride, arm=self.arm, lean=self.lean, head=self.head, phase0=P)
+
+    def pose(self, t):
+        return self._walk(self.phase(self.h(t)))
 
     def footfalls(self, t_from, t_to):
         """[(time, side, foot_point)] for every heel strike in [t_from, t_to]."""
         out = []
         h = self.h(t_from)
-        m = math.floor(h) + 1
-        t = t_from + (m - h) * self._dur(m - 1)
+        j = math.floor(h) + 1
+        t = t_from + (j - h) * self._dur(j - 1)
         for _ in range(200):
             if t > t_to or (self.t_stop is not None and t > self.t_stop + 1e-6):
                 break
-            side = "l" if m % 2 == 0 else "r"
-            p = rig.walk(0.0, self.x0, self.gy, 0.0, facing=self.facing, s=self.s, limp=self.limp,
-                         stride=self.stride, arm=self.arm, lean=self.lean, head=self.head,
-                         phase0=(m + 1e-4) / 2.0)
-            J = rig.solve(p)
+            side = "l" if j % 2 == 0 else "r"
+            J = rig.solve(self._walk(self.phase(j + 1e-4)))
             out.append((t, side, J[side + "f"]))
-            t += self._dur(m)
-            m += 1
+            t += self._dur(j)
+            j += 1
         return out
 
 
