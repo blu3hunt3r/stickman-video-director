@@ -237,6 +237,7 @@ def load_vo(path, tl, N):
     src = dsp.compressor(src, thresh_db=-24.0, ratio=2.5, attack_ms=8.0, release_ms=120.0, knee_db=6.0, mode="rms")
     vo = np.zeros(N)
     pieces = 0
+    edges = []
     for s in tl["scenes"]:
         for p in s["vo_pieces"]:
             a_src = max(0.0, p["src_in"])
@@ -244,14 +245,19 @@ def load_vo(path, tl, N):
             if b_src <= a_src:
                 continue
             seg = src[n_of(a_src):n_of(b_src)].copy()
+            edge_db = (float(dsp.rms_db(seg[:n_of(0.02)])), float(dsp.rms_db(seg[-n_of(0.02):])))
             seg = dsp.fade(seg, 0.008, 0.008)
             dst = p["g_at"] + (a_src - p["src_in"])
             dsp.mix_into(vo, seg, n_of(dst))
+            edges.append(dict(scene=s["id"], t_in=round(dst, 4), t_out=round(dst + len(seg) / SR, 4),
+                              src_in=round(a_src, 3), src_out=round(b_src, 3),
+                              src_level_in_db=round(edge_db[0], 1), src_level_out_db=round(edge_db[1], 1)))
             pieces += 1
     vo2 = np.stack([vo, vo], 1)
     lv = dsp.loudness_integrated(vo2)
     vo2 *= db2lin(VO_TARGET - lv)
-    info.update(pieces=pieces, stem_lufs=round(dsp.loudness_integrated(vo2), 2))
+    info.update(pieces=pieces, stem_lufs=round(dsp.loudness_integrated(vo2), 2), source_lufs=round(lv, 2) if np.isfinite(lv) else None)
+    info["edges"] = edges
     return vo2, info
 
 
@@ -299,6 +305,51 @@ def vo_activity(tl, N, vo=None, rate=1000):
 def duck_curve(act, depth_db, N, rate=1000):
     g = dsp.duck_gain(act, depth_db, ATTACK, RELEASE, rate)
     return np.interp(np.arange(N) / SR, np.arange(len(g)) / rate, g)
+
+
+# ============================================================================ measurements
+def vo_music_balance(vo, music, act, tl, rate=1000):
+    """Narration vs music level while the narration speaks: momentary (400 ms) loudness of each
+    stem on blocks that lie fully inside voice activity; median / IQR of L_vo - L_music, the same
+    for each scene, a gated integrated comparison over the voice-active samples, and the measured
+    ducking depth (music under the voice vs the music in the gaps)."""
+    t, lv = dsp.loudness_curve(vo, win=0.4, hop=0.1)
+    _, lm = dsp.loudness_curve(music, win=0.4, hop=0.1)
+    ta = np.arange(len(act)) / rate
+    inside = np.array([act[max(0, int((x - 0.2) * rate)):int((x + 0.2) * rate)].min() > 0.5 for x in t])
+    ok = inside & (lv > -60) & (lm > -70)
+    d = lv[ok] - lm[ok]
+    res = dict(blocks=int(ok.sum()), median_lu=round(float(np.median(d)), 2),
+               iqr_lu=[round(float(np.percentile(d, 25)), 2), round(float(np.percentile(d, 75)), 2)])
+    actn = np.interp(np.arange(len(vo)) / SR, ta, act) > 0.5
+    lv_g = dsp.loudness_integrated(vo[actn])
+    lm_g = dsp.loudness_integrated(music[actn])
+    lm_gap = dsp.loudness_integrated(music[~actn])
+    res["gated_lu"] = round(lv_g - lm_g, 2)
+    res["music_under_voice_lufs"] = round(lm_g, 2)
+    res["music_in_gaps_lufs"] = round(lm_gap, 2)
+    res["duck_depth_measured_db"] = round(lm_g - lm_gap, 2)
+    per = {}
+    for s in tl["scenes"]:
+        m = ok & (t >= s["start"]) & (t < s["start"] + s["duration"])
+        if m.sum() >= 3:
+            per[s["id"]] = round(float(np.median(lv[m] - lm[m])), 1)
+    res["per_scene_median_lu"] = per
+    return res
+
+
+def boundary_check(master, vo, edges, clicks):
+    """Every vo_piece edge: the source level at the cut, the largest sample step of the narration
+    stem within +-10 ms (dBFS), and any detected master click within 30 ms of the edge."""
+    rows, worst = [], -200.0
+    for e in edges:
+        for side, tt, lvl in (("in", e["t_in"], e["src_level_in_db"]), ("out", e["t_out"], e["src_level_out_db"])):
+            a, b = max(0, n_of(tt - 0.01)), min(len(vo), n_of(tt + 0.01))
+            step = float(dsp.lin2db(np.max(np.abs(np.diff(vo[a:b, 0])))) if b - a > 2 else -200.0)
+            worst = max(worst, step)
+            rows.append(dict(scene=e["scene"], edge=side, t=tt, src_level_db=lvl, vo_max_step_dbfs=round(step, 1)))
+    near = [c for c in clicks for r in rows if abs(c["t"] - r["t"]) < 0.03]
+    return dict(count=len(rows), worst_step_db=round(worst, 1), clicks_near_edges=near, edges=rows)
 
 
 # ============================================================================ master
@@ -474,6 +525,15 @@ def main(argv=None):
                             integrated_lufs=chk["integrated_lufs"], true_peak_dbtp=chk["true_peak_dbtp"],
                             sample_peak_dbfs=chk["sample_peak_dbfs"], length_ok=chk["length_ok"],
                             finite=chk["finite"], dc_offset=chk["dc_offset"], clicks=chk["clicks"], chain=minfo)
+    if vo is not None:
+        report["vo_music_balance"] = vo_music_balance(stems["vo"], stems["music"], act, tl)
+        report["vo_piece_boundaries"] = boundary_check(master, stems["vo"], vo_info.get("edges", []), report["master"]["clicks"])
+        b = report["vo_music_balance"]
+        log(f"[mix] narration vs music under the voice: median {b['median_lu']} LU (IQR {b['iqr_lu']}), "
+            f"gated {b['gated_lu']} LU; music ducked {b['duck_depth_measured_db']} dB")
+        nb = report["vo_piece_boundaries"]
+        log(f"[mix] vo_piece boundaries: {nb['count']} edges, worst VO-stem step {nb['worst_step_db']} dBFS, "
+            f"clicks near edges: {len(nb['clicks_near_edges'])}")
     for ck in report["master"]["clicks"]:
         onset = sorted((c for c in cues if -0.03 <= ck["t"] - c["g"] <= 0.15), key=lambda c: abs(ck["t"] - c["g"]))
         inside = [c for c in cues if sfx.spec(c["name"])["kind"] == "oneshot"

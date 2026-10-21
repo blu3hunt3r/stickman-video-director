@@ -30,14 +30,6 @@ def log_zoom(z0, z1, k):
     return math.exp(lerp(math.log(z0), math.log(z1), k))
 
 
-def cam_put(world_pt, screen_pt, zoom, rot=0.0):
-    """Camera that shows world_pt at screen_pt with the given zoom/roll."""
-    dx, dy = (screen_pt[0] - W / 2) / zoom, (screen_pt[1] - H / 2) / zoom
-    if rot:
-        dx, dy = rotate((dx, dy), -rot)
-    return Camera(world_pt[0] - dx, world_pt[1] - dy, zoom, rot)
-
-
 def cam_lerp(a, b, k, kz=None):
     """Blend two cameras (position linear, zoom logarithmic)."""
     kz = k if kz is None else kz
@@ -136,17 +128,6 @@ class Gait:
             t += self._dur(j)
             j += 1
         return out
-
-
-# ----------------------------------------------------------------------------- IK with the other elbow
-def reach_out(p, side, target):
-    """Like rig.reach, but bends the elbow the other way (outward/down) - e.g. a hand holding a
-    match in front of the chest with the elbow out, instead of the arm folding across the body."""
-    J = rig.solve(p)
-    sl, sr = (p.facing, p.facing) if p.facing in (1, -1) else (1, -1)
-    sign = sl if side == "l" else sr
-    ua, eb = rig._ik(J["shoulder"], target, rig.SEG["upper"] * p.s, rig.SEG["fore"] * p.s, sign, knee=True)
-    return p.copy(**{side + "a": ua, side + "e": -eb})        # forearm = upper + bend for arms
 
 
 # ----------------------------------------------------------------------------- the witness's arm
@@ -337,18 +318,3 @@ def puff(f, c, t, t0, seed=0, size=1.0, alpha=0.55):
         p = (c[0] + math.cos(math.radians(a)) * d, c[1] + math.sin(math.radians(a)) * d - 10 * size * k)
         r = size * (2.5 + 5 * k) * (0.7 + 0.5 * hash01(seed, i, 2))
         draw.arc(f, p, r, a - 120, a + 60, 1.4, WHITE, alpha * (1 - k) ** 1.5)
-
-
-def black_rect(f, x, y, w, h):
-    f.ctx.set_source_rgb(0, 0, 0)
-    f.ctx.rectangle(x, y, w, h)
-    f.ctx.fill()
-
-
-def black_poly(f, pts):
-    f.ctx.set_source_rgb(0, 0, 0)
-    f.ctx.move_to(*pts[0])
-    for p in pts[1:]:
-        f.ctx.line_to(*p)
-    f.ctx.close_path()
-    f.ctx.fill()

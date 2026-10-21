@@ -53,16 +53,37 @@ def _pop(t, t0, amp=0.5):
     return Light.full(amp * pulse(t, t0 - HIT_LEAD, 0.001, 0.06))
 
 
-def _office(f, t, alpha=1.0):
-    sets.office(f, t, alpha=alpha, lamp_on=alpha, window_light=AMBER, window_light_alpha=0.13 * alpha)
+def _office(f, t, alpha=1.0, exclude=()):
+    """The shared office; its amber blind stripes never fall on the board (crimson pins/strings)
+    or wherever `exclude` says (the umbrella's crimson glow) - accents never mix in a pixel."""
+    L.window_stripes(f, AMBER, 0.13 * alpha, exclude=[L.BOARD_ZONE] + list(exclude))
+    sets.office(f, t, alpha=alpha, lamp_on=alpha, window_light=None)
 
 
-def _board(f, t, flash_rain=0.0, flash_watch=0.0, foot=(0.0, 0.0, 0.0), alpha=1.0):
-    _office(f, t, alpha)
+def _flash_zone(flash_rain, flash_watch, foot):
+    """Where an amber clue flash lights the board (crimson there is dimmed), and how strongly."""
+    m = 74.0                     # card + the engine's ~50 px glow bleed
+    if flash_rain > 0.01:
+        (cx, cy), (w, h) = L.RAIN_C, L.RAIN_WH
+        return L.rect_poly(cx - w / 2 - m, cy - h / 2 - m, cx + w / 2 + m, cy + h / 2 + m), flash_rain
+    if flash_watch > 0.01:
+        return L.circle_poly(L.WATCH_C, L.WATCH_R * 2.3 + 62), flash_watch
+    if max(foot) > 0.01:
+        (cx, cy), (w, h) = L.FOOT_C, L.FOOT_WH
+        return L.rect_poly(cx - w / 2 - m, cy - h / 2 - m, cx + w / 2 + m, cy + h / 2 + m), max(foot)
+    return None, 0.0
+
+
+def _board(f, t, flash_rain=0.0, flash_watch=0.0, foot=(0.0, 0.0, 0.0), alpha=1.0, exclude=()):
+    _office(f, t, alpha, exclude)
     L.board_cards(f, flash_rain, flash_watch, foot, alpha=alpha)
     L.portrait(f, alpha=alpha)
-    L.red_strings(f, t, alpha=alpha)
-    L.pins(f, alpha=alpha)
+    zone, k = _flash_zone(flash_rain, flash_watch, foot)
+
+    def crimson(a2):
+        L.red_strings(f, t, alpha=alpha * a2)
+        L.pins(f, alpha=alpha * a2)
+    L.crimson_dimmed(f, zone, k, crimson)
 
 
 # ============================================================================ shot A: Rain
@@ -220,10 +241,11 @@ def _shot_umbrella(f, t, K):
     lights = [Light.radial(UMB_MID, 240, 0.55 + 0.45 * min(1.0, cp)), Light.radial(L.BC, 430, 0.4),
               Light.rect(x - 10, y - 10, x + w + 10, y + h, 0.75 * door_k), _pop(t, K["red"], 0.4)]
     lights += [Light.poly(q, 0.35) for q in L.stripe_quads(0.0)]
-    draw.glow_dot(f, UMB_MID, 230 * (0.8 + 0.4 * cp), CRIMSON, 0.1 + 0.5 * cp, core=False)
+    draw.glow_dot(f, UMB_MID, 175 * (0.8 + 0.3 * cp), CRIMSON, 0.1 + 0.45 * cp, core=False)
+    umb_dark = [L.circle_poly(UMB_MID, 300.0)]          # no amber stripe under the crimson halo
     with f.lit(lights, ambient=0.24):
         def content(a):
-            _board(f, t, alpha=a)
+            _board(f, t, alpha=a, exclude=umb_dark)
             with f.alpha(a):
                 _drips(f, t)
         if t < K["red"] + 0.1:
