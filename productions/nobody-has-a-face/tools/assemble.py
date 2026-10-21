@@ -27,8 +27,55 @@ def sh(cmd, **kw):
     return subprocess.run(cmd, check=True, cwd=ROOT, **kw)
 
 
-def video():
-    sh([sys.executable, "-m", "engine.render", "all"])
+SCENE_DEPS = {"s07": ["s06", "s08"]}   # scenes that import another scene's module
+SCENE_LIB = {**{f"s{i:02d}": "_lib_s02_s04" for i in (2, 3, 4)}, **{f"s{i:02d}": "_lib_s05_s07" for i in (5, 6, 7)},
+             **{f"s{i:02d}": "_lib_s08_s10" for i in (8, 9, 10)}, **{f"s{i:02d}": "_lib_s11_s13" for i in (11, 12, 13)},
+             **{f"s{i:02d}": "_lib_s14_s15" for i in (14, 15)}, **{f"s{i:02d}": "_lib_s16_s18" for i in (16, 17, 18)}}
+
+
+def _scene_ids():
+    tl = json.load(open(os.path.join(ROOT, "timeline", "timeline.json")))
+    return [s["id"] for s in tl["scenes"]]
+
+
+def _newest(paths):
+    return max((os.path.getmtime(p) for p in paths if os.path.exists(p)), default=0.0)
+
+
+def _deps(sid):
+    import glob
+    files = glob.glob(os.path.join(ROOT, "scenes", f"{sid}_*.py"))
+    if sid in SCENE_LIB:
+        files.append(os.path.join(ROOT, "scenes", SCENE_LIB[sid] + ".py"))
+    files += glob.glob(os.path.join(ROOT, "engine", "*.py"))
+    files.append(os.path.join(ROOT, "timeline", "timeline.json"))
+    for other in SCENE_DEPS.get(sid, []):
+        files += glob.glob(os.path.join(ROOT, "scenes", f"{other}_*.py"))
+    return files
+
+
+def scene_clip(sid):
+    return os.path.join(OUT, "scenes", f"{sid}.mp4")
+
+
+def video(force=False, only=None):
+    """Render each scene to out/scenes/sNN.mp4 (skipping up-to-date ones), then concat losslessly."""
+    for sid in _scene_ids():
+        if only and sid not in only:
+            continue
+        clip = scene_clip(sid)
+        if force or not os.path.exists(clip) or os.path.getmtime(clip) < _newest(_deps(sid)):
+            sh([sys.executable, "-m", "engine.render", sid, "--out", clip])
+        else:
+            print(f"up to date: {sid}")
+    if only:
+        return
+    lst = os.path.join(OUT, "scenes", "concat.txt")
+    with open(lst, "w") as fh:
+        for sid in _scene_ids():
+            fh.write(f"file '{scene_clip(sid)}'\n")
+    sh(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy",
+        "-movflags", "+faststart", VIDEO])
 
 
 def audio():
@@ -72,6 +119,9 @@ def qa():
 
 if __name__ == "__main__":
     step = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if step == "scenes":                       # pre-render selected scenes: assemble.py scenes s01,s05
+        video(only=sys.argv[2].split(","))
+        sys.exit(0)
     steps = {"video": [video], "audio": [audio], "mux": [mux], "qa": [qa], "poster": [poster],
              "all": [video, audio, mux, qa]}[step]
     for fn in steps:
