@@ -18,10 +18,24 @@ and rendered entirely in code.
 
 ## Deliverables (`final/`)
 
-* `nobody-has-a-face_9x16.mp4` — the clean master (no text in picture, per the style contract)
-* `nobody-has-a-face_9x16_captioned.mp4` — social cut with burned-in captions and the two optional overlays from the bible (title card, "GUILTY OR FRAMED?")
-* `nobody-has-a-face.en.srt` — caption file for platform upload
-* `poster.png` — thumbnail frame
+| File | What it is |
+|---|---|
+| `nobody-has-a-face_9x16.mp4` | clean master — no text in picture (per the style contract); H.264 High, BT.709-tagged, CRF 21, AAC 256 kbps, 71.6 MB |
+| `nobody-has-a-face_9x16_captioned.mp4` | social cut — burned-in captions plus the two optional post overlays from the bible ("NOBODY HAS A FACE", "GUILTY OR FRAMED?"), CRF 23, 60.8 MB |
+| `nobody-has-a-face.en.srt` | 124 caption cues for platform upload (use with the clean master) |
+| `poster.png` | thumbnail: the red umbrella reveal |
+
+Measured on the finals: 4,292 frames, 178.833 s, −14.1 LUFS integrated (mixer master −14.01 LUFS / −1.25 dBTP),
+music ≈ 9.4 LU under the narration, all 22 narration pieces placed sample-accurately on the locked timeline,
+palette QA < 1 % off-palette saturated pixels in every scene.
+
+## How it was made
+
+* **Director (this session):** story, script and Phase A proposal, narration generation and timeline lock,
+  the animation engine, scene S01, integration, QA and delivery.
+* **Six animator agents** built S02–S18 against the engine and the bible (three scenes each, S14–S15 as a pair),
+  checking every cut frame against its neighbour; **one sound agent** built the score, SFX, ambience and mixer.
+* Magnific was used only for the narration (ElevenLabs Turbo v2.5, ~312 credits including a voice test).
 
 ## Production documents
 

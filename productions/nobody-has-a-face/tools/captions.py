@@ -141,7 +141,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for c in caps:
             fh.write(f"Dialogue: 0,{_ass_time(c['t0'])},{_ass_time(c['t1'])},Cap,,0,0,0,,{c['text']}\n")
         for text, a, b in (TITLE, END):
-            y = 1330 if text == TITLE[0] else 960
+            y = 1330 if text == TITLE[0] else 1380    # end card sits below the final lit head / match
             fh.write(f"Dialogue: 1,{_ass_time(a)},{_ass_time(b)},Title,,0,0,0,,"
                      f"{{\\pos(540,{y})\\fad(450,450)}}{text}\n")
 
