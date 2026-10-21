@@ -166,9 +166,12 @@ def witness_arm(f, t, target_screen, rise=1.0, drop=0.0, tremble=1.0, jab=0.0, a
     hand = (hand[0] + ux * 46 * jab, hand[1] + uy * 46 * jab)
     hand = (lerp(shoulder[0], hand[0], rise), lerp(shoulder[1], hand[1], rise) + 560 * drop)
     elbow = (hand[0] - ux * 300, hand[1] - uy * 300)
+    pts = [shoulder, elbow, hand]
     with f.screen():
-        with f.blurred(blur):
-            draw.stroke(f, [shoulder, elbow, hand], 24.0, WHITE, alpha)
+        # out-of-focus look of S01's blurred arm, built from soft layered strokes: f.blurred at
+        # this radius runs a full-resolution Gaussian over the whole frame (~0.1 s per frame)
+        for w_, a_ in ((32.0, 0.10), (28.0, 0.22), (24.5, 0.45), (21.0, 0.75), (17.0, 1.0)):
+            draw.stroke(f, pts, w_ * (blur / 4.0) ** 0.25, WHITE, alpha * a_ * 0.62)
 
 
 # ----------------------------------------------------------------------------- rain seen from above

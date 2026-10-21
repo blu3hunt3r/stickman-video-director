@@ -367,12 +367,12 @@ def _render(f, t, T):
         # ---------------- the walk test inserts
         i = 0 if t < T_CUT2 else (1 if t < T_CUT3 else 2)
         wp = WALKERS[i].pose(t)
-        _room(f, t, lights, ambient, line=[wp], hidden=(WALKER_SPOT[i],), blur_back=10.0,
+        _room(f, t, lights, ambient, line=[wp], hidden=(WALKER_SPOT[i],), blur_back=12.0,
               back_alpha=0.45, dust_alpha=0.75)
     else:
         # ---------------- his walk, the point, isolation, push
         rise = ek("inout", T_RISE0, T_RISE1, t)
-        _room(f, t, lights, ambient, line=[hisp], blur_back=10.0 * (1 - rise),
+        _room(f, t, lights, ambient, line=[hisp], blur_back=12.0 * (1 - rise),
               back_alpha=lerp(0.45, 1.0, rise) * (1 - iso), dust_alpha=lerp(0.75, 0.6, rise) * (1 - iso))
         # amber "habit" rings where HIS feet land (the film's clue device, S05): short gap, long gap
         for (tt, side, foot) in HIS_FALLS:
@@ -448,6 +448,6 @@ def cues(T):
 def motion_blur(t, T):
     # the whip and the rise are smeared by the continuous streak (see _streak_vec); sub-frames
     # only for the fast part of the final push
-    if 7.45 < t < 7.95:
-        return 3
+    if 7.5 < t < 7.9:
+        return 2
     return 1
