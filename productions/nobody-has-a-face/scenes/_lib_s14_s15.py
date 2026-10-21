@@ -50,15 +50,24 @@ def box_poly(c, w, h, ang=0.0, s=1.0):
 
 
 def clip_outside(polys):
-    """path_fn for f.clipped(): everything EXCEPT the given polygons (even-odd)."""
+    """path_fn for f.clipped(): everything EXCEPT the given polygons. One even-odd clip per polygon,
+    intersected, so overlapping zones stay excluded (a single even-odd path would flip overlaps
+    back to 'inside')."""
+    polys = [p for p in polys if p]
+
     def fn(c):
         c.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
-        c.rectangle(-20000, -20000, 40000, 40000)
-        for pts in polys:
+        if not polys:
+            c.rectangle(-20000, -20000, 40000, 40000)
+            return
+        for i, pts in enumerate(polys):
+            c.rectangle(-20000, -20000, 40000, 40000)
             c.move_to(*pts[0])
             for p in pts[1:]:
                 c.line_to(*p)
             c.close_path()
+            if i < len(polys) - 1:
+                c.clip()            # intersect now; f.clipped applies the last one
     return fn
 
 
@@ -82,11 +91,11 @@ def cone_zone(apex, ang, spread, length, margin):
         pts.append((apex[0] + (length + margin) * math.cos(th), apex[1] + (length + margin) * math.sin(th)))
     p1 = (back[0] + margin * math.cos(a - math.pi / 2), back[1] + margin * math.sin(a - math.pi / 2))
     p2 = (back[0] + margin * math.cos(a + math.pi / 2), back[1] + margin * math.sin(a + math.pi / 2))
-    return [p2] + pts + [p1]
+    return [p1] + pts[1:] + [p2, back]          # simple (non-self-intersecting) fan, rounded rear
 
 
 # Zones kept free of other accent light so colours never mix in a pixel (palette QA):
-BOARD_ZONE = rect_poly(BX - 50, BY - 50, BX + BW + 60, BY + BH + 40)       # crimson pins / strings / X
+BOARD_ZONE = rect_poly(BX - 50, BY - 50, BX + BW + 42, BY + BH + 15)       # crimson pins / strings / X
 UMB_BOX = rect_poly(300.0, 1000.0, 440.0, 1330.0)                         # THE red umbrella on the rack
 
 
@@ -361,8 +370,10 @@ def board_after(f, t, glass_color=None, glass_v=0.0, alpha=1.0):
     """The board exactly as s14 leaves it: photo torn away, strings taut on the mirror's pins."""
     board_cards(f, alpha=alpha)
     props.mirror(f, BC, MIRROR_R, alpha=alpha, glint=0.3)
-    if glass_color is not None and glass_v > 0:
-        draw.circle(f, BC, MIRROR_R, 1, glass_color, 0.22 * glass_v * alpha, fill_it=True, glow=0.9 * glass_v)
+    if glass_color is not None and glass_v > 0:     # the glass catches the strobe - kept inside the
+        with f.clipped(clip_circle(BC, MIRROR_R * 0.97)):   # glass, so its glow never reaches the pins
+            draw.circle(f, BC, MIRROR_R * 0.97, 1, glass_color, 0.6 * glass_v * alpha, fill_it=True)
+            draw.glow_dot(f, BC, MIRROR_R * 0.8, glass_color, 0.5 * glass_v * alpha, core=False)
     torn_scraps(f, alpha)
     red_strings(f, t, conv=1.0, alpha=alpha)
     pins(f, alpha=alpha)

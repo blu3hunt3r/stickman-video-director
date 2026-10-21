@@ -158,6 +158,8 @@ WIN_ZONE = L.rect_poly(L.WINDOW[0] - 50, L.WINDOW[1] - 50, L.WINDOW[0] + L.WINDO
 BLUE_KEEPOUT = [L.BOARD_ZONE, UMB_ZONE]
 BEAM_KEEPOUT = [L.BOARD_ZONE, UMB_ZONE, WIN_ZONE]
 CRIMSON_MARGIN = 110.0
+WIN_FILL = (0.16, 0.25)          # window glow: fill alpha, glow  (kept below blue's clip-to-cyan point)
+WASH = (420.0, 0.38, 0.5)        # strobe wash over the room: radius, alpha, centre (fraction of window w)
 
 
 def _door_zone(o):
@@ -203,7 +205,10 @@ def _cops(f, t, K, draw_it=True):
         J = rig.solve(p)
         d = (math.cos(math.radians(ang)), math.sin(math.radians(ang)))
         lens = (J["rh"][0] + d[0] * 30 * fs, J["rh"][1] + d[1] * 30 * fs)
-        length = math.hypot(aim[0] - lens[0], aim[1] - lens[1]) + 110.0     # ends just past what it pins
+        # ends just past what it pins while crimson phases exist; once the match slips the light is
+        # blue only, so the beam can run on across the room again (the match falls through it)
+        length = math.hypot(aim[0] - lens[0], aim[1] - lens[1]) + 110.0 + 520.0 * smoothstep(
+            K["is_"], K["is_"] + 0.6, t)
         if draw_it:
             # in the hallway they only show inside the door opening; cop A then steps through it
             through = 0.0 if which == "b" else ease("inout", inv_lerp(COP["a"]["t0"], COP["a"]["t0"] + 0.35, t))
@@ -220,13 +225,14 @@ def _beam_zones(beams):
     return [L.cone_zone(lens, ang, 15.0, length, CRIMSON_MARGIN) for lens, ang, k, length in beams if k > 0]
 
 
-def _beam_haze(f, beams, hits=()):
-    """Visible BLUE haze of the flashlights - kept off the crimson props and the window."""
-    with f.clipped(L.clip_outside(BEAM_KEEPOUT)):
+def _beam_haze(f, beams, hits=(), keepout=BEAM_KEEPOUT):
+    """Visible BLUE haze of the flashlights - kept off the crimson props (and the window while it
+    can still strobe crimson)."""
+    with f.clipped(L.clip_outside(keepout)):
         for lens, ang, k, length in beams:
             if k > 0:
-                fx.light_cone(f, lens, ang, 15.0, length, BLUE, 0.2 * k, glow=0.35)
-                fx.light_cone(f, lens, ang, 6.0, length * 0.85, BLUE, 0.14 * k, glow=0.25)
+                fx.light_cone(f, lens, ang, 15.0, length, BLUE, 0.27 * k, glow=0.3)
+                fx.light_cone(f, lens, ang, 6.0, length * 0.85, BLUE, 0.2 * k, glow=0.2)
                 draw.glow_dot(f, lens, 45, BLUE, 0.6 * k, core=False)
         for c, k in hits:                       # where a beam lands on him
             if k > 0:
@@ -261,14 +267,14 @@ def _room(f, t, K, door=0.0, him=True, match=True, board=True, mid=None, beams=(
         keep += _beam_zones(beams)
         if door > 0:
             keep.append(_door_zone(door))
-    with f.clipped(L.clip_outside(keep)):
-        draw.rect(f, wx, wy, ww, wh, 1, col, 0.14 * v, fill_it=True, glow=0.55 * v)
-        draw.glow_dot(f, (wx + ww * 0.5, wy + wh * 0.5), 190, col, 0.25 * v, core=False)
+    with f.clipped(L.clip_outside(keep)):      # the strobe floods the room - but never the crimson props
+        draw.rect(f, wx, wy, ww, wh, 1, col, WIN_FILL[0] * v, fill_it=True, glow=WIN_FILL[1] * v)
+        draw.glow_dot(f, (wx + ww * WASH[2], wy + wh * 0.5), WASH[0], col, WASH[1] * v, core=False)
     L.window_stripes(f, col, 0.05 + 0.3 * v, offset=off, exclude=keep)
     sets.office(f, t, lamp_on=0.0, door_open=door, door_light=BLUE if door > 0 else None,
                 window_light=None, board=True)
     if board:
-        L.board_after(f, t)
+        L.board_after(f, t, glass_color=col, glass_v=v)
     if mid is not None:          # e.g. beam haze: behind the figures, never painted over them
         mid()
     J = None
@@ -284,6 +290,7 @@ def _room_lights(t, K, extra=(), strength=1.0):
     lights = [Light.poly(q, (0.18 + 0.8 * v) * strength) for q in L.stripe_quads(off)]
     wx, wy, ww, wh = L.WINDOW
     lights.append(Light.rect(wx - 20, wy - 20, wx + ww + 20, wy + wh + 20, 0.3 + 0.6 * v))
+    lights.append(Light.radial(L.BC, L.MIRROR_R * 1.05, 0.9 * v))      # the glass catches the strobe
     return lights + list(extra)
 
 
@@ -513,7 +520,7 @@ def _shot_hands(f, t, K):
         if focus > 0.01:
             with f.blurred(7.0 * focus):
                 _room(f, t, K, beams=beams)
-            _beam_haze(f, beams, hits=hits)
+            _beam_haze(f, beams, hits=hits, keepout=BEAM_KEEPOUT if t < K["is_"] else BLUE_KEEPOUT)
         else:
             _room(f, t, K, mid=lambda: _beam_haze(f, beams, hits=hits), beams=beams)
         fx.dust(f, _tau(t, K), (300, 650, 1000, 1500), n=130, seed=8, alpha=0.6)

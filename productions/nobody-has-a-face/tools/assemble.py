@@ -88,23 +88,32 @@ def audio():
     sh([sys.executable, "-m", "audio.mix"])
 
 
-def mux():
+# Delivery encode: the scene intermediates are CRF 15 with swscale's default BT.601 matrix and no
+# colour tags; phones decode HD as BT.709, so convert + tag here (keeps the three accents exact).
+COLOR = ["-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-color_range", "tv"]
+X264 = ["-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-profile:v", "high", "-level", "4.2",
+        "-g", "48", "-pix_fmt", "yuv420p"]
+TO709 = "scale=in_color_matrix=bt601:out_color_matrix=bt709:in_range=tv:out_range=tv"
+
+
+def mux(master_crf=21, social_crf=23):
     os.makedirs(FINAL, exist_ok=True)
     sh([sys.executable, "tools/captions.py"])
     meta = ["-metadata", "title=Nobody Has a Face", "-metadata", "comment=A stickman noir. Style 1 Dark, 9:16."]
+    audio = ["-c:a", "aac", "-b:a", "256k", "-ar", "48000"]
     sh(["ffmpeg", "-v", "error", "-y", "-i", VIDEO, "-i", AUDIO, "-map", "0:v:0", "-map", "1:a:0",
-        "-c:v", "copy", "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-shortest",
+        "-vf", TO709, *X264, "-crf", str(master_crf), *COLOR, *audio, "-shortest",
         "-movflags", "+faststart", *meta, MASTER])
     sh(["ffmpeg", "-v", "error", "-y", "-i", VIDEO, "-i", AUDIO, "-map", "0:v:0", "-map", "1:a:0",
-        "-vf", f"ass={ASS}", "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-shortest", "-movflags", "+faststart", *meta, SOCIAL])
+        "-vf", f"{TO709},ass={ASS}", *X264, "-crf", str(social_crf), *COLOR, *audio, "-shortest",
+        "-movflags", "+faststart", *meta, SOCIAL])
     poster()
 
 
-def poster(t=82.9):
-    """Thumbnail: the red umbrella reveal (S9) by default."""
-    sh(["ffmpeg", "-v", "error", "-y", "-ss", f"{t}", "-i", VIDEO, "-frames:v", "1",
-        os.path.join(FINAL, "poster.png")])
+def poster(t=79.4):
+    """Thumbnail: the red umbrella reveal (S9) by default (taken from the BT.709 master)."""
+    sh(["ffmpeg", "-v", "error", "-y", "-ss", f"{t}", "-i", MASTER, "-frames:v", "1",
+        "-vf", "scale=in_color_matrix=bt709:out_color_matrix=bt709", os.path.join(FINAL, "poster.png")])
 
 
 def qa():
