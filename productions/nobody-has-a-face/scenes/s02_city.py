@@ -261,14 +261,16 @@ def _lamp_point():
     return (x + 120.0, top[1] + 26.0 + 36.0)
 
 
-def _walk_tau(t):
-    """Walk clock chosen so T_STOP lands exactly on a double-support phase (rig.walk cycle math)."""
+def _walk_tau(t, limp=0.5, speed=96.0):
+    """Walk clock chosen so T_STOP lands exactly on a double-support phase. rig.walk maps
+    cycles P -> gait phase with a limp time-warp (ph = 0.5 when frac(P) = 0.5 - 0.1*limp);
+    stop there: right foot forward, both feet planted."""
     base = Pose(x=0, y=0, s=1.0, facing=-1)
-    pa = rig._walk_angles(base, 0.0, 0.5, 1.0, 1.0)
-    pb = rig._walk_angles(base, 0.5, 0.5, 1.0, 1.0)
+    pa = rig._walk_angles(base, 0.0, limp, 1.0, 1.0)
+    pb = rig._walk_angles(base, 0.5, limp, 1.0, 1.0)
     cyc = abs(rig._foot_dx(pa, "l") - rig._foot_dx(pa, "r")) + abs(rig._foot_dx(pb, "r") - rig._foot_dx(pb, "l"))
-    half = cyc / 2.0 / 96.0
-    return 7 * half - (T_STOP - t)
+    P_stop = 3.0 + (0.5 - 0.10 * limp)
+    return P_stop * cyc / speed - (T_STOP - t)
 
 
 def _walk_x0():

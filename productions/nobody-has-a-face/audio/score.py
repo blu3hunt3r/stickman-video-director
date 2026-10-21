@@ -210,17 +210,19 @@ def timpani(f0, rng):
     return dsp.to_stereo(x) * 0.22
 
 
-def strings_note(f0, gate, attack, release, vel, rng, voices=6, detune=10.0, vib=0.0055, bend=None,
+def strings_note(f0, gate, attack, release, vel, rng, voices=8, detune=10.0, vib=0.0055, bend=None,
                  trem=None, sr=SR2):
-    """Section strings voice at `sr`: detuned saws, each with its own delayed vibrato."""
+    """Section strings voice at `sr`: detuned saws (random spread, slow pitch drift so the
+    ensemble does not beat periodically), each with its own delayed vibrato."""
     n = int((gate + release) * sr) + 1
     t = np.arange(n) / sr
     out = np.zeros((n, 2))
     for v in range(voices):
         sp = (2.0 * v / max(voices - 1, 1) - 1.0)
-        cents = detune * sp + rng.normal(0, 1.5)
+        cents = detune * 0.6 * rng.normal(0, 1.0) + 2.0 * sp
+        drift = 1 + 0.0012 * dsp.smooth_noise(n, 0.6, rng, sr)
         depth = vib * np.clip((t - 0.35) / 0.9, 0, 1)
-        f = f0 * 2 ** (cents / 1200) * (1 + depth * np.sin(TWO_PI * rng.uniform(4.7, 5.9) * t + rng.uniform(0, TWO_PI)))
+        f = f0 * drift * 2 ** (cents / 1200) * (1 + depth * np.sin(TWO_PI * rng.uniform(4.7, 5.9) * t + rng.uniform(0, TWO_PI)))
         if bend is not None:
             f = f * bend(t)
         s = saw(f, n, sr, phase0=rng.uniform())
