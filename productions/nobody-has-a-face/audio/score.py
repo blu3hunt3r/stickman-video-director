@@ -519,9 +519,10 @@ class Plan:
         clue = [w(s, "rain"), w(s, "three"), w(s, "a", 0), w(s, "a", 1), w(s, "a", 2)]
         for i, t in enumerate(clue):
             big = i == 4
-            self.pn(t, "D1 D2" if not big else "D1 D2 Eb3", 0.58 if not big else 0.68, 1.2, "feature")
-            self.st(t, 0.14, "D3 A3 D4" if not big else "D3 Eb4 A4", 0.48, attack=0.008, release=0.35, bus="feature")
-            self.events.append((t, lambda r: dsp.to_stereo(dsp.mono(tom(62.0, 1, 0.45))) * 1.2, "feature"))
+            # tonal colour under the scenes' own impacts (kept low: the clue words sit on top)
+            self.pn(t, "D1 D2" if not big else "D1 D2 Eb3", 0.44 if not big else 0.52, 1.2, "feature")
+            self.st(t, 0.14, "D3 A3 D4" if not big else "D3 Eb4 A4", 0.26, attack=0.008, release=0.3, bus="feature")
+            self.events.append((t, lambda r: dsp.to_stereo(dsp.mono(tom(62.0, 1, 0.45))) * 0.7, "feature"))
             self.marks.append((t, f"clue {i + 1}"))
         rise = g(s, 7.4)
         self.st(rise, mirror - rise, "D3 A3 D4 Eb4 A4", 0.52, attack=mirror - rise, release=0.01, trem=(9.0, 0.3),
