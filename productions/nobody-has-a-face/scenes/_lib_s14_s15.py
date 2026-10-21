@@ -62,6 +62,49 @@ def clip_outside(polys):
     return fn
 
 
+def rect_poly(x0, y0, x1, y1):
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+
+def circle_poly(c, r, n=28):
+    return [(c[0] + r * math.cos(2 * math.pi * i / n), c[1] + r * math.sin(2 * math.pi * i / n)) for i in range(n)]
+
+
+def cone_zone(apex, ang, spread, length, margin):
+    """Polygon covering a light cone plus `margin` around it (keeps other accents out of it)."""
+    a = math.radians(ang)
+    d = (math.cos(a), math.sin(a))
+    back = (apex[0] - d[0] * margin, apex[1] - d[1] * margin)
+    half = math.radians(spread / 2) + math.atan2(margin, max(length, 1.0))
+    pts = [back]
+    for i in range(9):
+        th = a - half + 2 * half * i / 8
+        pts.append((apex[0] + (length + margin) * math.cos(th), apex[1] + (length + margin) * math.sin(th)))
+    p1 = (back[0] + margin * math.cos(a - math.pi / 2), back[1] + margin * math.sin(a - math.pi / 2))
+    p2 = (back[0] + margin * math.cos(a + math.pi / 2), back[1] + margin * math.sin(a + math.pi / 2))
+    return [p2] + pts + [p1]
+
+
+# Zones kept free of other accent light so colours never mix in a pixel (palette QA):
+BOARD_ZONE = rect_poly(BX - 50, BY - 50, BX + BW + 60, BY + BH + 40)       # crimson pins / strings / X
+UMB_BOX = rect_poly(300.0, 1000.0, 440.0, 1330.0)                         # THE red umbrella on the rack
+
+
+def window_stripes(f, color, alpha, offset=0.0, exclude=(), glow=0.4):
+    """Exactly sets.office's blind-light stripes (same quad, props.blind_light), drawn with dark
+    zones so an accent never lands on another accent (no amber on crimson pins, no crimson
+    across a blue beam). Call it BEFORE sets.office(window_light=None) so the blinds sit on top."""
+    if color is None or alpha <= 0:
+        return
+    wx, wy, ww, wh = WINDOW
+    quad = [(wx + 10, wy + 20), (wx + ww, wy + 10), (wx - 120, FLOOR - 40), (wx - 520, FLOOR + 30)]
+    if exclude:
+        with f.clipped(clip_outside(exclude)):
+            props.blind_light(f, quad, n=10, duty=0.45, color=color, alpha=alpha, glow=glow, offset=offset)
+    else:
+        props.blind_light(f, quad, n=10, duty=0.45, color=color, alpha=alpha, glow=glow, offset=offset)
+
+
 def clip_circle(c0, r):
     return lambda c: c.arc(c0[0], c0[1], r, 0, 2 * math.pi)
 
@@ -125,8 +168,8 @@ def rain_card(f, flash=0.0, alpha=1.0):
     drops = [((c[0] + x, c[1] + 12 + (i % 2) * 5), (c[0] + x - 6, c[1] + 28 + (i % 2) * 5))
              for i, x in enumerate((-18.0, -6.0, 6.0, 18.0))]
     if flash > 0:
-        draw.glow_dot(f, (c[0], c[1] - 6), 120, AMBER, 0.5 * flash * alpha, core=False)
-        draw.fill(f, cl, AMBER, 0.85 * flash * alpha, glow=1.1 * flash)
+        draw.glow_dot(f, (c[0], c[1] - 6), 78, AMBER, 0.4 * flash * alpha, core=False)
+        draw.fill(f, cl, AMBER, 0.85 * flash * alpha, glow=0.75 * flash)
     draw.stroke(f, cl, 2.6, WHITE, alpha, closed=True)
     for a, b in drops:
         draw.line(f, a, b, 2.4, WHITE, alpha)
@@ -148,7 +191,7 @@ def foot_card(f, lights=(0.0, 0.0, 0.0), alpha=1.0):
         pc = (c[0] + dx, c[1] + dy)
         props.footprint(f, pc, angle=-90, side=side, s=0.5, alpha=alpha, w=2.2)
         if k > 0:
-            draw.glow_dot(f, pc, 46, AMBER, 0.55 * k * alpha, core=False)
+            draw.glow_dot(f, pc, 34, AMBER, 0.5 * k * alpha, core=False)
             props.footprint(f, pc, angle=-90, side=side, s=0.5, alpha=alpha * k, w=2.6, color=AMBER, wet=k)
     kk = max(lights)
     if kk > 0:
@@ -159,7 +202,7 @@ def watch(f, flash=0.0, alpha=1.0):
     chain = [(654.0, 548.0), (680.0, 604.0), (668.0, 648.0)]
     props.clock_face(f, WATCH_C, WATCH_R, 3, 7, style="pocket", chain=chain, alpha=alpha)
     if flash > 0:
-        draw.glow_dot(f, WATCH_C, WATCH_R * 3.4, AMBER, 0.5 * flash * alpha, core=False)
+        draw.glow_dot(f, WATCH_C, WATCH_R * 2.3, AMBER, 0.4 * flash * alpha, core=False)
         props.clock_face(f, WATCH_C, WATCH_R, 3, 7, w=3.4, color=AMBER, alpha=alpha * flash,
                          style="pocket", glow=1.0 * flash)
 
@@ -206,6 +249,21 @@ def red_strings(f, t, conv=0.0, sag=0.085, vib=0.0, alpha=1.0, w=2.6, sway=1.0):
     for i, (a, b, k) in enumerate(string_ends(conv)):
         sg = sag * (1.0 - k) + 0.006 * sway * math.sin(t * 1.3 + i * 1.7) * (1.0 - k)
         props.red_string(f, [a, b], sag=sg, w=w, alpha=alpha, t=t + i * 0.37, vib=vib)
+
+
+def crimson_dimmed(f, zones, draw_fn):
+    """draw_fn(alpha) for crimson props: full strength outside `zones` [(poly, k)], dimmed by
+    (1 - 0.92 k) inside each zone - where an AMBER clue flash is lighting the board."""
+    zones = [(z, k) for z, k in zones if k > 0.01]
+    if not zones:
+        draw_fn(1.0)
+        return
+    with f.clipped(clip_outside([z for z, _ in zones])):
+        draw_fn(1.0)
+    for z, k in zones:
+        with f.clipped(clip_outside([zz for zz, _ in zones if zz is not z])):
+            with f.clipped(lambda c, z=z: (c.move_to(*z[0]), [c.line_to(*p) for p in z[1:]], c.close_path())):
+                draw_fn(1.0 - 0.92 * k)
 
 
 PIN_S = 0.72

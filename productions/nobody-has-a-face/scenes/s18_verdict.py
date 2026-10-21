@@ -19,6 +19,7 @@ Shot plan (scene seconds)
 import math
 
 from engine import *
+from engine.timing import SceneTiming
 from scenes._lib_s16_s18 import Gait, Persp, ek, log_zoom, tglob
 
 T_LAST = 12.4583                         # last frame (299 / 24)
@@ -40,8 +41,10 @@ CAM0 = Camera(560.0, 970.0, 1.0)         # window high in frame (screen ~(560, 4
 CAM1 = Camera(545.0, 1215.0, 1.75)       # pushed in between the bars
 TOP_CAM = Camera(548.0, 1449.0, 2.0)     # the split's top panel: him, medium
 
-T_SPLIT0, T_SPLIT1 = 5.30, 5.66
-T_BLACK = 8.62
+_T = SceneTiming("s18")
+T_SPLIT0 = _T.at("so") - 0.235           # 5.30: the split opens into "So you tell me"
+T_SPLIT1 = T_SPLIT0 + 0.36
+T_BLACK = _T.at("or") - 0.06             # 8.62: black on "or"
 
 
 def _seated(t, beats):
