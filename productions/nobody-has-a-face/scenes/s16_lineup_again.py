@@ -44,11 +44,12 @@ Z_END = RING_R / HEAD_R                  # ~5.25
 
 # ---------------------------------------------------------------- beat times
 W_WALK = SceneTiming("s16").at("walk")   # 6.382: the point, the bad step, the bulb stops
+HIS_DR, HIS_DL = 0.33, 0.47              # his limp: quick stance on the injured LEFT leg
 T_WHIP0, T_WHIP1 = 0.60, 0.84
 T_WIDE = 2.30
 T_CUT1, T_CUT2, T_CUT3, T_HIS = 3.15, 3.95, 4.75, 5.55
 T_RISE0, T_RISE1 = 5.92, 6.42
-T_STOP = 6.71                            # his last (right) footfall, then he closes and stands
+T_STOP = W_WALK + HIS_DR                 # 6.71: his last (right) footfall, then he closes and stands
 T_TURN0, T_TURN1 = 7.05, 7.35
 T_PUSH0 = 7.00
 METRO = 0.42                             # the others' even step
@@ -189,7 +190,6 @@ WALKER_SPOT = [0, 4, 1]                  # whose place in the line is empty duri
 # the detective, the engine's limp (quick stance on the injured LEFT leg): L lands 5.58, R 5.91,
 # L 6.38 - the bad step lands exactly on "walk" - R 6.71, then he closes and stands
 X_END = 590.0                            # his mark: clear of the back row when she points
-HIS_DR, HIS_DL = 0.33, 0.47
 HIS_T0 = W_WALK - HIS_DR - HIS_DL        # 5.58: so the second LEFT landing is on "walk"
 _g0 = Gait(0.0, Y_W, S_W, 1, limp=0.85, t0=HIS_T0, h0=2.0, d_left=HIS_DL, d_right=HIS_DR, t_stop=T_STOP)
 _rf0 = rig.solve(_g0.pose(T_STOP))["rf"][0]

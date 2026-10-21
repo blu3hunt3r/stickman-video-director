@@ -251,19 +251,25 @@ def red_strings(f, t, conv=0.0, sag=0.085, vib=0.0, alpha=1.0, w=2.6, sway=1.0):
         props.red_string(f, [a, b], sag=sg, w=w, alpha=alpha, t=t + i * 0.37, vib=vib)
 
 
-def crimson_dimmed(f, zones, draw_fn):
-    """draw_fn(alpha) for crimson props: full strength outside `zones` [(poly, k)], dimmed by
-    (1 - 0.92 k) inside each zone - where an AMBER clue flash is lighting the board."""
-    zones = [(z, k) for z, k in zones if k > 0.01]
-    if not zones:
+def clip_poly(pts):
+    def fn(c):
+        c.move_to(*pts[0])
+        for p in pts[1:]:
+            c.line_to(*p)
+        c.close_path()
+    return fn
+
+
+def crimson_dimmed(f, zone, k, draw_fn):
+    """draw_fn(alpha) for crimson props: full strength outside `zone`, dimmed by (1 - 0.92 k)
+    inside it - where an AMBER clue flash lights the board (amber never sits on crimson)."""
+    if zone is None or k <= 0.01:
         draw_fn(1.0)
         return
-    with f.clipped(clip_outside([z for z, _ in zones])):
+    with f.clipped(clip_outside([zone])):
         draw_fn(1.0)
-    for z, k in zones:
-        with f.clipped(clip_outside([zz for zz, _ in zones if zz is not z])):
-            with f.clipped(lambda c, z=z: (c.move_to(*z[0]), [c.line_to(*p) for p in z[1:]], c.close_path())):
-                draw_fn(1.0 - 0.92 * k)
+    with f.clipped(clip_poly(zone)):
+        draw_fn(1.0 - 0.92 * k)
 
 
 PIN_S = 0.72
