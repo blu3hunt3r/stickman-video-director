@@ -148,7 +148,7 @@ def contact_sheet(sid, n=12, scale=0.25, cols=6, out=None, times=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("scenes", help="scene id(s) comma-separated, or 'all'")
-    ap.add_argument("--scale", type=float, default=1.0)
+    ap.add_argument("--scale", type=float, default=None)
     ap.add_argument("--sheet", type=int, default=0, help="contact sheet with N frames")
     ap.add_argument("--times", type=str, default="", help="comma-separated scene times for PNG stills")
     ap.add_argument("--frames", type=str, default="", help="frame range a:b for video")
@@ -158,19 +158,20 @@ def main():
     sids = [s["id"] for s in timeline()["scenes"]] if a.scenes == "all" else a.scenes.split(",")
     if a.sheet:
         for sid in sids:
-            print(contact_sheet(sid, a.sheet, scale=min(a.scale, 0.3) if a.scale != 1.0 else 0.25))
+            print(contact_sheet(sid, a.sheet, scale=a.scale if a.scale is not None else 0.25))
         return
     if a.times:
         ts = [float(x) for x in a.times.split(",")]
         for sid in sids:
-            for p in stills(sid, ts, scale=a.scale if a.scale != 1.0 else 0.5):
+            for p in stills(sid, ts, scale=a.scale if a.scale is not None else 0.5):
                 print(p)
         return
     fr = tuple(int(x) for x in a.frames.split(":")) if a.frames else None
     tag = "all" if a.scenes == "all" else "_".join(sids)
-    suffix = "" if a.scale == 1.0 else f"_x{a.scale:g}"
+    scale = a.scale if a.scale is not None else 1.0
+    suffix = "" if scale == 1.0 else f"_x{scale:g}"
     out = a.out or os.path.join(ROOT, "out", "video_master.mp4" if a.scenes == "all" else f"scenes/{tag}{suffix}.mp4")
-    render_video(sids, out, a.scale, a.workers or None, fr)
+    render_video(sids, out, scale, a.workers or None, fr)
 
 
 if __name__ == "__main__":

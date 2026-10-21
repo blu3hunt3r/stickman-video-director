@@ -348,9 +348,13 @@ class Frame:
             dx, dy = self.whip
             n = int(min(24, max(4, math.hypot(dx, dy) / 6)))
             acc = np.zeros(arr.shape, np.float32)
+            H_, W_ = arr.shape[:2]
             for i in range(n):
                 f = (i / (n - 1) - 0.5)
-                acc += np.roll(arr, (int(round(dy * f * self.scale)), int(round(dx * f * self.scale))), axis=(0, 1))
+                oy, ox = int(round(dy * f * self.scale)), int(round(dx * f * self.scale))
+                ys, yd = (slice(0, H_ - oy), slice(oy, H_)) if oy >= 0 else (slice(-oy, H_), slice(0, H_ + oy))
+                xs, xd = (slice(0, W_ - ox), slice(ox, W_)) if ox >= 0 else (slice(-ox, W_), slice(0, W_ + ox))
+                acc[yd, xd] += arr[ys, xs]          # shifted copy, vacated edge stays black (no wrap)
             arr = (acc / n)
         out = np.array(arr, dtype=np.float32 if self.fade > 0 else arr.dtype, copy=True)
         if self.fade > 0:

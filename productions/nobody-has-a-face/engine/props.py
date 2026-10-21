@@ -411,9 +411,9 @@ def car_top(f, c, angle=0.0, s=1.0, police=False, t=0.0, alpha=1.0, headlights=0
         draw.circle(f, lb, 12 * s, 1, BLUE, (0.35 + 0.65 * b * siren_on) * alpha, fill_it=True, glow=1.4 * b * siren_on)
         draw.circle(f, lr, 12 * s, 1, CRIMSON, (0.35 + 0.65 * rr * siren_on) * alpha, fill_it=True, glow=1.4 * rr * siren_on)
         if b * siren_on > 0:
-            draw.glow_dot(f, lb, 320 * s, BLUE, 0.5 * b * siren_on, core=False)
+            draw.glow_dot(f, lb, 320 * s, BLUE, 0.5 * b * siren_on * alpha, core=False)
         if rr * siren_on > 0:
-            draw.glow_dot(f, lr, 320 * s, CRIMSON, 0.4 * rr * siren_on, core=False)
+            draw.glow_dot(f, lr, 320 * s, CRIMSON, 0.4 * rr * siren_on * alpha, core=False)
 
 
 # ----------------------------------------------------------------------------- interiors

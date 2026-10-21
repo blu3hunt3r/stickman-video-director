@@ -91,8 +91,8 @@ def desk_lamp(f, on=1.0, t=0.0, alpha=1.0):
     draw.stroke(f, shade, 3.0, WHITE, alpha, closed=True)
     lp = (bx - 88, by - 132)
     if on > 0:
-        draw.glow_dot(f, lp, 140, AMBER, 0.45 * on, core=False)
-        draw.circle(f, lp, 9, 1, AMBER, on, fill_it=True, glow=1.0)
+        draw.glow_dot(f, lp, 140, AMBER, 0.45 * on * alpha, core=False)
+        draw.circle(f, lp, 9, 1, AMBER, on * alpha, fill_it=True, glow=1.0)
     return lp
 
 

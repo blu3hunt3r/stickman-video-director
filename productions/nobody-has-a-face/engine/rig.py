@@ -243,7 +243,9 @@ def breathe(p, t, amt=1.0, seed=0):
 
 
 def hands_up(p):
-    return p.copy(la=165, le=-10, ra=165, re=-10) if p.facing else p.copy(la=150, le=15, ra=150, re=15)
+    """Surrender pose. Profile: both arms high. Front view: elbows out at shoulder height,
+    forearms up (goalpost) so the arms never cross the hollow head."""
+    return p.copy(la=165, le=-10, ra=165, re=-10) if p.facing else p.copy(la=118, le=48, ra=118, re=48)
 
 
 def sit(x, seat_y, facing=1, s=1.0, **kw):
