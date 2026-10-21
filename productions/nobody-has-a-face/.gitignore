@@ -1,0 +1,5 @@
+# heavy / regenerable intermediates
+out/
+qa/
+__pycache__/
+*.pyc
