@@ -19,7 +19,7 @@ Shot plan (scene seconds)
 import math
 
 from engine import *
-from scenes._lib_s16_s18 import Gait, Persp, ek, log_zoom, reach_out, tglob
+from scenes._lib_s16_s18 import Gait, Persp, ek, log_zoom, tglob
 
 T_LAST = 12.4583                         # last frame (299 / 24)
 
@@ -232,10 +232,11 @@ MATCH_S = 0.95
 
 
 def _last_pose(t):
+    """Front view; the LEFT hand (screen-right) holds the match up beside his face."""
     p = rig.breathe(FIG, t, amt=0.6, seed=97)
     J = rig.solve(p)
-    hand = (J["neck"][0] + 20, J["neck"][1] + 74)
-    return reach_out(p, "l", hand)
+    hand = (J["shoulder"][0] + 52 + 2 * fbm1(t * 0.7, 9), J["shoulder"][1] - 4 + 2 * fbm1(t * 0.6, 13))
+    return rig.reach(p, "l", hand)
 
 
 def _last_match(t, strike):
@@ -332,13 +333,14 @@ def _shot_match(f, t, T, beats):
         return                                           # pure black
     p = _last_pose(t)
     J = rig.solve(p)
-    ang = -101.0 + 3 * math.sin(t * 0.8)
+    ang = -95.0 + 3 * math.sin(t * 0.8)
     tip = (J["lh"][0] + math.cos(math.radians(ang)) * 52 * MATCH_S,
            J["lh"][1] + math.sin(math.radians(ang)) * 52 * MATCH_S)
     flame_c = (tip[0], tip[1] - 14)
     k = ek("inout", strike, 11.4, t)
     z = log_zoom(3.3, 3.85, k)
-    cam = Camera(flame_c[0] + 2.0 * fbm1(t * 0.4, 3), flame_c[1] + 2.0 * fbm1(t * 0.35, 5), z)
+    mid_x = 0.5 * (flame_c[0] + J["head"][0])              # frame the flame and the head together
+    cam = Camera(mid_x + 2.0 * fbm1(t * 0.4, 3), flame_c[1] + 2.0 * fbm1(t * 0.35, 5), z)
     f.set_camera(cam)
     fl = flicker(t, 11, rate=9, depth=0.25)
     rad = (118 + 60 * flare) * (0.3 + 0.7 * lit) * fl + 36 * ember

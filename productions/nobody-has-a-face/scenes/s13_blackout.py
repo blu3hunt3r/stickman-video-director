@@ -202,6 +202,7 @@ def shot_reveal(f, t, T, lt, dur):
     """His LEFT hand at the top of the frame, tilt down: at his feet THE red umbrella, revealed by a
     lightning flicker, rocking in the wind. Then the whip."""
     t_whip = T.duration - 0.37
+    t_last = (T.frames - 1) / 24.0             # the whip peaks on the scene's last frame (hand-off to S14)
     ember = 0.07 * (1 - inv_lerp(T.at("left"), T.end("hand"), t))
     p = _detective(t, T, 1.0)
     J = rig.solve(p)
@@ -210,24 +211,24 @@ def shot_reveal(f, t, T, lt, dur):
     cx = lerp(hx - 10, UMB["x"] - 60, kd)
     cy = lerp(hy + 120, 1975.0, kd)
     zoom = lerp(2.25, 1.5, kd)
-    kw = ease("in3", inv_lerp(t_whip, T.duration, t))
-    cx += 700.0 * kw
+    kw = ease("in3", inv_lerp(t_whip, t_last, t))
+    cx += 700.0 * kw                           # camera swings right and up: the image streaks LEFT
     cy -= 450.0 * kw
-    cam = Camera(cx, cy, zoom, 6.0 + 2.0 * kw).shaken(t, amp=1.4, rot_amp=0.1, freq=0.6, seed=19)
+    cam = Camera(cx, cy, zoom, 6.0 + 2.0 * kw).shaken(t, amp=1.4 * (1 - kw), rot_amp=0.1 * (1 - kw), freq=0.6, seed=19)
     f.set_camera(cam)
     t_fl = T.at("hand") + 0.04
     flash = L.flash_env(t, t_fl, peaks=((0.0, 0.85), (0.1, 0.5), (0.22, 0.3)), decay=0.08)
     umb = lerp(0.22, 1.0, ease("out3", inv_lerp(t_fl - 0.02, t_fl + 0.12, t)))
     gust = ease("inout", inv_lerp(t_fl - 0.1, t_fl + 0.4, t))
     cam_far = cam.copy(y=cam.y - 95.0)       # far layer slightly lower (parallax, keeps lines off his head)
-    if kw > 0:   # the umbrella streaks out of frame-left: fade it before it reaches the edge
+    if kw > 0:   # the umbrella streaks out of frame-left
         ux = cam.to_screen((UMB["x"], UMB["ground"] - 60))[0]
-        umb *= clamp((ux - 220.0) / 320.0)
+        umb *= clamp((ux + 120.0) / 360.0)
     _street(f, t, T, cam_far, cam, rain_d=1.35, lift=1.0, ember=ember, gust=gust, umb_vis=umb, flash=flash,
             ambient=0.2 + 0.25 * kw)
-    if kw > 0:
-        v = 3 * 700.0 * zoom * inv_lerp(t_whip, T.duration, t) ** 2 / (T.duration - t_whip) / 24.0
-        f.whip = (-min(300.0, 1.6 * v), 0.0)
+    if kw > 0:   # streak = ~2.2 frames of screen motion, capped at 520 px (S14 continues the same whip)
+        v = 3 * 700.0 * zoom * inv_lerp(t_whip, t_last, t) ** 2 / (t_last - t_whip) / 24.0
+        f.whip = (-min(520.0, 2.2 * v), 0.0)
 
 
 SHOTS = [shot_wake, shot_stand, shot_macro, shot_reveal]
