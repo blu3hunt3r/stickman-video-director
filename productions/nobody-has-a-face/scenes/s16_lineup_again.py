@@ -403,7 +403,7 @@ def _render(f, t, T):
         tgt = cam.to_screen(lerp(h0, h1, kf - i0))
         witness_arm(f, t, tgt, rise=ek("out3", T_WIDE + 0.05, T_WIDE + 0.62, t),
                     hand_base=lerp((500.0, 1455.0), INS_HAND, ek("inout", 2.9, T_CUT1, t)))
-    elif t < T_HIS:
+    elif T_CUT1 <= t < T_HIS:
         i = 0 if t < T_CUT2 else (1 if t < T_CUT3 else 2)
         Jw = rig.solve(WALKERS[i].pose(t))
         witness_arm(f, t, cam.to_screen((Jw["neck"][0], Jw["neck"][1] + 30)), hand_base=INS_HAND)

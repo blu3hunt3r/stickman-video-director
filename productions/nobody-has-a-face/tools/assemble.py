@@ -78,7 +78,13 @@ def video(force=False, only=None):
         "-movflags", "+faststart", VIDEO])
 
 
+VO_WAV = os.path.join(ROOT, "audio", "vo", "narration_full.wav")
+VO_FLAC = os.path.join(ROOT, "audio", "vo", "narration_full.flac")
+
+
 def audio():
+    if not os.path.exists(VO_WAV) and os.path.exists(VO_FLAC):      # git stores the lossless FLAC
+        sh(["ffmpeg", "-v", "error", "-y", "-i", VO_FLAC, "-c:a", "pcm_s16le", VO_WAV])
     sh([sys.executable, "-m", "audio.mix"])
 
 

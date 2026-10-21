@@ -3,3 +3,6 @@ out/
 qa/
 __pycache__/
 *.pyc
+
+# narration: keep the lossless FLAC in git, the WAV is decoded on demand
+audio/vo/*.wav
