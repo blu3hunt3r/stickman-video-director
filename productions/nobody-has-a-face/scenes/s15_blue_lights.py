@@ -149,25 +149,42 @@ def cop_footfalls():
     return [COP["a"]["t1"], COP["a"]["t1"] + 0.3, COP["b"]["t1"]]
 
 
+# Accent discipline (palette QA): BLUE and CRIMSON light never share a pixel. Blue light stays off
+# the crimson props (board pins/strings, THE umbrella); in crimson strobe phases the crimson light
+# stays off the blue beams and the blue doorway; the beams end just past what they pin.
+UMB_ZONE = L.rect_poly(318.0, 1046.0, 414.0, 1292.0)                    # the red umbrella on the rack
+WIN_ZONE = L.rect_poly(L.WINDOW[0] - 50, L.WINDOW[1] - 50, L.WINDOW[0] + L.WINDOW[2] + 50,
+                       L.WINDOW[1] + L.WINDOW[3] + 50)
+BLUE_KEEPOUT = [L.BOARD_ZONE, UMB_ZONE]
+BEAM_KEEPOUT = [L.BOARD_ZONE, UMB_ZONE, WIN_ZONE]
+CRIMSON_MARGIN = 110.0
+
+
+def _door_zone(o):
+    x, y, w, h = L.DOOR
+    ww = w * (1 - 0.82 * o)
+    return L.rect_poly(x + ww - 110, y - 110, x + w + 110, y + h + 20)
+
+
 def _beam(t, K, which, p):
-    """Flashlight hand point and beam angle (deg): a searching sweep, then pinned on him."""
+    """Flashlight hand point, beam angle (deg) and aim point: a searching sweep, then pinned."""
     J = rig.solve(p)
     sh = J["shoulder"]
-    aim = (HIM_X, 1015.0) if which == "a" else (HIM_X + 8, 935.0)
+    aim = (HIM_X, 1000.0) if which == "a" else (HIM_X + 8, 935.0)
     if which == "a" and t > K["is_"]:            # the beam drops to follow the falling match
         mc = _match_center(t - 0.12, K)
         aim = lerp(aim, mc, ease("inout3", inv_lerp(K["is_"] + 0.05, K["is_"] + 0.75, t)))
     pin_t = K["run"] - 0.12 if which == "a" else 6.4
-    sweep = -12.0 + 16.0 * math.sin(2.3 * t + (0.0 if which == "a" else 1.7))
+    sweep = -10.0 + 12.0 * math.sin(2.3 * t + (0.0 if which == "a" else 1.7))
     target = math.degrees(math.atan2(aim[1] - sh[1], aim[0] - sh[0]))
     k = ease("out3", inv_lerp(pin_t, pin_t + 0.22, t))
     ang = lerp(target + sweep, target, k) + 0.6 * fbm1(t * 1.1, 9 if which == "a" else 13)
-    hand = (sh[0] + 150.0 * math.cos(math.radians(ang)), sh[1] + 150.0 * math.sin(math.radians(ang)))
-    return hand, ang
+    hand = (sh[0] + 112.0 * math.cos(math.radians(ang)), sh[1] + 112.0 * math.sin(math.radians(ang)))
+    return hand, ang, aim
 
 
 def _cops(f, t, K, draw_it=True):
-    """Draw the two figures + flashlights (draw_it) and return [(lens, angle, intensity)]."""
+    """Draw the two figures + flashlights (draw_it) and return [(lens, angle, intensity, length)]."""
     beams = []
     o = _door_open(t)
     if o <= 0.02:
@@ -178,7 +195,7 @@ def _cops(f, t, K, draw_it=True):
         if which == "b" and t < COP["b"]["t0"]:
             continue
         p = _cop(t, which)
-        hand, ang = _beam(t, K, which, p)
+        hand, ang, aim = _beam(t, K, which, p)
         p = rig.reach(p, "r", hand)
         alpha = 0.9 if which == "b" else 1.0
         on = clamp(o * 1.5) if which == "a" else smoothstep(COP["b"]["t0"], COP["b"]["t0"] + 0.2, t)
@@ -186,6 +203,7 @@ def _cops(f, t, K, draw_it=True):
         J = rig.solve(p)
         d = (math.cos(math.radians(ang)), math.sin(math.radians(ang)))
         lens = (J["rh"][0] + d[0] * 30 * fs, J["rh"][1] + d[1] * 30 * fs)
+        length = math.hypot(aim[0] - lens[0], aim[1] - lens[1]) + 110.0     # ends just past what it pins
         if draw_it:
             # in the hallway they only show inside the door opening; cop A then steps through it
             through = 0.0 if which == "b" else ease("inout", inv_lerp(COP["a"]["t0"], COP["a"]["t0"] + 0.35, t))
@@ -194,45 +212,63 @@ def _cops(f, t, K, draw_it=True):
                                                                  w - ww + ext, h + 8 + ext)):
                 rig.draw_figure(f, p, alpha=alpha)
                 L.flashlight(f, J["rh"], ang, on=on, s=fs, alpha=alpha)
-        beams.append((lens, ang, on * (0.8 if which == "b" else 1.0)))
+        beams.append((lens, ang, on * (0.8 if which == "b" else 1.0), length))
     return beams
 
 
-def _beam_haze(f, beams, length=1150.0, hits=()):
-    for lens, ang, k in beams:
-        if k > 0:
-            fx.light_cone(f, lens, ang, 15.0, length, BLUE, 0.26 * k, glow=0.55)
-            fx.light_cone(f, lens, ang, 6.0, length * 0.8, BLUE, 0.2 * k, glow=0.45)
-            draw.glow_dot(f, lens, 70, BLUE, 0.9 * k, core=False)
-    for c, k in hits:                       # where a beam lands on him
-        if k > 0:
-            draw.glow_dot(f, c, 120, BLUE, 0.45 * k, core=False)
+def _beam_zones(beams):
+    return [L.cone_zone(lens, ang, 15.0, length, CRIMSON_MARGIN) for lens, ang, k, length in beams if k > 0]
 
 
-def _beam_lights(beams, length=1250.0, k_all=1.0):
-    return [Light.cone(lens, ang, 17.0, length, intensity=1.2 * k * k_all) for lens, ang, k in beams if k > 0]
+def _beam_haze(f, beams, hits=()):
+    """Visible BLUE haze of the flashlights - kept off the crimson props and the window."""
+    with f.clipped(L.clip_outside(BEAM_KEEPOUT)):
+        for lens, ang, k, length in beams:
+            if k > 0:
+                fx.light_cone(f, lens, ang, 15.0, length, BLUE, 0.2 * k, glow=0.35)
+                fx.light_cone(f, lens, ang, 6.0, length * 0.85, BLUE, 0.14 * k, glow=0.25)
+                draw.glow_dot(f, lens, 45, BLUE, 0.6 * k, core=False)
+        for c, k in hits:                       # where a beam lands on him
+            if k > 0:
+                draw.glow_dot(f, c, 105, BLUE, 0.25 * k, core=False)
+
+
+def _beam_lights(beams, k_all=1.0):
+    return [Light.cone(lens, ang, 17.0, length + 80, intensity=1.2 * k * k_all)
+            for lens, ang, k, length in beams if k > 0]
 
 
 # ---------------------------------------------------------------------------- strobes
 def _strobe(t, K):
+    """(blue, crimson) room strobe. Once the match slips, the light holds BLUE only (slow motion,
+    the law closing in): no crimson phase can touch the beams the match falls through."""
     b, r = L.strobe(_tau(t, K))
     k = 1.0 - 0.75 * smoothstep(K["is_"] + 0.2, K["is_"] + 1.1, t)
+    if t >= K["is_"]:                            # (the strobe is in a blue phase at the slip: no pop)
+        b, r = max(b, r), 0.0
     return b * k, r * k
 
 
-def _room(f, t, K, door=0.0, him=True, match=True, board=True, mid=None):
+def _room(f, t, K, door=0.0, him=True, match=True, board=True, mid=None, beams=()):
     """The office under police strobes: colored blind stripes, the board as s14 left it, him."""
     tau = _tau(t, K)
     b, r = _strobe(t, K)
     col, v = (BLUE, b) if b >= r else (CRIMSON, r)
     off = (tau * 0.55) % 1.0
     wx, wy, ww, wh = L.WINDOW
-    draw.rect(f, wx, wy, ww, wh, 1, col, 0.16 * v, fill_it=True, glow=1.1 * v)
-    draw.glow_dot(f, (wx + ww * 0.5, wy + wh * 0.5), 420, col, 0.45 * v, core=False)
+    keep = list(BLUE_KEEPOUT)                    # stripes never on the board / umbrella (either colour)
+    if col is CRIMSON:
+        keep += _beam_zones(beams)
+        if door > 0:
+            keep.append(_door_zone(door))
+    with f.clipped(L.clip_outside(keep)):
+        draw.rect(f, wx, wy, ww, wh, 1, col, 0.14 * v, fill_it=True, glow=0.55 * v)
+        draw.glow_dot(f, (wx + ww * 0.5, wy + wh * 0.5), 190, col, 0.25 * v, core=False)
+    L.window_stripes(f, col, 0.05 + 0.3 * v, offset=off, exclude=keep)
     sets.office(f, t, lamp_on=0.0, door_open=door, door_light=BLUE if door > 0 else None,
-                window_light=col, window_light_alpha=0.05 + 0.3 * v, stripes_offset=off, board=True)
+                window_light=None, board=True)
     if board:
-        L.board_after(f, t, glass_color=col, glass_v=v)
+        L.board_after(f, t)
     if mid is not None:          # e.g. beam haze: behind the figures, never painted over them
         mid()
     J = None
@@ -258,7 +294,7 @@ def _draw_match(f, t, K, beams=()):
         d = _dir(ang)
         c = (base[0] + d[0] * MATCH_L * 0.45, base[1] + d[1] * MATCH_L * 0.45)
         glint = 0.0
-        for lens, a, k in beams:
+        for lens, a, k, _len in beams:
             dx, dy = c[0] - lens[0], c[1] - lens[1]
             da = abs((math.degrees(math.atan2(dy, dx)) - a + 180) % 360 - 180)
             glint = max(glint, k * clamp(1 - da / 8.5))
@@ -290,8 +326,8 @@ def _draw_match_in_hand(f, t, K):
 # ============================================================================ shot 2: top-down street
 CARS = [  # (P0, P1, P3, final angle, t_start, t_stop, siren phase)
     ((450.0, -700.0), (450.0, 560.0), (330.0, 1250.0), 125.0, 3.27, 4.28, 0.00),
-    ((600.0, -900.0), (600.0, 480.0), (560.0, 1270.0), 92.0, 3.33, 4.52, 0.21),
-    ((660.0, -1100.0), (660.0, 420.0), (800.0, 1240.0), 55.0, 3.42, 4.78, 0.43),
+    ((600.0, -900.0), (600.0, 480.0), (560.0, 1270.0), 92.0, 3.33, 4.52, 0.04),
+    ((660.0, -1100.0), (660.0, 420.0), (800.0, 1240.0), 55.0, 3.42, 4.78, 0.08),
 ]
 CAR_S = 0.62
 
@@ -352,20 +388,24 @@ def _cam_top(t, K):
 
 
 def _car_lights(f, c, ang, t, alpha=1.0, halo=True):
-    """The light bar + headlights of props.car_top (same geometry), so the halos can be drawn once
-    while the car body is smeared."""
+    """The light bar + headlights of props.car_top (same geometry), so halos are drawn once while
+    the body is smeared. Only the flashing colour is lit (the other lamp shows as a white lens) and
+    the halo stays on the car body - blue and crimson never sit on each other or on the amber."""
     b, r = siren(t)
     a = math.radians(ang)
     ca, sa = math.cos(a), math.sin(a)
     loc = lambda x, y: (c[0] + (x * ca - y * sa) * CAR_S, c[1] + (x * sa + y * ca) * CAR_S)
     lb, lr = loc(-20, -34), loc(-20, 34)
-    draw.circle(f, lb, 12 * CAR_S, 1, BLUE, (0.35 + 0.65 * b) * alpha, fill_it=True, glow=1.4 * b)
-    draw.circle(f, lr, 12 * CAR_S, 1, CRIMSON, (0.35 + 0.65 * r) * alpha, fill_it=True, glow=1.4 * r)
+    for p_, col, v in ((lb, BLUE, b), (lr, CRIMSON, r)):
+        if v > 0:
+            draw.circle(f, p_, 12 * CAR_S, 1, col, (0.35 + 0.65 * v) * alpha, fill_it=True, glow=1.4 * v)
+        else:
+            draw.circle(f, p_, 12 * CAR_S, 2.0, WHITE, 0.55 * alpha)
     if halo:
         if b > 0:
-            draw.glow_dot(f, lb, 320 * CAR_S, BLUE, 0.5 * b, core=False)
+            draw.glow_dot(f, lb, 130, BLUE, 0.5 * b, core=False)
         if r > 0:
-            draw.glow_dot(f, lr, 320 * CAR_S, CRIMSON, 0.4 * r, core=False)
+            draw.glow_dot(f, lr, 130, CRIMSON, 0.45 * r, core=False)
         for side in (-1, 1):
             draw.glow_dot(f, loc(256, side * 52), 44 * CAR_S, AMBER, 0.7)
 
@@ -388,7 +428,8 @@ def _shot_top(f, t, K):
             fx.light_cone(f, nose, ang, 40, 460, AMBER, 0.13, glow=0.4)
             b, r = siren(t + ph)
             col, v = (BLUE, b) if b >= r else (CRIMSON, r)
-            fx.light_pool(f, c, 300, 300, col, 0.16 * (0.35 + v), glow=0.5)
+            if v > 0:
+                fx.light_pool(f, c, 150, 150, col, 0.16 * v, glow=0.4)
             # motion streak along the car's own path (2 frames of travel), body only
             p0, p1 = _car(t - 1.0 / 24, spec)[0], _car(t + 1.0 / 24, spec)[0]
             travel = math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * _cam_top(t, K).zoom
@@ -408,7 +449,7 @@ def _hits(t, K):
     """Where the two beams land on him once pinned (soft blue glow on his chest / head)."""
     ka = ease("out3", inv_lerp(K["run"] - 0.12, K["run"] + 0.1, t)) * (1 - smoothstep(K["is_"], K["is_"] + 0.5, t))
     kb = ease("out3", inv_lerp(6.4, 6.65, t))
-    return [((HIM_X, 1015.0), ka), ((HIM_X + 8, 935.0), 0.8 * kb)]
+    return [((HIM_X, 1000.0), ka), ((HIM_X + 8, 935.0), 0.8 * kb)]
 
 
 def _cam_door(t, K):
@@ -432,7 +473,7 @@ def _shot_door(f, t, K):
     hits = _hits(t, K)
     extra += [Light.radial(c, 150, 0.9 * k) for c, k in hits if k > 0]
     with f.lit(_room_lights(t, K, extra), ambient=0.14):
-        _room(f, t, K, door=max(0.0, o), mid=lambda: _beam_haze(f, beams, hits=hits))
+        _room(f, t, K, door=max(0.0, o), mid=lambda: _beam_haze(f, beams, hits=hits), beams=beams)
         _draw_match_in_hand(f, t, K)
         if o <= 0.02:      # before it opens: flashlights moving behind the door glass, light under the door
             px, py, pw, ph = x + 26, y + 30, w - 52, h * 0.42
@@ -471,10 +512,10 @@ def _shot_hands(f, t, K):
     with f.lit(_room_lights(t, K, extra, strength=1.0 - 0.6 * focus), ambient=amb):
         if focus > 0.01:
             with f.blurred(7.0 * focus):
-                _room(f, t, K)
+                _room(f, t, K, beams=beams)
             _beam_haze(f, beams, hits=hits)
         else:
-            _room(f, t, K, mid=lambda: _beam_haze(f, beams, hits=hits))
+            _room(f, t, K, mid=lambda: _beam_haze(f, beams, hits=hits), beams=beams)
         fx.dust(f, _tau(t, K), (300, 650, 1000, 1500), n=130, seed=8, alpha=0.6)
         if t < K["is_"]:
             _draw_match_in_hand(f, t, K)

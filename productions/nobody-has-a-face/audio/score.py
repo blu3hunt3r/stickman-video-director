@@ -515,16 +515,16 @@ class Plan:
         self.cut += [(g(s, 0.0), 600), (g(s, 7.4), 700), (mirror, 2600)]
         self.chord(g(s, 0.0), g(s, 7.4), "D2 A2 D3")
         self.chord(g(s, 7.4), mirror + 0.02, "D2 A2 D3 Eb3")
-        self._pulse_run(g(s, 0.05), g(s, 11.5), 38, crescendo=True, gain=0.75)
+        self._pulse_run(g(s, 0.05), g(s, 11.5), 38, crescendo=True, gain=0.62)
         clue = [w(s, "rain"), w(s, "three"), w(s, "a", 0), w(s, "a", 1), w(s, "a", 2)]
         for i, t in enumerate(clue):
             big = i == 4
-            self.pn(t, "D1 D2" if not big else "D1 D2 Eb3", 0.66 if not big else 0.76, 1.2, "feature")
-            self.st(t, 0.14, "D3 A3 D4" if not big else "D3 Eb4 A4", 0.62, attack=0.008, release=0.35, bus="feature")
+            self.pn(t, "D1 D2" if not big else "D1 D2 Eb3", 0.58 if not big else 0.68, 1.2, "feature")
+            self.st(t, 0.14, "D3 A3 D4" if not big else "D3 Eb4 A4", 0.48, attack=0.008, release=0.35, bus="feature")
             self.events.append((t, lambda r: dsp.to_stereo(dsp.mono(tom(62.0, 1, 0.45))) * 1.2, "feature"))
             self.marks.append((t, f"clue {i + 1}"))
         rise = g(s, 7.4)
-        self.st(rise, mirror - rise, "D3 A3 D4 Eb4 A4", 0.68, attack=mirror - rise, release=0.01, trem=(9.0, 0.3),
+        self.st(rise, mirror - rise, "D3 A3 D4 Eb4 A4", 0.52, attack=mirror - rise, release=0.01, trem=(9.0, 0.3),
                 bend=lambda tt, d=mirror - rise: 2 ** (2.0 * np.clip(tt / d, 0, 1) ** 1.6 / 12))
         self.silence(mirror, end(s) + 0.3, 0.008, 0.2)                            # braam, then silence
 

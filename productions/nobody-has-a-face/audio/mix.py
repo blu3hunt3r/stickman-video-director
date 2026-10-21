@@ -42,7 +42,9 @@ OUT = os.path.join(ROOT, "out")
 VO_DEFAULT = os.path.join(ROOT, "audio", "vo", "narration_full.wav")
 
 VO_TARGET = -16.0            # narration stem, integrated (pre-master)
-MUSIC_TARGET = -19.0         # score (main + feature) integrated before ducking
+MUSIC_TARGET = -17.2         # score (main + feature) integrated before ducking: with the real take this
+                             # puts the music ~9 LU under the narration while it speaks (energy-weighted)
+VO_PEAK_DBTP = -4.0          # dialogue limiter on the narration stem (12 dB peak-to-loudness at -16 LUFS)
 SFX_BUS_DB = 0.0             # SFX are library-level (-16 LUFS at gain 0); scenes set gain_db
 AMB_BUS_DB = 0.0
 DUCK = dict(music=-9.0, feature=-5.0, sfx=-3.0, amb=-2.0, hits_hi=-4.0)
@@ -253,9 +255,14 @@ def load_vo(path, tl, N):
                               src_in=round(a_src, 3), src_out=round(b_src, 3),
                               src_level_in_db=round(edge_db[0], 1), src_level_out_db=round(edge_db[1], 1)))
             pieces += 1
-    vo2 = np.stack([vo, vo], 1)
+    vo2 = np.stack([vo, vo], 1)                    # mono narration -> centred, identical L/R
     lv = dsp.loudness_integrated(vo2)
     vo2 *= db2lin(VO_TARGET - lv)
+    # dialogue limiter: plosive peaks are held here, so the master limiter does not pump the mix
+    vo2, vg = dsp.limiter(vo2, VO_PEAK_DBTP, lookahead_ms=1.5, release_ms=60.0, return_gain=True)
+    info["dialogue_limiter_gr_db_max"] = round(float(-dsp.lin2db(np.min(vg))), 2)
+    lv2 = dsp.loudness_integrated(vo2)
+    vo2 *= db2lin(VO_TARGET - lv2)
     info.update(pieces=pieces, stem_lufs=round(dsp.loudness_integrated(vo2), 2), source_lufs=round(lv, 2) if np.isfinite(lv) else None)
     info["edges"] = edges
     return vo2, info
@@ -328,7 +335,6 @@ def vo_music_balance(vo, music, act, tl, rate=1000):
     res["gated_lu"] = round(lv_g - lm_g, 2)
     res["music_under_voice_lufs"] = round(lm_g, 2)
     res["music_in_gaps_lufs"] = round(lm_gap, 2)
-    res["duck_depth_measured_db"] = round(lm_g - lm_gap, 2)
     per = {}
     for s in tl["scenes"]:
         m = ok & (t >= s["start"]) & (t < s["start"] + s["duration"])
@@ -527,10 +533,14 @@ def main(argv=None):
                             finite=chk["finite"], dc_offset=chk["dc_offset"], clicks=chk["clicks"], chain=minfo)
     if vo is not None:
         report["vo_music_balance"] = vo_music_balance(stems["vo"], stems["music"], act, tl)
+        va = np.interp(np.arange(0, N, 480) / SR, np.arange(len(act)) / 1000.0, act) > 0.5
+        report["vo_music_balance"]["duck_gain_applied_db"] = {
+            k: round(float(np.median(dsp.lin2db(g[::480][:len(va)][va]))), 2)
+            for k, g in (("music", g_music), ("feature", g_feat), ("sfx", g_sfx), ("amb", g_amb))}
         report["vo_piece_boundaries"] = boundary_check(master, stems["vo"], vo_info.get("edges", []), report["master"]["clicks"])
         b = report["vo_music_balance"]
-        log(f"[mix] narration vs music under the voice: median {b['median_lu']} LU (IQR {b['iqr_lu']}), "
-            f"gated {b['gated_lu']} LU; music ducked {b['duck_depth_measured_db']} dB")
+        log(f"[mix] narration vs music while the voice speaks: {b['gated_lu']} LU (energy-weighted), "
+            f"median {b['median_lu']} LU (IQR {b['iqr_lu']}); duck gains applied {b['duck_gain_applied_db']}")
         nb = report["vo_piece_boundaries"]
         log(f"[mix] vo_piece boundaries: {nb['count']} edges, worst VO-stem step {nb['worst_step_db']} dBFS, "
             f"clicks near edges: {len(nb['clicks_near_edges'])}")

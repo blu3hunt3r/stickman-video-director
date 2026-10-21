@@ -168,7 +168,7 @@ def rain_card(f, flash=0.0, alpha=1.0):
     drops = [((c[0] + x, c[1] + 12 + (i % 2) * 5), (c[0] + x - 6, c[1] + 28 + (i % 2) * 5))
              for i, x in enumerate((-18.0, -6.0, 6.0, 18.0))]
     if flash > 0:
-        draw.glow_dot(f, (c[0], c[1] - 6), 78, AMBER, 0.4 * flash * alpha, core=False)
+        draw.glow_dot(f, (c[0], c[1] - 6), 66, AMBER, 0.34 * flash * alpha, core=False)
         draw.fill(f, cl, AMBER, 0.85 * flash * alpha, glow=0.75 * flash)
     draw.stroke(f, cl, 2.6, WHITE, alpha, closed=True)
     for a, b in drops:
@@ -261,15 +261,19 @@ def clip_poly(pts):
 
 
 def crimson_dimmed(f, zone, k, draw_fn):
-    """draw_fn(alpha) for crimson props: full strength outside `zone`, dimmed by (1 - 0.92 k)
-    inside it - where an AMBER clue flash lights the board (amber never sits on crimson)."""
+    """draw_fn(alpha) for crimson props: full strength outside `zone`; inside it (where an AMBER
+    clue flash lights the board) the crimson is washed out while the flash is strong and only
+    returns once the amber has faded (k < 0.22), so amber and crimson are never comparable in
+    one pixel (that mix is an off-palette orange)."""
     if zone is None or k <= 0.01:
         draw_fn(1.0)
         return
     with f.clipped(clip_outside([zone])):
         draw_fn(1.0)
-    with f.clipped(clip_poly(zone)):
-        draw_fn(1.0 - 0.92 * k)
+    a = 1.0 - smoothstep(0.1, 0.22, k)
+    if a > 0.004:
+        with f.clipped(clip_poly(zone)):
+            draw_fn(a)
 
 
 PIN_S = 0.72
@@ -288,9 +292,10 @@ def board_cards(f, flash_rain=0.0, flash_watch=0.0, foot_lights=(0.0, 0.0, 0.0),
     rain_card(f, flash_rain, alpha)
     watch(f, flash_watch, alpha)
     foot_card(f, foot_lights, alpha)
-    props.photo_card(f, VBL_C, VBL_WH[0], VBL_WH[1], crossed=1.0, alpha=alpha)
-    props.photo_card(f, VML_C, VM_WH[0], VM_WH[1], crossed=1.0, alpha=alpha)
-    props.photo_card(f, VMR_C, VM_WH[0], VM_WH[1], crossed=1.0, alpha=alpha)
+    # their pins are drawn by pins() (same spots), so a clue flash can wash them out with the strings
+    props.photo_card(f, VBL_C, VBL_WH[0], VBL_WH[1], crossed=1.0, alpha=alpha, pinned=False)
+    props.photo_card(f, VML_C, VM_WH[0], VM_WH[1], crossed=1.0, alpha=alpha, pinned=False)
+    props.photo_card(f, VMR_C, VM_WH[0], VM_WH[1], crossed=1.0, alpha=alpha, pinned=False)
 
 
 # ----------------------------------------------------------------------------- the mirror
