@@ -52,7 +52,9 @@ def her_look(coat_k=1.0):
     the red only burns where light falls on it)."""
     lk = cast.her(coat=True)
     lk.colors = dict(lk.colors)
-    lk.colors["coat"] = mix(INK, RED, clamp(coat_k))
+    red = mix(INK, RED, clamp(coat_k))
+    lk.colors["coat"] = red
+    lk.colors["arm"] = red                 # the sleeves are the coat (cast.her: one red shape)
     return lk
 
 
