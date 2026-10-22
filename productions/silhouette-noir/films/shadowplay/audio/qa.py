@@ -57,6 +57,10 @@ VARIANTS = [
     ("door_hammer", dict(dur=3.0), "door_hammer_3s"),
     ("handle_turn", dict(params=dict(length=1.3), seed=4), "handle_turn_1.3_seed4"),
     ("window_lights", dict(params=dict(off=1, n=9, span=1.8)), "window_lights_off"),
+    ("window_lights", dict(params=dict(times=(0.0, 0.075, 0.225, 0.3, 0.31, 0.375, 0.45, 0.525, 0.6),
+                                       pans=(0.23, -0.23, -0.23, 0.23, 0.46, -0.46, -0.23, 0.0, -0.23))), "window_lights_s01"),
+    ("paper_slide", dict(params=dict(length=0.2, tap=0, shape="out", pan0=-0.85, pan1=0.85)), "paper_slide_whisk"),
+    ("paper_slide", dict(params=dict(length=0.24, tap=0, shape="in", pan0=0.95, pan1=0.23)), "paper_slide_card"),
 ]
 
 
@@ -153,7 +157,7 @@ def run_sfx(only=None):
 
 
 # ---------------------------------------------------------------------------- master checks
-def find_clicks(x, sr=dsp.SR, thresh=8.0, max_report=20):
+def find_clicks(x, sr=dsp.SR, thresh=8.0, max_report=20, return_count=False):
     """Sample-discontinuity detector: the 2nd difference of a 7 kHz-high-passed signal against
     its local (20 ms) RMS. Returns the worst events as {t, score, level_db}."""
     hp = dsp.sos(np.asarray(x, dtype=np.float64), "highpass", 7000.0, 4)
@@ -170,7 +174,11 @@ def find_clicks(x, sr=dsp.SR, thresh=8.0, max_report=20):
         if k - last > sr * 0.05:
             events.append(k)
         last = k
+    total = len(events)
     events = sorted(events, key=lambda k: -score[k])[:max_report]
+    if return_count:
+        return [dict(t=round((k + 1) / sr, 4), score=round(float(score[k]), 1), level_db=round(float(dsp.lin2db(d2[k])), 1))
+                for k in sorted(events)], total
     return [dict(t=round((k + 1) / sr, 4), score=round(float(score[k]), 1), level_db=round(float(dsp.lin2db(d2[k])), 1))
             for k in sorted(events)]
 
@@ -184,7 +192,7 @@ def check_master(x, sr=dsp.SR, expect_n=None):
     res["integrated_lufs"] = round(dsp.loudness_integrated(x, sr), 2)
     res["true_peak_dbtp"] = round(dsp.true_peak_db(x), 2)
     res["sample_peak_dbfs"] = round(dsp.sample_peak_db(x), 2)
-    res["clicks"] = find_clicks(x, sr)
+    res["clicks"], res["click_candidates_total"] = find_clicks(x, sr, return_count=True)
     return res
 
 

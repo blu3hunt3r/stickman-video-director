@@ -213,11 +213,11 @@ def designed(C):
     # ---------------------------------------------------------------- s13 one breath
     add(cue(we("s13", "air") + 0.05, "breath_single", -12, "sync", params=dict(phase="in", length=0.85), label="one breath in"))
     add(cue(we("s13", "calm") + 0.12, "breath_single", -14, "sync", params=dict(phase="out", length=1.3), label="breath out"))
-    add(cue(g("s13", 8.25), "buckle", -9, "sync", label="unbuckles"))
-    add(cue(g("s13", 8.55), "weights_drop", -2, "story", label="weights drop"))
-    add(cue(g("s13", 8.8), "bubble_release", -4, "story", label="big bubble release"))
-    add(cue(g("s13", 9.3), "boot_drop", -5, "story", label="boot 1", group="boots"))
-    add(cue(g("s13", 9.72), "boot_drop", -6, "story", label="boot 2", group="boots"))
+    add(cue(g("s13", 8.25), "buckle", -12, "sync", label="unbuckles"))            # under L19: clear, not on top
+    add(cue(g("s13", 8.55), "weights_drop", -5, "story", label="weights drop"))
+    add(cue(g("s13", 8.8), "bubble_release", -10, "story", label="big bubble release"))
+    add(cue(g("s13", 9.3), "boot_drop", -9, "story", label="boot 1", group="boots"))
+    add(cue(g("s13", 9.72), "boot_drop", -10, "story", label="boot 2", group="boots"))
     add(cue(g("s13", 9.9), "uw_whoosh", -16, "fallback", params=dict(size=0.5), label="begins to rise"))
 
     # ---------------------------------------------------------------- s14 the bell (split level)
@@ -511,7 +511,7 @@ def merge(C, mine, theirs, have, log, breath_sync=None, heart=None):
             continue
         best, bd = None, 1e9
         for i, c in enumerate(final):
-            if i in used or c["src"] != "designed" or c["name"] != sc["name"] or c["scene"] != sc["scene"]:
+            if i in used or c["src"] != "designed" or c["name"] != sc["name"]:
                 continue
             d = abs(c["t"] - sc["t"])
             if d <= MATCH_TOL.get(c["kind"], 0.5) and d < bd:

@@ -432,7 +432,14 @@ def _blend_pose(a, b, w, S):
                        la[4] + (lb[4] - la[4]) * u + 0.35 * math.sin(math.pi * u),
                        la[5] + (lb[5] - la[5]) * u, 1.0 if u in (0.0, 1.0) else 0.0]
         else:
-            legs[k] = [x + (y - x) * w for x, y in zip(la, lb)]
+            wl = w
+            if la[6] > 0.5 and lb[6] < 0.5:
+                # the incoming action lifts a paw the outgoing one still plants: once the
+                # paw leaves its spot it follows the incoming step (a real lift-off, not a
+                # half-weight scuff along the ground)
+                s = clamp(d / (0.08 * S)) * _s01(w / 0.2)
+                wl = w + (1.0 - w) * s
+            legs[k] = [x + (y - x) * wl for x, y in zip(la, lb)]
     P["legs"] = legs
     return P
 
@@ -1343,6 +1350,7 @@ class _QRun(_Clip):
                 x, y, z = self._plant(k, T[-1], nmax - 1)
                 recs.append([T[-1], _INF, x, y, z])
             self.feet[k] = recs
+        self._square_up()
         self.t_settle = max(r[-1][0] for r in self.feet.values())
         self.t1 = max(self.t_stop, self.t_settle) + 0.05
         legs = {}
@@ -1351,6 +1359,33 @@ class _QRun(_Clip):
             legs[k] = [r[2], r[3], r[4], 0.0, 0.0, 0.0, 1.0]
         self.end_state = dict(x=self.x_end, yaw=self.yaw, legs=legs)
         self.tds = {k: [r[0] for r in self.feet[k]] for k in LEGS}
+
+    # paws left out of reach (S, + = ahead of the stand spot): (fore lo, fore hi), (hind lo, hind hi)
+    SQUARE = {True: (-0.10, 0.20), False: (-0.15, 0.20)}
+
+    def _square_up(self):
+        """After the stop, a paw left far from where the standing body wants it (a long last
+        stance while decelerating) takes one more small step onto its stand spot - one paw
+        at a time, the worst first - so the final stance is never over-stretched."""
+        A, S, fac = self.A, self.A.S, self.facing
+        want = A._stand_legs(self.x_end, self.yaw)
+        cand = []
+        for k in LEGS:
+            off = (self.feet[k][-1][2] - want[k][0]) * fac / S
+            lo, hi = self.SQUARE[_FRONT[k]]
+            if off < lo or off > hi:
+                cand.append((-abs(off), k))
+        tc = self.t_stop - 0.12
+        for _, k in sorted(cand):
+            recs = self.feet[k]
+            r = recs[-1]
+            dist = abs(want[k][0] - r[2]) / S
+            T = (0.24 + 0.2 * min(dist, 0.6)) * math.sqrt(S / 330.0) / math.sqrt(max(A.pace, 0.3))
+            t_lo = max(tc, r[0] + 0.25)
+            r[1] = t_lo
+            x = want[k][0]
+            recs.append([t_lo + T, _INF, x, A.ground(x), want[k][2]])
+            tc = t_lo + 0.8 * T
 
     # speed profile ------------------------------------------------------------
     def _dv(self, t):
@@ -1707,7 +1742,7 @@ class Quadruped(_Actor):
                 for k, recs in c.feet.items():
                     for r in recs[1:]:
                         if t0 <= r[0] <= t1:
-                            out.append((r[0], k, r[2], r[3], r[4]))
+                            out.append((float(r[0]), k, float(r[2]), float(r[3]), float(r[4])))
         out.sort()
         return out
 

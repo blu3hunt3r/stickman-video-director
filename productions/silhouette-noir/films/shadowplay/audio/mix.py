@@ -295,26 +295,15 @@ def explain_clicks(clicks, cues, rows, onsets, ainfo, vinfo):
     out = []
     for c in clicks:
         t = c["t"]
-        src = None
-        for (to, kind) in onsets:
-            if -0.01 <= t - to <= 0.04:
-                src = f"score:{kind}@{to}"
-                break
-        if src is None:
-            for cu in cues:
-                if -0.01 <= t - cu["t"] <= min(2.5, lens.get((cu["t"], cu["name"]), 1.0)):
-                    src = f"sfx:{cu['name']}@{cu['t']}"
-                    break
-        if src is None:
-            for (tb, nm) in beds:
-                if -0.01 <= t - tb <= 0.4:
-                    src = f"bed:{nm}@{tb}"
-                    break
-        if src is None:
-            for e in vinfo.get("edges", []):
-                if abs(t - e["t_in"]) < 0.03 or abs(t - e["t_out"]) < 0.03:
-                    src = f"vo edge line {e['n']}"
-                    break
+        cand = [(t - to, f"score:{kind}@{to}") for (to, kind) in onsets if -0.01 <= t - to <= 0.04]
+        cand += [(t - cu["t"], f"sfx:{cu['name']}@{cu['t']}") for cu in cues
+                 if -0.01 <= t - cu["t"] <= min(2.5, lens.get((cu["t"], cu["name"]), 1.0))]
+        cand += [(t - tb, f"bed:{nm}@{tb}") for (tb, nm) in beds if -0.01 <= t - tb <= 0.4]
+        for e in vinfo.get("edges", []):
+            for te in (e["t_in"], e["t_out"]):
+                if abs(t - te) < 0.03:
+                    cand.append((t - te, f"vo edge line {e['n']}"))
+        src = min(cand, key=lambda d: abs(d[0]))[1] if cand else None
         out.append(dict(c, source=src or "UNEXPLAINED"))
     return out
 
@@ -420,11 +409,13 @@ def main(argv=None):
     # ---- checks
     chk = qa.check_master(master, SR, N)
     chk["clicks"] = explain_clicks(chk["clicks"], cues, rows, sinfo.get("onsets", []), ainfo, vinfo)
-    chk["clicks_unexplained"] = [c for c in chk["clicks"] if c["source"] == "UNEXPLAINED"]
+    every = explain_clicks(qa.find_clicks(master, SR, max_report=10 ** 6), cues, rows, sinfo.get("onsets", []), ainfo, vinfo)
+    chk["clicks_unexplained"] = [c for c in every if c["source"] == "UNEXPLAINED"]
+    chk["clicks_explained_of_total"] = [len(every) - len(chk["clicks_unexplained"]), len(every)]
     report["master"] = chk
     report["scene_loudness"] = scene_loudness(master, tl)
     report["arc_targets"] = [dict(t0=a, t1=b, target=v) for a, b, v in ARC]
-    log(f"master: {chk['integrated_lufs']} LUFS, TP {chk['true_peak_dbtp']} dBTP, clicks {len(chk['clicks'])}")
+    log(f"master: {chk['integrated_lufs']} LUFS, TP {chk['true_peak_dbtp']} dBTP, transients explained {chk['clicks_explained_of_total']}")
     ev = [dict(t=h["t"], label=h["label"][:22], color="#e04050") for h in hits if "silence" not in h["label"] and "tick" not in h["label"]]
     qa.overview(master, stems, tl["scenes"], os.path.join(OUT, "audio_overview.png" if not no_vo else "audio_overview_novo.png"),
                 events=ev, title=f"SHADOW PLAY - {chk['integrated_lufs']} LUFS, TP {chk['true_peak_dbtp']} dBTP", arc=ARC)

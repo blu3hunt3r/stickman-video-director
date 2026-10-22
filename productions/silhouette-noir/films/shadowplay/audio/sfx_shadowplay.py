@@ -353,20 +353,34 @@ def _light_out(dur, p, rng):
 @_sfx("window_lights", space=0.0)
 def _window_lights(dur, p, rng):
     """Far windows switching on (or off) in a stagger across the facade: n tiny distant clicks
-    over span seconds, scattered in the stereo field, with the street's air on them."""
-    cnt = int(p.get("n", 9))
-    span = float(p.get("span", 0.8))
+    over span seconds, scattered in the stereo field, with the street's air on them.
+    times/pans (optional, sequences): the exact switch-on offsets (s) and pans of each window,
+    each then with the filament's flicker (a dip and a catch, 40 / 100 ms later)."""
     off = bool(p.get("off", 0))
+    if p.get("times") is not None:
+        times = np.array([float(v) for v in p["times"]])
+        times -= times.min()
+        pans = [float(v) for v in p.get("pans", [0.0] * len(times))]
+        span = float(times.max())
+    else:
+        cnt = int(p.get("n", 9))
+        span = float(p.get("span", 0.8))
+        times = np.linspace(0, span, cnt) + rng.uniform(-0.25, 0.25, cnt) * span / max(cnt, 1)
+        times = np.clip(np.sort(times), 0, span)
+        pans = None
     n = _N(span + 0.4)
     dry = np.zeros((n, 2))
-    times = np.linspace(0, span, cnt) + rng.uniform(-0.25, 0.25, cnt) * span / max(cnt, 1)
-    times = np.clip(np.sort(times), 0, span)
     k = 0.9 if off else 1.0
-    for tt in times:
+    for j, tt in enumerate(times):
         c = _sum(_hit(rng, np.array([2300, 3900, 6100]) * k * rng.uniform(0.9, 1.1), [0.012, 0.009, 0.006], click=0.8, n=_N(0.04)),
                  0.4 * _thump(_N(0.04), 520, 360, 0.004, 0.015))
         c = sos(c, "lowpass", 3800, 2)
-        mix_into(dry, pan_mono(c, rng.uniform(-0.75, 0.75)), n_of(tt), rng.uniform(0.45, 1.0))
+        pan = rng.uniform(-0.75, 0.75) if pans is None else pans[j]
+        mix_into(dry, pan_mono(c, pan), n_of(tt), rng.uniform(0.45, 1.0) if pans is None else rng.uniform(0.7, 1.0))
+        if pans is not None and not off:
+            for dt, gk in ((0.04, 0.16), (0.1, 0.28)):
+                fl = sos(_hit(rng, np.array([3100, 5200]) * rng.uniform(0.9, 1.1), [0.004, 0.003], click=0.5, n=_N(0.012)), "lowpass", 4200, 2)
+                mix_into(dry, pan_mono(fl, pan), n_of(tt + dt), gk)
     wet = dsp.convolve(dry.mean(axis=1), dsp.make_ir("street"))[:n] * 0.6
     return dry + wet
 
@@ -779,7 +793,8 @@ def _key_lock(dur, p, rng):
     cr = friction(m, 150 + 160 * tm / 0.28, rng, jitter=0.2, body=[(2100, 12, 1.0), (3400, 15, 0.5)]) * np.sin(np.pi * tm / 0.28)
     _place(out, cr, 0.17, 0.5)
     _place(out, _hit(rng, [1300, 2400, 3600], [0.05, 0.04, 0.03], click=0.9), 0.45, 0.7)
-    _place(out, _sum(_thump(_N(0.2), 165, 92, 0.01, 0.08), _hit(rng, [600, 1100, 1900, 2900], [0.09, 0.07, 0.05, 0.03], click=0.6)), 0.52, 1.0)
+    bolt = _sum(_thump(_N(0.2), 165, 92, 0.01, 0.08), _hit(rng, [600, 1100, 1900, 2900], [0.09, 0.07, 0.05, 0.03], click=0.6))
+    _place(out, sos(bolt, "lowpass", 7000, 2), 0.52, 1.0)        # a 'chunk', not a digital tick
     for k in range(int(rng.integers(5, 9))):
         f = rng.uniform(3000, 7500)
         _place(out, _hit(rng, [f, f * 1.37, f * 2.1], [0.08, 0.05, 0.03], click=0.2, n=_N(0.12)), 0.56 + rng.uniform(0, 0.3), rng.uniform(0.06, 0.15))
@@ -1277,12 +1292,20 @@ def _paper_pop(dur, p, rng):
 @_sfx("paper_slide", space=0.5)
 def _paper_slide(dur, p, rng):
     """Card sliding over paper (the title letters, the split-screen panels): toothy friction
-    grain whose band follows the speed, panning pan0 -> pan1, a soft stop tap. length s."""
+    grain whose band follows the speed, panning pan0 -> pan1, a soft stop tap. length s.
+    shape: 'sym' (ease in-out), 'out' (flicked: fast start, coasting stop - a strip whisking in),
+    'in' (accelerating into a dead stop - a card shot home along a rail)."""
     L = float(p.get("length", 0.45))
     n = _N(L + 0.15)
     t = t_axis(n)
     u = np.clip(t / L, 0, 1)
-    speed = np.sin(np.pi * u) ** 0.8 * (t < L)
+    shape = str(p.get("shape", "sym"))
+    if shape == "out":
+        speed = (1.0 - u) ** 1.6 * np.clip(t / 0.006, 0, 1) * (t < L)
+    elif shape == "in":
+        speed = u ** 1.6 * np.clip((L - t) / 0.004, 0, 1) * (t < L)
+    else:
+        speed = np.sin(np.pi * u) ** 0.8 * (t < L)
     grain = bandpass(crackle(n, 2600, rng, amp_spread=0.8), 900, 6500, 2) * 1.6
     grain += 0.35 * tv_bandpass(white(n, rng), 1200 + 3000 * speed, q=0.7, block=64)
     body = 0.25 * bandpass(pink(n, rng), 200, 900, 2)
@@ -1290,6 +1313,25 @@ def _paper_slide(dur, p, rng):
     if p.get("tap", 1):
         _place(x, _burst(_N(0.04), rng, 300, 2500, t60=0.015, attack=0.0008), L * 0.97, 0.5)
     return _pan_sweep(x, float(p.get("pan0", -0.6)), float(p.get("pan1", 0.3)), u)
+
+
+@_sfx("count_ticks", space=0.5)
+def _count_ticks(dur, p, rng):
+    """The counting glint running over the forty windows: one tiny glassy tick per row of
+    windows, each a little lower (a soft abacus), under a faint high shimmer of light.
+    n ticks, gap s, pan0 -> pan1."""
+    cnt = int(p.get("n", 8))
+    gap = float(p.get("gap", 0.09))
+    span = gap * cnt
+    n = _N(span + 0.25)
+    t = t_axis(n)
+    out = np.zeros(n)
+    for k in range(cnt):
+        f = (1.0 - 0.035 * k) * rng.uniform(0.97, 1.03)
+        _place(out, _hit(rng, np.array([2350, 3900, 6100]) * f, [0.03, 0.02, 0.012], spread=0.02, click=0.5, n=_N(0.06)),
+               k * gap + rng.uniform(0, 0.004), 0.8 - 0.035 * k)
+    out += bandpass(white(n, rng), 6000, 11000, 2) * _bell(t, span * 0.45, span * 0.45, 0.15) * 0.05
+    return _pan_sweep(out, float(p.get("pan0", -0.45)), float(p.get("pan1", 0.45)), np.clip(t / span, 0, 1))
 
 
 @_sfx("paper_flip", space=0.4)

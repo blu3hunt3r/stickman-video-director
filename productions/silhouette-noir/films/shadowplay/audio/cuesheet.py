@@ -30,6 +30,8 @@ RETIME_WINDOW = 1.0
 # --------------------------------------------------------------------------- scene-cue mapping
 # (pattern on the free-text cue name, tag, this film's sound, default params). First match wins.
 KEYWORDS = [
+    (r"\bcar door", "car_door", "car_door_close", {}),
+    (r"\bcar\b.*(away|pull|leav|driv)|engine", "car", "car_away", {}),
     (r"lamp\s*switch|socket", "lamp_switch", "lamp_switch", {}),
     (r"lamp.*(crash|fall|knock)|crash", "crash", "lamp_crash", {}),
     (r"light.*(out|off)|snaps? out|goes dark", "light_out", "light_out", {}),
@@ -56,6 +58,10 @@ KEYWORDS = [
     (r"stair", "stairs", "wood_step", dict(stair=1)),
     (r"footstep|step|walk", "steps", "wood_step", {}),
     (r"umbrella", "umbrella", "umbrella_pass", {}),
+    (r"\brain\b", "rain", "rain_street", {}),                      # the beds own the rain
+    (r"whisk|strip", "whisk", "paper_slide", dict(length=0.2, tap=0, shape="out")),
+    (r"card|rail", "card", "paper_slide", dict(length=0.24, tap=0, shape="in")),
+    (r"count", "count", "count_ticks", {}),
     (r"match", "match", "match_strike", {}),
     (r"flame|blow", "flame", "flame_out", {}),
     (r"curtain|ring", "curtain", "curtain_rings", {}),
@@ -64,11 +70,10 @@ KEYWORDS = [
     (r"red line|line", "red_line", "red_line", {}),
     (r"grid|snap", "grid", "grid_snap", {}),
     (r"pop|land", "pop", "paper_pop", {}),
+    (r"tap|typewriter", "pop", "paper_pop", {}),
     (r"flip", "flip", "paper_flip", {}),
     (r"heart|pulse", "heart", "heart_pulse", {}),
-    (r"car door", "car_door", "car_door_close", {}),
     (r"door", "door", "door_open", {}),
-    (r"car.*(away|pull|leav|driv)|engine", "car", "car_away", {}),
 ]
 
 
@@ -123,10 +128,13 @@ def default_sync():
         S[name] = dict(t=round(float(t), 4), tags=tuple(tags))
 
     # s01 forty windows
-    put("s01_pops", 0.10, "pop")
+    put("s01_strips", g("s01", 0.02), "whisk")
+    put("s01_pops", g("s01", 0.30), "pop")
+    put("s01_card", word("s01", "forty") - 0.24, "card")
     put("s01_grid", word("s01", "forty"), "grid", "pop")
-    put("s01_flip", g("s01", 4.45), "flip")
-    put("s01_lights", g("s01", 4.95), "lights")
+    put("s01_flip", g("s01", 4.40), "flip")
+    put("s01_lights", g("s01", 5.02), "lights", "switch", "bulb")
+    put("s01_every", word("s01", "every"), "count")
     put("s01_heart", word("s01", "heart"), "heart")
     put("s01_rain", g("s01", 7.7), "rain")
     # s02 the watcher
@@ -290,6 +298,32 @@ def sync_points(scene_cues=None):
     return {k: v["t"] for k, v in S.items()}, dict(notes, extras=extras)
 
 
+# s01's picture: window i (1..40, row-major, 5 across) pops in at pops + 0.03 * rank (window 9
+# is the one that slides in on [forty]); the nine NIGHT windows switch on in LIGHT_ORDER
+S01_LIGHT_ORDER = (4, 12, 30, 2, 19, 26, 7, 23, 37)
+S01_COLS = (230.0, 385.0, 540.0, 695.0, 850.0)
+S01_V_LINES = (152.5, 307.5, 462.5, 617.5, 772.5, 927.5)
+
+
+def s01_pan(x):
+    return round((x / 1080.0 - 0.5) * 1.6, 3)
+
+
+def s01_pop_t(S, i):
+    """Film time a window's pop is heard (the shape is ~40 % grown 20 ms after its start)."""
+    rank = i - 1 - (1 if i > 9 else 0)
+    return S["s01_pops"] + 0.03 * rank + 0.012
+
+
+def s01_light_times(S):
+    """(t, pan) of the nine windows switching on (after their slat has flipped)."""
+    out = []
+    for k, i in enumerate(S01_LIGHT_ORDER):
+        r, col = divmod(i - 1, 5)
+        out.append((max(S["s01_flip"] + 0.11 * r + 0.38, S["s01_lights"] + 0.075 * k), s01_pan(S01_COLS[col])))
+    return sorted(out)
+
+
 # --------------------------------------------------------------------------- the cue list
 def build_cues(sync, extras=()):
     """Every SFX cue: {t, name, gain_db, pan, dur, params, seed, persp, send_db, bus}.
@@ -306,16 +340,28 @@ def build_cues(sync, extras=()):
     rng = dsp.rng_for("shadowplay_cues", 1)
 
     # ---------------------------------------------------------------- s01 forty windows
-    # 39 cut-paper windows pop in row by row (stagger 0.033 s), the 40th lands on [forty]
-    for i in range(39):
-        row, col = divmod(i, 5)
-        c(S["s01_pops"] + i * 0.033, "paper_pop", -12.0 + rng.uniform(-2, 1.5), pan=-0.6 + 0.3 * col,
+    # the grid's ink strips whisk in from the edges: verticals from the top (each at its own x),
+    # horizontals from alternating sides
+    t0 = S["s01_strips"] - 0.02
+    for j, x in enumerate(S01_V_LINES):
+        c(t0 + 0.02 + 0.05 * j, "paper_slide", -21.0, length=0.2, tap=0, shape="out", pan0=s01_pan(x), pan1=s01_pan(x))
+    for j in range(9):
+        a, b = (-0.85, 0.85) if j % 2 == 0 else (0.85, -0.85)
+        c(t0 + 0.08 + 0.045 * j, "paper_slide", -21.5, length=0.22, tap=0, shape="out", pan0=a, pan1=b)
+    # 39 cut-paper windows pop in row by row (0.03 s apart); window 9 shoots in along its row's
+    # line from the right and lands on [forty]
+    for i in [i for i in range(1, 41) if i != 9]:
+        row, col = divmod(i - 1, 5)
+        c(s01_pop_t(S, i), "paper_pop", -12.0 + rng.uniform(-2, 1.5), pan=-0.6 + 0.3 * col,
           pitch=round(1.25 - 0.055 * row, 3))
-    c(S["s01_grid"] - 0.004, "paper_pop", -7.0, pan=0.6, pitch=0.85)
+    c(S["s01_card"], "paper_slide", -9.0, length=0.24, tap=0, shape="in", pan0=0.95, pan1=s01_pan(S01_COLS[3]))
+    c(S["s01_grid"] - 0.004, "paper_pop", -7.0, pan=s01_pan(S01_COLS[3]), pitch=0.85)
     c(S["s01_grid"] - 0.045, "grid_snap", -1.0)                  # the thock lands on [forty]
     c(S["s01_flip"] - 0.05, "paper_flip", -4.0)
-    c(S["s01_lights"], "window_lights", -7.0, n=9, span=0.5)
-    c(S["s01_heart"], "heart_pulse", -2.0, gap=0.3)
+    lt = s01_light_times(S)
+    c(lt[0][0], "window_lights", -7.0, times=tuple(round(t - lt[0][0], 4) for t, _ in lt), pans=tuple(p for _, p in lt))
+    c(S["s01_every"], "count_ticks", -13.0, n=8, gap=0.09)       # the counting glint, row by row
+    c(S["s01_heart"], "heart_pulse", -2.0, gap=0.27)
 
     # ---------------------------------------------------------------- s02 the watcher
     c(S["s02_win4"] - 0.3, "phonograph_waltz", -13.0, pan=-0.25, dur=2.9)

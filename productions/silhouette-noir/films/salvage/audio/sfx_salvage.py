@@ -464,12 +464,31 @@ def _clapper(rng, strike):
     """The iron clapper hitting the soundbow: a hard tock, a dense inharmonic clang, the mass thud."""
     n = _N(0.6)
     out = np.zeros(n)
-    _place(out, _burst(_N(0.03), rng, lo=1100, t60=0.009, attack=0.00015), 0.0, 1.1 * strike)
+    _place(out, _burst(_N(0.03), rng, lo=1100, t60=0.009, attack=0.0004), 0.0, 0.7 * strike)
     fr = np.exp(rng.uniform(math.log(950.0), math.log(7800.0), 22))
     clang = _modes(rng, fr, rng.uniform(0.05, 0.35, 22), rng.uniform(0.3, 1.0, 22) / np.sqrt(fr / 1000.0), n=n, attack=0.0002)
     out += clang * 0.32 * strike ** 1.5
     _place(out, _thump(_N(0.55), 74.0, 47.0, 0.03, 0.42, attack=0.001), 0.0, 0.55 * strike)
     return out
+
+
+def _tame_strike(x, ms=70.0, over=1.5):
+    """Soft-clip the clapper's first milliseconds above `over` x the ring's own peak level, then
+    crossfade back to the untouched ring: the strike stays hard and bright, without a needle
+    peak that would only drive the master limiter."""
+    n = len(x)
+    k = min(n, _N(ms / 1000.0))
+    a, b = _N(0.09), min(n, _N(0.5))
+    if b <= a:
+        return x
+    thr = over * float(np.max(np.abs(x[a:b])))
+    seg = x[:k].copy()
+    w = np.ones(k)
+    h = k // 2
+    w[h:] = np.cos(0.5 * np.pi * np.linspace(0.0, 1.0, k - h))
+    w = w[:, None] if x.ndim == 2 else w
+    x[:k] = (thr * np.tanh(seg / thr)) * w + seg * (1.0 - w)
+    return x
 
 
 @_sfx("meridian_bell", space=0.0, hit=True, trim=4.0, muffle=False)
@@ -485,6 +504,7 @@ def _meridian_bell(dur, p, rng):
     cl = _clapper(rng, strike)
     k = min(n, len(cl))
     x[:k] += cl[:k, None]
+    x = _tame_strike(x)
     if p.get("verb", "air") == "air":
         x = x + wet(x, "bell_air", -9.0)[:n]
     return fade(x, 0.0, min(3.0, L * 0.25))
@@ -1913,6 +1933,56 @@ def _buckle(dur, p, rng):
     return out
 
 
+@_sfx("gear_rattle", space=1.0, muffle=False)
+def _gear_rattle(dur, p, rng):
+    """The diver's brass fittings and lead weights shifting as he moves (lets go of the rail): a
+    loose cluster of brass clinks, a heavier lead knock and the canvas suit creaking."""
+    n = _N(0.9)
+    out = np.zeros(n)
+    t = 0.0
+    for k in range(int(rng.integers(5, 8))):
+        f = np.array([2350.0, 3720.0, 5150.0]) * rng.uniform(0.85, 1.2)
+        cl = _modes(rng, f, [0.05, 0.035, 0.025], [1.0, 0.6, 0.35], n=_N(0.09), attack=0.0002)
+        _place(out, cl, t, rng.uniform(0.25, 0.8) * math.exp(-t / 0.5))
+        t += rng.uniform(0.025, 0.11)
+    _place(out, _thump(_N(0.2), 210.0, 150.0, 0.004, 0.05, attack=0.0008), 0.04, 0.45)
+    m = _N(0.6)
+    cr = dsp.friction(m, 90.0, rng, jitter=0.35, body=[(420.0, 6.0, 1.0), (980.0, 7.0, 0.5)])
+    cr *= np.sin(np.pi * t_axis(m) / 0.6) ** 2
+    _place(out, cr / max(1e-9, np.max(np.abs(cr))), 0.05, 0.12)
+    return _wide(sos(out, "lowpass", 9000.0, 2), rng, 0.3)
+
+
+@_sfx("lamp_hum", kind="sustained", norm="int", default_dur=2.5, space=0.3, muffle=False)
+def _lamp_hum(dur, p, rng):
+    """The helmet lamp's filament hum once it is on: a low warm 100 Hz buzz with its harmonics,
+    a slight flicker, heard through the copper shell."""
+    n = _N(dur)
+    t = t_axis(n)
+    fl = 1.0 + 0.08 * smooth_noise(n, 7.0, rng)
+    x = (0.6 * np.sin(TWO_PI * 100.0 * t) + 0.32 * np.sin(TWO_PI * 200.0 * t + 0.4) + 0.18 * np.sin(TWO_PI * 300.0 * t + 1.1)
+         + 0.07 * np.sin(TWO_PI * 500.0 * t + 2.0)) * fl
+    x += 0.04 * bandpass(white(n, rng), 1800.0, 4500.0, 2) * (0.5 + 0.5 * np.abs(smooth_noise(n, 25.0, rng)))
+    x *= np.clip(t / 0.25, 0, 1) ** 2
+    return fade(in_helmet(x), 0.0, min(0.6, dur / 3))
+
+
+@_sfx("sub_swell", space=0.0, hit=True, trim=-2.0, muffle=False)
+def _sub_swell(dur, p, rng):
+    """A low swell in the tonic (D1 + D2) that blooms and sinks away: weight under a picture beat
+    (the lamp's beam landing on the silt). params: length s (1.4)."""
+    L = float(p.get("length", 1.4))
+    n = _N(L + 0.8)
+    t = t_axis(n)
+    pk = 0.62 * L
+    env = np.where(t < pk, np.sin(0.5 * np.pi * np.clip(t / pk, 0, 1)) ** 2, np.exp(-(t - pk) / (0.35 * L + 0.15)))
+    f1 = 36.708 * (1.0 + 0.012 * np.exp(-t / 0.4))
+    x = np.sin(TWO_PI * np.cumsum(f1) / SR) + 0.55 * np.sin(TWO_PI * np.cumsum(2.0 * f1) / SR + 0.7)
+    x = x * env
+    x += 0.18 * sos(saturate(x * 2.5, 2.0), "bandpass", (90.0, 320.0), 2)
+    return fade(x, 0.01, 0.3)
+
+
 def render_raw(name, params, rng):
     """A catalog sound's raw (un-normalised) mono render, using the caller's rng - for composites."""
     res = _REG[name]["fn"](_REG[name]["default_dur"], dict(params), rng)
@@ -1984,6 +2054,7 @@ PAPER_SOUND = (
     (("bubble",), "surface_pops", {}),
     (("tear|rip|torn",), "paper_tear", {}),
     (("pops",), "paper_pops", {}),
+    (("taps|plops|plop",), "paper_pops", {}),
     (("ticks|clicks",), "paper_ticks", {}),
     (("stamp",), "paper_stamp", {}),
     (("swishes|staggered",), "paper_swishes", {}),
@@ -2029,7 +2100,11 @@ ALIASES = (
     (("helmet", "unlock|off|lift|remove|open"), "helmet_unlock", {}),
     (("helmet", "clank|lock|seat|turn"), "helmet_clank", {}),
     (("clank",), "helmet_clank", {}),
+    (("lamp|light|bulb|filament", "click|switch"), "lamp_click", {}),
+    (("lamp|filament|bulb", "hum|buzz|tone"), "lamp_hum", {}),
     (("lamp|light switch|switch",), "lamp_click", {}),
+    (("sub swell|sub rise|sub hit|sub drop|sub boom|low swell",), "sub_swell", {}),
+    (("rattle|jingle|brass gear|gear clink",), "gear_rattle", {}),
     (("tumbler",), "tumbler_click", {}),
     (("dial", "click"), "tumbler_click", {}),
     (("dial",), "dial_turn", {}),
@@ -2045,8 +2120,10 @@ ALIASES = (
     (("winch|ratchet|crank",), "winch_crank", {}),
     (("pump|flywheel|chuff",), "pump_run", {}),
     (("weight",), "weights_drop", {}),
+    (("ladder|rung|climb",), "ladder_step", {}),
     (("boot",), "boot_drop", {}),
     (("buckle|unbuckl",), "buckle", {}),
+    (("fish|school",), "fish_school", {}),
     (("whoosh",), "uw_whoosh", {}),
     (("exhale|bubble|exhaust",), "exhaust_bubbles", {}),
     (("breath|inhale|gasp|sigh",), "breath_single", {}),
@@ -2084,7 +2161,7 @@ ALIASES = (
 
 # sounds whose 'length' param a cue's dur sets (instead of truncating the one-shot)
 LENGTH_PARAM = ("paper_flutter", "paper_swishes", "paper_slide", "ship_groan", "hull_groan", "torch_cut", "meridian_bell",
-                "meridian_bell_uw", "breath_single")
+                "meridian_bell_uw", "breath_single", "sub_swell")
 
 _NUMWORDS = dict(one=1, two=2, three=3, four=4, five=5, six=6, seven=7, eight=8, nine=9, ten=10, eleven=11, twelve=12,
                  thirteen=13, fourteen=14, fifteen=15, twenty=20, thirty=30)
@@ -2098,10 +2175,16 @@ def _count(s):
     m = re.search(r"\b(\d+)\b(?!\.\d)(?!\s*s\b)", s)
     if m and not re.search(r"\d+\.\d+", m.group(0)):
         return int(m.group(1))
+    s = re.sub(r"\bone (by|after) one\b", " ", s)
+    best = None
+    for tw, tv in (("twenty", 20), ("thirty", 30), ("forty", 40)):
+        m = re.search(rf"\b{tw}(?: (one|two|three|four|five|six|seven|eight|nine))?\b", s)
+        if m:
+            best = max(best or 0, tv + (_NUMWORDS[m.group(1)] if m.group(1) else 0))
     for w, v in _NUMWORDS.items():
         if re.search(rf"\b{w}\b", s):
-            return v
-    return None
+            best = max(best or 0, v)
+    return best
 
 
 def _has(s, alt):

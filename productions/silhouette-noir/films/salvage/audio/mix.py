@@ -59,7 +59,7 @@ VO_TARGET = -16.0            # narration stem, integrated (pre-master)
 VO_PEAK_DBTP = -4.0          # dialogue limiter: plosives are held here, not by the master limiter
 VO_PAD, VO_FADE, VO_HPF = 0.040, 0.008, 80.0
 
-BUS_DB = dict(music=0.0, feature=0.0, sfx=0.0, hits=0.0, layers=0.0, amb=0.0)      # bus trims
+BUS_DB = dict(music=1.5, feature=0.0, sfx=0.0, hits=0.0, layers=0.0, amb=0.0)      # bus trims
 DUCK = dict(music=-8.0, feature=-4.0, sfx=-3.0, hits=-1.5, layers=-4.0, amb=-2.0)
 ATTACK, RELEASE, LOOKAHEAD, BRIDGE, RATE = 0.03, 0.25, 0.06, 0.30, 1000
 MASTER_LUFS, CEILING_DBTP, LIMIT_AT = -14.0, -1.0, -1.25
@@ -108,12 +108,13 @@ def _db_curve(points, t, default=0.0):
     return np.interp(t, [p[0] for p in pts], [p[1] for p in pts])
 
 
-def _send(sends, key, mono, at, gain=1.0):
-    if key[1] not in SEND_DB:
+def _send(sends, space, mono, at, gain=1.0):
+    """Add a mono signal to an acoustic space's reverb send (one return per space, on the SFX bus)."""
+    if space not in SEND_DB:
         return
-    if key not in sends:
-        sends[key] = np.zeros(sends["_N"], dtype=np.float32)
-    dsp.mix_into(sends[key], np.asarray(mono, dtype=np.float32), at, gain)
+    if space not in sends:
+        sends[space] = np.zeros(sends["_N"], dtype=np.float32)
+    dsp.mix_into(sends[space], np.asarray(mono, dtype=np.float32), at, gain)
 
 
 def _r(v, k=2):
@@ -211,8 +212,8 @@ def _xwater(x, t_place, t_sw, dur):
     if k0 >= n:
         return x
     u = np.clip((np.arange(n) - k0) / max(1, n_of(dur)), 0.0, 1.0)
-    uw = S.underwater(x, 900.0, lift_db=3.0)
-    uw = 0.8 * uw + S.wet(uw, "bell_water", -3.0)[:n]
+    uw = S.underwater(x, 700.0, lift_db=0.0)
+    uw = uw * db2lin(-8.0) + S.wet(uw, "bell_water", -16.0)[:n]       # an echo under s16's narration
     return x * np.cos(0.5 * np.pi * u)[:, None] + uw * np.sin(0.5 * np.pi * u)[:, None]
 
 
@@ -253,7 +254,7 @@ def render_cues(C, cues, N, sends):
         dsp.mix_into(buses[bus], x.astype(np.float32), n_of(t0))
         f = float(sp.get("space", 1.0) or 0.0)
         if f > 0 and space in SEND_DB:
-            _send(sends, (bus, space), x.mean(axis=1), n_of(t0), f)
+            _send(sends, space, x.mean(axis=1), n_of(t0), f)
         rows.append(dict(t=round(float(c["t"]), 3), name=name, label=c.get("label") or name, gain_db=round(float(c["gain_db"]), 1),
                          kind=c.get("kind"), src=c.get("src"), scene=c.get("scene") or C.scene_at(c["t"]), bus=bus,
                          space=space, muffled=bool(muffled), anchor=round(anc, 3), seconds=round(len(x) / SR, 2),
@@ -282,7 +283,7 @@ def render_layers(C, built, N, sends):
     lay += br.astype(np.float32)[:, None]
     del br
     lay += dsp.decorrelate(bub, rng, amount=0.35).astype(np.float32)
-    _send(sends, ("layers", "underwater"), bub, 0, db2lin(-1.0))
+    _send(sends, "underwater", bub, 0, db2lin(-1.0))
     del bub
     info["breathing"] = dict(events=len(ev), raw_lufs=[_r(lb), _r(lu)], synced_to=built["breath_sync"])
 
@@ -314,7 +315,7 @@ def render_layers(C, built, N, sends):
         x *= _span_env(n, sp["fin"], sp["fout"]) * db2lin(sp["gain"])
         xs = dsp.pan_stereo(dsp.decorrelate(x, rng, amount=0.25), -0.25)
         dsp.mix_into(deck, xs.astype(np.float32), a)
-        _send(sends, ("sfx", sp["space"]), x, a)
+        _send(sends, sp["space"], x, a)
     # ---- the winch (s12 hauling the line tight; s14 hauling up the "safe")
     for k, sp in enumerate(L["winch"]):
         a, b = max(0, n_of(sp["t0"])), min(N, n_of(sp["t1"]))
@@ -323,7 +324,7 @@ def render_layers(C, built, N, sends):
         x *= _span_env(n, sp["fin"], sp["fout"]) * db2lin(sp["gain"])
         xs = dsp.pan_stereo(dsp.decorrelate(x, rng, amount=0.2), 0.2)
         dsp.mix_into(deck, xs.astype(np.float32), a)
-        _send(sends, ("sfx", sp["space"]), x, a)
+        _send(sends, sp["space"], x, a)
     # ---- bubble streams (s01 rising to the surface, s11 up the line)
     for k, sp in enumerate(L["bubbles"]):
         a, b = max(0, n_of(sp["t0"])), min(N, n_of(sp["t1"]))
@@ -331,7 +332,7 @@ def render_layers(C, built, N, sends):
         x = S.render("bubble_stream", dur=n / SR, params=dict(density=sp["density"]), seed=40 + k).astype(np.float64)[:n]
         x *= (_span_env(len(x), sp["fin"], sp["fout"]) * db2lin(sp["gain"]))[:, None]
         dsp.mix_into(lay, x.astype(np.float32), a)
-        _send(sends, ("layers", "underwater"), x.mean(axis=1), a, 0.4)
+        _send(sends, "underwater", x.mean(axis=1), a, 0.4)
 
     # ---- s12: his breathing heard up the hose on deck - it stops dead on the cut
     ev, t_cut = CS.hose_breath_events(C)
@@ -351,15 +352,16 @@ def render_layers(C, built, N, sends):
     return lay, deck, info
 
 
-def apply_sends(sends, buses):
+def apply_sends(sends, bus):
+    """Convolve each space's send (active regions only) into the SFX bus; returns LUFS per return."""
     info = {}
-    for key, send in sorted((k, v) for k, v in sends.items() if k != "_N"):
-        bus, space = key
+    for space in sorted(k for k in sends if k != "_N"):
+        send = sends[space]
         if not np.any(send):
             continue
         wet = AM.sparse_wet(send, space, SEND_DB[space])
-        buses[bus] += wet.astype(np.float32)
-        info[f"{bus}/{space}"] = _r(_lufs(wet))
+        bus += wet.astype(np.float32)
+        info[space] = _r(_lufs(wet))
         del wet
     return info
 
@@ -548,7 +550,7 @@ def main(argv=None):
     del deck
     report["layers"] = linfo
     log("layers rendered")
-    report["sends_lufs"] = apply_sends(sends, buses)
+    report["sends_lufs"] = apply_sends(sends, buses["sfx"])
     del sends
     log("reverb sends convolved")
 

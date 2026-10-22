@@ -14,11 +14,12 @@ Outputs (exactly frames / fps * 48000 = 7 392 000 samples) under films/red/out/:
 
 Signal flow
   narration: each line src_t0..src_t1 of narration_full.wav, +-40 ms pad, 8 ms fades, placed at
-    the line's film start - pad; HPF 80 Hz, light 2:1 compression, -16 LUFS, plosive limiter
-  score (main / feat / hits), SFX cue sheet (+ scene hints) with per-scene acoustic space
-    (designed hits on their own bus), ambience beds (+ THE SILENCE floor, kept apart)
+    the line's film start - pad; HPF 80 Hz, phase rotator, light 2:1 compression, -16 LUFS,
+    peak limiter at -4.5 dBTP
+  score (main / feat / hits) with fader rides (MUSIC_RIDE), SFX cue sheet (+ scene hints) with
+    per-scene acoustic space (designed hits on their own bus), ambience beds (+ THE SILENCE floor)
   ducking from the words + the narration's envelope (30 ms attack, 250 ms release):
-    score main -8 dB, score feat -4, score hits -2, SFX -3, SFX hits -1.5, beds -2
+    score main -8 dB above 200 Hz / -3 below, feat -4, hits -3 / -1; SFX -3, SFX hits -1.5, beds -2
   THE SILENCE (s03 'quieter' 34.39 -> 37.25, back by 38.1): score -60 dB, beds -32 dB, SFX -10 dB
     (her footsteps survive, tiny), the floor hush stays; the voice is untouched
   master: HPF 30 Hz, glue compressor (-14 dB, 1.6:1), loudness to -14 LUFS through a 4x
@@ -48,9 +49,21 @@ from audio.dsp import db2lin, n_of  # noqa: E402
 
 VO_TARGET = -16.0
 VO_PAD, VO_FADE = 0.040, 0.008
-VO_PEAK_DBTP = -3.0
-DUCK = dict(main=-8.0, feat=-4.0, mhits=-2.0, sfx=-3.0, shits=-1.5, amb=-2.0)
+VO_PEAK_DBTP = -4.5
+# phase rotator: six all-passes 120..520 Hz make the (asymmetric) voiced waveform symmetric -> ~2 dB less
+# crest factor with no audible change, so the peak limiter barely works and speech never drives the master
+VO_ROTATOR = [("allpass", f, 0.6) for f in (120.0, 180.0, 250.0, 330.0, 420.0, 520.0)]
+# ducking depths (dB) under the voice; the score's main and hits buses are split at XOVER so the low dread
+# (choir, trombones, timpani, booms) only gives way a little while the speech band clears
+DUCK = dict(main=-8.0, main_lo=-3.0, feat=-4.0, mhits=-3.0, mhits_lo=-1.0, sfx=-3.0, shits=-1.5, amb=-2.0)
+XOVER = 200.0
 ATTACK, RELEASE, LOOKAHEAD, BRIDGE = 0.03, 0.25, 0.06, 0.30
+# fader rides on the whole score (dB breakpoints, cosine between): the chase under line 8 down, the dread
+# under the s06/s07 lines and the s10 lines up, the wordless embrace (s10 133.2-139) up
+MUSIC_RIDE = [(0.0, 0.0), (52.55, 0.0), (52.95, -4.0), (61.7, -4.0), (62.1, 0.0),
+              (66.9, 0.0), (67.2, 3.0), (79.9, 3.0), (81.0, 0.0),
+              (81.5, 0.0), (81.9, 4.0), (87.4, 4.0), (91.0, 0.0),
+              (126.3, 0.0), (126.6, 2.0), (133.1, 2.0), (133.7, 4.0), (138.9, 4.0), (139.4, 0.0)]
 MASTER_LUFS, CEILING_DBTP, LIMIT_AT = -14.0, -1.0, -1.25
 SILENCE = dict(t0=A(5, "quieter"), fall=0.45, hold=37.25, back=38.1, music=-60.0, amb=-32.0, sfx=-10.0)
 
@@ -79,6 +92,7 @@ def load_vo(path=VO_WAV):
     src = dsp.mono(src).astype(np.float64)
     info = dict(path=os.path.relpath(path, common.ROOT), source_seconds=round(len(src) / SR, 3))
     src = dsp.sos(src, "highpass", 80.0, 2)
+    src = dsp.biquad_chain(src, VO_ROTATOR)
     lv = dsp.loudness_integrated(np.stack([src, src], 1))
     if np.isfinite(lv):
         src = src * db2lin(-20.0 - lv)
@@ -143,8 +157,13 @@ def duck_curve(act, depth_db, rate=1000):
 def silence_gain(depth_db):
     """THE SILENCE gate (gain curve): 0 dB -> depth over `fall` from 'quieter', hold, back by `back`."""
     s = SILENCE
-    pts = [(0.0, 0.0), (s["t0"], 0.0), (s["t0"] + s["fall"], depth_db), (s["hold"], depth_db), (s["back"], 0.0),
-           (N / SR, 0.0)]
+    return gain_curve([(0.0, 0.0), (s["t0"], 0.0), (s["t0"] + s["fall"], depth_db), (s["hold"], depth_db),
+                       (s["back"], 0.0)])
+
+
+def gain_curve(pts):
+    """Linear gain per sample from (t, dB) breakpoints, cosine-shaped between them, flat after the last."""
+    pts = list(pts) + [(N / SR + 1.0, pts[-1][1])]
     t = np.arange(N) / SR
     ts = np.array([p[0] for p in pts])
     vs = np.array([p[1] for p in pts])
@@ -182,7 +201,7 @@ def render_cues(cues):
             kind, wet_db = space_at(c["t"])
             s = sends.setdefault((kind, key), np.zeros(N, np.float32))
             dsp.mix_into(s, (x.mean(axis=1) * sp["space"] * db2lin(wet_db)).astype(np.float32), at)
-        c["placed_at"] = round(at / SR, 4)
+        c["placed_at"], c["placed_len"] = round(at / SR, 4), round(len(x) / SR, 3)
     for (kind, key), s in sends.items():
         wet = common.sparse_convolve(s.astype(np.float64), common.make_space_ir(kind))
         (hits if key == "hits" else bus)[:] += wet.astype(np.float32)
@@ -277,6 +296,30 @@ def scene_levels(master):
     return out
 
 
+def attribute_clicks(clicks, stems, cues, marks):
+    """For each flagged transient: the stem carrying it (largest 7 kHz 2nd difference there) and the SFX
+    cue onsets / score marks within 60 ms - designed transients (stakes, chitin, steps, the music box
+    mechanism) show up here; a flag with no cue and no mark nearby would be a real discontinuity."""
+    out = []
+    for c in clicks:
+        k = n_of(c["t"])
+        a, b = max(0, k - n_of(0.012)), min(N, k + n_of(0.012))
+        lv = {}
+        for name, x in stems.items():
+            if x is None:
+                continue
+            seg = dsp.sos(np.asarray(x[max(0, a - n_of(0.02)):b], dtype=np.float64), "highpass", 7000.0, 4)
+            seg = seg[a - max(0, a - n_of(0.02)):]
+            lv[name] = float(dsp.lin2db(np.max(np.abs(np.diff(seg, n=2, axis=0))) + 1e-12))
+        src = max(lv, key=lv.get) if lv else None
+        near = sorted((abs(c["t"] - q["placed_at"]), f"{q['sfx']}@{q['placed_at']:.3f}") for q in cues
+                      if "placed_at" in q and q["placed_at"] - 0.06 <= c["t"] <= q["placed_at"] + q["placed_len"])
+        near = [s for _, s in near[:4]]
+        mk = [m[1][:40] for m in marks if abs(m[0] - c["t"]) < 0.06]
+        out.append(dict(c, stem=src, stem_db={k: round(v, 1) for k, v in lv.items()}, active_cues=near, marks=mk))
+    return out
+
+
 def silence_measure(master, vo):
     s = SILENCE
     a, b = max(s["t0"] + s["fall"], max(e for _, e in common.word_spans() if e < s["hold"]) + 0.15), s["hold"]
@@ -349,8 +392,12 @@ def main(argv=None):
     act = vo_activity(vo)
     d = {k: duck_curve(act, v) for k, v in DUCK.items()}
     sil_m, sil_a, sil_s = silence_gain(SILENCE["music"]), silence_gain(SILENCE["amb"]), silence_gain(SILENCE["sfx"])
-    music = (sc["main"] * (d["main"] * sil_m)[:, None] + sc["feat"] * (d["feat"] * sil_m)[:, None]
-             + sc["hits"] * (d["mhits"] * sil_m)[:, None])
+    sil_m *= gain_curve(MUSIC_RIDE)
+    music = sc["feat"] * (d["feat"] * sil_m)[:, None]
+    for bus, hi, lo in (("main", "main", "main_lo"), ("hits", "mhits", "mhits_lo")):
+        x_lo = dsp.sos(sc[bus].astype(np.float64), "lowpass", XOVER, 2, zero_phase=True).astype(np.float32)
+        music += (sc[bus] - x_lo) * (d[hi] * sil_m)[:, None] + x_lo * (d[lo] * sil_m)[:, None]
+        del x_lo
     sfx = sfx_bus * (d["sfx"] * sil_s)[:, None] + sfx_hits * (d["shits"] * sil_s)[:, None]
     amb = beds * (d["amb"] * sil_a)[:, None] + floor
     del sc, sfx_bus, sfx_hits, beds, floor, d
@@ -388,6 +435,7 @@ def main(argv=None):
         rep["vo_edges"] = dict(count=2 * len(rep["vo"]["edges"]), worst_step_dbfs=round(worst, 1),
                                clicks_near_edges=[c for c in clicks for e in rep["vo"]["edges"]
                                                   if min(abs(c["t"] - e["t_in"]), abs(c["t"] - e["t_out"])) < 0.03])
+    rep["master"]["clicks"] = attribute_clicks(chk["clicks"], stems, cues, sinfo.get("marks", []))
     stem_lufs = {k: (round(dsp.loudness_integrated(x), 2) if x is not None else None) for k, x in stems.items()}
     rep["stems_lufs"] = stem_lufs
     hits = [dict(t=m[0], label=m[1], src="score") for m in sinfo.get("marks", [])]
@@ -400,8 +448,9 @@ def main(argv=None):
     with open(os.path.join(out_dir, "audio_report.json"), "w") as fh:
         json.dump(rep, fh, indent=1, default=float)
     if not a.no_plot:
+        word_locked = {round(c["t"], 3) for c in cues if c["lock"] == "word"}
         ev = [dict(t=h["t"], label=h["label"][:34], color="#5090ff" if h["src"] == "score" else "#e04050")
-              for h in rep["hits"] if h["src"] == "score" or "word" in h["label"] or True][:400]
+              for h in rep["hits"] if h["src"] == "score" or round(h["t"], 3) in word_locked]
         ev.append(dict(t=SILENCE["t0"], label="THE SILENCE", color="#40c080"))
         qa.overview(master, {k: v for k, v in stems.items()}, os.path.join(out_dir, "audio_overview.png"),
                     events=ev, title="RED - audio overview (master short-term / momentary loudness, stems)")

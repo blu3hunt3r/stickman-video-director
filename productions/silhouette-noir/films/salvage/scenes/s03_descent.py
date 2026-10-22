@@ -32,6 +32,7 @@ shifted down by DELTA so the real silt (~9000) sits under him at Y_S.
 """
 import math
 
+import cairo
 import numpy as np
 
 from engine import atmos, bass, costume, draw
@@ -74,7 +75,8 @@ def _beats(T):
 BOAT = S.Boat()
 DUSK = 0.25
 BRIGHT = lerp(0.62, 1.0, DUSK)
-MOON = (845.0, 470.0)           # screen x, height above the horizon (the waterline here)
+MOON = (612.0, 598.0)           # screen x, height above the horizon (the waterline here):
+MOON_R = 74.0                   # ... right behind his helmet while he stands on the ladder
 
 
 def _rung(t, i):
@@ -89,16 +91,16 @@ def _rail_grip(t, dx):
 
 # ============================================================================= the diver
 H_PEL = 300.0                   # pelvis -> helmet top (front or profile)
-_R1 = _rung(0.0, 1)             # upper boot on rung 1 (~110 above the water), lower on rung 2
-X_L = _R1[0] + 60.0             # pelvis while on the ladder
-Y_L = _R1[1] - 226.0
+_R1 = _rung(0.0, 0)             # upper boot on the top rung (~180 above the water), lower on rung 1
+X_L = _R1[0] + 60.0             # pelvis while on the ladder (standing tall at the stern)
+Y_L = _R1[1] - 288.0
 G_FALL = 2600.0                 # the drop (boots already dragging in the water)
 Y_E = -40.0                     # pelvis height when his body hits the water (the splash)
 TAU_E = math.sqrt(2.0 * (Y_E - Y_L) / G_FALL)
 T_HIT = T_LET + TAU_E           # ~0.78
 V_E = G_FALL * TAU_E            # entry speed (~1240 px/s)
 K_W = 1.7                       # water braking (1/s)
-T_TOE = T_LET + math.sqrt(2.0 * 52.0 / G_FALL)      # the lower boot touches the water
+T_TOE = T_LET + math.sqrt(2.0 * 118.0 / G_FALL)     # the lower boot touches the water
 
 
 def _v_term(t):
@@ -150,12 +152,12 @@ def _yaw(t):
 
 def _ladder_pose(t):
     p = F.Pose(X_L, Y_L, 180.0)
-    r1, r2 = _rung(t, 1), _rung(t, 2)
+    r1, r2 = _rung(t, 0), _rung(t, 1)
     p.legs["L"] = {"ik": (r1[0] + 17.0, r1[1] - 19.0), "pitch": 4.0, "toe": 0.0, "abd": 3.0}
     p.legs["R"] = {"ik": (r2[0] + 16.0, r2[1] - 19.0), "pitch": 0.0, "toe": 0.0, "abd": 3.0}
-    p.pitch = -4.0
-    p.spine = [2.0, 2.0, 3.0]
-    p.head = 6.0
+    p.pitch = -5.0
+    p.spine = [1.0, 1.0, 2.0]
+    p.head = 2.0 + 1.5 * math.sin(1.7 * t)
     for s in ("L", "R"):
         p.arms[s] = dict(sh=48.0, abd=8.0, elbow=24.0, wrist=0.0, grip=0.95)
     p.eyes = dict(open=1.0, glow=1.0, look=0.0)
@@ -175,9 +177,9 @@ def _drop_pose(t):
         a = p.arms[s]
         sh = 8.0 + 5.0 * noise1(t * 0.35, 11 + sg)
         sh = lerp(sh, 34.0 + 6.0 * sg, air)
-        a["sh"] = lerp(sh, 82.0 + 14.0 * sg, up)
+        a["sh"] = lerp(sh, 52.0 + 10.0 * sg, up)
         a["abd"] = lerp(22.0 + 5.0 * noise1(t * 0.3, 21 + sg) + 2.0 * br, 30.0, max(up, air))
-        a["elbow"] = lerp(26.0 + 6.0 * noise1(t * 0.28, 31 + sg), 34.0, max(up, air))
+        a["elbow"] = lerp(26.0 + 6.0 * noise1(t * 0.28, 31 + sg), 44.0, max(up, air))
         a["wrist"] = 8.0
         a["grip"] = 0.2
     for s, ph in (("L", 0.0), ("R", 1.9)):
@@ -241,7 +243,7 @@ def _hose_len(t):
     ex, ey = BOAT.hose_exit(t)
     ix, iy = _INLET(t)
     d = math.hypot(ix - ex, iy - ey)
-    return d * (1.0 + 0.05 * smoothstep(0.0, 3000.0, d)) + 190.0 - 60.0 * smoothstep(0.0, 1500.0, d)
+    return d * (1.0 + 0.05 * smoothstep(0.0, 3000.0, d)) + 130.0 - 40.0 * smoothstep(0.0, 1500.0, d)
 
 
 HOSE = LIB.hose_rope(BOAT.hose_exit, _INLET, 600.0, n=52, t0=-1.0, t1=14.8, current=_hose_current,
@@ -305,8 +307,19 @@ def _vdepth(y):
     return y * (1.0 + 0.85 * smoothstep(500.0, 4400.0, y))
 
 
-def _wcol(y):
-    return S.water_at(_vdepth(y), BRIGHT)
+def _wcol(y, t):
+    """Water colour at world depth y and time t: the physical colour at the virtual depth,
+    lifted toward the house haze while descending (so silhouettes read against it), then
+    sinking toward ink near the bottom."""
+    v = _vdepth(y)
+    c = S.water_at(v, BRIGHT)
+    h = 0.5 * smoothstep(5.3, 7.0, t) * (1.0 - 0.6 * smoothstep(9.5, 12.5, t))
+    if h > 0.0:
+        c = S.mix(c, S.haze_at(v, 0.5 + 0.45 * smoothstep(9.0, 13.0, t)), h)
+    dk = 0.5 * smoothstep(10.5, 13.5, t)
+    if dk > 0.0:
+        c = S.mix(c, INK, dk)
+    return c
 
 
 def _water(f, t):
@@ -316,7 +329,7 @@ def _water(f, t):
         return
     ya, yb = max(y0 - 50, -60.0), max(y1, 0.0) + 10
     n = 16
-    stops = [(lerp(ya, yb, i / (n - 1)), _wcol(lerp(ya, yb, i / (n - 1)))) for i in range(n)]
+    stops = [(lerp(ya, yb, i / (n - 1)), _wcol(lerp(ya, yb, i / (n - 1)), t)) for i in range(n)]
     c = f.ctx
     c.new_path()
     if ya < 80:
@@ -335,40 +348,45 @@ def _water(f, t):
 
 
 # ============================================================================= the deep world
-WORLD = S.DeepWorld(wreck=None, reef=S.REEF + S.REEF_FRONT, debris=False, front=())
+# The sets' world is built at real depth; ours is compressed. The rock shelves of the
+# descent column are drawn through a camera DELTA_REEF deeper than ours, the seabed through
+# one DELTA deeper (so the real silt lands at Y_S under him).
+DELTA_REEF = 900.0
+BED = S.DeepWorld(wreck=None, reef=False, debris=False, front=())
+COLUMN = S.DeepWorld(wreck=None, reef=S.REEF + S.REEF_FRONT, debris=False, front=())
 
 
-def _deep_view(f, cam):
-    """Switch f to the deep camera (DELTA below ours) and return its View."""
-    f.set_camera(Camera(cam.x, cam.y + DELTA, cam.zoom))
+def _view(f, cam, t, shift):
+    f.set_camera(Camera(cam.x, cam.y + shift, cam.zoom))
     v = S.View(f, murk=0.55, down_fog=1.15)
-    v.bg = lambda Y: _wcol(Y - DELTA)
+    v.bg = lambda Y: _wcol(Y - shift, t)
     return v
 
 
-def _deep(f, t, cam, a):
-    if a <= 0.0:
-        return None
-    view = _deep_view(f, cam)
-    c = f.ctx
-    c.push_group()
-    WORLD.draw(f, t, view)
-    c.pop_group_to_source()
-    c.paint_with_alpha(a)
-    f.set_camera(cam)
-    return view
-
-
-def _deep_front(f, t, cam, a):
+def _paint(f, world, t, cam, shift, a, front=False, strips=True):
     if a <= 0.0:
         return
-    view = _deep_view(f, cam)
+    view = _view(f, cam, t, shift)
+    P = world.painter(f, t, view)
+    if not strips:
+        P.items = [it for it in P.items if it[0] not in S.STRIPS]
     c = f.ctx
     c.push_group()
-    WORLD.draw_front(f, t, view, blur=16.0)
+    if front:
+        P.render(f, view, True, bins=((-1e9, 16.0),))
+    else:
+        P.render(f, view, False)
     c.pop_group_to_source()
     c.paint_with_alpha(a)
     f.set_camera(cam)
+
+
+def _reef_a(t):
+    return smoothstep(5.9, 7.4, t) * (1.0 - smoothstep(11.4, 12.6, t))
+
+
+def _bed_a(t):
+    return smoothstep(10.6, 12.0, t)
 
 
 # ============================================================================= the splash
@@ -382,6 +400,7 @@ def _splash(f, t, xs, t0, n, scale, seed):
     if tau0 < 0.0 or tau0 > 1.7 * math.sqrt(scale):
         return
     c = f.ctx
+    c.new_path()
     g = 2600.0
     big, small = [], []
     for i in range(n):
@@ -410,6 +429,7 @@ def _splash(f, t, xs, t0, n, scale, seed):
             c.translate(x, y)
             c.rotate(ang)
             c.scale(L, r)
+            c.new_sub_path()
             c.arc(0, 0, 1.0, 0, 2 * math.pi)
             c.restore()
         c.set_source_rgba(*SPRAY, al)
@@ -417,27 +437,27 @@ def _splash(f, t, xs, t0, n, scale, seed):
 
 
 def _crown(f, t, xs, t0, scale, seed):
-    """The crown of the splash: tapered tongues of water thrown up around the plunge, bending
-    outward and collapsing back."""
+    """The crown of the splash: tongues of water thrown up around the plunge, leaning
+    outward, then sinking back into the sea."""
     tau = t - t0
-    Tc = 0.75 * math.sqrt(scale)
+    Tc = 0.8 * math.sqrt(scale)
     if tau <= 0.0 or tau >= Tc:
         return
     c = f.ctx
     k = tau / Tc
-    nf = 9
+    nf = 7
     for j in range(nf):
         u = j / (nf - 1) - 0.5                      # -0.5 .. 0.5 across the crown
         side = 1.0 if u >= 0 else -1.0
         h = hash01(seed, j, 1)
-        bx = xs + u * 2.0 * (46.0 + 120.0 * ease("out", k)) * scale
-        L = scale * (110.0 + 210.0 * h) * (1.0 - 0.55 * abs(u) * 2.0) * math.sin(math.pi * k) ** 0.6
+        bx = xs + u * 2.0 * (40.0 + 95.0 * ease("out", k)) * scale
+        L = scale * (90.0 + 170.0 * h) * (1.0 - 0.5 * abs(u) * 2.0) * math.sin(math.pi * min(1.0, k * 1.15)) ** 0.8
         if L < 4.0:
             continue
-        ang = -90.0 + u * 2.0 * (22.0 + 26.0 * h) + 6.0 * (hash01(seed, j, 2) - 0.5)
-        S.blade(c, (bx, S.sea_y(bx, t) + 6.0), ang, L, (15.0 + 8.0 * h) * scale, 1.5,
-                bend=side * (18.0 + 70.0 * k), n=8)
-    c.set_source_rgba(*SPRAY, 0.8 * (1.0 - smoothstep(0.55, 1.0, k)))
+        ang = -90.0 + u * 2.0 * (14.0 + 22.0 * h) + 5.0 * (hash01(seed, j, 2) - 0.5)
+        S.blade(c, (bx, S.sea_y(bx, t) + 8.0), ang, L, (10.0 + 6.0 * h) * scale, 3.0,
+                bend=side * (6.0 + 24.0 * k), n=8)
+    c.set_source_rgba(*SPRAY, 0.72 * (1.0 - smoothstep(0.45, 1.0, k)))
     c.fill()
 
 
@@ -475,8 +495,8 @@ def _foam(f, t, xs, t0, width, seed, k=1.0):
 
 
 # ============================================================================= the title
-TITLE_H = 150.0 / Z0
-TITLE = bass.title_glyphs("SALVAGE", height=TITLE_H, tracking=0.05, seed=3)
+TITLE_H = 142.0 / Z0
+TITLE = bass.title_glyphs("SALVAGE", height=TITLE_H, tracking=0.035, seed=3)
 TITLE_X = CX0 - 4.0
 BELOW = S.mix(PAPER, PAL.surface, 0.42)
 
@@ -564,7 +584,7 @@ def _school_path(t):
     return (cx + 2300.0 * u / (1.0 + 0.15 * abs(u)), cy - 420.0 * u + 60.0)
 
 
-SCHOOL = FishSchool(_school_path, n=120, seed=4, size=60.0, spread=(560.0, 210.0), swirl=0.5, wander=0.18,
+SCHOOL = FishSchool(_school_path, n=110, seed=4, size=105.0, spread=(640.0, 240.0), swirl=0.5, wander=0.18,
                     depth=0.4)
 
 
@@ -574,7 +594,7 @@ def _fish(f, t):
     sk_c = _CHEST(t)
     hc = _LAMP(t)
     avoid = [(sk_c[0], sk_c[1] + 30.0, 175.0), (hc[0], hc[1] + 60.0, 120.0)]
-    col = S.mix(INK, _wcol(f.cam.y), 0.18)
+    col = S.mix(INK, _wcol(f.cam.y, t), 0.18)
     with f.layer() as L:
         SCHOOL.draw(f, t, L, avoid=avoid, color=col, glint=True)
 
@@ -591,21 +611,65 @@ def _lamp_on(t):
     return min(1.0, 0.75 + 0.25 * smoothstep(0.13, 0.5, tau))
 
 
+HALF = 8.6                      # beam half angle (deg): the spot is ~260 x 120 px at the cut
+SPOT = S.mix(PAL.light, (1.0, 0.97, 0.9), 0.3)
+
+
+def _dim(t):
+    """The beam's volume and glare fade before the flatten so only the spot is left to
+    become the paper moon of s04."""
+    return 1.0 - 0.85 * smoothstep(12.9, 13.62, t)
+
+
 def _beam(f, t, b):
+    """The lamp's cone, drawn BEHIND him (his silhouette cuts the bright throat of the
+    beam), a warm spill around his helmet and shoulders, and the spot on the silt."""
     k = _lamp_on(t)
     if k <= 0.0:
         return None
     ap = _LAMP(t)
-    ang = 90.0 + 2.2 * noise1(t * 0.35, 77)
-    dim = 1.0 - 0.55 * smoothstep(13.35, 13.95, t)          # the flatten keeps the spot
-    land = smoothstep(11.6, b["calm"], t)
-    stop = ((ap[0] - 3000.0, Y_S), (ap[0] + 3000.0, Y_S))
-    cone = atmos.beam(f, ap, ang, length=max(400.0, Y_S - ap[1] + 120.0), half_angle=8.6,
-                      intensity=0.62 * k * dim, falloff=0.75, soft=0.5, core=0.55, fog=0.4, stop=stop,
-                      pool=(0.35 + 0.65 * land) * k, pool_squash=0.46, dust=0.5 * k, glare=0.9 * k * dim,
-                      t=t, seed=5)
-    atmos.lamp(f, ap, radius=9.0, intensity=0.9 * k * dim, halo=4.0, core=0.3, t=t, seed=6)
+    ang = 90.0 + 2.2 * noise1(t * 0.35, 77) * (1.0 - smoothstep(12.6, 13.4, t))
+    dim = _dim(t)
+    dist = Y_S - ap[1]
+    cone = atmos.beam(f, ap, ang, length=max(400.0, dist + 60.0), half_angle=HALF,
+                      intensity=0.5 * k * dim, falloff=0.75, soft=0.5, core=0.55, fog=0.4,
+                      pool=0.0, dust=0.5 * k * dim, glare=0.0, t=t, seed=5)
+    with f.light(blur=40) as A:
+        draw.glow_disc(A, (ap[0], ap[1] + 120.0), 420.0, PAL.light, 0.10 * k * dim)
+        draw.glow_disc(A, (ap[0], ap[1] + 60.0), 170.0, PAL.light, 0.10 * k * dim)
+    _spot(f, t, ap, ang, dist, k * smoothstep(11.6, b["calm"], t))
     return cone
+
+
+def _spot(f, t, ap, ang, dist, a):
+    """The light pool on the silt: a warm flat-topped ellipse where the cone meets the
+    floor (y = Y_S); it carries the flatten into s04's moon."""
+    if a <= 0.0 or dist <= 0.0:
+        return
+    cx = ap[0] + dist * math.tan((ang - 90.0) * D2R)
+    rx = dist * math.tan(HALF * D2R) * 1.04
+    ry = rx * 0.46
+    with f.light(blur=5) as A:
+        g = cairo.RadialGradient(0, 0, 0, 0, 0, 1.0)
+        for u, al in ((0.0, 1.0), (0.55, 0.92), (0.8, 0.7), (0.93, 0.28), (1.0, 0.0)):
+            g.add_color_stop_rgba(u, *SPOT, 0.86 * a * al)
+        A.save()
+        A.translate(cx, Y_S)
+        A.scale(rx, ry)
+        A.set_source(g)
+        A.arc(0, 0, 1.0, 0, 2 * math.pi)
+        A.fill()
+        A.restore()
+    with f.light(blur=30) as A:
+        draw.ellipse(A, (cx, Y_S), rx * 1.5, ry * 1.6)
+        draw.fill(A, PAL.light, 0.12 * a)
+
+
+def _lamp_head(f, t):
+    k = _lamp_on(t)
+    if k <= 0.0:
+        return
+    atmos.lamp(f, _LAMP(t), radius=9.0, intensity=0.95 * k * _dim(t), halo=4.5, core=0.3, t=t, seed=6)
 
 
 # ============================================================================= render
@@ -618,7 +682,7 @@ def render(f, t, T):
     surface = top_y < 120.0
     # --- sky and far sea (only while the surface is in view)
     if surface and S.horizon_y(f) > -10:
-        S.night_sky(f, t, moon=MOON, moon_r=54.0, dusk=DUSK, veil=0.35)
+        S.night_sky(f, t, moon=MOON, moon_r=MOON_R, dusk=DUSK, veil=0.3)
         S.far_sea(f, t, moon_x=MOON[0], dusk=DUSK)
     _water(f, t)
     if surface:
@@ -632,18 +696,19 @@ def render(f, t, T):
         atmos.underwater_rays(f, surface_y=0.0, t=t, spacing=170.0, angle=97.0, fan=10.0, length=3000.0,
                               intensity=ray_i, density=0.62, seed=8, blur=16)
     # --- the descent column
-    deep_a = smoothstep(5.9, 7.4, t)
-    _deep(f, t, cam, deep_a)
+    _paint(f, BED, t, cam, DELTA, _bed_a(t))
+    _paint(f, COLUMN, t, cam, DELTA_REEF, _reef_a(t), strips=False)
     # --- backlight behind him (keeps the silhouette reading in the dark water)
     ps = cam.to_screen(_CHEST(t))
     LIB.screen_glow(f, (ps[0], ps[1] - 60.0), 820.0, PAL.surface,
                     0.13 * under * (1.0 - 0.75 * deep_k) * (1.0 - 0.6 * smoothstep(11.2, 12.5, t)))
     _fish(f, t)
+    cone = _beam(f, t, b)
     # --- the action plane
     with f.layer() as L:
         if surface:
             BOAT.draw(L, t, pump_angle=12.0, winch_angle=0.0, hose_coil=0.55)
-        LIB.draw_hose(L, HOSE.points(t), LIB.HOSE_W)
+        LIB.draw_hose(L, HOSE.points(t), LIB.HOSE_W, color=S.mix(S.RED, INK, 0.75 * smoothstep(13.2, 13.62, t)))
         DIVER.draw(f, t, L)
     if surface:
         S.water_front(f, t, alpha=0.10, bright=BRIGHT)
@@ -662,23 +727,22 @@ def render(f, t, T):
     # --- bubbles
     if t > T_HIT:
         atmos.exhale(f, _suit_src, T_HIT + 0.04, n=80, t=t, seed=31, size=(2.0, 15.0), rise=(320.0, 560.0),
-                     spread=130.0, current=10.0, surface=0.0, height=2600.0, alpha=0.9)
+                     spread=130.0, current=10.0, surface=22.0, height=2600.0, alpha=0.9)
         atmos.exhale(f, _CHEST, T_HIT + 0.9, n=40, t=t, seed=34, size=(1.8, 12.0), rise=(300.0, 520.0),
-                     spread=90.0, current=10.0, surface=0.0, height=2600.0, alpha=0.9)
+                     spread=90.0, current=10.0, surface=22.0, height=2600.0, alpha=0.9)
         atmos.exhale(f, _VALVE, 2.1, n=40, t=t, seed=32, size=(1.8, 12.0), rise=(300.0, 480.0),
-                     spread=50.0, current=10.0, surface=0.0, height=2600.0, alpha=0.9)
+                     spread=50.0, current=10.0, surface=22.0, height=2600.0, alpha=0.9)
         for i, te in enumerate(EXHALES):
             atmos.exhale(f, _VALVE, te, n=24, t=t, seed=40 + i, size=(1.8, 11.0), rise=(280.0, 460.0),
-                         spread=44.0, current=12.0, surface=0.0, height=3200.0, alpha=0.9)
+                         spread=44.0, current=12.0, surface=22.0, height=3200.0, alpha=0.9)
         atmos.bubbles(f, _VALVE, rate=4.5, t=t, seed=33, rise=(260.0, 420.0), size=(1.6, 6.5), spread=8.0,
-                      current=12.0, surface=0.0, height=3600.0, alpha=0.9, t_start=2.25)
-    # --- the lamp
-    cone = _beam(f, t, b)
+                      current=12.0, surface=22.0, height=3600.0, alpha=0.9, t_start=2.25)
+    _lamp_head(f, t)
     # --- marine snow, then the near rock edges
     snow = 0.35 + 0.95 * smoothstep(600.0, 3400.0, cam.y)
-    snow *= 1.0 - 0.6 * smoothstep(13.4, 13.95, t)
+    snow *= 1.0 - 0.9 * smoothstep(12.9, 13.62, t)
     atmos.marine_snow(f, density=snow, t=t, seed=6, sink=8.0, current=(7.0, 0.0), alpha=0.8, lit=cone)
-    _deep_front(f, t, cam, deep_a)
+    _paint(f, COLUMN, t, cam, DELTA_REEF, 0.8 * _reef_a(t), front=True, strips=False)
     f.post["vignette"] = lerp(f.post["vignette"], 0.5, deep_k)
 
 

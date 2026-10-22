@@ -367,7 +367,8 @@ class Plan:
         w = word
 
         # ============================================================ s01 forty windows
-        rows = [S["s01_pops"] + r * 5 * 0.033 for r in range(8)]
+        from films.shadowplay.audio.cuesheet import s01_pop_t
+        rows = [s01_pop_t(S, 5 * r + 1) for r in range(8)]                 # each row's first window
         for r, (t, nm) in enumerate(zip(rows, "A3 C4 E4 G#4 A4 C5 E5 G#5".split())):
             self.nt(t, "pizz", nm, 0.42 + 0.03 * r, "main", var=r)
         self.nt(S["s01_grid"], "pizz", AMM7, 0.75, "hits", strum=0.008)            # the grid snaps tight
@@ -377,7 +378,7 @@ class Plan:
         for k, (dt, nm) in enumerate(((0.0, "G#6"), (0.11, "E6"), (0.19, "C6"), (0.33, "A5"), (0.46, "E6"))):
             self.nt(S["s01_lights"] + dt, "celesta", nm, 0.45, "main", var=k, pan=(-0.4, 0.3, -0.1, 0.45, 0.1)[k])
         self.nt(S["s01_heart"], "pizz", "A1 A2", 0.85, "hits")                      # lub
-        self.nt(S["s01_heart"] + 0.3, "pizz", "E2", 0.7, "hits")                    # dub
+        self.nt(S["s01_heart"] + 0.27, "pizz", "E2", 0.7, "hits")                   # dub (the second pulse)
         self.mark(S["s01_heart"], "heart pizz")
         # T1: the clock, phase-locked so the hour falls on [eleven] (s03)
         eleven3 = w("s03", "eleven")

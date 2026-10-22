@@ -168,7 +168,7 @@ ARC = [
     ("hook: the rule (music box)", 0.0, 9.0),
     ("the hood, doors close", 9.0, 24.0),
     ("descent (title, path)", 24.0, 34.3),
-    ("THE SILENCE", 34.9, 37.3),
+    ("THE SILENCE (after the voice)", 36.3, 37.3),
     ("the wolf appears", 38.5, 44.4),
     ("the chase", 44.5, 57.2),
     ("fall / stop / wait", 57.2, 66.5),

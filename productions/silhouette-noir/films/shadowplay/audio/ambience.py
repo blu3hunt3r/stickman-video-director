@@ -263,11 +263,11 @@ def bed_map(S, total):
                           (S["s03_light_out"], -2), (S["s03_light_out"] + 0.6, -3), (40.0, -1), (52.5, -1))
     B["tone_her"].on(16.6, 41.0, fi=1.2, fo=0.03).on(52.5, 70.3, fi=1.0, fo=0.15).on(141.5, pull + 1.0, fi=1.25, fo=2.0)
     # the open street: s01 rain streaks -> s02; the tilt down; s04 outside; s06 out of the door -> crane; s12 pull-out
-    B["rain_street"].on(8.45, 16.6, fi=2.1, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0)
+    B["rain_street"].on(S["s01_rain"], 16.6, fi=1.8, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0)
     B["rain_street"].on(S["s04_street"], 52.5, fi=0.3, fo=1.0)
     B["rain_street"].on(S["s06_street"], 79.5, fi=0.25, fo=1.0)
     B["rain_street"].on(pull + 1.0, 153.5, fi=2.0, fo=1.6)
-    B["rain_street"].level((8.0, -6), (9.5, 0), (20.0, -3), (21.4, -3), (S["s06_street"], 1.5), (S["s06_crane"], 1.5),
+    B["rain_street"].level((S["s01_rain"], -6), (9.5, 0), (20.0, -3), (21.4, -3), (S["s06_street"], 1.5), (S["s06_crane"], 1.5),
                            (S["s06_crane"] + 1.5, -2.5), (79.5, -3.5), (pull, -2), (pull + 2.5, 0))
     B["gutter_ext"].on(9.0, 16.6, fi=1.0, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0).on(S["s04_street"], 52.5, fi=0.3, fo=1.0)
     B["gutter_ext"].on(S["s06_street"], S["s06_crane"] + 1.0, fi=0.25, fo=2.0).on(pull + 1.0, 153.5, fi=2.0, fo=1.6)
