@@ -607,8 +607,8 @@ class Plan:
         self.nt(S["s11_found"], "pizz", TICK, 0.5, "hits", pan=0.12)
         self.mark(S["s11_found"], "one tick [forty]")
         wn = S["s11_window"]                                                      # the facade print, on [window]
-        self.br(wn, 0.45, "A3 C4 E4 G#4", 0.75, "hits", sfz=True, attack=0.012, release=0.4)
-        self.nt(wn, "pizz", AMM7, 0.7, "hits", strum=0.008)
+        self.br(wn, 0.45, "A3 C4 E4 G#4", 0.62, "hits", sfz=True, attack=0.012, release=0.4)
+        self.nt(wn, "pizz", AMM7, 0.6, "hits", strum=0.008)
         self.nt(wn + 0.03, "celesta", "A5 C6 E6 G#6", 0.45, "main", strum=0.05)
         self.mark(wn, "muted brass + pizz chord [window]")
         pu = S["s11_push"]                                                        # the push in on her doll

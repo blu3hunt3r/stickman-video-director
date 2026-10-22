@@ -561,11 +561,11 @@ def build_cues(sync, extras=()):
     c(S["s03_turn"], "doll_flutter", -14.0, pan=0.05, length=0.4, persp="through_window")
     c(S["s03_arm"] + 0.05, "pin_creak", -18.0, pan=0.05, length=0.5, persp="through_window")
     for k, nm in enumerate(("s03_stab1", "s03_stab2", "s03_stab3")):   # (the stabs themselves: the score's strings)
-        c(S[nm], "stab_thud", (3.0, 4.0, 5.0)[k], pan=0.05)
+        c(S[nm], "stab_thud", (1.0, 2.0, 3.0)[k], pan=0.05)
     c(S["s03_stab1"] + 0.03, "breath_catch", -14.0)
     c(S["s03_stab3"], "paper_splash", -10.0, tear=1)                  # the red cut-paper splash
     c(S["s03_fall"], "body_fold", -15.0, land=0.42)                   # down at +0.42
-    c(S["s03_light_out"], "light_out", 7.0, pan=0.05, dist=0.3, bus="hit")
+    c(S["s03_light_out"], "light_out", 5.0, pan=0.05, dist=0.3, bus="hit")
     c(S["s03_reverse"], "glint", -14.0, pitch=0.62, decay=0.6, attack=0.01)   # the lens, rain loud on her pane
     c(S["s03_bino_down"], "binocular_lift", -12.0, pan=0.1, lower=1)
     c(S["s03_every"], "tinnitus", -27.0, dur=round(S["s03_heart"] - S["s03_every"] + 0.3, 3))
@@ -573,7 +573,7 @@ def build_cues(sync, extras=()):
 
     # ---------------------------------------------------------------- s04 nothing
     c(S["s04_dark"], "beacon_hum", -21.0, pan=0.3, dur=round(S["s04_street"] - S["s04_dark"], 3))
-    c(S["s04_burst"], "door_burst", 0.0, pan=-0.45, ti=0.14)           # the leaf hits the wall stop at +0.14
+    c(S["s04_burst"], "door_burst", -1.5, pan=-0.45, ti=0.14)           # the leaf hits the wall stop at +0.14
     c(S["s04_torch1"] - 0.03, "flashlight_click", -6.0, pan=-0.5)
     c(S["s04_torch1"] + 0.03, "steps_seq", -10.0, dur=round(S["s04_body"] - S["s04_torch1"] - 0.1, 3), kind="floor", who="him",
       weight=0.9, rate=2.6, creak=0.3, pan0=-0.5, pan1=0.0, g0=0.0, g1=-3.0)
@@ -682,10 +682,10 @@ def build_cues(sync, extras=()):
     c(S["s09_steps"], "stair_steps", -5.0, dur=round(S["s09_feet_stop"] - S["s09_steps"] + 0.05, 3), who="him", rate=1.8, d0=0.95,
       d1=0.2, spin=0.25, creak=0.6, persp="hall_door")
     c(S["s09_timer"], "timer_switch", -10.0, pan=-0.75, persp="hall_door")
-    c(S["s09_handle"], "handle_turn", 1.0, pan=-0.6, length=round(S["s10_clack"] - S["s09_handle"], 3))   # clack on 'latch free'
+    c(S["s09_handle"], "handle_turn", -1.0, pan=-0.6, length=round(S["s10_clack"] - S["s09_handle"], 3))   # clack on 'latch free'
 
     # ---------------------------------------------------------------- s10 the trap (wordless)
-    c(S["s10_burst"], "door_burst", 1.0, pan=-0.45, ti=0.12)           # the leaf off its stop at +0.12
+    c(S["s10_burst"], "door_burst", -1.0, pan=-0.45, ti=0.12)           # the leaf off its stop at +0.12
     for k, dt in enumerate((0.0, 0.25, 0.5)):                          # his heavy run to the sheet, coat flapping
         c(S["s10_run"] + dt, "wood_step", (-5.0, -6.0, -5.5)[k], pan=-0.2 + 0.1 * k, who="him", weight=1.0, creak=0.2)
     c(S["s10_run"] + 0.05, "swish", -13.0, pan=-0.1, length=0.55, f0=300.0, f1=1000.0, peak=0.4, q=0.8, flutter=14.0, weight=0.7)
@@ -697,16 +697,16 @@ def build_cues(sync, extras=()):
     c(S["s10_hum"], "bulb_hum", -22.0, pan=0.05, dur=round(S["s10_slam"] - S["s10_hum"], 3))
     c(S["s10_her"], "steps_seq", -10.0, dur=0.75, kind="floor", who="her", weight=0.4, rate=3.2, pan0=-0.5, pan1=-0.6)
     c(S["s10_whip"] - 0.1, "swish", -10.0, pan=-0.2, length=0.3, f0=350.0, f1=1200.0, peak=0.35, q=0.8, flutter=16.0, weight=0.6)
-    c(S["s10_slam"] - 0.114, "door_slam", 4.0, pan=-0.3)               # the slab hits on the cue
+    c(S["s10_slam"] - 0.114, "door_slam", 1.0, pan=-0.3)               # the slab hits on the cue
     c(S["s10_key"], "key_lock", 2.0, pan=-0.1, insert=0, bolt_at=round(S["s10_bolt"] - S["s10_key"], 3))
-    c(S["s10_body"], "body_hit", 1.0, pan=-0.05)
-    c(S["s10_hammer"], "door_hammer", 2.0, dur=round(S["s10_stride"] - S["s10_hammer"] + 0.3, 3), rattle=1.0,
+    c(S["s10_body"], "body_hit", -1.0, pan=-0.05)
+    c(S["s10_hammer"], "door_hammer", 0.5, dur=round(S["s10_stride"] - S["s10_hammer"] + 0.3, 3), rattle=1.0,
       times=(0.0, 0.2, 0.38, 0.55, 0.7, 0.85))
     c(S["s10_slam"] + 0.05, "bulb_hum", -32.0, dur=round(S["s10_crash"] - S["s10_slam"], 3), persp="behind_door")
     c(S["s10_stride"] - 0.02, "wood_step", -3.0, pan=0.05, who="him", weight=0.95, creak=0.2, persp="behind_door")
-    c(S["s10_crash"] - 0.17, "lamp_crash", 2.0, pop=1, dur=round(S["s10_dark"] - S["s10_crash"] + 0.17, 3), persp="behind_door")
+    c(S["s10_crash"] - 0.17, "lamp_crash", 0.5, pop=1, dur=round(S["s10_dark"] - S["s10_crash"] + 0.17, 3), persp="behind_door")
     c(S["s10_fizz"], "electric_fizz", -4.0, pan=0.05, length=round(S["s10_dark"] - S["s10_fizz"], 3), persp="behind_door")
-    c(S["s10_dark"], "fuse_click", 1.0, pan=0.1)                       # ... then total silence (sfx_silences)
+    c(S["s10_dark"], "fuse_click", -2.0, pan=0.1)                       # ... then total silence (sfx_silences)
     c(S["s10_sirens"] + 0.8, "car_door_close", -17.0, pan=-0.55, persp="through_window")
     c(S["s10_sirens"] + 1.2, "car_door_close", -19.0, pan=-0.4, persp="through_window")
     c(S["s10_slide"], "cloth_slide", -8.0, length=1.4)
@@ -723,7 +723,7 @@ def build_cues(sync, extras=()):
     for k, dt in enumerate((0.15, 1.0, 1.85)):
         c(S["s11_sweep"] + dt, "wood_step", (-12.0, -13.0, -13.5)[k], pan=(-0.4, -0.3, -0.2)[k], who="him", weight=0.75, creak=0.5)
     # the shutter on the scene's flashgun cue, the bulb's pop on the facade print (the picture's flash)
-    c(S["s11_flash"], "flashgun", 0.0, pan=0.5, pop=round(max(0.0, S["s11_window"] - S["s11_flash"]), 3))
+    c(S["s11_flash"], "flashgun", -3.0, pan=0.5, pop=round(max(0.0, S["s11_window"] - S["s11_flash"]), 3))
     c(S["s11_eject"], "bulb_eject", -10.0, pan=0.6)
     c(S["s11_finds"], "doll_flutter", -16.0, pan=0.1, length=0.4)
     c(S["s11_finds"] + 0.05, "pin_creak", -14.0, pan=0.1, length=0.3)

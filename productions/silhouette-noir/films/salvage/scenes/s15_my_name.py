@@ -46,12 +46,13 @@ import functools
 import math
 
 import cairo
+import cv2
 import numpy as np
 
 from engine import atmos, costume, draw
 from engine import figure as F
 from engine.core import clamp, ease, hash01, lerp, noise1, smoothstep
-from engine.frame import Camera
+from engine.frame import Camera, surf_array
 from engine.motion import arm_ik
 from engine.timing import Cue
 from films.salvage import cast
@@ -76,8 +77,8 @@ T_TOLL = LIB.TOLLS[2][0] - OFF       # 6.80: the third toll (the loudest)
 # (I 5.50, told 5.68, him 6.06)
 T_REL = 2.40                         # the hose coupling comes off the helmet
 T_TOSS = 2.54                        # ... and he throws it out behind him, into the sea
-TOSS = (55.0, 16.0)                  # how far his hand carries it (boat-local)
-V_TOSS = (230.0, 20.0)               # its speed as he lets go (px/s)
+TOSS = (50.0, 18.0)                  # how far his hand carries it (boat-local)
+V_TOSS = (180.0, 60.0)               # its speed as he lets go (px/s)
 T_TWIST = (5.30, 5.58)               # the helmet's quarter-turn (unlock)
 T_LIFT = (5.62, 6.00)                # lifted off over his head
 T_LOWER = (6.00, 6.55)               # brought forward and down to his side
@@ -130,10 +131,10 @@ def _rot(v, ang):
 # ============================================================================= camera
 _CAM = [  # (t, x, y, zoom)
     (0.0, -165.0, -420.0, 0.86),
-    (1.25, -60.0, -215.0, 1.35),
-    (1.75, -90.0, -245.0, 1.31),
-    (2.75, -180.0, -340.0, 1.18),
-    (3.35, -320.0, -430.0, 1.08),
+    (1.25, -60.0, -215.0, 1.35),         # the moon in his port
+    (1.55, -75.0, -235.0, 1.33),
+    (2.45, -310.0, -400.0, 1.10),        # pull back: the client, the bell, the diver on the ladder
+    (3.35, -340.0, -440.0, 1.07),
     (4.45, -410.0, -462.0, 1.10),
     (5.60, -432.0, -472.0, 1.15),
     (6.80, -450.0, -480.0, 1.20),
@@ -1109,17 +1110,24 @@ def _occlude_emit(f, path_fn):
 
 
 def _boat_over_moon(f, tau, ms):
-    """The davit's arm can cross the moon as the camera follows him up: cut the boat's
-    silhouette out of the moon's glow when it does."""
-    top = f.cam.to_screen(BOAT.to_world((800.0, -700.0), tau))[1]
-    if top > ms[1] + MOON_R + 40.0:
+    """The davit's arm crosses the moon as the camera pushes in and climbs with him. The moon's
+    glow is added over everything at the end (and blurred), so a thin arm in front of it would
+    vanish into it: cut the boat's silhouette, widened by the blur's reach, out of the glow."""
+    top = f.cam.to_screen(BOAT.to_world((800.0, -840.0), tau))[1]
+    if top > ms[1] + MOON_R + 60.0:
         return
-    with f.emit() as G:
-        G.save()
-        G.set_operator(cairo.OPERATOR_CLEAR)
-        BOAT.draw(G, tau, pump_angle=150.0 * tau, winch_angle=-2.0 * LIB.crank_deg(LIB.T_STOP), hose=False,
-                  hook=False)
-        G.restore()
+    gw, gh = f.gsurf.get_width(), f.gsurf.get_height()
+    m = cairo.ImageSurface(cairo.FORMAT_A8, gw, gh)
+    c = cairo.Context(m)
+    c.set_matrix(f.g.get_matrix())
+    BOAT.draw(c, tau, pump_angle=150.0 * tau, winch_angle=-2.0 * LIB.crank_deg(LIB.T_STOP), hose=False, hook=False)
+    m.flush()
+    a = np.ndarray((gh, m.get_stride()), np.uint8, m.get_data())[:, :gw].astype(np.float32) / 255.0
+    r = max(1, int(round(2.0 * f.scale)))
+    a = cv2.dilate(a, np.ones((2 * r + 1, 2 * r + 1), np.uint8))
+    g = surf_array(f.gsurf)
+    g[...] = (g.astype(np.float32) * (1.0 - a[..., None])).astype(np.uint8)
+    f.gsurf.mark_dirty()
 
 
 def _moon_k(t):

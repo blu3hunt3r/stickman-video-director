@@ -174,9 +174,27 @@ def _persp(x, kind):
     return x, 0.0
 
 
-def render_sfx(cues, spaces, N):
-    """Every cue rendered, panned, given its perspective and its room. Returns
-    {'sfx': (N, 2), 'hit': (N, 2)}, per-cue info."""
+def _cut_at(y, at, silences):
+    """A cue that starts before a designed silence stops dead in it (its reverb too) and does not
+    come back after it: fade to zero by the silence's t0, nothing after."""
+    t = at / SR
+    nxt = next(((t0, fo) for t0, t1, fo, fi in sorted(silences) if t0 > t), None)
+    if nxt is None:
+        return y
+    t0, fo = nxt
+    end = n_of(t0) - at
+    if end >= len(y):
+        return y
+    y = y[:max(0, end)].copy()
+    k = min(len(y), max(1, n_of(fo)))
+    if k:
+        y[len(y) - k:] *= np.linspace(1.0, 0.0, k)[:, None]
+    return y
+
+
+def render_sfx(cues, spaces, N, silences=()):
+    """Every cue rendered, panned, given its perspective and its room (a cue running into a designed
+    silence is cut there, reverb and all). Returns {'sfx': (N, 2), 'hit': (N, 2)}, per-cue info."""
     bus = {"sfx": np.zeros((N, 2)), "hit": np.zeros((N, 2))}
     rows = []
     for c in cues:
@@ -192,7 +210,7 @@ def render_sfx(cues, spaces, N):
         x, send_extra = _persp(x, c.get("persp"))
         b = c.get("bus") or ("hit" if sp.get("hit") else "sfx")
         at = n_of(c["t"])
-        dsp.mix_into(bus[b], x, at)
+        dsp.mix_into(bus[b], _cut_at(x, at, silences), at)
         room, sdb = next(((k, d) for a, z, k, d in spaces if a <= c["t"] < z), (None, -99.0))
         space = float(sp.get("space", 1.0))
         if room and space > 0:
@@ -200,7 +218,7 @@ def render_sfx(cues, spaces, N):
             if c.get("persp") == "behind_door":
                 room = "hallway"
             wet = dsp.convolve(x.mean(axis=1), SP.ir(room)) * g
-            dsp.mix_into(bus[b], wet, at)
+            dsp.mix_into(bus[b], _cut_at(dsp.to_stereo(wet) if wet.ndim == 1 else wet, at, silences), at)
         rows.append(dict(t=c["t"], name=c["name"], gain_db=round(c["gain_db"], 1), bus=b, room=room,
                          len_s=round(len(x) / SR, 2), src=c.get("src", "sheet")))
     return bus, rows
@@ -374,7 +392,8 @@ def main(argv=None):
     log(f"narration: {vinfo.get('stem_lufs')} LUFS, limiter {vinfo.get('dialogue_limiter_gr_db_max')} dB")
 
     # ---- SFX
-    sbus, rows = render_sfx(cues, spaces, N)
+    sil = cuesheet.sfx_silences(sync)
+    sbus, rows = render_sfx(cues, spaces, N, sil)
     report["sfx_cues"] = rows
     log("SFX rendered")
 
@@ -393,7 +412,6 @@ def main(argv=None):
     log("score rendered")
 
     # ---- designed silences: every effect and bed (and their reverbs) cut dead
-    sil = cuesheet.sfx_silences(sync)
     gate = silence_gate(sil, N)[:, None]
     sbus["sfx"] *= gate
     sbus["hit"] *= gate
