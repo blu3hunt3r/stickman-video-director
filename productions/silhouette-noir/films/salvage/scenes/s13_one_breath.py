@@ -312,10 +312,10 @@ def _marks():
     return dict(port=port, hc=hc, root=A.root(0.0))
 
 
-Z_CU0, Z_CU1 = 3.0, 5.0
+Z_CU0, Z_CU1 = 3.0, 4.6
 
 
-CU_SCREEN = (600.0, 830.0)      # where the port sits on screen through the close-up
+CU_SCREEN = (590.0, 980.0)      # where the port sits on screen through the close-up
 
 
 def camera(t):
