@@ -374,6 +374,29 @@ def apply_sends(sends, bus):
     return info
 
 
+def precut_silences(C, built, N):
+    """A scene's 'silence' instruction in the last second before a hard cut: everything but the
+    voice drops out there (60 ms) and stays out until the cut. Returns (gate float32, windows)."""
+    gate = np.ones(N, dtype=np.float32)
+    wins = []
+    for e in built["log"]:
+        if e.get("event") != "instruction" or "silen" not in e.get("text", "").lower():
+            continue
+        sd = next((x for x in C.scenes if x["id"] == e["scene"]), None)
+        if sd is None or sd.get("trans_out") or not sd.get("next"):
+            continue
+        cut = sd["start"] + sd["duration"]
+        t = float(e["t"])
+        if not (0.0 < cut - t <= 1.0):
+            continue
+        a, b = n_of(t), n_of(cut)
+        f = min(n_of(0.06), b - a)
+        gate[a:a + f] = np.minimum(gate[a:a + f], np.cos(0.5 * np.pi * np.linspace(0.0, 1.0, f)))
+        gate[a + f:b] = 0.0
+        wins.append((round(t, 3), round(cut, 3)))
+    return gate, wins
+
+
 # ============================================================================ master
 def master_chain(pre, ref):
     """pre: the mix to master; ref: the same mix with the narration (or its proxy), used for every
@@ -604,6 +627,9 @@ def main(argv=None):
     ea, eb = n_of(END_GATE[0]), n_of(END_GATE[1])
     end[ea:eb] = np.cos(0.5 * np.pi * np.linspace(0.0, 1.0, eb - ea))
     end[eb:] = 0.0
+    pc, pc_wins = precut_silences(C, built, N)
+    end *= pc
+    report["precut_silences"] = pc_wins
     for nm, x in (("music", main_m), ("feature", feat), ("amb", amb)):
         x *= (duck[nm] * end * np.float32(db2lin(BUS_DB[nm])))[:, None]
     for nm in ("sfx", "hits", "layers"):
@@ -666,7 +692,7 @@ def main(argv=None):
         evs += [dict(t=t, label=lb[:22], color="#5090ff") for t, lb in sinfo["marks"]]
         evs.sort(key=lambda e: e["t"])
         QA.overview(master, stems, C.scenes, os.path.join(out_dir, f"audio_overview{sfx_}.png"), events=evs,
-                    silences=sinfo["silences"], title=f"SALVAGE{' (no VO)' if a.no_vo else ''} - master "
+                    silences=list(sinfo["silences"]) + pc_wins, title=f"SALVAGE{' (no VO)' if a.no_vo else ''} - master "
                     f"{chk['integrated_lufs']} LUFS / {chk['true_peak_dbtp']} dBTP")
     log(f"master: {chk['samples']} samples (length ok: {chk['length_ok']}), finite {chk['finite']}, "
         f"{chk['integrated_lufs']} LUFS, TP {chk['true_peak_dbtp']} dBTP, clicks {len(chk['clicks'])}")
