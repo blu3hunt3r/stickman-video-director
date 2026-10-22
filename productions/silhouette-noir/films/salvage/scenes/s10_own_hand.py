@@ -54,7 +54,7 @@ T_TURN0, T_TURN1 = 4.92, 5.52
 T_SIGN = 6.69
 T_LINE0, T_LINE1 = 7.00, 8.80
 T_GRAB = 9.32
-T_SWING = 9.52
+T_SWING = 9.40                  # the hook goes back, down past his hip and out to frame right
 
 # ----------------------------------------------------------------------------- the diver
 X0 = 100.0                     # pelvis x: in front of the open safe, on her old port side (the floor)
@@ -67,8 +67,8 @@ LOOK = cast.diver()
 @functools.lru_cache(maxsize=1)
 def _diver():
     A = Actor(DIVER, LOOK, x=X0, ground=FLOOR, facing=YAW, t0=-2.0, seed=10)
-    A.stand(until=9.50, idle=0.5)
-    A.turn(yaw=30.0, dur=1.0, at=9.50, via=60.0)
+    A.stand(until=9.45, idle=0.5)
+    A.turn(yaw=18.0, dur=0.62, at=9.45, via=50.0)
     A.stand(until=12.0, idle=0.4)
     # the helmet nods down to the book, up to the photo, up at the line
     A.key("head", [(-1.0, 12.0), (1.9, 12.0), (2.4, 6.0), (3.8, 6.0), (4.4, 13.0), (6.9, 15.0), (7.7, 2.0),
@@ -441,13 +441,17 @@ def _photo_state(t, wR):
         c, ang, face = _photo_free(t)
         return c, ang, face, False
     c0, a0, f0 = _photo_free(T_CATCH)
-    u = ease("inout", clamp((t - T_CATCH) / (T_HOLD0 - T_CATCH)))
+    u = ease("inout", clamp((t - T_CATCH - 0.16) / (T_HOLD0 + 0.08 - T_CATCH - 0.16)))
     held = (wR[0] + HOLD_OFF[0], wR[1] + HOLD_OFF[1])
     d0 = (c0[0] - _wrist_target(T_CATCH)[0][0] - HOLD_OFF[0], c0[1] - _wrist_target(T_CATCH)[0][1] - HOLD_OFF[1])
     c = (held[0] + d0[0] * (1 - u), held[1] + d0[1] * (1 - u))
     ang = lerp(a0, -3.0 + 1.5 * math.sin(1.3 * t), u)
     face = lerp(f0, 1.0, u)
     return c, ang, face, t > T_LOWER
+
+
+def lerp2(a, b, u):
+    return a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u
 
 
 # ----------------------------------------------------------------------------- the hook
@@ -471,9 +475,19 @@ def _hook_angle(t):
     env = ss(T_LINE0, T_LINE0 + 0.8, t)
     a = -14.0 * math.cos(2.0 * (t - T_LINE0) + 0.4) * env
     if t > T_GRAB:
-        a = lerp(a, 8.0, ss(T_GRAB, T_GRAB + 0.15, t))
-        a = lerp(a, -62.0, ss(T_SWING, 10.05, t))
+        # held by the eye: it trails the arc of his arm and is flung out ahead of it at the end
+        held = LIB.track([(T_GRAB, 8.0), (T_GRAB + 0.15, 4.0, "inout"), (9.58, 12.0, "inout"),
+                          (9.84, 34.0, "inout"), (10.0, -40.0, "inout"), (10.2, -62.0, "out")], t)
+        a = lerp(a, held, ss(T_GRAB, T_GRAB + 0.12, t))
     return a
+
+
+def _swing_hand(t):
+    """The right wrist's arc after the grab: drawn back, down past his hip, out to frame right."""
+    u = clamp((t - T_SWING) / 0.80)
+    g = u * u * (3.0 - 2.0 * u)
+    th = math.radians(185.0 - 210.0 * g)
+    return X0 - 30.0 + 140.0 * math.cos(th), 4705.0 + 140.0 * math.sin(th)
 
 
 # ----------------------------------------------------------------------------- the gloves
@@ -488,7 +502,8 @@ def _wrist_target(t):
         hold = (X0 - 14.0 - HOLD_OFF[0], 4708.0 - HOLD_OFF[1])
         low = (X0 - 10.0 - HOLD_OFF[0], 4796.0 - HOLD_OFF[1])
         tuck = (X0 - 8.0 - HOLD_OFF[0], 4704.0 - HOLD_OFF[1])
-        gR = LIB.track([(T_FATHER + 0.3, gR), (T_CATCH, catch, "inout"), (T_HOLD0, hold, "inout"),
+        gR = LIB.track([(T_FATHER + 0.3, gR), (T_CATCH, catch, "inout"), (T_CATCH + 0.16, catch),
+                        (T_HOLD0 + 0.08, hold, "inout"),
                         (T_HOLD1, (hold[0] + 2.0, hold[1] - 3.0), "inout"), (T_LOWER, low, "inout"),
                         (T_TUCK1, tuck, "inout"), (T_TUCK1 + 0.5, _bk(t, -116.0, 70.0), "inout")], t)
     # left glove: lifts the right page's edge and lays it over
@@ -510,9 +525,10 @@ def _wrist_target(t):
         reach = (hk[0] + 4.0, hk[1] + 30.0)
         w = ease("inout", clamp((t - 8.95) / (T_GRAB - 8.95)))
         gR = (lerp(gR[0], reach[0], w), lerp(gR[1], reach[1], w))
-        if t > T_SWING:
-            u = ease("in", clamp((t - T_SWING) / 0.5))
-            gR = (gR[0] + 300.0 * u, gR[1] + 46.0 * u * (1 - u) * 2)
+        if t > T_GRAB:
+            arc = _swing_hand(t)
+            w = ss(T_GRAB, T_SWING + 0.25, t)
+            gR = (lerp(reach[0], arc[0], w), lerp(reach[1], arc[1], w))
     return gR, gL
 
 
@@ -535,20 +551,21 @@ def _solved(t):
 def _hook_eye(t):
     if t <= T_GRAB:
         return _hook_free(t)
-    wR = _solved(t)[0].j["wrist_R"]
+    sk = _solved(t)[0]
+    hand = lerp2(sk.j["wrist_R"], sk.j["fingers_R"], 0.45)
     hk = _hook_free(T_GRAB)
     w = ss(T_GRAB - 0.05, T_GRAB + 0.1, t)
-    return lerp(hk[0], wR[0] + 2.0, w), lerp(hk[1], wR[1] - 30.0, w)
+    return lerp(hk[0], hand[0], w), lerp(hk[1], hand[1], w)
 
 
 # ----------------------------------------------------------------------------- camera
 def camera(t):
     z = LIB.track([(-1.0, 4.30), (0.7, 4.30), (1.8, 4.10, "inout"), (2.7, 4.85, "inout"), (3.7, 5.00, "inout"),
                    (4.5, 4.35, "inout"), (5.7, 4.35, "inout"), (6.8, 5.10, "inout"), (8.3, 3.05, "inout"),
-                   (10.2, 3.25, "inout")], t)
+                   (9.4, 3.0, "inout"), (10.2, 2.85, "inout")], t)
     cx = LIB.track([(-1.0, X0 - 2.0), (0.7, X0 - 2.0), (1.8, X0 - 34.0, "inout"), (2.7, X0 - 14.0, "inout"),
                     (3.7, X0 - 12.0, "inout"), (4.5, X0 - 2.0, "inout"), (5.7, X0, "inout"), (6.8, X0 + 30.0, "inout"),
-                    (8.3, X0 - 40.0, "inout"), (9.5, X0 - 36.0, "inout"), (10.2, X0 + 10.0, "inout")], t)
+                    (8.3, X0 - 40.0, "inout"), (9.45, X0 - 30.0, "inout"), (10.25, X0 + 60.0, "inout")], t)
     cy = LIB.track([(-1.0, 4722.0), (0.7, 4722.0), (1.8, 4790.0, "inout"), (2.7, 4684.0, "inout"),
                     (3.7, 4680.0, "inout"), (4.5, 4738.0, "inout"), (5.7, 4744.0, "inout"),
                     (6.8, 4800.0, "inout"), (8.3, 4668.0, "inout"), (10.2, 4660.0, "inout")], t)

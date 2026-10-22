@@ -1,17 +1,24 @@
 """s05 · AGAIN: the stacked split screen. Window 9's sheet on Tuesday (top) and on Wednesday
-(bottom): the same shadow murder runs in both panels, to the frame. The lights snap out, the
-film rewinds, a red line ties the same second, the bottom panel slides over the top one (one
-arm), the silent scream, then the push into the elbow: a pin joint and a wire, a puppet. The
-pin turns on every word of "People don't die the same way twice", the arm cocks, and the last
-stab becomes the slash cut into s06.
+(bottom): the same shadow murder runs in both panels, to the frame, and the third stab lands on
+[again]. The lights snap out, the film rewinds, a red line ties the same second, the bottom
+panel slides up over the top one (one arm), the silent scream, then the push into the elbow: a
+slotted pin in a ring of light and a rod wire, a puppet. The pin ticks round on die / same /
+way / twice, the arm cocks, and the last stab lands on the slash line into s06.
 
-Both panels are the facade's window 9 (sets.Facade) seen close, rendered into an offscreen
-frame and blitted into their viewports; the murder is films/shadowplay/scenes/_lib_shadow_show.
+Window 9 is the facade's (sets.Facade), rendered into an offscreen frame (the Tuesday panel's
+view; Wednesday is the same frame moved down 965 px) and blitted into the panels; the murder
+is films/shadowplay/scenes/_lib_shadow_show (the same choreography as s03).
+
+Handoffs: IN (bars from s04, from t = -0.5) two stacked 1080x955 panels split by an ink bar at
+y 955-965, window 9 dark, centred at (540, 477.5) and (540, 1442.5), 461 x 576 px each, with
+TUESDAY / WEDNESDAY captions centred at y 880 / 1845. OUT (slash, 13.625-14.375) the elbow
+pin at screen centre (540, 960), zoom ~10.6; forearm and knife from the pin down-left along
+the slash cut's -58 deg line.
 """
 import math
 
 from engine import bass, draw
-from engine.core import clamp, ease, lerp, hash01
+from engine.core import clamp, ease, lerp
 from engine.frame import Frame, Camera
 from engine.palette import PAPER, RED
 from engine.timing import Cue
@@ -23,8 +30,10 @@ FAC = sets.Facade()
 WIN = FAC.window_rect(9)
 WC = ((WIN[0] + WIN[2]) / 2.0, (WIN[1] + WIN[3]) / 2.0)
 Z0, Z1, Z2 = 1.8, 3.35, 10.0          # panel, single view, pin close-up
-TOP = (0.0, 0.0, 1080.0, 955.0)
-BOT = (0.0, 965.0, 1080.0, 1920.0)
+TOP = (0.0, 0.0, 1080.0, 955.0)       # the Tuesday panel (screen rect)
+BOT = (0.0, 965.0, 1080.0, 1920.0)    # the Wednesday panel, under a thin ink bar
+SHIFT = 965.0                          # Wednesday = Tuesday's frame moved down by this
+PANEL_Y = 477.5                        # screen y of window 9's centre in the Tuesday panel
 U_FREEZE = 1.71                      # the replay freezes here: knife raised, before the strike
 PUSH_ARM = (250.0, 296.0, 190.0)     # the arm the camera pushes into: knife up and clear of the muntin
 TICK = 7.0                           # degrees the pin turns per tick (the forearm winds back)
@@ -33,7 +42,7 @@ STRIKE = (250.0, 122.0, 122.0)       # the last stab: forearm and blade on the s
 STAB_T = (13.43, 13.61)              # the last stab (lands as the slash cut starts at 13.625)
 CRANK = (0.95, 0.62)                 # s05 runs the arm wire out to the right: a visible rod line
 PIN = 1.2                            # pin-joint size for the close-up
-LABEL_Y = 880.0                      # caption centre under the window, in panel coords
+LABEL_Y = 880.0                      # caption centre under the window (Tuesday panel; +SHIFT)
 LEVEL = 0.85                         # the lamp behind the sheet (keeps the sheet amber)
 
 
@@ -112,6 +121,11 @@ def _lamp(t, t_on, w):
 
 
 # ----------------------------------------------------------------------------- cameras
+def _win_cam(y, z):
+    """A camera putting window 9's centre at screen (540, y), at zoom z."""
+    return Camera(WC[0], WC[1] + (960.0 - y) / z, z)
+
+
 def _pin(t, w):
     """World position of the elbow pin in the push-in pose."""
     u, p = _state(max(t, w["people"]), w)
@@ -121,13 +135,14 @@ def _pin(t, w):
 
 
 def _camera(t, w):
-    """The panel camera (sub-frame) at time t."""
+    """The camera of the offscreen frame: the Tuesday panel's view (the Wednesday panel is the
+    same frame moved down by SHIFT); after the overlay, the one view and the push-in."""
     a = w["arm"]
     if t < a + 0.45:
-        return Camera(WC[0], WC[1], Z0)
+        return _win_cam(PANEL_Y, Z0)
     if t < w["people"]:
         k = _k(t, a + 0.45, 0.6, "inout")
-        return Camera(WC[0], WC[1], Z0 * (Z1 / Z0) ** k)
+        return _win_cam(lerp(PANEL_Y, 960.0, k), Z0 * (Z1 / Z0) ** k)
     pin = _pin(t, w)
     k = _k(t, w["people"], 2.2, "inout3")
     z = Z1 * (Z2 / Z1) ** k
@@ -142,29 +157,24 @@ def _camera(t, w):
     return Camera(cx, cy, z)
 
 
-def _viewports(t, w):
-    """[(panel rect, clip rect, alpha, which)] in draw order, plus the ink bar rect (or None).
-    While the Wednesday panel slides up over Tuesday it is translucent only where it lies
-    over the Tuesday panel (the double exposure); the rest of it stays solid."""
+def _layout(t, w):
+    """[(which, dy, clip, alpha)] in draw order: the 'top' (Tuesday) or 'bot' (Wednesday)
+    frame, moved down by dy and clipped to the screen rect clip; plus the ink bar (or None).
+    The Wednesday panel slides up over Tuesday on [arm]: translucent only where it lies over
+    the Tuesday panel (the double exposure), solid below, and the street continues under it."""
     a = w["arm"]
     if t < a:
-        return [(TOP, TOP, 1.0, "top"), (BOT, BOT, 1.0, "bot")], (0.0, 955.0, 1080.0, 965.0)
+        return [("top", 0.0, TOP, 1.0), ("bot", SHIFT, BOT, 1.0)], (0.0, TOP[3], 1080.0, BOT[1])
     if t < a + 0.45:
         k = _k(t, a, 0.45, "inout3")
-        dy = -965.0 * k
-        bot = (BOT[0], BOT[1] + dy, BOT[2], BOT[3] + dy)
-        alpha = 0.55 if k < 0.999 else 1.0
-        over = (bot[0], bot[1], bot[2], min(bot[3], TOP[3]))
-        rest = (bot[0], max(bot[1], TOP[3]), bot[2], bot[3])
-        out = [(TOP, TOP, 1.0, "top")]
-        if over[3] > over[1]:
-            out.append((bot, over, alpha, "bot"))
-        if rest[3] > rest[1]:
-            out.append((bot, rest, 1.0, "bot"))
-        return out, (0.0, 955.0 + dy, 1080.0, 965.0 + dy)
-    k = _k(t, a + 0.45, 0.6, "inout")
-    full = (0.0, 0.0, 1080.0, lerp(955.0, 1920.0, k))
-    return [(full, full, 1.0, "bot")], None
+        y0 = BOT[1] - SHIFT * k                        # the sliding panel's top edge
+        dy = SHIFT * (1.0 - k)
+        out = [("top", 0.0, TOP, 1.0)]
+        if y0 < TOP[3]:
+            out.append(("bot", dy, (0.0, y0, 1080.0, TOP[3]), 0.55 if k < 0.999 else 1.0))
+        out.append(("bot", dy, (0.0, max(y0, TOP[3]), 1080.0, 1920.0), 1.0))
+        return out, (0.0, y0 - (BOT[1] - TOP[3]), 1080.0, y0)
+    return [("bot", 0.0, (0.0, 0.0, 1080.0, 1920.0), 1.0)], None
 
 
 # ----------------------------------------------------------------------------- drawing
@@ -186,17 +196,15 @@ def _render_panel(f, t, lv, u, p, cam):
     return sub.surf
 
 
-def _blit(f, surf, rect, clip, alpha=1.0):
-    """Paint a panel's offscreen frame so its centre lands on the middle of `rect`, clipped
-    to `clip` (screen px)."""
+def _blit(f, surf, dy, clip, alpha=1.0):
+    """Paint an offscreen frame moved down by dy, clipped to the screen rect clip."""
     c = f.ctx
     s = f.scale
     c.save()
     c.identity_matrix()
     c.rectangle(clip[0] * s, clip[1] * s, (clip[2] - clip[0]) * s, (clip[3] - clip[1]) * s)
     c.clip()
-    vc = (rect[1] + rect[3]) / 2.0
-    c.set_source_surface(surf, 0.0, (vc - 960.0) * s)
+    c.set_source_surface(surf, 0.0, dy * s)
     c.paint_with_alpha(clamp(alpha))
     c.restore()
 
@@ -206,27 +214,32 @@ def _label(text):
                              jitter=0.8)
 
 
-def _labels(f, t, w, vps):
+def _panels(lay):
+    """One (which, dy, clip) per panel (the first entry of each)."""
+    seen, out = set(), []
+    for which, dy, clip, alpha in lay:
+        if which not in seen:
+            seen.add(which)
+            out.append((which, dy, clip, alpha))
+    return out
+
+
+def _labels(f, t, w, lay):
     """TUESDAY / WEDNESDAY captions under the windows (Bass cut paper); they leave before
     the overlay."""
     a = w["arm"]
     out = _k(t, a - 0.34, 0.30, "linear")
     if out >= 1.0:
         return
-    seen = set()
     with f.screen() as c:
-        for rect, _, alpha, which in vps:
-            if which in seen:
-                continue
-            seen.add(which)
-            text = "TUESDAY" if which == "top" else "WEDNESDAY"
-            Tt = _label(text)
-            cy = rect[1] + LABEL_Y
+        for which, dy, clip, alpha in _panels(lay):
+            Tt = _label("TUESDAY" if which == "top" else "WEDNESDAY")
+            cy = LABEL_Y + dy
             c.save()
-            c.rectangle(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1])
+            c.rectangle(clip[0], clip[1], clip[2] - clip[0], clip[3] - clip[1])
             c.clip()
             if which == "bot" and t < w["wed"] + 0.4:
-                # WEDNESDAY settles as its panel lights (the letters jump once, staggered)
+                # WEDNESDAY jumps once (letter by letter) as its panel lights
                 def fx(i, g, pp, tr, t=t):
                     tr = tr or {}
                     q = _k(t, w["wed"] + 0.035 * i, 0.30, "linear")
@@ -241,21 +254,14 @@ def _labels(f, t, w, vps):
             c.restore()
 
 
-def _tie(f, t, w, vps, u, p, cam):
+def _tie(f, t, w, lay, u, p, cam):
     """The red line on 'second': rings round both knife tips, a line between them; the
     overlay closes it to one ring, which then goes."""
     s = w["second"]
     if t < s - 0.02 or t > w["arm"] + 0.9:
         return
-    tip = show.anchors(u, WIN, pose=p)["knife_tip"]
-    sx, sy = cam.to_screen(tip)
-    pts, seen = [], set()
-    for rect, _, _, which in vps:
-        if which in seen:
-            continue
-        seen.add(which)
-        vc = (rect[1] + rect[3]) / 2.0
-        pts.append((sx, sy + vc - 960.0))
+    sx, sy = cam.to_screen(show.anchors(u, WIN, pose=p)["knife_tip"])
+    pts = [(sx, sy + dy) for _, dy, _, _ in _panels(lay)]
     if len(pts) == 1:
         pts = pts * 2
     gone = _k(t, w["arm"] + 0.5, 0.35, "in3")
@@ -278,21 +284,21 @@ def render(f, t, T):
     f.fill(INK)
     f.post["vignette"] = 0.42
     u, p = _state(t, w)
-    vps, bar = _viewports(t, w)
+    lay, bar = _layout(t, w)
     cam = _camera(t, w)
-    lv_top = _lamp(t, w["on"], w)
-    lv_bot = _lamp(t, w["wed"], w)
-    same = abs(lv_top - lv_bot) < 1e-4
-    surf_bot = _render_panel(f, t, lv_bot, u, p, cam)
-    surf_top = surf_bot if same else _render_panel(f, t, lv_top, u, p, cam)
-    for rect, clip, alpha, which in vps:
-        _blit(f, surf_top if which == "top" else surf_bot, rect, clip, alpha)
+    lv = {"top": _lamp(t, w["on"], w), "bot": _lamp(t, w["wed"], w)}
+    surfs = {}
+    for which, dy, clip, alpha in lay:
+        if which not in surfs:
+            twin = [k for k in surfs if abs(lv[k] - lv[which]) < 1e-4]
+            surfs[which] = surfs[twin[0]] if twin else _render_panel(f, t, lv[which], u, p, cam)
+        _blit(f, surfs[which], dy, clip, alpha)
     if bar is not None:
         with f.screen() as c:
             c.rectangle(bar[0], bar[1], bar[2] - bar[0], bar[3] - bar[1])
             draw.fill(c, INK)
-    _tie(f, t, w, vps, u, p, cam)
-    _labels(f, t, w, vps)
+    _tie(f, t, w, lay, u, p, cam)
+    _labels(f, t, w, lay)
 
 
 def motion_blur(t, T):
@@ -300,7 +306,7 @@ def motion_blur(t, T):
     if w["same"] < t < w["same"] + 0.32:          # the rewind
         return 3
     if STAB_T[0] + 0.03 < t < STAB_T[1] + 0.06:   # the last stab
-        return 4
+        return 3
     U0 = _u0(w)
     for ts in show.STAB_TIMES:                     # the three stabs, both nights
         if U0 + ts - show.STRIKE < t < U0 + ts + 0.03:

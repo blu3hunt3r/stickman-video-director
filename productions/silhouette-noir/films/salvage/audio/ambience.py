@@ -18,12 +18,10 @@ breakpoints) with crossfades across the cuts and transitions from the timeline. 
 """
 from __future__ import annotations
 
-import math
-
 import numpy as np
 
 from audio import dsp
-from audio.dsp import SR, TWO_PI, bandpass, brown, db2lin, n_of, pink, resonator_bank, smooth_noise, sos, white
+from audio.dsp import SR, bandpass, brown, db2lin, n_of, pink, resonator_bank, smooth_noise, sos, white
 
 from . import cuesheet as CS
 from . import sfx_salvage as S

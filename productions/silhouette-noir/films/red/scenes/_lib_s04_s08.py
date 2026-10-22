@@ -20,7 +20,7 @@ from engine import atmos, draw
 from engine import figure as F
 from engine.core import clamp, ease, lerp, smoothstep, hash01, noise1
 from engine.frame import Camera
-from engine.motion import foot_ik, SOLE_U
+from engine.motion import Actor, foot_ik, SOLE_U
 from films.red import cast
 from films.red import sets as S
 
@@ -396,3 +396,97 @@ def s07_hood_targets(t=0.0, cam=None, layers=_S07_RED_LAYERS, girl=True):
         if 10 < sx < 1070 and 10 < sy + 0.5 * h < 1910:
             out.append(dict(id=hid, layer=layer, x=round(sx, 1), y=round(sy + 0.5 * h, 1), h=round(h, 1)))
     return out
+
+
+# ============================================================================= the clearing (s07 + s08)
+# One continuous performance on the s07 clock (t7 = s07 time = s08 time + 13.0): the hard cut
+# s07 -> s08 is a cut on action, so the spider, the wolf and the girl simply carry on.
+S08_DT = 13.0
+CL_MOOD = S.mood_mix(S.DUSK, S.NIGHT, 0.55)
+CG = S.CLEARING.ground_y
+
+T7 = dict(desc=1.5, back=5.95, drop=6.3, charge=8.3, fall=8.45, sit=8.85, leap=12.6)
+SP_X = 1690.0
+
+
+@lru_cache(maxsize=None)
+def cl_spider():
+    from engine.creatures import Spider
+    sp = Spider(x=SP_X, ground=CG, facing=-1, size=500.0, seed=7)
+    sp.at(T7["desc"]).descend(dur=3.9, top=-2600.0, frm=-1700.0, eyes_at=0.86, pitch0=-25.0, hang=1150.0,
+                              low=760.0, touch=(0.41, 0.60), unfold=(0.04, 0.42), reach_down=1.0, settle=0.5)
+    sp.stand(dur=0.3)
+    sp.at(T7["drop"]).drop(dur=0.7)
+    sp.stand(dur=0.5)
+    sp.creep(to=1630.0)
+    sp.at(T7["charge"]).charge(to=1260.0)
+    sp.threat(dur=1.6)
+    sp.stand(dur=0.5)
+    sp.creep(to=1200.0)
+    sp.threat(dur=2.2)
+    return sp
+
+
+@lru_cache(maxsize=None)
+def cl_wolf():
+    from engine.creatures import Wolf
+    w = Wolf(x=-200.0, ground=CG, facing=1, size=330.0, seed=1)
+    w.at(8.7).stalk(to=250.0, speed=280.0).crouch(dur=0.14).leap(to=1150.0, height=400.0)
+    return w
+
+
+def _cl_girl_actor():
+    return Actor(GIRL, look_girl(), x=S07_GIRL_X, ground=CG, facing=1, seed=7, name="red")
+
+
+@lru_cache(maxsize=None)
+def cl_retreat():
+    a = _cl_girl_actor()
+    GX = S07_GIRL_X
+    o = 0.022 * GH
+    feet0 = {"L": GX + o, "R": GX - o}
+    steps = [(6.25, "R", GX - 70.0), (6.55, "L", GX - 190.0), (6.80, "R", GX - 290.0),
+             (7.05, "L", GX - 345.0), (7.60, "R", GX - 430.0), (8.05, "L", GX - 500.0),
+             (8.38, "R", GX - 585.0, 0.22)]
+    xs = GX - 650.0
+    sit = [(T7["sit"], "L", xs + 120.0), (T7["sit"], "R", xs + 95.0),
+           (9.7, "L", xs + 70.0), (9.95, "R", xs + 45.0), (10.9, "L", xs + 10.0), (11.15, "R", xs - 15.0)]
+    scoot = [(T7["sit"], xs), (9.55, xs), (9.9, xs - 45.0), (10.75, xs - 45.0), (11.1, xs - 90.0)]
+    lean = [(T7["back"], 0.0), (6.4, -9.0, "out"), (7.2, -4.0), (8.3, -6.0), (8.6, -38.0, "in"),
+            (T7["sit"], -45.0), (9.2, -22.0, "out"), (12.0, -24.0), (12.35, -34.0, "out3")]
+    return Retreat(a, T7["back"], GX, feet0, 1.0, steps, (T7["fall"], T7["sit"], xs), sit, scoot, lean)
+
+
+@lru_cache(maxsize=None)
+def cl_girl():
+    a = _cl_girl_actor()
+    R = cl_retreat()
+    a.stand(until=T7["back"], at=-1.0)
+    a.free(dur=40.0 - T7["back"], path=R.path, pose=R.pose, at=T7["back"], blend=0.3)
+    sp = cl_spider()
+    eye = lambda t: sp.eye_pos(t)[0]
+    a.look_at(-1.0, 1.95, (1720.0, 420.0), fade=0.1, amount=0.8)
+    a.look_at(2.15, 3.45, eye, fade=0.3, amount=0.9)
+    a.look_at(3.55, 3.95, (900.0, 1540.0), fade=0.2)
+    a.look_at(4.1, 4.5, (2150.0, 1540.0), fade=0.2)
+    a.look_at(4.7, 40.0, eye, fade=0.3)
+    # the basket: carried on the far (left) arm, then clutched to her chest
+    a.arm("L", -1.0, 3.55, fade=0.3, sh=18.0, elbow=62.0, abd=9.0, wrist=-8.0, grip=0.9)
+    a.arm("L", 3.75, 40.0, fade=0.3, sh=34.0, elbow=112.0, abd=12.0, wrist=-20.0, grip=0.95)
+    a.arm("R", 3.85, T7["fall"], fade=0.3, sh=40.0, elbow=95.0, abd=14.0, wrist=-10.0, grip=0.8)
+    # falling: the near hand goes back to the snow
+    a.reach("R", T7["fall"] + 0.15, 11.95, lambda t: (a.root(t)[0] - 0.17 * GH, CG(a.root(t)[0]) - 6.0), fade=0.2)
+    # the shield: near arm up in front of her face as it rears to strike
+    a.arm("R", 12.15, 40.0, fade=0.18, sh=128.0, elbow=70.0, abd=10.0, wrist=20.0, grip=0.2)
+    a.key("head", [(5.0, 0.0), (5.3, -8.0, "out"), (8.4, -8.0), (8.7, 6.0, "out"), (9.2, -4.0)], mode="add")
+    return a
+
+
+def cl_basket(t7):
+    """(grip, angle, in_front) of the basket while she holds it."""
+    a = cl_girl()
+    sk = a.skeleton(t7)
+    grip = basket_hand(sk, "L")
+    w = clamp((t7 - 3.55) / 0.5)
+    ang = lerp(4.0 * math.sin(t7 * 2.1), -28.0, w)
+    return grip, ang, w > 0.5

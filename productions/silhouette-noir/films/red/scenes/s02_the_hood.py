@@ -15,7 +15,8 @@ IN (ink from s01, 1.25 s): Camera(-1640, 898.8, 0.92), still until 0.7. The girl
 9.42      the girl turns to the street (via the camera) and walks right, 342 px/s, for good.
           The camera pulls back to the street and the houses up the hill: villagers stand in
           three lit doorways; the doors shut on [didn't] (m3), [know] (n3) and [yet] (m4).
-11.9      the mother steps into her doorway, opens her eyes and watches her go.
+10.05     the mother steps back into her doorway (a silhouette in the light); at 12.4 she
+          opens her eyes and looks after her.
 13.3-14.3 the girl looks back once; the mother lifts her hand (13.55).
 OUT (dissolve to s03, 1.5 s): tracking camera at zoom 0.42, the girl walking right with her
     feet at screen (540, ~1350); she reaches the gate (x 0) at t 15.0 and is at x ~260 by
@@ -47,6 +48,7 @@ MB = cast.MOTHER
 MH = MB.height
 R0, R1 = 8.45, 9.35                     # the mother rises
 PICK = 4.88                             # her hand closes on the basket's handle
+STEP_IN = 10.05                         # the mother steps back into her doorway
 C0 = Camera(XG, float(G(XG)) - 540.0 / 0.92, 0.92)      # the IN
 TWO = (-1785.0, GD - 650.0 / 1.3, 1.30)                   # the two-shot (ground at y 1610)
 TRACK_Z = 0.42                          # the OUT: feet at y 1350
@@ -250,8 +252,8 @@ def mother():
     W = _W()
     m = Actor(MB, cast.mother(), x=XM, ground=G, facing=1, seed=11, name="mother")
     m.free(R1 + 40.0, path=_mother_path, pose=_mother_pose, at=-40.0, end_x=XS, blend=0.25)   # to R1
-    m.stand(until=11.9, idle=0.6)
-    m.walk(to=DOOR - 6.0, gait=GAITS["stroll"].but(speed=0.36), at=11.9)
+    m.stand(until=STEP_IN, idle=0.6)
+    m.walk(to=DOOR - 6.0, gait=GAITS["stroll"].but(speed=0.36), at=STEP_IN)     # into her doorway
     m.stand(until=60.0)
     # leaning in to the girl, bowing to the basket
     m.key("pitch", [(0.0, 14.0), (W["tied"] - 0.25, 14.0), (W["tied"] + 0.1, 24.0), (W["hood"] + 0.2, 26.0),
@@ -373,7 +375,7 @@ def _halo(f, t):
     fl = S.flick(t, V.door.seed, rate=4.0, depth=0.12)
     with f.light(par=1.0, blur=36.0) as A:
         S.glow(A, (DOOR - 25.0, GD - 300.0), 420.0, MOOD.lamp, 0.22 * fl)
-        S.glow(A, (DOOR - 175.0, GD - 250.0), 270.0, MOOD.lamp, 0.10 * fl)
+        S.glow(A, (DOOR - 190.0, GD - 260.0), 300.0, MOOD.lamp, 0.13 * fl)
 
 
 @lru_cache(maxsize=None)
@@ -408,9 +410,10 @@ def render(f, t, T):
     W = _W()
     cam = camera(t)
     f.set_camera(cam)
-    f.post["bloom"] = 0.14
+    f.post["bloom"] = lerp(0.07, 0.14, smoothstep(9.6, 10.6, t))
     V.draw_back(f, MOOD, doors=_doors(), door_figures=_door_figures(f), t=t)
-    V.draw_plane(f, MOOD, door_open=1.0, door_light=1.0, t=t)
+    # the doorway's bloom is added over everything: keep it low while they stand in it
+    V.draw_plane(f, MOOD, door_open=1.0, door_light=1.0, t=t, door_glow=lerp(0.15, 0.35, smoothstep(9.6, 10.6, t)))
     _halo(f, t)
     m, g = mother(), girl()
     skm = m.skeleton(t)
@@ -427,7 +430,7 @@ def render(f, t, T):
             L.draw_arm(c, skm, "R", m.look, INK)
         if near_basket:
             L.draw_basket(c, grip, ang, INK)
-    V.draw_front(f, MOOD, door_light=1.0)
+    V.draw_front(f, MOOD, door_light=0.7)
     lit = atmos.Glow((DOOR, GD - 300.0), 260.0, 1.3, MOOD.lamp)
     L.snow(f, MOOD, density=0.85, wind=26.0, gust=12.0, t=t, seed=21, lit=lit)
     _bank(f, t)

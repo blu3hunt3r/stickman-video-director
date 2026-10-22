@@ -103,7 +103,7 @@ def _aim(t):
         x += -9.0 * sp
         y += 5.0 * sp
         x += (695.0 - 702.0) * _k(t, 5.92, 0.6, "inout")
-        y += (592.0 - 586.0) * _k(t, 5.92, 0.6, "inout")
+        y += (612.0 - 586.0) * _k(t, 5.92, 1.6, "inout")
     amp = 5.0 if t < 5.9 else 2.2
     x += amp * fbm1(t * 1.7, 41) + 1.2 * noise1(t * 9.0, 43)
     y += amp * fbm1(t * 1.5, 47) + 1.2 * noise1(t * 8.0, 49)
@@ -121,7 +121,7 @@ def _torch_level(t):
 
 
 def _radius(t):
-    return 205.0 + 12.0 * fbm1(t * 0.5, 61)
+    return lerp(205.0, 150.0, _k(t, 5.9, 2.4, "inout")) + 12.0 * fbm1(t * 0.5, 61)
 
 
 def _police(t):
@@ -225,7 +225,7 @@ def _dolls_fn(t, B, origin):
 def _light_mask(f, t, B, aim, radius, level, origin):
     """MULTIPLY the frame by the room's light (1/4 res): a breath of ambient, the torch pool,
     the photographer's flash, the strobe through the blinds."""
-    ds = 4
+    ds = 2 if _police(t) > 0.01 else 4          # the slatted strobe needs the finer mask
     w, h = max(1, f.pw // ds), max(1, f.ph // ds)
     surf = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
     c = cairo.Context(surf)
@@ -275,11 +275,16 @@ def _light_mask(f, t, B, aim, radius, level, origin):
         for col, v in ((BLUE, b), (RED, r)):
             if v <= 0.01:
                 continue
-            y = y0
+            # the light bar is down in the street: slats thrown up the wall and fanning out,
+            # fading with distance from the window
+            y = y0 + 6.0
             while y < y1:
-                draw.poly(c, [(x0, y + 9), (x0, y + 16), (x0 - 1500, y + 420), (x0 - 1500, y + 392)])
-                y += 17
-            draw.fill(c, mul(col, 0.62 * v * pv))
+                yf = y0 + 300.0 + (y - y0) * 1.5
+                draw.poly(c, [(x0 + 40, y), (x0 + 40, y + 10), (x0 - 1500, yf + 15), (x0 - 1500, yf)])
+                y += 26.0
+            draw.linear(c, (x0, 0), (x0 - 1300, 0), [(0, col, 0.85 * v * pv), (0.55, col, 0.35 * v * pv),
+                                                    (1, col, 0.0)])
+            c.fill()
     surf.flush()
     with f.screen() as S:
         S.set_operator(cairo.OPERATOR_MULTIPLY)

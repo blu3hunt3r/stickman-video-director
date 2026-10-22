@@ -20,7 +20,6 @@ from engine import draw
 from engine import figure as FG
 from engine.core import clamp, ease, hash01, lerp, noise1, smoothstep
 from engine.palette import PAPER, RED, SHADOWPLAY as PAL
-from engine.physics import Rope
 from films.shadowplay import cast, sets
 from films.shadowplay.sets_base import PX_M, mix, mul
 
@@ -72,13 +71,16 @@ def keys2(t, ks):
 
 
 # ----------------------------------------------------------------------------- looks
-def her_look(coat=True, coat_k=1.0, flow=0.0, eyes=True):
+def her_look(coat=True, coat_k=1.0, flow=0.0, eyes=True, sleeves=True):
     """Her (cast.her). coat_k < 1 darkens the RED toward ink: in a dark room the red only
-    burns where light falls on it."""
+    burns where light falls on it. sleeves: the trench's sleeves in the coat's red too (the
+    cast look leaves the arms ink, which reads as a sleeveless dress)."""
     lk = cast.her(coat=coat)
     lk.colors = dict(lk.colors)
     if coat:
         lk.colors["coat"] = mix(INK, RED, clamp(coat_k))
+        if sleeves:
+            lk.colors["arm"] = mix(INK, mix(RED, INK, 0.12), clamp(coat_k))
     lk.opts = dict(lk.opts or {})
     if flow:
         lk.opts["flow"] = flow
@@ -152,98 +154,85 @@ def eye_glints(f, sk, look, M, par=1.0, level=1.0, color=(1.0, 0.96, 0.88)):
 
 
 # ----------------------------------------------------------------------------- s06: the flying coat
-class FlyingCoat:
-    """The red trench swung off its hook and round her shoulders. A Rope is the coat's spine
-    (collar -> hem), driven at the collar by collar(t) -> (x, y); the cloth is a ribbon round
-    it, as wide as her hands hold the collar at the top and flaring at the hem when it flies.
+class KeyedCoat:
+    """The red trench swung off its hook and round her shoulders, art-directed: the collar
+    is held between her hands (collar_ends(t) -> (CL, CR), world), the hem flies on keyed
+    offsets from the collar (hem(t) -> (dx, dy, half_width, flare)). The cloth is a ribbon
+    along a sagging spine from collar to hem: a hanging coat, a flag, a bell."""
 
-    FlyingCoat(collar, spread, length, t0, t1, hang=(x, y)) where spread(t) = half the collar
-    width (her hands apart) and hang = the collar point when it hangs on the hook at t0."""
-
-    def __init__(self, collar, spread, length=330.0, t0=-1.0, t1=4.0, seed=6):
-        self.collar = collar
-        self.spread = spread
-        self.length = float(length)
-        self.n = 9
+    def __init__(self, collar_ends, hem, seed=6):
+        self.ends = collar_ends
+        self.hem = hem
         self.seed = seed
-        c0 = collar(t0)
-        n, L = self.n, self.length
 
-        def init(_t):
-            return [(c0[0], c0[1] + L * i / (n - 1)) for i in range(n)]
-        self.rope = Rope(n, L, collar, t0=t0, t1=t1, gravity=(0.0, 2500.0), drag=1.9, stiffness=0.28, init=init,
-                         iters=12)
-
-    def nodes(self, t):
-        return [tuple(p) for p in self.rope.points(t)]
-
-    def speed(self, t, h=1.0 / 30.0):
-        """Mean node speed (world px / s): how hard the cloth is flying."""
-        a = self.rope.points(t)
-        b = self.rope.points(t - h)
-        s = 0.0
-        for p, q in zip(a, b):
-            s += math.hypot(p[0] - q[0], p[1] - q[1])
-        return s / (len(a) * h)
-
-    def outline(self, t, flare=None):
-        """Closed outline (world) of the cloth at time t."""
-        pts = self.nodes(t)
-        n = len(pts)
-        sp = self.spread(t)
-        fl = clamp(self.speed(t) / 1400.0) if flare is None else flare
+    def outline(self, t, n=11):
+        CL, CR = self.ends(t)
+        dx, dy, hw, fl = self.hem(t)
+        C = ((CL[0] + CR[0]) / 2.0, (CL[1] + CR[1]) / 2.0)
+        Hm = (C[0] + dx, C[1] + dy)
+        span = math.hypot(dx, dy) or 1.0
+        sag = 0.28 * abs(dx)                               # a flying coat sags in the middle
+        Q = ((C[0] + Hm[0]) / 2.0, (C[1] + Hm[1]) / 2.0 + sag)
+        sp = 0.5 * math.hypot(CR[0] - CL[0], CR[1] - CL[1])
+        cx, cy = (CR[0] - CL[0]) / (2 * sp or 1.0), (CR[1] - CL[1]) / (2 * sp or 1.0)
         left, right = [], []
         for i in range(n):
             v = i / (n - 1)
-            p = pts[i]
-            q0 = pts[max(i - 1, 0)]
-            q1 = pts[min(i + 1, n - 1)]
-            tx, ty = q1[0] - q0[0], q1[1] - q0[1]
-            Ln = math.hypot(tx, ty) or 1.0
-            nx, ny = -ty / Ln, tx / Ln
-            if nx < 0:                                  # keep 'left' on screen-left when hanging
+            a, b, c = (1 - v) ** 2, 2 * v * (1 - v), v * v
+            p = (a * C[0] + b * Q[0] + c * Hm[0], a * C[1] + b * Q[1] + c * Hm[1])
+            tx = 2 * (1 - v) * (Q[0] - C[0]) + 2 * v * (Hm[0] - Q[0])
+            ty = 2 * (1 - v) * (Q[1] - C[1]) + 2 * v * (Hm[1] - Q[1])
+            tl = math.hypot(tx, ty) or 1.0
+            nx, ny = -ty / tl, tx / tl                     # perpendicular to the spine
+            if nx * cx + ny * cy < 0:                      # point the same way as CL -> CR
                 nx, ny = -nx, -ny
-            # the top row is the collar held level between her hands
-            blend = smoothstep(0.0, 0.35, v)
-            ax, ay = lerp(1.0, nx, blend), lerp(0.0, ny, blend)
+            w = smoothstep(0.0, 0.32, v)
+            ax, ay = lerp(cx, nx, w), lerp(cy, ny, w)
             al = math.hypot(ax, ay) or 1.0
             ax, ay = ax / al, ay / al
-            hw = lerp(sp, sp + 46.0 + 120.0 * fl, v ** 0.8)
-            wob = (10.0 + 26.0 * fl) * v * math.sin(v * 7.0 + t * 13.0 + self.seed)
-            left.append((p[0] - ax * (hw + wob), p[1] - ay * (hw + wob)))
-            right.append((p[0] + ax * (hw - wob), p[1] + ay * (hw - wob)))
-        # a ragged, fluttering hem between the two bottom corners
-        hem = []
-        a, b = left[-1], right[-1]
-        tip = pts[-1]
-        tx, ty = tip[0] - pts[-2][0], tip[1] - pts[-2][1]
-        Ln = math.hypot(tx, ty) or 1.0
-        for j in range(1, 6):
-            u = j / 6.0
-            x, y = lerp(a[0], b[0], u), lerp(a[1], b[1], u)
-            d = (6.0 + 22.0 * fl) * math.sin(u * math.pi * 3.0 + t * 17.0 + self.seed)
-            hem.append((x + tx / Ln * d, y + ty / Ln * d))
-        return left + hem + right[::-1]
+            wd = lerp(sp, hw, v ** 0.85) + (0.10 + 0.22 * fl) * span * math.sin(math.pi * v) * 0.35
+            wob = (4.0 + 16.0 * fl) * v * math.sin(v * 6.0 + t * 11.0 + self.seed)
+            left.append((p[0] - ax * (wd + wob), p[1] - ay * (wd + wob)))
+            right.append((p[0] + ax * (wd - wob), p[1] + ay * (wd - wob)))
+        return left, right, C, Hm, Q
 
-    def draw(self, ctx, t, color=RED, alpha=1.0, flare=None):
-        pts = self.outline(t, flare)
+    def draw(self, ctx, t, color=RED, alpha=1.0):
+        left, right, C, Hm, Q = self.outline(t)
+        poly = left[::-1] + right
+        # hem between the two bottom corners
+        _, _, hw, fl = self.hem(t)
+        a, b = right[-1], left[-1]
+        ux, uy = (Hm[0] - Q[0]), (Hm[1] - Q[1])
+        ul = math.hypot(ux, uy) or 1.0
+        for j in range(1, 8):
+            u = j / 8.0
+            x, y = lerp(a[0], b[0], u), lerp(a[1], b[1], u)
+            d = (5.0 + 20.0 * fl) * math.sin(u * math.pi * 3.0 + t * 15.0 + self.seed) + 4.0 * math.sin(u * 23.0)
+            poly.append((x + ux / ul * d, y + uy / ul * d))
+        ctx.push_group()
         ctx.new_path()
-        draw.smooth(ctx, pts, close=True, tension=0.35)
-        draw.fill(ctx, color, alpha)
-        # the shadowed inside of the cloth: a darker band down one side of the spine
-        nodes = self.nodes(t)
-        sp = self.spread(t)
-        side = []
-        for i, p in enumerate(nodes):
-            v = i / (len(nodes) - 1)
-            side.append((p[0] - 0.15 * sp * (1 - v), p[1]))
-        for i in range(len(nodes) - 1, -1, -1):
-            v = i / (len(nodes) - 1)
-            p = nodes[i]
-            side.append((p[0] - (0.15 * sp + 18.0 + 40.0 * v) * (1 - 0.3 * v), p[1] + 4.0 * v))
+        draw.smooth(ctx, poly, close=True, tension=0.3)
+        draw.fill(ctx, color)
+        # the shadowed inside of the cloth: a darker fold down from the collar
+        fold = []
+        n = len(left)
+        for i in range(n):
+            v = i / (n - 1)
+            fold.append((lerp(left[i][0], right[i][0], 0.30 + 0.05 * v), lerp(left[i][1], right[i][1], 0.30 + 0.05 * v)))
+        for i in range(n - 1, -1, -1):
+            v = i / (n - 1)
+            fold.append((lerp(left[i][0], right[i][0], 0.45 + 0.10 * v), lerp(left[i][1], right[i][1], 0.45 + 0.10 * v)))
         ctx.new_path()
-        draw.smooth(ctx, side, close=True, tension=0.3)
-        draw.fill(ctx, mix(color, INK, 0.38), alpha * 0.8)
+        draw.smooth(ctx, fold, close=True, tension=0.3)
+        draw.fill(ctx, mix(color, INK, 0.32), 0.85)
+        # the near edge of the cloth (lining) catches less light
+        edge = [left[i] for i in range(n)] + [(lerp(left[i][0], right[i][0], 0.10), lerp(left[i][1], right[i][1], 0.10))
+                                              for i in range(n - 1, -1, -1)]
+        ctx.new_path()
+        draw.smooth(ctx, edge, close=True, tension=0.3)
+        draw.fill(ctx, mix(color, INK, 0.45), 0.9)
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(clamp(alpha))
 
 
 # ----------------------------------------------------------------------------- s06: her, from above

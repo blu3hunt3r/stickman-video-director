@@ -24,6 +24,8 @@ OUT  window shape (1.0 s, centred on 13.0): window 9 = screen rect (444, 840)-(6
 import math
 from functools import lru_cache
 
+import cairo
+
 from engine import atmos, draw
 from engine.core import W, H, clamp, ease, lerp, hash01, noise1, smoothstep
 from engine.frame import Camera
@@ -78,21 +80,21 @@ def _her_a():
                                  (0.50, (HOOK[0] + 60.0, HOOK[1] - 22.0), "out3")])
     a.reach("L", -2.0, 0.46, grip, fade=0.12, grip=0.9)
     a.reach("R", -2.0, 0.46, lambda t: (grip(t)[0] + 14.0, grip(t)[1] + 4.0), fade=0.12, grip=0.9)
-    # 2) facing us: arms swing up and out (the flare), then down to the shoulders
+    # 2) facing us: up over her head and round onto her shoulders, arms into the sleeves
     for side in ("L", "R"):
-        a.key("arm.%s.abd" % side, [(0.46, 30.0), (0.82, 128.0, "out3"), (1.02, 118.0), (1.26, 34.0, "inout"),
-                                    (1.40, 22.0), (1.58, 10.0, "inout")], fade=0.12)
-        a.key("arm.%s.sh" % side, [(0.46, 40.0), (0.82, 12.0, "out3"), (1.02, 16.0), (1.26, 34.0, "inout"),
-                                   (1.40, -18.0, "inout"), (1.58, 4.0, "inout")], fade=0.12)
-        a.key("arm.%s.elbow" % side, [(0.46, 60.0), (0.82, 14.0, "out3"), (1.02, 20.0), (1.26, 128.0, "inout"),
-                                      (1.40, 40.0, "inout"), (1.58, 14.0, "inout")], fade=0.12)
-    # 3) collar up: both hands to the neck, flick on "watcher", down
+        a.key("arm.%s.abd" % side, [(0.46, 30.0), (0.62, 34.0, "inout"), (0.80, 30.0, "inout"), (1.00, 22.0, "inout"),
+                                    (1.20, 10.0, "inout")], fade=0.12)
+        a.key("arm.%s.sh" % side, [(0.46, 50.0), (0.62, 70.0, "inout"), (0.80, 22.0, "inout"), (1.00, -24.0, "inout"),
+                                   (1.20, 2.0, "inout")], fade=0.12)
+        a.key("arm.%s.elbow" % side, [(0.46, 70.0), (0.62, 104.0, "inout"), (0.80, 148.0, "inout"), (1.00, 30.0, "inout"),
+                                      (1.20, 14.0, "inout")], fade=0.12)
+    # 3) collar up: both hands to the collar at her neck, flick on "watcher", down
     for side in ("L", "R"):
-        a.key("arm.%s.abd" % side, [(1.62, 10.0), (1.80, 30.0, "inout"), (2.02, 34.0), (2.22, 10.0, "inout")],
+        a.key("arm.%s.abd" % side, [(1.62, 10.0), (1.80, 20.0, "inout"), (2.02, 22.0), (2.22, 10.0, "inout")],
               fade=0.1)
-        a.key("arm.%s.sh" % side, [(1.62, 4.0), (1.80, 36.0, "inout"), (1.90, 44.0, "out3"), (2.02, 40.0),
-                                   (2.22, 6.0, "inout")], fade=0.1)
-        a.key("arm.%s.elbow" % side, [(1.62, 14.0), (1.80, 142.0, "inout"), (1.90, 150.0, "out3"), (2.02, 146.0),
+        a.key("arm.%s.sh" % side, [(1.62, 2.0), (1.80, 24.0, "inout"), (1.90, 32.0, "out3"), (2.02, 28.0),
+                                   (2.22, 4.0, "inout")], fade=0.1)
+        a.key("arm.%s.elbow" % side, [(1.62, 14.0), (1.80, 138.0, "inout"), (1.90, 146.0, "out3"), (2.02, 142.0),
                                       (2.22, 16.0, "inout")], fade=0.1)
     a.key("head", [(1.70, 0.0), (1.92, -10.0, "out3"), (2.20, 4.0, "inout")], fade=0.15)
     # 4) the knob, then the door swings
@@ -101,45 +103,55 @@ def _her_a():
 
 
 def _her_look_a(t):
-    if t < 1.47:
+    if t < 1.42:
         return L.her_look(coat=False)
-    flow = 0.85 * math.exp(-(t - 1.47) / 0.35)
+    flow = 0.7 * math.exp(-(t - 1.42) / 0.35)
     return L.her_look(coat=True, flow=flow)
+
+
+HEM_KEYS = [  # (t, dx, dy, half-width, flare) of the hem, from the collar
+    (0.40, 0.0, 360.0, 95.0, 0.0), (0.56, -60.0, 340.0, 100.0, 0.2), (0.70, -330.0, 120.0, 150.0, 1.0),
+    (0.86, -150.0, 300.0, 200.0, 1.0), (1.00, 90.0, 360.0, 170.0, 0.6), (1.14, -40.0, 372.0, 135.0, 0.3),
+    (1.28, 10.0, 372.0, 122.0, 0.12), (1.45, 0.0, 372.0, 115.0, 0.0)]
+
+
+def _hem(t):
+    out = []
+    for j in range(1, 5):
+        out.append(L.keys(t, [(k[0], k[j]) for k in HEM_KEYS]))
+    return tuple(out)
 
 
 @lru_cache(maxsize=1)
 def _coat():
     a = _her_a()
 
-    def collar(t):
+    def ends(t):
         sk = a.skeleton(t)
         hl, hr = sk.j["hand_L"], sk.j["hand_R"]
+        if hl[0] > hr[0]:
+            hl, hr = hr, hl
         mid = ((hl[0] + hr[0]) / 2.0, (hl[1] + hr[1]) / 2.0 + 4.0)
-        hook = (HOOK[0] + 6.0, HOOK[1] + 4.0)
-        w = smoothstep(0.26, 0.40, t)
-        p = (lerp(hook[0], mid[0], w), lerp(hook[1], mid[1], w))
-        if t > 1.20:                                  # on her shoulders: the collar sits at her neck
+        sp = min(95.0, 0.5 * math.hypot(hr[0] - hl[0], hr[1] - hl[1]))
+        w = smoothstep(0.80, 1.05, t)                 # on her shoulders: the collar sits at her neck
+        if w > 0:
             nk = sk.j["neck"]
-            v = smoothstep(1.20, 1.40, t)
-            p = (lerp(p[0], nk[0], v), lerp(p[1], nk[1] + 8.0, v))
-        return p
-
-    def spread(t):
-        sk = a.skeleton(t)
-        hl, hr = sk.j["hand_L"], sk.j["hand_R"]
-        s = 0.5 * math.hypot(hl[0] - hr[0], hl[1] - hr[1])
-        w = smoothstep(0.26, 0.40, t)
-        s = lerp(16.0, max(16.0, s), w)
-        if t > 1.20:
-            s = lerp(s, 46.0, smoothstep(1.20, 1.40, t))
-        return s
-    return L.FlyingCoat(collar, spread, length=340.0, t0=-1.0, t1=3.5, seed=6)
+            mid = (lerp(mid[0], nk[0], w), lerp(mid[1], nk[1] + 10.0, w))
+            sp = lerp(sp, 52.0, w)
+        sp = max(sp, 16.0)
+        dx, dy = hr[0] - hl[0], hr[1] - hl[1]
+        dl = math.hypot(dx, dy) or 1.0
+        ux, uy = lerp(dx / dl, 1.0, w), lerp(dy / dl, 0.0, w)
+        ul = math.hypot(ux, uy) or 1.0
+        ux, uy = ux / ul, uy / ul
+        return (mid[0] - ux * sp, mid[1] - uy * sp), (mid[0] + ux * sp, mid[1] + uy * sp)
+    return L.KeyedCoat(ends, _hem, seed=6)
 
 
 def _camera_a(t):
     # on the coat at the rack (the slash crosses it), pan to the door as she goes
     p = L.k_(t, 2.05, 0.95, "inout")
-    x = lerp(HOOK[0] + 30.0, DOOR_X + 10.0, p)
+    x = lerp(HOOK[0] + 60.0, DOOR_X + 10.0, p)
     y = lerp(HOOK[1] + 196.0, OY - 400.0, p)
     z = lerp(1.42, 1.22, p) * (1.0 + 0.03 * L.k_(t, 2.9, 0.5, "in"))
     rot = -3.5 * L.k_(t, 2.85, 0.5, "in")
@@ -158,20 +170,26 @@ def _shot_a(f, t):
     lk = _her_look_a(t)
     with f.layer() as Lc:
         # the coat: on its hook / lifted (the set's coat, rigid) -> flying cloth -> her costume
-        if t < 0.62:
-            nodes = coat.nodes(t)
-            top, bot = nodes[0], nodes[-1]
-            ang = math.degrees(math.atan2(-(bot[0] - top[0]), bot[1] - top[1]))
-            al = 1.0 - L.k_(t, 0.52, 0.10, "inout")
+        if t < 0.58:
+            if t < 0.30:
+                top = (HOOK[0] + 6.0, HOOK[1] + 4.0)
+            else:
+                CL, CR = coat.ends(t)
+                top = ((CL[0] + CR[0]) / 2.0, (CL[1] + CR[1]) / 2.0)
+                top = (lerp(HOOK[0] + 6.0, top[0], smoothstep(0.30, 0.40, t)),
+                       lerp(HOOK[1] + 4.0, top[1], smoothstep(0.30, 0.40, t)))
+            dx, dy, _, _ = _hem(t)
+            ang = math.degrees(math.atan2(-dx, dy))
+            al = 1.0 - L.k_(t, 0.50, 0.08, "inout")
             if al > 0.01:
                 Lc.push_group()
                 sets.red_coat(Lc, (top[0] - 6.0, top[1] - 4.0), 1.0, sway=ang, t=t, hook_too=False)
                 Lc.pop_group_to_source()
                 Lc.paint_with_alpha(al)
-            if t > 0.52:
-                coat.draw(Lc, t, alpha=L.k_(t, 0.52, 0.10, "inout"))
+            if t > 0.50:
+                coat.draw(Lc, t, alpha=L.k_(t, 0.50, 0.08, "inout"))
         elif t < 1.62:
-            coat.draw(Lc, t, alpha=1.0 - L.k_(t, 1.47, 0.15, "inout"))
+            coat.draw(Lc, t, alpha=1.0 - L.k_(t, 1.42, 0.18, "inout"))
         # her (the door leaf and frame are already drawn: she steps into the bright doorway)
         if t < 3.05:
             a.draw(f, t, Lc, look=lk)
@@ -235,7 +253,7 @@ def _window_rain(f, t):
 
 # =========================================================================== B: the stairwell
 SW = sets.Stairwell((540.0, 960.0), 1.0, floors=7, stretch=1.2, seed=6)
-U0, U1 = 0.004, 0.047                         # her walking-line progress over the shot
+U0, U1 = 0.010, 0.050                         # her walking-line progress over the shot
 
 
 def _b_v(t):
@@ -244,8 +262,8 @@ def _b_v(t):
 
 def _b_cam(t):
     v = _b_v(t)
-    cam_h, F = SW.vertigo(ease("inout", v), cam0=3.4, cam1=1.15, ref=2, focal0=600.0)
-    roll = lerp(-34.0, 38.0, ease("inout", v))
+    cam_h, F = SW.vertigo(ease("inout", v), cam0=1.9, cam1=0.8, ref=2, focal0=500.0)
+    roll = lerp(-40.0, 46.0, ease("inout", v))
     return cam_h, F, roll
 
 
@@ -267,7 +285,7 @@ def _shot_b(f, t):
     def her(f_, t_):
         with f_.layer() as Lb:
             L.top_figure(Lb, pp["p"], pp["ppm"], pp["heading"], phase, coat=RED, flare=flare, rail=1)
-    SW.draw(f, t, cam_h=cam_h, focal=F, roll=roll, hooks={pp["floor"]: her}, bottom=0.25, flicker=0.35)
+    SW.draw(f, t, cam_h=cam_h, focal=F, roll=roll, hooks={pp["floor"]: her}, bottom=0.25, flicker=0.35, bulbs=1.35)
 
 
 # =========================================================================== C: the street, the crane
@@ -278,8 +296,8 @@ ST = sets.Street(FAC.ground_y, depth=1000.0, seed=7)
 LAMP = sets.Streetlamp((150.0, FAC.ground_y + 40.0), height=680.0, facing=1)
 W9 = FAC.window_rect(9)
 CAM_END = FAC.camera_on(9, fill=0.125)        # window 9 -> (444, 840)-(636, 1080)
-CARS_FAR = [sets.Car((150.0, ST.lane_y(0.10)), scale=ST.depth_scale(0.10), facing=1, seed=3),
-            sets.Car((1010.0, ST.lane_y(0.10)), scale=ST.depth_scale(0.10), facing=-1, seed=4)]
+CARS_FAR = [sets.Car((215.0, ST.lane_y(0.10)), scale=ST.depth_scale(0.10), facing=1, seed=3),
+            sets.Car((875.0, ST.lane_y(0.10)), scale=ST.depth_scale(0.10), facing=-1, seed=4)]
 CARS_NEAR = [sets.Car((-60.0, ST.lane_y(0.97)), scale=ST.depth_scale(0.97), facing=1, seed=5),
              sets.Car((960.0, ST.lane_y(0.97)), scale=ST.depth_scale(0.97), facing=-1, seed=8)]
 PERSON = 230.0                                # world px of an adult at the far curb
@@ -345,6 +363,39 @@ def _camera_c(t):
     return cam
 
 
+def _car_sheen(f, t, car, level=1.0):
+    """Rain sheen on a dark parked car: a cold hairline along its roof, hood and boot (the
+    sky and the streetlamp caught in wet paint) and a few glints of drops on the roof."""
+    body, wins, wheels, wr = car.outline()
+    k = car.s
+    with f.light(blur=1.5) as A:
+        A.push_group()
+        A.new_path()
+        draw.smooth(A, body, close=True, tension=0.18)
+        draw.fill(A, sets.mix(COLD, AMBER, 0.25))
+        A.set_operator(cairo.OPERATOR_DEST_OUT)
+        A.save()
+        A.translate(0.0, 7.0 * k)
+        A.new_path()
+        draw.smooth(A, body, close=True, tension=0.18)
+        draw.fill(A, (0, 0, 0))
+        A.restore()
+        A.set_operator(cairo.OPERATOR_OVER)
+        A.pop_group_to_source()
+        A.paint_with_alpha(0.55 * level)
+        # drops bursting on the roof
+        top = min(p[1] for p in body)
+        x0 = min(p[0] for p in body)
+        x1 = max(p[0] for p in body)
+        for j in range(10):
+            ph = (t * 2.3 + hash01(car.seed, j, 1)) % 1.0
+            if ph > 0.18:
+                continue
+            x = lerp(x0 + 0.25 * (x1 - x0), x0 + 0.75 * (x1 - x0), hash01(car.seed, j, 2, int(t * 2.3)))
+            draw.circle(A, (x, top + 4.0 * k), (2.0 + 5.0 * ph) * k)
+            draw.fill(A, COLD, 0.5 * (1.0 - ph / 0.18) * level)
+
+
 def _interiors():
     out = {}
     if WL is None:
@@ -375,6 +426,7 @@ def _shot_c(f, t):
     LAMP.draw(f, t)
     for c in CARS_FAR:
         c.draw(f, t, headlights=0.0)
+        _car_sheen(f, t, c, 0.8)
     # her, with her red reflection broken in the wet road
     if t < T_IN + 0.05 and vr[3] > FAC.ground_y - 400:
         a = _her_c()
@@ -394,6 +446,7 @@ def _shot_c(f, t):
             L.rim(A, sk, L.plain(lk), M, AMBER, 0.35 * al, (5.0, 4.0))
     for c in CARS_NEAR:
         c.draw(f, t, headlights=0.0)
+        _car_sheen(f, t, c, 1.0)
     f.haze(PAL.fog_at(0.85), 0.07, y0=3300, y1=5200, feather=500)
     atmos.rain(f, density=1.25, angle=8.0, wind=0.15, seed=6)
 

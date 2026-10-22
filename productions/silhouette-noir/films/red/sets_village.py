@@ -602,9 +602,11 @@ class Village:
         _fill(c, polys, ink)
         _fill(c, caps, snow_c)
 
-    def draw_plane(self, f, mood=NIGHT, door_open=1.0, door_light=None, t=None, ground=True):
+    def draw_plane(self, f, mood=NIGHT, door_open=1.0, door_light=None, t=None, ground=True, door_glow=1.0):
         """The street (snow), the mother's house and doorway, the other plane houses, the well,
-        the fence, the gate and the lantern posts with their light pools."""
+        the fence, the gate and the lantern posts with their light pools. door_glow scales the
+        mother's doorway emissive bloom (lower it while someone stands in the doorway: the
+        bloom is added over everything at finish)."""
         mood = get_mood(mood)
         t = f.t if t is None else t
         if door_light is None:
@@ -623,7 +625,7 @@ class Village:
             self.T.draw_back(f, mood, groove=False)
         with plane(f, 1.0) as c:
             if vx0 - 400 < self.door_x < vx1 + 400:
-                self.door.draw_back(f, c, mood, open_=door_open, light=door_light, t=t)
+                self.door.draw_back(f, c, mood, open_=door_open, light=door_light, t=t, glow=door_glow)
             for x in self.lantern_x:
                 if vx0 - 600 < x < vx1 + 600:
                     self._lantern_post(f, c, x, mood, t)

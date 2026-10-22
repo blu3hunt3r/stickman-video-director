@@ -24,6 +24,7 @@ from .sets_common import (get_mood, mix, INK, SNOW, AMBER, HOOD_RED, glow, light
                           soft_layer, fogged)
 from .sets_terrain import stake_shape
 
+_glow = glow           # (Doorway.draw_back has a `glow` argument)
 G_PX = 2800.0          # gravity in px/s^2 at zoom 1 (1 m ~ 316 px)
 
 
@@ -423,10 +424,11 @@ class Doorway:
     def threshold(self):
         return (self.x, float(self.T.ground_y(self.x)) - 10 * self.size)
 
-    def draw_back(self, f, ctx, mood=None, open_=1.0, light=1.0, t=0.0, inside=None):
+    def draw_back(self, f, ctx, mood=None, open_=1.0, light=1.0, t=0.0, inside=None, glow=1.0):
         """The wall and the lit opening (behind the mother). inside: optional callable(ctx)
         drawn in the lit opening before the door leaf, so a closing door hides it (someone
-        standing in the doorway)."""
+        standing in the doorway). glow scales the opening's emissive bloom (it is added over
+        everything at finish: lower it while someone stands in the doorway)."""
         mood = get_mood(mood)
         s = self.size
         x, gy = self.x, float(self.T.ground_y(self.x))
@@ -476,10 +478,10 @@ class Doorway:
                 (x, gy - dh - 118 * s), (x - dw * 0.9, gy - dh - 44 * s)]
         draw.smooth(ctx, snow, close=True, tension=0.3)
         draw.fill(ctx, mood.snow)
-        if f is not None and fl > 0.01:
-            g = mood.lamp_gain * fl
+        if f is not None and fl > 0.01 and glow > 0.0:
+            g = mood.lamp_gain * fl * glow
             with f.emit() as G:
-                glow(G, (x, gy - dh * 0.35), dw * 0.9, mood.lamp, 0.35 * g)
+                _glow(G, (x, gy - dh * 0.35), dw * 0.9, mood.lamp, 0.35 * g)
 
     def draw_spill(self, f, mood=None, light=1.0, t=0.0):
         """The warm light thrown from the open door across the snow. Call AFTER the terrain's

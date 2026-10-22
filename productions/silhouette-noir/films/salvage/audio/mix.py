@@ -14,7 +14,8 @@ stems_no_vo/, so an M&E pass never overwrites the master.
 
 Signal flow
     narration  per line: the take's src_t0..src_t1 padded 40 ms each side (8 ms fades), placed at the
-               line's film start - 40 ms; HPF 80 Hz, 2.2:1 compression, -16 LUFS, dialogue limiter -4 dBTP
+               line's film start - 40 ms; HPF 80 Hz, 2.2:1 compression, a gentle line leveller (each
+               line keeps 60 % of its deviation from the median), -16 LUFS, dialogue limiter -4 dBTP
     cues       cuesheet.build(): the designed cue sheet merged with the scenes' cues; each rendered
                from sfx_salvage with its anchor on the cue time, panned, low-passed through the water
                when heard underwater (the cutoff falls with depth), sent to its acoustic space's reverb
@@ -32,7 +33,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import sys
 import time

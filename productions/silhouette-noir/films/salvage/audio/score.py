@@ -1048,7 +1048,6 @@ def render_score(C=None, heart=None, seed=0, debug=False):
 
 if __name__ == "__main__":
     import os
-    import sys
     import time
     t0 = time.time()
     C = CS.Clock()

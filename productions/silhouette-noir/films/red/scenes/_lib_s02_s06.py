@@ -200,7 +200,7 @@ def basket_hand(sk, side):
 
 
 # ----------------------------------------------------------------------------- the walk s02 -> s03
-WALK = GAITS["child_walk"].but(speed=0.9)
+WALK = GAITS["child_walk"].but(speed=0.9, step=0.36, crouch=0.045)     # (shorter steps: see smooth_walk)
 WALK_PX = 0.9 * GH                      # 342 px/s
 S02_X0 = S.VILLAGE.door_x + 10.0        # she stands in her mother's doorway
 S02_TURN = 9.42                         # turns to the street (0.5 s) ...
@@ -209,15 +209,39 @@ S03_DT = 15.0                           # s03 time = s02 time - 15
 S03_DX = 800.0                          # s03 trail x = s02 street x + 800
 
 
+def smooth_walk(a, win=0.08, sigma=0.03, rate=240.0):
+    """Work around a pelvis pop in engine.motion's walk: the leg-reach clamp on the pelvis
+    switches on when a foot lands and off when it lifts, so with the child's short legs the
+    pelvis drops / jumps 5-20 px at every footfall. This adds a 'y' channel that rides the
+    pelvis on a smooth lower envelope of the walk's own heights (a running max over +-win s,
+    Gaussian-smoothed): never higher than the clamp wants, and continuous."""
+    from scipy.ndimage import gaussian_filter1d, maximum_filter1d
+    for seg in a.segs:
+        if type(seg).__name__ != "_Walk":
+            continue
+        ts = np.arange(seg.t0, seg.t1, 1.0 / rate)
+        if len(ts) < 8:
+            continue
+        ys = np.array([seg.root(float(t))[1] for t in ts])
+        env = maximum_filter1d(ys, size=int(2 * win * rate) + 1, mode="nearest")
+        env = gaussian_filter1d(env, sigma * rate, mode="nearest")
+
+        def fn(t, ts=ts, env=env):
+            return float(np.interp(t, ts, env))
+        a.channel("y", fn, seg.t0 + 0.2, seg.t1 - 0.2, mode="set", fade=0.2)
+    return a
+
+
 def girl_base(dt=0.0, dx=0.0, look=None, ground=None):
     """The girl's base timeline shared by s02 and s03 (times shifted by -dt, x by +dx): she
-    stands in the doorway facing left, turns to the street, and walks right for good."""
+    stands in the doorway facing left, turns to the street, and walks right for good.
+    (smooth_walk() removes the engine's pelvis pops at each footfall.)"""
     g = ground or S.PATH.ground_y
     a = Actor(GIRL, look or look_up(), x=S02_X0 + dx, ground=g, facing=-1, seed=7, name="red")
     a.stand(until=S02_TURN - dt, at=-40.0 - dt)
     a.turn(0.0, dur=0.5, at=S02_TURN - dt, via=90.0)
     a.walk(to=S02_X0 + dx + 9600.0, gait=WALK, at=S02_GO - dt)
-    return a
+    return smooth_walk(a)
 
 
 BASKET_SIDE = "R"                       # her right hand: the near hand while she walks right
