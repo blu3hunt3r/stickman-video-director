@@ -13,11 +13,15 @@ THE FACADE is an old eight-storey brick tenement:
     drainpipes, a ground floor with a stoop entrance (lantern sconces, lit transom) and two
     shopfronts under an awning.
 
-LOCAL UNITS: the design is 1840 x 3940 units (scale 1), y down from the parapet top; the
-rooftop objects rise to about -520. One storey = 400 units = 3 m, so an adult seen in a
-window is ~233 units tall (`Facade.person_h`). `Facade(origin, scale)` places the bottom-
-centre of the facade (the sidewalk line under the entrance) at world `origin`.
-At scale 1 the facade is 2.05 screen heights tall: frame it whole at zoom ~0.45.
+LOCAL UNITS: the design is FW x FH = 2261 x 3940 units (scale 1), y down from the parapet
+top; the rooftop objects rise to about -540. One storey = 400 units = 3 m, so an adult seen
+in a window is ~233 units tall (`Facade.person_h`). `Facade(origin, scale)` places the
+bottom-centre of the facade (the sidewalk line under the entrance) at world `origin`.
+At scale 1 the facade is 2.05 screen heights tall.
+
+FACADE LOCK (bible): with `Facade.camera_lock()` the 40 windows sit exactly on the Bass grid
+of s01 / s11: column centres x = 230 385 540 695 850, row centres y = 440 590 ... 1490,
+windows 96 x 120 px (`LOCK_COLS`, `LOCK_ROWS`, `LOCK_SIZE`, `lock_rect(i)`).
 """
 import math
 
@@ -31,12 +35,20 @@ from .sets_base import (PAL, INK, AMBER, HOT, RAIN, mix, mul, layer_spec, opened
                         boxes_overlap, record, put, fill_path, local_matrix, rrect, level_of,
                         shadow_screen, rain_glints, glow, texture_surface, camera_for, switch)
 
-FW, FH = 1840.0, 3940.0          # facade width, parapet top (0) to sidewalk (FH)
 COLS, ROWS = 5, 8
-MX, PX, WW = 172.0, 330.0, 176.0  # left margin, column pitch, window width
-MY, PY, WH = 290.0, 400.0, 268.0  # top of row 1, storey pitch, window height
+#: the facade lock (bible, "World"): window centres on screen and window size in px
+LOCK_COLS = (230.0, 385.0, 540.0, 695.0, 850.0)
+LOCK_ROWS = (440.0, 590.0, 740.0, 890.0, 1040.0, 1190.0, 1340.0, 1490.0)
+LOCK_SIZE = (96.0, 120.0)
+LOCK_ZOOM = 0.375                 # screen px per local unit at the lock (x facade scale)
+PX, PY = 155.0 / LOCK_ZOOM, 150.0 / LOCK_ZOOM     # column pitch 413.3, storey pitch 400
+WW, WH = 96.0 / LOCK_ZOOM, 120.0 / LOCK_ZOOM      # window 256 x 320 (tall 2-over-2 sashes)
+MX, MY = 176.0, 250.0             # left margin, top of row 1
+FW = 2 * MX + (COLS - 1) * PX + WW   # facade width 2261.3
+FH = 3940.0                       # parapet top (0) to sidewalk (FH)
+_SX = FW / 1840.0                 # horizontal re-spacing of the hand-placed rooftop objects
 PERSON = 233.0                    # adult height in local units (storey = 3 m)
-FLOOR_BELOW_SILL = 113.0          # room floor is 0.85 m below the sill
+FLOOR_BELOW_SILL = 48.0           # room floor is 0.36 m below the (low) sill
 
 # --------------------------------------------------------------------------- window table
 # Default dressing of the 40 windows (continuity: every scene sees the same building).
@@ -57,9 +69,8 @@ _DRESSING = {2: "pendant", 7: "lamp", 12: "lamp", 15: "pendant", 19: "frame", 23
              26: "pendant", 30: "lamp", 33: "frame", 37: "door", 14: "pendant", 1: "lamp",
              21: "frame", 28: "pendant", 35: "lamp", 40: "frame", 10: "door", 17: "pendant"}
 
-#: Default night: which windows are lit (window 9 is dark until Tuesday at eleven).
-NIGHT = {2: 0.75, 4: 1.0, 7: 0.6, 12: 0.95, 15: 0.8, 19: 0.85, 23: 0.55, 26: 0.9, 30: 0.85,
-         33: 0.65, 37: 0.7}
+#: Default night: the 9 lit windows of s01/s02 (window 9 is dark until Tuesday at eleven).
+NIGHT = {2: 0.75, 4: 1.0, 7: 0.6, 12: 0.95, 19: 0.85, 23: 0.55, 26: 0.9, 30: 0.85, 37: 0.7}
 #: Late night: only the regulars are up.
 LATE = {4: 1.0, 12: 0.9, 30: 0.8, 19: 0.5}
 
@@ -107,10 +118,11 @@ class _Design:
         self.curtains = _CURTAINS if variant == "across" else _CURTAINS_HERS
         self.openings = [_win_local(i) for i in range(1, 41)]
         # ground floor openings: (kind, rect)
-        self.door = (826.0, 3560.0, 1014.0, 3862.0)
-        self.transom = (826.0, 3488.0, 1014.0, 3546.0)
-        self.shops = [(112.0, 3520.0, 700.0, 3820.0), (1140.0, 3520.0, 1728.0, 3820.0)]
-        self.sconces = [(778.0, 3640.0), (1062.0, 3640.0)]
+        cx = FW / 2
+        self.door = (cx - 94.0, 3560.0, cx + 94.0, 3862.0)
+        self.transom = (cx - 94.0, 3488.0, cx + 94.0, 3546.0)
+        self.shops = [(150.0, 3520.0, cx - 262.0, 3820.0), (cx + 262.0, 3520.0, FW - 150.0, 3820.0)]
+        self.sconces = [(cx - 142.0, 3640.0), (cx + 142.0, 3640.0)]
         self.wall = record(self._wall)
         self.trim = record(self._trim)
         self.frames = record(self._frames)
@@ -159,7 +171,7 @@ class _Design:
             draw.rect(c, -28, 72, FW + 28, 90)
             draw.rect(c, -18, 90, FW + 18, 106)
             # consoles (brackets) with scrolled feet, dentils between them
-            n = 19
+            n = 23
             for k in range(n + 1):
                 x = -10 + k * (FW + 20) / n
                 draw.poly(c, [(x - 13, 104), (x + 13, 104), (x + 13, 150), (x + 8, 168),
@@ -169,7 +181,7 @@ class _Design:
                 draw.rect(c, x, 104, x + 10, 118)
                 x += 20.0
             # frieze band under the consoles
-            draw.rect(c, -6, 196, FW + 6, 212)
+            draw.rect(c, -6, 182, FW + 6, 196)
         else:
             # her building: plainer cornice with a shallow pediment over the centre
             draw.rect(c, -24, 56, FW + 24, 80)
@@ -223,6 +235,10 @@ class _Design:
 
     # ----------------------------------------------------------------- sills, lintels, flower boxes
     def _sills(self, c):
+        # a continuous sill course under every row: the grid lines of s01 become ledges
+        for r in range(ROWS):
+            y1 = MY + r * PY + WH
+            draw.rect(c, -6, y1 + 2, FW + 6, y1 + 11)
         for i, (x0, y0, x1, y1) in enumerate(self.openings, start=1):
             cx = (x0 + x1) / 2
             draw.rect(c, x0 - 14, y1, x1 + 14, y1 + 13)              # sill
@@ -270,10 +286,11 @@ class _Design:
                 draw.poly(c, [(xx - 3, yp + 9), (xx + 3, yp + 9), (xx + 2, yp + 74), (xx - 2, yp + 74)])
             # stair down to the next landing (zig-zag)
             if r < ROWS:
+                run = (xb - xa) * 0.47
                 if r % 2 == 1:
-                    xs, xe = xa + 84, xa + 84 + 300
+                    xs, xe = xa + 84, xa + 84 + run
                 else:
-                    xs, xe = xb - 84, xb - 84 - 300
+                    xs, xe = xb - 84, xb - 84 - run
                 self._stair(c, xs, yp, xe, yp + PY)
         # drop ladder under the lowest landing (retracted)
         y8 = self.landing_y(ROWS)
@@ -333,8 +350,20 @@ class _Design:
 
     # ----------------------------------------------------------------- rooftop objects
     def _roof(self, c):
+        state = {"open": False}
+
+        def at(x_old):
+            """Move the next rooftop group (hand-placed for an 1840-wide facade) so the
+            groups keep their sizes but spread over the full width."""
+            if state["open"]:
+                c.restore()
+            c.save()
+            c.translate(x_old * (_SX - 1.0), 0)
+            state["open"] = True
+
         if self.variant == "across":
             # wooden water tank on a steel stand
+            at(1410.0)
             l0, l1 = 1290.0, 1530.0
             for lx in (l0, l1):
                 draw.rect(c, lx - 6, -168, lx + 6, 40)
@@ -362,20 +391,24 @@ class _Design:
                 draw.rect(c, 1270, y, 1287, y + 3)
                 y += 22
             # chimney stack with pots
+            at(352.0)
             draw.rect(c, 300, -140, 404, 40)
             draw.rect(c, 294, -152, 410, -140)
             draw.rect(c, 316, -196, 342, -152)
             draw.rect(c, 312, -202, 346, -194)
             draw.rect(c, 362, -182, 386, -152)
             draw.rect(c, 358, -188, 390, -180)
+            at(992.0)
             draw.rect(c, 960, -88, 1024, 40)
             draw.rect(c, 955, -98, 1029, -88)
             # stair bulkhead with a shed roof
+            at(728.0)
             draw.poly(c, [(620, 40), (620, -150), (836, -128), (836, 40)])
             draw.rect(c, 612, -158, 844, -148)
             draw.rect(c, 760, -186, 772, -150)                                   # vent pipe
             draw.rect(c, 754, -192, 778, -184)
             # TV antenna
+            at(1100.0)
             draw.rect(c, 1098, -330, 1102, 10)
             for (yy, half) in ((-318, 52), (-292, 40), (-266, 30), (-240, 22)):
                 draw.rect(c, 1100 - half, yy, 1100 + half, yy + 2.5)
@@ -383,15 +416,19 @@ class _Design:
             draw.capsule(c, (1100, -200), (1046, 0), 1.4, 1.4)
         else:
             for (x0, x1, top) in ((260.0, 352.0, -170.0), (1460.0, 1560.0, -150.0)):
+                at((x0 + x1) / 2)
                 draw.rect(c, x0, top, x1, 40)
                 draw.rect(c, x0 - 6, top - 12, x1 + 6, top)
                 draw.rect(c, x0 + 16, top - 50, x0 + 40, top - 12)
+            at(1170.0)
             draw.poly(c, [(1060, 40), (1060, -170), (1280, -170), (1280, 40)])
             draw.poly(c, [(1050, -170), (1170, -230), (1290, -170)])
+            at(702.0)
             draw.rect(c, 700, -260, 704, 10)
             for (yy, half) in ((-250, 46), (-228, 34), (-206, 24)):
                 draw.rect(c, 702 - half, yy, 702 + half, yy + 2.5)
             # rooftop clothesline poles
+            at(660.0)
             for x in (420.0, 900.0):
                 draw.rect(c, x - 3, -120, x + 3, 30)
                 draw.rect(c, x - 26, -124, x + 26, -118)
@@ -401,6 +438,8 @@ class _Design:
             c.line_to(920, -117)
             c.curve_to(760, -93, 560, -93, 400, -117)
             c.close_path()
+        if state["open"]:
+            c.restore()
 
     # ----------------------------------------------------------------- ground floor
     def _ground(self, c):
@@ -437,7 +476,7 @@ class _Design:
             draw.rect(c, sx0 - 16, sy1, sx1 + 16, sy1 + 16)
             draw.rect(c, sx0 - 22, sy0 - 20, sx0, FH)
             draw.rect(c, sx1, sy0 - 20, sx1 + 22, FH)
-        ax0, ax1 = 92.0, 720.0
+        ax0, ax1 = self.shops[0][0] - 20.0, self.shops[0][2] + 20.0
         if self.variant == "across":
             pts = [(ax0 - 6, 3458), (ax1 + 6, 3458), (ax1 + 22, 3536)]
             n = 9
@@ -450,9 +489,10 @@ class _Design:
             draw.poly(c, pts)
         # areaway railing along the sidewalk on the right
         y = FH - 96
-        draw.rect(c, 1130, y, 1740, y + 5)
-        x = 1134.0
-        while x < 1740:
+        rx0, rx1 = self.shops[1][0] - 10.0, self.shops[1][2] + 12.0
+        draw.rect(c, rx0, y, rx1, y + 5)
+        x = rx0 + 4.0
+        while x < rx1:
             draw.rect(c, x, y, x + 3.5, FH)
             draw.poly(c, [(x - 2, y), (x + 5.5, y), (x + 1.75, y - 12)])
             x += 22
@@ -505,8 +545,9 @@ class Facade:
 
     Facade(origin=(540, 3940), scale=1.0, variant='across')
         origin: world point of the bottom-centre of the facade (sidewalk line at the stoop).
-        scale:  1.0 -> 1840 x 3940 world px (2.05 screen heights); 0.25 fits the whole
+        scale:  1.0 -> 2261 x 3940 world px (2.05 screen heights); 0.25 fits the whole
                 building inside her window in the POV shots.
+    camera_lock() puts the 40 windows exactly on the bible's facade lock.
     """
 
     def __init__(self, origin=(540.0, 3940.0), scale=1.0, variant="across", seed=0):
@@ -624,6 +665,22 @@ class Facade:
         cx = (self.x0 + self.x1) / 2
         cy = (self.ground_y + top) / 2
         return camera_for((cx, cy), z, par)
+
+    def camera_lock(self, par=1.0, dx=0.0, dy=0.0, zoom=1.0):
+        """The facade-lock camera (s01 -> s02 handoff, s11 rhyme): window centres land on
+        LOCK_COLS x LOCK_ROWS and every window is LOCK_SIZE px. dx, dy (screen px) and
+        zoom (relative) offset it for drifts that start from the lock."""
+        z = LOCK_ZOOM / self.scale * zoom
+        cy = MY + 3 * PY + WH / 2 + (960.0 - LOCK_ROWS[3]) / LOCK_ZOOM
+        p = self.to_world((FW / 2, cy))
+        return camera_for((p[0] - dx / z, p[1] - dy / z), z, par)
+
+    @staticmethod
+    def lock_rect(i):
+        """Screen rect (x0, y0, x1, y1) of window i at the facade lock."""
+        r, c = rowcol(i)
+        cx, cy = LOCK_COLS[c - 1], LOCK_ROWS[r - 1]
+        return (cx - LOCK_SIZE[0] / 2, cy - LOCK_SIZE[1] / 2, cx + LOCK_SIZE[0] / 2, cy + LOCK_SIZE[1] / 2)
 
     def camera_on(self, i, fill=0.5, par=1.0, dx=0.0, dy=0.0, rot=0.0):
         """Camera centred on window i so that the window spans `fill` of the screen height."""

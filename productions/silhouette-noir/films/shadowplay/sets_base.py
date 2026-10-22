@@ -48,8 +48,11 @@ def tone(k):
 # ----------------------------------------------------------------------------- layer specs
 def layer_spec(layer=None, **over):
     """Normalize a layer spec. Accepts None (action plane), a dict with any of
-    par/blur/fog/alpha, or a tuple (par, blur, fog[, alpha])."""
-    if layer is None:
+    par/blur/fog/alpha, a tuple (par, blur, fog[, alpha]), or a cairo.Context the caller
+    already opened (kept as spec['ctx']; drawn into as an action-plane layer)."""
+    if isinstance(layer, cairo.Context):
+        d = {"ctx": layer}
+    elif layer is None:
         d = {}
     elif isinstance(layer, dict):
         d = dict(layer)
@@ -72,6 +75,9 @@ def opened(f, layer):
         yield layer
         return
     s = layer_spec(layer)
+    if s.get("ctx") is not None:
+        yield s["ctx"]
+        return
     with f.layer(par=s["par"], blur=s["blur"], fog=s["fog"], alpha=s["alpha"]) as L:
         yield L
 

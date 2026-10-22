@@ -472,7 +472,7 @@
    "trans_out": {
     "kind": "whip",
     "dur": 0.5,
-    "direction": "right"
+    "direction": "left"
    },
    "trans_in": {
     "kind": "dissolve",
@@ -587,7 +587,7 @@
    "trans_in": {
     "kind": "whip",
     "dur": 0.5,
-    "direction": "right"
+    "direction": "left"
    },
    "handle_in": 0.25,
    "handle_out": 0.0,
@@ -727,7 +727,7 @@
    "trans_out": {
     "kind": "flatten",
     "dur": 1.0,
-    "reverse": true
+    "pal": "red"
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -917,7 +917,7 @@
    "trans_in": {
     "kind": "flatten",
     "dur": 1.0,
-    "reverse": true
+    "pal": "red"
    },
    "handle_in": 0.5,
    "handle_out": 0.0,

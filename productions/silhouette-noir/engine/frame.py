@@ -394,12 +394,13 @@ class Frame:
         # Saul Bass flatten (posterize to flat paper colors)
         poster = P["poster"]
         if poster and poster.get("amount", 0) > 0:
-            lum = (out[..., 2] * 0.2126 + out[..., 1] * 0.7152 + out[..., 0] * 0.0722) / 255.0
+            lum = np.clip((out[..., 2] * 0.2126 + out[..., 1] * 0.7152 + out[..., 0] * 0.0722) / 255.0, 0.0, 1.0)
             levels = poster["levels"]
             flat = np.zeros_like(out)
             prev = -1.0
-            for thr, rgb in levels:
-                msk = (lum > prev) & (lum <= thr)
+            for k, (thr, rgb) in enumerate(levels):
+                last = k == len(levels) - 1              # the brightest level is open-ended
+                msk = (lum > prev) if last else ((lum > prev) & (lum <= thr))
                 flat[msk] = (rgb[2] * 255, rgb[1] * 255, rgb[0] * 255)
                 prev = thr
             if poster.get("keep_red", True):

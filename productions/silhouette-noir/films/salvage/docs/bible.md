@@ -185,7 +185,7 @@ The crime as a paper story.
   - **6.4–11.2.** L12: *"Thirty-one men were just... part of the price."*
     - A grid of 31 crew cut-outs (paper on ink, 4 rows) staggers in on [Thirty-one@6.40]. The captain is in the middle, larger.
     - On [part@9.55] black water bars rise from the bottom and swallow them row by row. The captain goes last, on [price@10.37].
-- **OUT** (bars, horizontal, 1.0 s). The rising bars cover the frame and continue into s08's dark shaft.
+- **OUT** (bars, 1.0 s). Seven ink columns rise from the bottom (`axis='v', frm='end'`), cover the frame, and travel on to reveal s08's dark shaft.
 
 ### s08 · THE SHAFT · 10.0 s · inside the wreck · film 1:26
 

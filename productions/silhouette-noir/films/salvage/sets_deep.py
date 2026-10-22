@@ -31,11 +31,22 @@ BG_SPAN = 0.22      # backdrop: screen px per world px of depth seen in the far 
 
 
 # ----------------------------------------------------------------------------- depth helpers
-def haze_at(y):
-    """Colour of the far water haze looking horizontally at depth y. A touch brighter than
-    water_at() in the deep so silhouettes always have something to stand against."""
-    c = water_at(y)
-    return mix(c, PAL.mid, 0.42 * smoothstep(1500.0, 8500.0, y))
+MURK = 0.35          # default darkness of the deep haze (0 = bright house fog .. 1 = near black)
+
+
+def haze_at(y, murk=None):
+    """Colour of the far water haze looking horizontally at depth y. Stylised (the house
+    rule: the brightest fog sits behind the subject): it follows the palette fog toward the
+    surface and only darkens by `murk` in the deep, so silhouettes always read."""
+    m = MURK if murk is None else murk
+    if y <= 0:
+        return PAL.surface
+    far = PAL.fog_at(1.0)
+    if y < 2500:
+        c = mix(PAL.surface, far, smoothstep(0.0, 2500.0, y) ** 0.7)
+    else:
+        c = mix(far, PAL.fog_at(0.45), smoothstep(2500.0, 9000.0, y))
+    return mix(c, PAL.ink, m * smoothstep(1500.0, 9500.0, y))
 
 
 def depth_info(y):
@@ -54,8 +65,9 @@ class View:
     """Per-frame projector: true world (x, y) at distance z behind the action plane ->
     action-plane coordinates (draw them in f.layer() / the main ctx)."""
 
-    def __init__(self, f, lens=LENS, fog_len=FOG_LEN, fog_gamma=0.85, fog_max=0.97):
+    def __init__(self, f, lens=LENS, fog_len=FOG_LEN, fog_gamma=0.85, fog_max=0.97, murk=None):
         cam = f.cam
+        self.murk = murk
         self.f = f
         self.cx, self.cy, self.zoom = cam.x, cam.y, cam.zoom
         self.lens, self.fog_len, self.fog_gamma, self.fog_max = lens, fog_len, fog_gamma, fog_max
@@ -96,7 +108,7 @@ class View:
     def bg(self, Y):
         """Backdrop colour behind action-plane height Y."""
         sy = H / 2 + self.zoom * (Y - self.cy)
-        return haze_at(self.cy + (sy - H / 2) / BG_SPAN)
+        return haze_at(self.cy + (sy - H / 2) / BG_SPAN, self.murk)
 
     def tone(self, z, Y=None):
         """Silhouette colour of an object at distance z seen in front of the backdrop."""
@@ -106,7 +118,7 @@ class View:
         return mix(INK, self.bg(self.cy if Y is None else Y), fz ** self.fog_gamma)
 
 
-def deep_backdrop(f, t, glow=None, bright=1.0):
+def deep_backdrop(f, t, glow=None, murk=None):
     """The open water seen far away, screen space, by the camera's depth: brighter upward
     (toward the light), darker downward. glow = (screen x, screen y, radius, strength): a
     soft pool of light far behind - put it behind the subject (backlight)."""
@@ -115,20 +127,19 @@ def deep_backdrop(f, t, glow=None, bright=1.0):
     stops = []
     for i in range(n):
         sy = -40 + (H + 80) * i / (n - 1)
-        c = haze_at(cy + (sy - H / 2) / BG_SPAN)
-        stops.append((i / (n - 1), mix(INK, c, bright), 1.0))
+        stops.append((i / (n - 1), haze_at(cy + (sy - H / 2) / BG_SPAN, murk), 1.0))
     with f.screen() as S:
         draw.linear(S, (0, -40), (0, H + 40), stops)
         S.paint()
     if glow is not None:
         gx, gy, gr, gs = glow
-        col = haze_at(max(cy - 2500.0, 0.0))
+        col = haze_at(max(cy - 3000.0, 0.0), 0.0)
         with f.light(par=0.0, blur=30) as A:
             A.save()
             A.identity_matrix()
             A.scale(A.get_target().get_width() / W, A.get_target().get_height() / H)
-            draw.glow_disc(A, (gx, gy), gr, col, 0.5 * gs)
-            draw.glow_disc(A, (gx, gy), gr * 0.45, col, 0.35 * gs)
+            draw.glow_disc(A, (gx, gy), gr, col, 0.45 * gs)
+            draw.glow_disc(A, (gx, gy), gr * 0.45, col, 0.30 * gs)
             A.restore()
 
 
@@ -340,11 +351,12 @@ def _wall_pts(seed, x_edge, y_top, y_bot, side=-1, depth=2400.0, ledges=5):
     return jag(body, seed=seed + 9, amp=26.0, step=60.0)
 
 
-REEF = (   # (seed, x_edge, y_top, y_bot, side, z) - the walls of the descent column
-    (11, -2300.0, 1400.0, 9600.0, -1, 2600.0),
-    (12, -3700.0, 600.0, 9600.0, -1, 7600.0),
-    (13, 3900.0, 2900.0, 9600.0, 1, 5200.0),
-    (14, 6200.0, 900.0, 9600.0, 1, 13000.0),
+REEF = (   # (seed, x_edge, y_top, y_bot, side, z) - the walls of the descent column; they stop
+          # above the sandy plain where the Meridian lies (the far ones run to the bottom)
+    (11, -2900.0, 1300.0, 6900.0, -1, 3600.0),
+    (12, -4200.0, 500.0, 9600.0, -1, 10500.0),
+    (13, 3300.0, 2600.0, 6400.0, 1, 5600.0),
+    (14, 6800.0, 900.0, 9600.0, 1, 14000.0),
 )
 
 

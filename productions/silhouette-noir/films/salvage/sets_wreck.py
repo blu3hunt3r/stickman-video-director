@@ -86,38 +86,43 @@ class Wreck:
         return self.D
 
     def hb_deck(self, s):
-        if s < 3200:
-            return 1250 + 500 * _ss(0, 3000, s)
+        """Half-breadth at deck level along her length."""
+        if s < 4200:
+            return 1250 + 500 * _ss(0, 4000, s) ** 0.8
         if s > 16500:
             return max(60.0, 1750 * (1 - ((s - 16500) / 4600.0) ** 1.6))
         return 1750.0
 
-    def hb_bilge(self, s):
-        if s < 3600:
-            return lerp(260, 1750, _ss(600, 3600, s))
-        if s > 15500:
-            return max(50.0, 1750 * (1 - ((s - 15500) / 5300.0) ** 1.35))
-        return 1750.0
+    def _shape_params(self, s):
+        """(h_bottom, w0 = bottom width fraction, p = bilge fullness) at station s."""
+        if s < 700:                                   # the counter, overhanging the rudder
+            return lerp(1180, 980, s / 700.0), 0.42, 1.6
+        if s < 4200:                                  # the run: a narrow V aft fills out
+            u = _ss(700, 4200, s)
+            return 0.0, lerp(0.05, 0.74, u ** 1.3), lerp(1.7, 6.0, u)
+        if s > 15000:                                 # the entrance and the forefoot
+            u = _ss(15000, 21000, s)
+            hb = 0.0 if s < 20000 else (s - 20000) / 1000.0 * 1700
+            return hb, lerp(0.74, 0.03, u ** 0.8), lerp(6.0, 1.5, u)
+        return 0.0, 0.74, 6.0
 
-    def hb_bottom(self, s):
-        if s < 4200:
-            return lerp(110, 1300, _ss(600, 4200, s))
-        if s > 14500:
-            return max(40.0, 1300 * (1 - ((s - 14500) / 5800.0) ** 1.2))
-        return 1300.0
+    def hb_at(self, s, h):
+        """Half-breadth of the hull plating at station s, height h."""
+        h0, w0, p = self._shape_params(s)
+        dh = self.deck_h(s)
+        u = clamp((h - h0) / max(dh - h0, 1.0))
+        return self.hb_deck(s) * (w0 + (1 - w0) * (1 - (1 - u) ** p))
 
     def section(self, s):
-        """Convex hull section at station s as [(b, h)]."""
+        """Convex hull section at station s as [(b, h)], keel to deck: narrow 'wine glass' aft,
+        a box with tight bilges amidships, a sharp vee forward."""
+        h0, w0, p = self._shape_params(s)
         dh = self.deck_h(s)
         hd = self.hb_deck(s)
-        if s < 600:                       # the counter: overhangs the rudder, bottom at h~1100
-            h0 = lerp(1150, 900, s / 600.0)
-            right = [(hd * 0.45, h0), (hd * 0.85, lerp(h0, dh, 0.45)), (hd, dh)]
-        else:
-            h0 = 0.0 if s < 20000 else (s - 20000) / 1000.0 * 1700
-            hb0, hbb = self.hb_bottom(s), self.hb_bilge(s)
-            hd = max(hd, hbb)
-            right = [(hb0, h0), (lerp(hb0, hbb, 0.78), h0 + 140), (hbb, max(h0 + 300, 450)), (hd, dh)]
+        right = []
+        for u in (0.0, 0.02, 0.06, 0.12, 0.2, 0.3, 0.45, 0.65, 0.85, 1.0):
+            h = lerp(h0, dh, u)
+            right.append((hd * (w0 + (1 - w0) * (1 - (1 - u) ** p)), h))
         left = [(-b, h) for b, h in reversed(right)]
         return right + [(0.0, dh + 60.0)] + left
 
@@ -149,16 +154,6 @@ class Wreck:
             out.append((self.W(s, b, h), r))
         return out
 
-    def hb_at(self, s, h):
-        """Half-breadth of the hull at station s and height h (the plating's b)."""
-        sec = self.section(s)
-        right = [p for p in sec if p[0] >= 0][:-1] if False else None
-        pts = [p for p in sec[: len(sec) // 2]]
-        for (b0, h0), (b1, h1) in zip(pts, pts[1:]):
-            if h0 <= h <= h1:
-                return lerp(b0, b1, (h - h0) / max(h1 - h0, 1e-6))
-        return pts[-1][0]
-
     def stern_top(self):
         """World point at the top of the stern (starboard poop rail corner)."""
         return self.W(80.0, 1200.0, self.D + self.POOP)
@@ -184,28 +179,26 @@ class Wreck:
             n = [W_(s0, b0, h0), W_(s0, b1, h0), W_(s0, b1, h1), W_(s0, b0, h1)]
             f_ = [W_(s1, b0, h0), W_(s1, b1, h0), W_(s1, b1, h1), W_(s1, b0, h1)]
             return n, f_
-        for (s0, s1, b0, b1, h0, h1) in ((-200, 330, -45, 45, 70, 1160), (300, 700, -60, 60, 0, 120),
-                                          (560, 2400, -120, 120, 0, 900)):
+        for (s0, s1, b0, b1, h0, h1) in ((150, 520, -48, 48, 70, 1150), (480, 900, -70, 70, 0, 110)):
             n, f_ = box(s0, s1, b0, b1, h0, h1)
             zm = sum(p[2] for p in n + f_) / 8
             P.add(zm - 50, lambda ctx, view, n=n, f_=f_: prism3(ctx, view, n, f_))
-        hub = (430.0, 0.0, 620.0)
-        def prop(ctx, view, rot=17.0):
-            pts_all = []
+        hub = (650.0, 0.0, 640.0)
+        R = 700.0
+        def prop(ctx, view, rot=24.0):
             for i in range(4):
                 a = math.radians(rot + 90 * i)
                 ca, sa = math.cos(a), math.sin(a)
                 blade = []
-                for u, w in ((0.15, 70), (0.35, 150), (0.6, 170), (0.82, 130), (0.97, 60), (1.0, 0)):
-                    r = 560 * u
-                    blade.append((ca * r - sa * w, sa * r + ca * w))
-                for u, w in ((1.0, 0), (0.92, -50), (0.6, -90), (0.3, -80), (0.15, -60)):
-                    r = 560 * u
-                    blade.append((ca * r - sa * w, sa * r + ca * w))
+                for u, w in ((0.12, 90), (0.32, 200), (0.58, 235), (0.8, 190), (0.95, 100), (1.0, 20)):
+                    blade.append((ca * R * u - sa * w, sa * R * u + ca * w))
+                for u, w in ((0.99, -40), (0.9, -95), (0.62, -130), (0.35, -110), (0.12, -80)):
+                    blade.append((ca * R * u - sa * w, sa * R * u + ca * w))
                 pp = [view.Pp(W_(hub[0], hub[1] + bb, hub[2] + hh)) for bb, hh in blade]
-                draw.poly(ctx, oriented(pp))
+                draw.smooth(ctx, oriented(pp), close=True, tension=0.45)
             c = view.Pp(W_(*hub))
-            draw.circle(ctx, c, 120 * view.k(W_(*hub)[2]))
+            k = view.k(W_(*hub)[2])
+            draw.circle(ctx, c, 150 * k)
             ctx.set_source_rgb(*view.tone(W_(*hub)[2], c[1]))
             ctx.fill()
         P.add(W_(*hub)[2] - 80, prop)

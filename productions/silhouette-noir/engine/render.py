@@ -44,6 +44,7 @@ from engine.palette import PALETTES  # noqa: E402
 from engine.timing import SceneTiming, film_dir, timeline  # noqa: E402
 
 _MODS = {}
+_SHAPES = {}
 PLACEHOLDERS = os.environ.get("RENDER_PLACEHOLDERS", "1") != "0"
 
 
@@ -153,6 +154,12 @@ def film_frame(film, t, scale=1.0):
     A = render_scene(film, a["id"], t - a["start"], scale)
     B = render_scene(film, b["id"], t - b["start"], scale)
     params = {k: v for k, v in tr.items() if k not in ("kind", "dur", "align")}
+    if "shape" in params:                      # a named path factory: shape_<name>(**shape_args)
+        key = (film, a["id"], b["id"])
+        if key not in _SHAPES:
+            _SHAPES[key] = getattr(transitions, "shape_" + params["shape"])(**params.get("shape_args", {}))
+        params = {k: v for k, v in params.items() if k not in ("shape", "shape_args")}
+        params["path"] = _SHAPES[key]
     return transitions.apply(tr["kind"], A, B, u, t=t - w0, **params)
 
 

@@ -105,11 +105,11 @@ One continuous camera path.
   - **10.6–12.4.** L5: *"Nobody ever looks up."* Tilt down past her sill to the wet street far below. Two or three umbrellas pass and reflect in puddles. Nobody looks up.
   - **12.4–15.0.** Tilt back up and push forward toward the facade, as her binocular view.
     - Title **SHADOW PLAY**: hand-cut Bass letters in PAPER slide in along the facade's grid lines (North by Northwest homage). They stop across rows 3 to 5 for about 1.5 s, then slide off along the lines.
-- **OUT** (iris, binocular, 1.0 s). A binocular mask (two overlapping circles, black outside) closes onto window 9 (dark), centered at about (540, 960).
+- **OUT** (binocular shape, 1.0 s). At the end the camera is centered on window 9, which is dark and about 200 px wide on screen. The frame shrinks into the binocular lenses of s03: `transitions.shape_binocular(center=(540, 960), r=300, sep=330, seed=0)`.
 
 ### s03 · WINDOW NINE · 17.0 s · binocular POV → her eyes · film 0:24
 
-- **IN.** Binocular view (two-circle mask) on window 9: dark, with a pale sheet behind the glass. Slight handheld drift (`Camera.shaken`, 3 px).
+- **IN.** Binocular view on window 9: dark, with a pale sheet behind the glass. Draw the mask with exactly `bass.binoculars(ctx, (540, 960), 300, 330, pal.ink, seed=0)`, so the transition lands on it, through the pre-roll handle and until it opens at 13.0. Window 9 is centered at about 200 px wide. Slight handheld drift inside the lenses (`Camera.shaken`, 3 px).
 - **Beats.**
   - **0.6–3.9.** L6: *"Window nine had been dark for a year."* Slow push on the dark window.
   - **4.8–8.0.** L7: *"On Tuesday, at eleven, the light came on."* On [light@7.16] the window flickers on: the sheet glows amber from a lamp behind it.
@@ -161,7 +161,7 @@ One continuous camera path.
   - **3.8–7.0.** The spiral stairwell seen from straight above, with a Vertigo zoom (dolly-zoom plus rotation). A small red figure spirals down the square stairs into the dark.
   - **4.6–5.7.** L15: *"I crossed the street."* Out into the rain. She crosses the wet street, red coat and red reflection, between headlight-less parked cars.
   - **7.0–13.0.** One continuous crane up the facade of the other building, past lit windows, rising to window 9 (dark). Rain.
-- **OUT** (iris rect, 1.0 s). Window 9's rectangle, centered at (540, 960), grows to fill the frame into s07's room.
+- **OUT** (window shape, 1.0 s). At the cut, window 9 fills screen rect (444, 840)–(636, 1080). `transitions.shape_window(rect0=(444, 840, 636, 1080))` grows it to full frame, revealing s07's room.
 
 ### s07 · THE SHOW · 12.5 s · apartment 9 · film 1:19.5
 

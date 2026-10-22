@@ -75,7 +75,7 @@ class Room3D:
         )
 
     # ------------------------------------------------------------------ per-pixel light
-    def light_map(self, f, lights, par=1.0, ds=4, albedo=None, ambient=0.0, blur=1.2, gain=1.0):
+    def light_map(self, f, lights, par=1.0, ds=4, albedo=None, ambient=0.0, blur=1.2, gain=1.0, holes=()):
         """Light the room's surfaces: for every low-res pixel, cast the eye ray into the box,
         find the wall / floor / ceiling point it hits, and sum the lights. ADDED to the frame.
 
@@ -88,7 +88,9 @@ class Room3D:
           door   dict(kind='door', src=(X,Y,Z) in the hallway, z0, z1, top, color, power,
                       mask=fn(u, v)->0..1 blocker (u along the opening 0..1, v up 0..1))
           area   dict(kind='area', pos, normal, color, power, r0)            glowing sheet
-        albedo: dict(back, walls, floor, ceiling) reflectances."""
+        albedo: dict(back, walls, floor, ceiling) reflectances.
+        holes:  openings that reflect nothing (the window, a doorway):
+                ('back', X0, Y0, X1, Y1) | ('left' / 'right', Z0, Y0, Z1, Y1)."""
         alb = dict(back=0.5, walls=0.45, floor=0.30, ceiling=0.55)
         if albedo:
             alb.update(albedo)
@@ -120,6 +122,13 @@ class Room3D:
         ny = np.where(on_y, -np.sign(dy), 0.0).astype(np.float32)
         nz = np.where(on_z, -1.0, 0.0).astype(np.float32)
         A = np.where(on_z, alb["back"], np.where(on_x, alb["walls"], np.where(dy < 0, alb["floor"], alb["ceiling"])))
+        for (pl, a0, b0, a1, b1) in holes:
+            if pl == "back":
+                m = on_z & (Px > a0) & (Px < a1) & (Py > b0) & (Py < b1)
+            else:
+                side = (dx < 0) if pl == "left" else (dx > 0)
+                m = on_x & side & (Pz > a0) & (Pz < a1) & (Py > b0) & (Py < b1)
+            A = np.where(m, 0.0, A)
         acc = np.zeros((h, w, 3), np.float32)
         for L in lights:
             kind = L.get("kind", "point")
@@ -203,6 +212,7 @@ class Room3D:
         out[..., 1] = acc[..., 1]
         out[..., 2] = acc[..., 0]
         out[..., :3] = np.clip(out[..., :3], 0, 1) * 255.0
+        out[..., 3] = out[..., :3].max(axis=2)          # keep it a valid premultiplied pixel
         if blur > 0:
             out = cv2.GaussianBlur(out, (0, 0), blur)
         surf = array_surface(out)
@@ -375,6 +385,13 @@ class Apartment9:
                           color=fl.get("color", mix(HOT, (1, 1, 1), 0.2)), power=fl.get("power", 2.4), r0=0.2))
         return L
 
+    @staticmethod
+    def match_light(pos, level=1.0, t=0.0, seed=0):
+        """A struck match at room point pos=(X, Y, Z): a small, flickering warm point light
+        for extra_lights (draw the flame itself with sets.match_flame at P(*pos))."""
+        fl = 0.8 + 0.2 * noise1(t * 9.0, seed) + 0.08 * math.sin(t * 31.0 + seed)
+        return dict(kind="point", pos=pos, color=mix(AMBER, HOT, 0.6), power=0.55 * level * fl, r0=0.18)
+
     def _door_mask(self, door_open, mask):
         """Blocker for the doorway light: the leaf (partly open) plus an optional
         caller mask(u, v) (e.g. the killer standing in the doorway)."""
@@ -393,10 +410,11 @@ class Apartment9:
     def draw(self, f, t, layer=None, lamp=0.0, lamp_at="front", lamp_tilt=0.0, lamp_broken=False, sheet=True,
              table=True, rig=True, crank=0.0, puppets=None, casters=None, caster_z=None, door_open=0.0, hall=0.0,
              door_mask=None, locked=0.0, street=0.35, police=0.0, flashlights=(), outside=None, tears=(),
-             sheet_hit=None, sheet_fall=0.0, blood=(), hooks=None, dust=1.0):
+             sheet_hit=None, sheet_fall=0.0, blood=(), hooks=None, dust=1.0, lamp_stand=True, extra_lights=()):
         """Draw apartment 9 in a given state.
 
         lamp        bulb level (sets.switch for the flicker-on); lamp_at 'front' | 'behind' | (X, Z)
+        lamp_stand  False: no lamp in the room at all (S04: the police find it empty)
         lamp_tilt   degrees the stand leans (the crash in S10); lamp_broken: the bulb is gone
         sheet/table/rig  which props are present (S04: all False: the room is empty)
         crank       crank-wheel angle (deg) of the rig (drives the arm wire)
@@ -411,14 +429,15 @@ class Apartment9:
         tears / sheet_hit / sheet_fall   see Sheet
         blood       [(X, Y, Z, scale, seed, grow)] red paper splashes on the floor/table
         hooks       {'after_room', 'after_sheet', 'after_props', 'after_door': fn(f, t)} to insert
-                    people between the planes."""
+                    people between the planes.
+        extra_lights more Room3D light dicts (her match: Apartment9.match_light(...))."""
         hooks = hooks or {}
         spec = layer_spec(layer)
         par = spec["par"]
         lamp_xz = self.lamp_pos(lamp_at)
         lamp3d = self.bulb3d(lamp_at, lamp_tilt)
         behind = lamp_xz[1] > self.SHEET_Z
-        lv = 0.0 if lamp_broken else lamp
+        lv = 0.0 if (lamp_broken or not lamp_stand) else lamp
         sheet_glow = lv * (0.9 if behind else 0.5) if sheet else 0.0
         # 1) the box, lit
         with opened(f, spec) as L:
@@ -427,14 +446,15 @@ class Apartment9:
         lights = self.lights(t, lamp=lv, lamp_at=lamp_at, lamp_tilt=lamp_tilt, sheet=sheet, street=street,
                              police=police, door_open=door_open, hall=hall, door_mask=door_mask,
                              flashlights=flashlights, sheet_glow=sheet_glow if behind else None)
-        self.room.light_map(f, lights, par=par, ambient=0.012)
+        lights += list(extra_lights)
+        z0, z1 = self.DOOR_Z
+        holes = [("back",) + tuple(self.WINDOW), ("left", z0, 0.0, z1, self.DOOR_H)]
+        self.room.light_map(f, lights, par=par, ambient=0.012, holes=holes)
         if "after_room" in hooks:
             hooks["after_room"](f, t)
         # 2) behind the sheet (the trap: lamp + doll on its rod between sheet and window)
         with opened(f, spec) as L:
-            if behind and not sheet:
-                pass
-            if behind:
+            if behind and lamp_stand:
                 self._draw_lamp(f, t, L, lamp_at, lv, lamp_tilt, lamp_broken, spec, emit=not sheet)
             # 3) the sheet with its shadows
             if sheet:
@@ -456,7 +476,7 @@ class Apartment9:
                 self.draw_rig(L, crank)
             if puppets is not None and table:
                 puppets(L, self)
-            if not behind:
+            if not behind and lamp_stand:
                 self._draw_lamp(f, t, L, lamp_at, lv, lamp_tilt, lamp_broken, spec)
         if "after_props" in hooks:
             hooks["after_props"](f, t)

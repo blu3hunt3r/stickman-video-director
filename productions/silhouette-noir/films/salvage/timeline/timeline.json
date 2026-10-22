@@ -16,7 +16,7 @@
    "trans_out": {
     "kind": "scroll",
     "dur": 1.5,
-    "direction": "up"
+    "direction": "down"
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -163,12 +163,12 @@
    "trans_out": {
     "kind": "scroll",
     "dur": 1.25,
-    "direction": "down"
+    "direction": "up"
    },
    "trans_in": {
     "kind": "scroll",
     "dur": 1.5,
-    "direction": "up"
+    "direction": "down"
    },
    "handle_in": 0.75,
    "handle_out": 0.625,
@@ -433,12 +433,13 @@
    "next": "s04",
    "trans_out": {
     "kind": "flatten",
-    "dur": 1.0
+    "dur": 1.0,
+    "pal": "salvage"
    },
    "trans_in": {
     "kind": "scroll",
     "dur": 1.25,
-    "direction": "down"
+    "direction": "up"
    },
    "handle_in": 0.625,
    "handle_out": 0.5,
@@ -635,7 +636,8 @@
    },
    "trans_in": {
     "kind": "flatten",
-    "dur": 1.0
+    "dur": 1.0,
+    "pal": "salvage"
    },
    "handle_in": 0.5,
    "handle_out": 0.625,
@@ -1037,7 +1039,8 @@
     "kind": "bars",
     "dur": 1.0,
     "n": 7,
-    "orient": "h"
+    "axis": "v",
+    "frm": "end"
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -1174,7 +1177,8 @@
     "kind": "bars",
     "dur": 1.0,
     "n": 7,
-    "orient": "h"
+    "axis": "v",
+    "frm": "end"
    },
    "handle_in": 0.5,
    "handle_out": 0.0,
@@ -1474,7 +1478,7 @@
    "trans_out": {
     "kind": "scroll",
     "dur": 1.25,
-    "direction": "up"
+    "direction": "down"
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -1573,12 +1577,12 @@
    "trans_out": {
     "kind": "scroll",
     "dur": 1.0,
-    "direction": "down"
+    "direction": "up"
    },
    "trans_in": {
     "kind": "scroll",
     "dur": 1.25,
-    "direction": "up"
+    "direction": "down"
    },
    "handle_in": 0.625,
    "handle_out": 0.5,
@@ -1670,12 +1674,12 @@
    "trans_out": {
     "kind": "scroll",
     "dur": 1.0,
-    "direction": "up"
+    "direction": "down"
    },
    "trans_in": {
     "kind": "scroll",
     "dur": 1.0,
-    "direction": "down"
+    "direction": "up"
    },
    "handle_in": 0.5,
    "handle_out": 0.5,
@@ -1816,7 +1820,7 @@
    "trans_in": {
     "kind": "scroll",
     "dur": 1.0,
-    "direction": "up"
+    "direction": "down"
    },
    "handle_in": 0.5,
    "handle_out": 0.0,

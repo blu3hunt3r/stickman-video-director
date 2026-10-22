@@ -197,12 +197,12 @@ def _k_dissolve(A, B, u, t, ease="sine"):
 _NOISE = {}
 
 
-def _noise(w, h, feature, seed):
-    key = (w, h, round(feature, 2), seed)
+def _noise(w, h, feature, seed, detail=5.0):
+    key = (w, h, round(feature, 2), seed, detail)
     if key not in _NOISE:
         if len(_NOISE) > 12:
             _NOISE.clear()
-        _NOISE[key] = noise_grid(w, h, feature=feature, seed=seed, beta=1.8, detail=5.0)
+        _NOISE[key] = noise_grid(w, h, feature=feature, seed=seed, beta=1.8, detail=detail)
     return _NOISE[key]
 
 
@@ -211,58 +211,70 @@ def _k_ink(A, B, u, t, soft=0.045, spread=1.0, grain=1.0, rim=0.5, rim_color=INK
     """Ink bleed (luma key): B appears first through A's darkest areas (the silhouettes),
     then the ink spreads outward from them in noisy tendrils (faster through dark areas)
     until it has soaked the frame. The pace is equalized, so the soaked area grows evenly
-    with u. spread: 0 = pure luma key (no outward growth) .. 1. grain: tendril noise.
-    rim: dark ink fringe on the advancing edge (rim_color). key: 'A' (A's darks), 'B' (the
-    new scene's darks soak through first), 'AB'. seed_frac: share of darkest pixels that
-    bleed first."""
+    with u. Flat areas (an ink field, plain paper) soak in organic blobs. spread: 0 = pure
+    luma key (no outward growth) .. 1. grain: tendril noise. rim: dark ink fringe on the
+    advancing edge (rim_color), only where A and B differ (no contour lace where paper
+    meets paper). key: 'A' (A's darks), 'B' (the new scene's darks soak through first),
+    'AB'. seed_frac: share of darkest pixels that bleed first."""
     h, w = A.shape[:2]
     k = _e(ease, u)
     if k <= 0.0:
         return A.copy()
     if k >= 1.0:
         return B.copy()
-    T = _ink_field(A if key != "B" else B, B if key == "AB" else None, seed, seed_frac, spread, grain, t, drift)
-    lh, lw = T.shape
+    lw, lh = min(w, 270), min(h, 480)
+    sa = cv2.resize(A, (lw, lh), interpolation=cv2.INTER_AREA)
+    sb = cv2.resize(B, (lw, lh), interpolation=cv2.INTER_AREA)
+    T = _ink_field(sa if key != "B" else sb, sb if key == "AB" else None, seed, seed_frac, spread, grain, t, drift)
     kk = lerp(-soft, 1.0 + soft, k)
     m = np.clip((kk - T) / (2.0 * soft) + 0.5, 0.0, 1.0)
     m = m * m * (3.0 - 2.0 * m)
-    M = cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR)
-    out = cv2.blendLinear(A, B, 1.0 - M, M)
+
+    def up(z):
+        return cv2.resize(z, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    out = cv2.blendLinear(A, B, up(1.0 - m), up(m))
     if rim > 0:
-        rr = np.clip(4.0 * m * (1.0 - m) * rim, 0, 1).astype(np.float32)
-        rr = cv2.resize(rr, (w, h), interpolation=cv2.INTER_LINEAR)
-        out = cv2.blendLinear(out, _solid(A.shape, rim_color), 1.0 - rr, rr)
+        q = 4.0 * m * (1.0 - m)
+        diff = cv2.GaussianBlur(cv2.absdiff(sa, sb)[..., :3].max(axis=2).astype(np.float32), (0, 0), 2.0)
+        rr = np.clip(q * q * rim * np.minimum(diff * (1.0 / 60.0), 1.0), 0.0, 1.0).astype(np.float32)
+        out = cv2.blendLinear(out, _solid(A.shape, rim_color), up(1.0 - rr), up(rr))
     out[..., 3] = 255
     return out
 
 
 def _ink_field(X, Y, seed, seed_frac, spread, grain, t, drift):
-    """Arrival time (0..1, equalized) of the ink at each low-res pixel."""
-    h, w = X.shape[:2]
-    lw, lh = min(w, 270), min(h, 480)
+    """Arrival time (0..1, equalized) of the ink at each pixel of the low-res BGRA frame X
+    (and Y for key 'AB')."""
+    lh, lw = X.shape[:2]
 
     def dark(Z):
-        sm = cv2.resize(Z, (lw, lh), interpolation=cv2.INTER_AREA)
-        g = cv2.cvtColor(sm, cv2.COLOR_BGRA2GRAY)
-        return 255 - cv2.GaussianBlur(g, (0, 0), 1.0)
+        g = cv2.cvtColor(Z, cv2.COLOR_BGRA2GRAY).astype(np.float32)
+        return 255.0 - cv2.GaussianBlur(g, (0, 0), 1.6)
 
     D = dark(X)
     if Y is not None:
         D = np.maximum(D, dark(Y))
-    r = cv2.equalizeHist(D).astype(np.float32) * (1.0 / 255.0)       # darkness rank 0..1
-    seedm = r >= 1.0 - seed_frac
-    N = _noise(lw, lh, 16.0, seed)
+    N = _noise(lw, lh, 16.0, seed, detail=3.0)
     if drift and t:
         dx = (t * drift) % lw
         N = cv2.warpAffine(N, np.float32([[1, 0, dx], [0, 1, -0.6 * dx]]), (lw, lh), borderMode=cv2.BORDER_WRAP)
+    # darkness rank 0..1. Smooth, static blob noise is added BEFORE ranking so that inside
+    # flat areas (a Bass ink field, plain paper) the order comes from large organic blobs,
+    # not from film grain (ranking amplifies any noise: grain alone gives salt-and-pepper).
+    Nb = _noise(lw, lh, 0.15 * lw, seed + 101, detail=1.6)
+    Dn = np.clip(D + 26.0 * (Nb - 0.5), 0, 255).astype(np.uint8)
+    r = cv2.equalizeHist(Dn).astype(np.float32) * (1.0 / 255.0)
+    seedm = r >= 1.0 - seed_frac
     if spread > 0 and seedm.any():
         dist = cv2.distanceTransform((~seedm).astype(np.uint8), cv2.DIST_L2, 5)
-        dn = dist / (float(np.percentile(dist, 99.5)) + 1e-6)
-        T = np.where(seedm, (1.0 - r) / max(seed_frac, 1e-3) * 0.2,
+        dn = dist * (1.0 / (float(np.percentile(dist[::2, ::2], 99.5)) + 1e-6))
+        T = np.where(seedm, (1.0 - r) * (0.2 / max(seed_frac, 1e-3)),
                      0.2 + 0.8 * np.clip(spread * 0.75 * dn ** 0.8 + (1.0 - spread * 0.75) * (1.0 - r), 0, 1))
     else:
         T = 1.0 - r
     T = T + grain * 0.10 * (N - 0.5) * np.clip(0.35 + 2.5 * T, 0.0, 1.0)
+    T = cv2.GaussianBlur(T.astype(np.float32), (0, 0), 0.9)          # no pixel-level islands
     T8 = np.clip(T * 255.0, 0, 255).astype(np.uint8)
     return cv2.equalizeHist(T8).astype(np.float32) * (1.0 / 255.0)
 
@@ -880,4 +892,16 @@ def shape_window(rect0, rect1=(-40.0, -40.0, W + 40.0, H + 40.0), seed=6):
     def build(c, k):
         r = tuple(lerp(a, b, k) for a, b in zip(rect0, rect1))
         _poly(c, bass.cut_rect(*r, seed=seed, amp=2.0))
+    return build
+
+def shape_binocular(center=(540.0, 960.0), r=300.0, sep=330.0, r_big=None, seed=0):
+    """Path builder: a binocular view (bass.binocular_pts) scaled from r_big (k=1, past the
+    frame) down to (r, sep) at k=0. Use with kind='shape', invert=True: the outgoing scene
+    shrinks into the binocular lenses of the incoming scene's point of view."""
+    r_big = r_big if r_big is not None else 2.4 * H
+
+    def build(c, k):
+        s = lerp(1.0, r_big / r, k)
+        for p in bass.binocular_pts(center, r * s, sep * s, seed):
+            _poly(c, p)
     return build

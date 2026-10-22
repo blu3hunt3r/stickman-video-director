@@ -16,7 +16,7 @@
    "trans_out": {
     "kind": "flatten",
     "dur": 1.0,
-    "reverse": true
+    "pal": "shadowplay"
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -143,14 +143,24 @@
    "prev": "s01",
    "next": "s03",
    "trans_out": {
-    "kind": "iris",
+    "kind": "shape",
     "dur": 1.0,
-    "binocular": true
+    "invert": true,
+    "shape": "binocular",
+    "shape_args": {
+     "center": [
+      540,
+      960
+     ],
+     "r": 300,
+     "sep": 330,
+     "seed": 0
+    }
    },
    "trans_in": {
     "kind": "flatten",
     "dur": 1.0,
-    "reverse": true
+    "pal": "shadowplay"
    },
    "handle_in": 0.5,
    "handle_out": 0.5,
@@ -325,9 +335,19 @@
    "next": "s04",
    "trans_out": null,
    "trans_in": {
-    "kind": "iris",
+    "kind": "shape",
     "dur": 1.0,
-    "binocular": true
+    "invert": true,
+    "shape": "binocular",
+    "shape_args": {
+     "center": [
+      540,
+      960
+     ],
+     "r": 300,
+     "sep": 330,
+     "seed": 0
+    }
    },
    "handle_in": 0.5,
    "handle_out": 0.0,
@@ -528,7 +548,8 @@
     "kind": "bars",
     "dur": 1.0,
     "n": 2,
-    "orient": "h"
+    "axis": "h",
+    "color": null
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -704,7 +725,8 @@
     "kind": "bars",
     "dur": 1.0,
     "n": 2,
-    "orient": "h"
+    "axis": "h",
+    "color": null
    },
    "handle_in": 0.5,
    "handle_out": 0.375,
@@ -872,9 +894,17 @@
    "prev": "s05",
    "next": "s07",
    "trans_out": {
-    "kind": "iris",
+    "kind": "shape",
     "dur": 1.0,
-    "rect": true
+    "shape": "window",
+    "shape_args": {
+     "rect0": [
+      444,
+      840,
+      636,
+      1080
+     ]
+    }
    },
    "trans_in": {
     "kind": "slash",
@@ -993,9 +1023,17 @@
    "next": "s08",
    "trans_out": null,
    "trans_in": {
-    "kind": "iris",
+    "kind": "shape",
     "dur": 1.0,
-    "rect": true
+    "shape": "window",
+    "shape_args": {
+     "rect0": [
+      444,
+      840,
+      636,
+      1080
+     ]
+    }
    },
    "handle_in": 0.5,
    "handle_out": 0.0,

@@ -46,6 +46,7 @@ _SH = 4                         # cv2 sub-pixel shift bits
 _SK = 16.0                      # 2**_SH
 
 __all__ = [
+    "auto_tint",
     "light", "Light", "Cone", "Glow", "Shaft", "lit_sum",
     "god_rays", "underwater_rays", "window_light", "beam", "lamp", "light_pool",
     "lantern_flicker", "candle_flicker", "bulb_flicker", "ember_glow", "fire_light", "flicker_value",
@@ -265,12 +266,13 @@ class _Null:
 
 
 @contextmanager
-def light(f, par=1.0, blur=6.0, alpha=1.0, ds=None, bbox=None):
+def light(f, par=1.0, blur=6.0, alpha=1.0, ds=None, bbox=None, tint=0.0):
     """Additive light layer: a faster drop-in for f.light() (numpy ADD instead of cairo's slow
     scaled ADD). Draw in world coords of layer `par` with the yielded cairo context (operator
     ADD). blur: softness in screen px. ds: force a downsample factor (default from blur).
     bbox=(x0, y0, x1, y1) world: only that region is allocated and composited (much cheaper
-    for small lights)."""
+    for small lights). tint 0..1: that fraction of the light is laid OVER as a colored veil
+    instead of added (on bright backgrounds added light only bleaches toward white)."""
     blur_px = max(0.0, blur * f.scale)
     if ds:
         k = max(1, int(ds))
@@ -298,7 +300,27 @@ def light(f, par=1.0, blur=6.0, alpha=1.0, ds=None, bbox=None):
         arr = surf_array(surf)
         if alpha != 1.0:
             arr = cv2.convertScaleAbs(arr, alpha=float(max(alpha, 0.0)))
-        _add(f, arr, X0, Y0, k, blur_px / k)
+        if tint > 0.0:
+            if blur_px / k > 0.25:
+                arr = cv2.GaussianBlur(arr, (0, 0), blur_px / k)
+            _over(f, cv2.convertScaleAbs(arr, alpha=float(TINT_GAIN * min(tint, 1.0))), X0, Y0, k)
+            if tint < 1.0:
+                _add(f, cv2.convertScaleAbs(arr, alpha=float(1.0 - tint)), X0, Y0, k, 0.0)
+        else:
+            _add(f, arr, X0, Y0, k, blur_px / k)
+
+
+TINT_GAIN = 1.4
+
+
+def auto_tint(f, tint=None):
+    """The `tint` an effect uses when given None: ~0.75 on bright palettes (RED's daylight
+    fog, where a lantern or fire should color the fog, not bleach it), 0 on dark ones."""
+    if tint is not None:
+        return clamp(tint)
+    fog = _rgb(f.pal.fog_at(0.5))
+    lum = 0.3 * fog[0] + 0.59 * fog[1] + 0.11 * fog[2]
+    return clamp((lum - 0.3) / 0.25) * 0.75
 
 
 # ---------------------------------------------------------------------------- randomness
@@ -940,14 +962,16 @@ def flicker_value(kind, t, seed=0):
 
 
 def lamp(f, c, radius=40.0, color=None, intensity=1.0, flicker=None, halo=5.0, core=0.22, pool=None,
-         t=None, seed=0, par=1.0, emit=1.0):
+         t=None, seed=0, par=1.0, emit=1.0, tint=None):
     """A lamp halo / point light: soft additive halo (radius * halo px), emissive glow, a crisp
     hot core (core * radius px, 0 = none) and an optional light pool on the ground:
     pool=dict(y=ground_y, rx=..., ry=..., intensity=...). flicker: None, 'lantern', 'candle',
-    'bulb', 'ember', 'fire', a float depth or callable. Returns a Glow (for lit=)."""
+    'bulb', 'ember', 'fire', a float depth or callable. tint: see light() (None = auto_tint).
+    Returns a Glow (for lit=)."""
     t = _now(f, t)
     col = _rgb(color) if color is not None else _rgb(f.pal.light)
     k = intensity * flicker_value(flicker, t, seed)
+    tint = auto_tint(f, tint)
     glow = Glow(c, radius * 1.6, k, col, reach=halo / 1.6)
     if k <= 0.002:
         return glow
@@ -958,7 +982,7 @@ def lamp(f, c, radius=40.0, color=None, intensity=1.0, flicker=None, halo=5.0, c
         prx = pool.get("rx", radius * 6)
         pry = pool.get("ry", prx * 0.22)
         bb = [min(bb[0], c[0] - prx), min(bb[1], py - pry), max(bb[2], c[0] + prx), max(bb[3], py + pry)]
-    with light(f, par=par, blur=0, ds=_ds(f, 4), bbox=bb) as A:
+    with light(f, par=par, blur=0, ds=_ds(f, 4), bbox=bb, tint=tint) as A:
         r0 = 1.0 / halo
         g = cairo.RadialGradient(c[0], c[1], 0, c[0], c[1], R)
         for s in (0.0, 0.25 * r0, 0.5 * r0, r0, 1.6 * r0, 2.5 * r0, 4.0 * r0, 0.55, 0.75, 1.0):
@@ -973,7 +997,7 @@ def lamp(f, c, radius=40.0, color=None, intensity=1.0, flicker=None, halo=5.0, c
             _pool(A, (c[0], py), prx, pry, col, pool.get("intensity", 0.45) * k)
     if emit > 0:
         with f.emit(par) as G:
-            draw.glow_disc(G, c, radius * 1.3, _hot(col, 0.35), clamp(0.75 * k * emit))
+            draw.glow_disc(G, c, radius * 1.3, _hot(col, 0.35), clamp(0.75 * k * emit * (1.0 - 0.8 * tint)))
     if core > 0:
         with _main(f, par, cairo.OPERATOR_ADD) as C:
             draw.radial(C, c, 0, radius * core, [(0.0, _hot(col, 0.9), clamp(k)), (0.6, _hot(col, 0.6), clamp(0.8 * k)),
@@ -997,13 +1021,14 @@ def _pool(ctx, c, rx, ry, col, I, angle=0.0):
     ctx.restore()
 
 
-def light_pool(f, c, rx, ry=None, color=None, intensity=0.5, angle=0.0, t=None, par=1.0):
+def light_pool(f, c, rx, ry=None, color=None, intensity=0.5, angle=0.0, t=None, par=1.0, tint=None):
     """Soft elliptical pool of light on a surface (ground under a lamp, a spot on a wall).
     rx, ry: radii px (ry default 0.25 rx: a floor seen at a grazing angle)."""
     col = _rgb(color) if color is not None else _rgb(f.pal.light)
     ry = ry if ry is not None else rx * 0.25
     R = max(rx, ry)
-    with light(f, par=par, blur=0, ds=_ds(f, 4), bbox=(c[0] - R, c[1] - R, c[0] + R, c[1] + R)) as A:
+    with light(f, par=par, blur=0, ds=_ds(f, 4), bbox=(c[0] - R, c[1] - R, c[0] + R, c[1] + R),
+               tint=auto_tint(f, tint)) as A:
         _pool(A, c, rx, ry, col, intensity, angle)
 
 
@@ -1782,28 +1807,22 @@ def water_split(f, y0, t=None, color=None, deep=None, alpha=0.7, depth=900.0, ba
         C.set_source(g)
         C.fill()
     if band > 0:
+        # the bright underside of the surface: a smooth falloff below the wave line (sharp at
+        # the meniscus, long soft tail) broken by drifting ripple streaks and glints
         sky = _mix(_pal(f, "moon", _skylight(f)), col, 0.3)
-        n = max(2, int((vx1 - vx0) / 6.0) + 1)
-        xs = np.linspace(vx0, vx1, n)
-        ys = wave_y(xs, t, y0, **_wave_kw(wave))
-        T = _tex(7700, 256, 10.0)
-        rip = _sample(T, xs[:, None] / 2.5 + 30.0 * t, np.full((n, 1), 7.0) + 0.6 * t)[:, 0]
-        with light(f, par=par, blur=3.0, bbox=(vx0, y0 - 40, vx1, y0 + 120)) as A:
-            for j, (hgt, a) in enumerate(((10.0, 0.5), (34.0, 0.22), (90.0, 0.08))):
-                A.move_to(xs[0], ys[0])
-                for x, y in zip(xs.tolist(), ys.tolist()):
-                    A.line_to(x, y)
-                for x, y in zip(xs[::-1].tolist(), ys[::-1].tolist()):
-                    A.line_to(x, y + hgt)
-                A.close_path()
-                A.set_source_rgba(sky[0], sky[1], sky[2], clamp(band * a))
-                A.fill()
-            # ripple glints on the underside
-            for i in range(0, n, 2):
-                if rip[i] > 0.6:
-                    A.rectangle(xs[i] - 3, ys[i] + 2, 6, 3 + 14 * (rip[i] - 0.6))
-                    A.set_source_rgba(sky[0], sky[1], sky[2], clamp(band * 0.5 * (rip[i] - 0.55)))
-                    A.fill()
+        ds = _ds(f, 2)
+        box = _pxbox(f, par, (vx0, y0 - 30, vx1, y0 + 320), pad=2, align=ds)
+        if box is not None:
+            wx, wy, gw, gh = _grid(f, par, box, ds)
+            wl = wave_y(wx, t, y0, **_wave_kw(wave))
+            dy = wy - wl
+            d = np.maximum(dy, 0.0)
+            on = _ss(-1.2, 0.8, dy)
+            T = _tex(7700, 256, 10.0)
+            rip = _sample(T, wx / 2.5 + 30.0 * t, d / 1.6 + 7.0 + 0.6 * t)
+            I = on * ((0.5 * np.exp(-d / 7.0) + 0.2 * np.exp(-d / 28.0) + 0.07 * np.exp(-d / 90.0)) * (0.7 + 0.6 * rip)
+                      + 0.35 * _ss(0.62, 0.85, rip) * np.exp(-d / 16.0))
+            _add(f, _bgra(I * band, sky), box[0], box[1], ds, 0.6)
 
 
 def waterline(f, y0, t=None, color=None, intensity=0.8, width=2.2, glitter=1.0, glitter_band=50.0,
@@ -2273,12 +2292,15 @@ def _tongue_polys(bx, by, hw, h, lean, wig, ph, n=7):
 
 
 FLAME_LAYERS = ((1.0, 1.0, 0.0, 0.9), (0.62, 0.6, 0.45, 0.92), (0.34, 0.3, 0.9, 1.0))   # (w, h, hot, alpha)
+BURN_LAYERS = ((1.0, 1.0, 0.0, 0.85), (0.6, 0.62, 0.4, 0.92), (0.3, 0.4, 0.8, 1.0))
 
 
-def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emit=0.5, ramp=None):
+def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emit=0.5, ramp=None, ribbon=None):
     """Composite flame tongues (rows of T = bx, by, hw, h, lean, wig, ph, bright) OVER the frame:
     nested outer/mid/core bands (each overwrites the last, so brightness never piles up), a
-    little blur, plus an emissive glow. ramp=(base_y, height): fade toward the tips."""
+    little blur, plus an emissive glow. ramp=(base_y, height): fade toward the tips.
+    ribbon=(polylines, alphas, width_px): lines the tongues stand on, drawn in every band (width
+    scaled like the band) so a row of tongues reads as one burning strand, plus a hot thread."""
     if not len(T):
         return
     T = np.asarray(T, float)
@@ -2290,7 +2312,14 @@ def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emi
     img = _canvas(f, box, 1)
     cm = _canvas_matrix(f, par, box, 1)
     br = T[:, 7] if T.shape[1] > 7 else np.ones(len(T))
-    for (sw, sh, hot, a) in layers:
+    rib = []
+    if ribbon is not None:
+        polys, ral, rw = ribbon
+        ral = np.asarray(ral, float)
+        rq = np.minimum((np.clip(ral, 0, 1) * 4).astype(int), 3)
+        rib = [(lv, [np.rint(np.stack(_xf(cm, q[:, 0], q[:, 1]), -1) * _SK).astype(np.int32)
+                     for q, ok in zip(polys, rq == lv) if ok]) for lv in np.unique(rq)]
+    for (sw, sh, hot, a) in layers + (((0.12, 0.0, 0.95, 1.0),) if rib else ()):
         P = _tongue_polys(T[:, 0], T[:, 1], T[:, 2] * sw, T[:, 3] * sh, T[:, 4] * sh, T[:, 5] * sh, T[:, 6], n)
         X, Y = _xf(cm, P[..., 0], P[..., 1])
         P = np.rint(np.stack([X, Y], -1) * _SK).astype(np.int32)
@@ -2299,7 +2328,12 @@ def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emi
         for lv in np.unique(q):
             sel = np.flatnonzero(q == lv)
             al = clamp(a * k * (lv + 1) / 4.0)
-            cv2.fillPoly(img, list(P[sel]), (255 * c[2] * al, 255 * c[1] * al, 255 * c[0] * al, 255 * al), _AA, _SH)
+            if sh > 0:
+                cv2.fillPoly(img, list(P[sel]), (255 * c[2] * al, 255 * c[1] * al, 255 * c[0] * al, 255 * al), _AA, _SH)
+        for lv, Ps in rib:
+            al = clamp(a * k * (lv + 1) / 4.0)
+            cv2.polylines(img, Ps, False, (255 * c[2] * al, 255 * c[1] * al, 255 * c[0] * al, 255 * al),
+                          max(1, int(round(rw * sw * f.scale))), _AA, _SH)
     if ramp is not None:
         by, hh = ramp
         im = _inv(cm)
@@ -2320,7 +2354,7 @@ def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emi
 
 
 def flames(f, base, height=110.0, width=None, t=None, seed=0, intensity=1.0, color=None, tongues=None,
-           wind=0.0, par=1.0, glow=1.0, licks=True, soft=2.0):
+           wind=0.0, par=1.0, glow=1.0, licks=True, soft=2.0, tint=None):
     """Procedural fire: flickering silhouette tongues (amber body, hot near-white core, composited
     OVER so the hue survives on bright fog) along a base point (x, y) or segment
     ((x0, y0), (x1, y1)), detached licks, an emissive glow and a big soft additive light halo.
@@ -2364,7 +2398,8 @@ def flames(f, base, height=110.0, width=None, t=None, seed=0, intensity=1.0, col
                           (1 - sp) ** 0.5))
     Rg = height * 2.4
     cx, cy = 0.5 * (x0 + x1), 0.5 * (y0 + y1) - height * 0.4
-    with light(f, par=par, blur=0, ds=_ds(f, 4), bbox=(cx - Rg - width / 2, cy - Rg, cx + Rg + width / 2, cy + Rg)) as A:
+    with light(f, par=par, blur=0, ds=_ds(f, 4), bbox=(cx - Rg - width / 2, cy - Rg, cx + Rg + width / 2, cy + Rg),
+               tint=auto_tint(f, tint)) as A:
         A.save()
         A.translate(cx, cy)
         A.scale(1.0 + width / (2 * Rg), 1.0)
@@ -2375,8 +2410,8 @@ def flames(f, base, height=110.0, width=None, t=None, seed=0, intensity=1.0, col
         A.arc(0, 0, Rg, 0, TAU)
         A.fill()
         A.restore()
-    _draw_tongues(f, par, T, col, k=min(fl, 1.0), soft=soft, n=12 if height > 60 else 7, emit=0.3,
-                  ramp=(max(y0, y1), height))
+    _draw_tongues(f, par, T, col, k=min(fl, 1.0), soft=soft, n=12 if height > 60 else 7,
+                  emit=0.3 * (1.0 - 0.8 * auto_tint(f, tint)), ramp=(max(y0, y1), height))
     return fl
 
 
@@ -2473,39 +2508,65 @@ def burn_web(strands, origin, t0=0.0, speed=400.0, step=8.0, snap=7.0):
     return [Fuse(res[k], times[offs[k]:offs[k + 1]]) for k in range(len(res))]
 
 
-def burning(f, fuses, t=None, burn=0.8, height=24.0, char=1.4, embers_rate=1.0, intensity=1.0, color=None,
-            wind=10.0, seed=0, par=1.0, glow=1.0):
-    """Draw fire travelling along Fuses at time t: a white-hot spark at each front, flame tongues
-    along the burning stretch (each point burns `burn` s: flares up, then dies), a glowing char
-    that cools for `char` s, a soft light halo and rising embers (embers_rate x). Batched: pass
-    all strands of a web in one call. Returns [intact polylines per fuse] (Fuse.intact) to draw
-    the standing strands in ink."""
+def _runs(key):
+    """Runs of equal non-negative key over segments: [(level, i0, i1)] - points i0..i1 inclusive."""
+    key = np.asarray(key)
+    if not key.size:
+        return []
+    chg = np.flatnonzero(np.diff(key) != 0) + 1
+    st = np.concatenate([[0], chg])
+    en = np.concatenate([chg, [key.size]])
+    return [(int(key[i]), int(i), int(j)) for i, j in zip(st, en) if key[i] >= 0]
+
+
+CHAR_COLORS = ((0.3, 0.9), (-0.45, 0.8), (-0.8, 0.6), (-1.0, 0.3))   # (heat: + toward white, - toward ink; alpha)
+
+
+def burning(f, fuses, t=None, burn=0.8, height=30.0, char=1.4, embers_rate=1.0, intensity=1.0, color=None,
+            wind=10.0, seed=0, par=1.0, glow=1.0, halo=1.0, tint=None):
+    """Draw fire travelling along Fuses at time t: a white-hot spark at each front, a continuous
+    ribbon of flame tongues along the burning stretch (each point burns `burn` s: flares up,
+    then dies) over a white-hot thread, a char line that cools from amber to ink for `char` s
+    and then breaks, a soft light halo and rising embers (embers_rate x). height px is the flame
+    height. Batched: pass all strands of a web in one call. Returns [intact polylines per fuse]
+    (Fuse.intact) to draw the standing strands in ink."""
     t = _now(f, t)
     col = _rgb(color) if color is not None else _rgb(f.pal.light)
     if isinstance(fuses, Fuse):
         fuses = [fuses]
     fl = fire_light(t, seed) * intensity
-    TT, sparks, segs, chars = [], [], [[], [], []], []
+    tint = auto_tint(f, tint)
+    TT, sparks, segs, threads, th_a, chars = [], [], [[], [], []], [], [], [[], [], [], []]
+    hp = []     # (x, y, weight) of burning points for the halo
     for fi, fu in enumerate(fuses):
         age = t - fu.times
         if not (age >= 0).any():
             continue
-        idx = np.flatnonzero((age >= 0) & (age < burn))
+        step = float(np.median(np.hypot(*np.diff(fu.pts, axis=0).T))) if len(fu.pts) > 1 else 8.0
+        on = (age >= 0) & (age < burn)
+        a = np.clip(age / burn, 0.0, 1.0)
+        env = np.where(on, _ss(0.0, 0.08, a) * (1.0 - a) ** 0.8, 0.0)
+        idx = np.flatnonzero(on)
         if idx.size:
-            a = age[idx] / burn
-            env = _ss(0.0, 0.1, a) * (1.0 - a) ** 0.9
-            nz = _vnoise(t * 3.1 + idx * 0.37, seed + fi)
-            hh = height * env * (0.7 + 0.3 * nz)
-            keep = hh > 1.2
-            i2, hh, env2 = idx[keep], hh[keep], env[keep]
+            e = env[idx]
+            nz = 0.5 + 0.5 * _vnoise(t * 3.1 + idx * 0.37, seed + fi)          # flicker
+            tall = 0.5 + 0.5 * _vnoise(t * 1.3 + idx * 0.23, seed + 11 + fi)    # clusters of tall licks
+            hh = height * e * (0.45 + 0.3 * nz + 0.65 * tall ** 2)
+            keep = (hh > 1.2) & (_vhash(seed + 3, fi, idx) < 0.6)            # irregular spacing
+            i2, hh, e2 = idx[keep], hh[keep], e[keep]
             if i2.size:
                 lean = (wind * 0.006 + 0.22 * _vnoise(t * 1.5 + 0.3 * i2, seed + 7)) * hh
-                TT.append(np.stack([fu.pts[i2, 0], fu.pts[i2, 1], height * 0.17 * (0.6 + 0.4 * env2), hh, lean,
-                                    hh * 0.08, t * 8.0 + 1.7 * i2 + fi, 0.55 + 0.45 * env2], 1))
-            # glow: segments of the burning stretch, bucketed by heat
-            for i, e in zip(idx.tolist(), env.tolist()):
-                if i + 1 < len(age) and 0 <= age[i + 1] < burn:
-                    segs[min(2, int(e * 3))].append((fu.pts[i], fu.pts[i + 1]))
+                hw = max(0.95 * step, 0.2 * height) * (0.5 + 0.5 * e2) * (0.8 + 0.4 * _vhash(seed + 4, fi, i2))
+                TT.append(np.stack([fu.pts[i2, 0], fu.pts[i2, 1], hw, hh, lean, hh * 0.11, t * 8.0 + 1.7 * i2 + fi,
+                                    0.55 + 0.45 * e2], 1))
+                hp.append(np.stack([fu.pts[i2, 0], fu.pts[i2, 1], e2], 1))
+            # glow + hot thread: runs of burning segments, bucketed by heat
+            se = 0.5 * (env[:-1] + env[1:])
+            key = np.where(on[:-1] & on[1:], np.minimum((se * 3).astype(int), 2), -1)
+            for lv, i0, i1 in _runs(key):
+                segs[lv].append(fu.pts[i0:i1 + 1])
+                threads.append(fu.pts[i0:i1 + 1])
+                th_a.append(0.55 + 0.15 * lv)
         front = np.flatnonzero((age >= 0) & (age < 0.12))
         for i in front:
             nb = [j for j in (i - 1, i + 1) if 0 <= j < len(age)]
@@ -2513,47 +2574,70 @@ def burning(f, fuses, t=None, burn=0.8, height=24.0, char=1.4, embers_rate=1.0, 
                 sparks.append((fu.pts[i, 0], fu.pts[i, 1]))
         ch = (age >= burn * 0.5) & (age < burn + char)
         if ch.any():
-            chars.append((fu.pts, ch, age))
-    allseg = [p for bucket in segs for sg in bucket for p in sg]
-    if allseg:
-        P = np.array(allseg)
+            cool = np.clip((age - burn * 0.5) / (burn * 0.5 + char), 0.0, 1.0)
+            # the char breaks up as it cools: drop pieces by a per-point hash
+            brk = _vhash(seed + 31 + fi, np.arange(len(age))) > 1.1 - cool * 1.1
+            q = np.minimum((cool * 4).astype(int), 3)
+            sc = ch[:-1] & ch[1:] & ~brk[:-1]
+            for lv, i0, i1 in _runs(np.where(sc, q[:-1], -1)):
+                chars[lv].append(fu.pts[i0:i1 + 1])
+    if any(segs):
+        P = np.concatenate([p for bucket in segs for p in bucket])
         pad = height * 3
         bb = (P[:, 0].min() - pad, P[:, 1].min() - pad, P[:, 0].max() + pad, P[:, 1].max() + pad)
-        with light(f, par=par, blur=height * 1.2, bbox=bb) as A:
+        with light(f, par=par, blur=height * 0.9, bbox=bb, tint=tint) as A:
+            A.set_line_join(cairo.LINE_JOIN_ROUND)
+            A.set_line_cap(cairo.LINE_CAP_ROUND)
             for lv, bucket in enumerate(segs):
                 if not bucket:
                     continue
-                for p0, p1 in bucket:
-                    A.move_to(p0[0], p0[1] - height * 0.25)
-                    A.line_to(p1[0], p1[1] - height * 0.25)
-                A.set_line_width(height * 2.2)
-                A.set_source_rgba(col[0], col[1], col[2], clamp(0.13 * (lv + 1) * fl * glow))
+                for run in bucket:
+                    A.move_to(run[0, 0], run[0, 1] - height * 0.3)
+                    for x, y in run[1:]:
+                        A.line_to(x, y - height * 0.3)
+                A.set_line_width(height * 1.6)
+                A.set_source_rgba(col[0], col[1], col[2], clamp(0.055 * (lv + 1) * fl * glow))
                 A.stroke()
-    if chars:
-        with _main(f, par, cairo.OPERATOR_ADD) as C:
-            C.set_line_width(max(1.0, height * 0.07))
-            for lv in range(4):
-                any_ = False
-                for pts, ch, age in chars:
-                    cool = np.clip((age - burn * 0.5) / (burn * 0.5 + char), 0.0, 1.0)
-                    q = np.minimum((cool * 4).astype(int), 3)
-                    for i in np.flatnonzero(ch[:-1] & ch[1:] & (q[:-1] == lv)):
-                        C.move_to(*pts[i])
-                        C.line_to(*pts[i + 1])
-                        any_ = True
-                if any_:
-                    C.set_source_rgba(col[0], col[1] * 0.8, col[2] * 0.6, clamp(0.7 * (1.0 - (lv + 0.5) / 4.0) ** 1.5))
-                    C.stroke()
+    if hp and halo > 0:
+        H = np.concatenate(hp)
+        w = H[:, 2].sum()
+        if w > 0:
+            cx, cy = (H[:, 0] * H[:, 2]).sum() / w, (H[:, 1] * H[:, 2]).sum() / w - height * 0.5
+            sd = math.sqrt(max(((H[:, 0] - cx) ** 2 * H[:, 2]).sum() / w + ((H[:, 1] - cy) ** 2 * H[:, 2]).sum() / w, 1.0))
+            R = sd * 1.6 + height * 6
+            I = clamp(0.2 * halo * fl * min(1.0, w / 25.0) ** 0.6)
+            with light(f, par=par, blur=0, ds=_ds(f, 6), bbox=(cx - R, cy - R, cx + R, cy + R), tint=tint) as A:
+                draw.radial(A, (cx, cy), 0, R, [(0, col, I), (0.25, col, I * 0.55), (0.6, col, I * 0.15), (1, col, 0.0)])
+                A.arc(cx, cy, R, 0, TAU)
+                A.fill()
+    if any(chars):
+        with _main(f, par) as C:
+            C.set_line_width(max(1.0, height * 0.065))
+            C.set_line_join(cairo.LINE_JOIN_ROUND)
+            for lv, bucket in enumerate(chars):
+                if not bucket:
+                    continue
+                for run in bucket:
+                    C.move_to(*run[0])
+                    for x, y in run[1:]:
+                        C.line_to(x, y)
+                heat, al = CHAR_COLORS[lv]
+                c = _hot(col, heat) if heat >= 0 else _mix(_mix(col, (0.55, 0.12, 0.04), 0.6), f.pal.ink, -heat)
+                C.set_source_rgba(c[0], c[1], c[2], al)
+                C.stroke()
     if TT:
-        _draw_tongues(f, par, np.concatenate(TT), col, k=min(fl, 1.0), soft=1.2, n=6, emit=0.4)
+        T = np.concatenate(TT)
+        _draw_tongues(f, par, T, col, k=min(fl, 1.0), soft=0.9, n=7, emit=0.3 * (1.0 - 0.8 * tint), layers=BURN_LAYERS,
+                      ribbon=(threads, th_a, float(np.median(T[:, 2])) * 0.7))
     if sparks:
         with f.emit(par) as G:
             for x, y in sparks:
-                draw.glow_disc(G, (x, y), height * 0.9, _hot(col, 0.6), clamp(0.8 * fl))
+                draw.glow_disc(G, (x, y), height * 0.8, _hot(col, 0.6), clamp(0.7 * fl * (1.0 - 0.7 * tint)))
+        rs = height * 0.25
         with _main(f, par, cairo.OPERATOR_ADD) as C:
             for x, y in sparks:
-                draw.radial(C, (x, y), 0, height * 0.3, [(0, _hot(col, 0.95), 1.0), (0.5, _hot(col, 0.6), 0.55), (1, col, 0.0)])
-                C.arc(x, y, height * 0.3, 0, TAU)
+                draw.radial(C, (x, y), 0, rs, [(0, _hot(col, 0.95), 1.0), (0.5, _hot(col, 0.6), 0.5), (1, col, 0.0)])
+                C.arc(x, y, rs, 0, TAU)
                 C.fill()
     if embers_rate > 0 and fuses and TT:
         allp = np.concatenate([fu.pts for fu in fuses])
