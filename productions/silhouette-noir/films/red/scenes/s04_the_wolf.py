@@ -30,7 +30,7 @@ import numpy as np
 from engine import draw
 from engine import figure as F
 from engine.core import clamp, ease, hash01, lerp, noise1, smoothstep
-from engine.creatures import Wolf, solve_quadruped, _head_pts, _EYE
+from engine.creatures import Wolf, solve_quadruped, _head_pts, _EYE, _QTurn, _FRONT, D2R
 from engine.frame import Camera
 from engine.motion import Actor, GAITS, foot_ik
 from engine.timing import Cue, SceneTiming
@@ -48,7 +48,7 @@ N_WALK = 53                             # the shared walk, cut short: 53 steps, 
 T_GO = 3.45                             # walks on, faster ...
 X_JOG, X_RUN = 7700.0, 7960.0           # ... breaks into a jog, then the run: first flight on [girls]
 T_SKID = 12.06                          # the landing she skids on (a run footfall, see girl())
-SKID = 0.44                             # the slide
+SKID = 0.40                             # the slide
 T_BOLT = 12.80                          # she bolts
 YAW_BOLT = 24.0                         # her heading off the path: 24 deg toward camera
 DZ = 86.0                               # how far toward camera (down the screen) she gets
@@ -57,6 +57,7 @@ JOG = GAITS["child_run"].but(speed=1.6, step=0.58, duty=0.42, lean=9.0)
 RUN = GAITS["child_run"]
 BOLT = GAITS["child_run"].but(speed=2.35, step=0.82, lean=17.0, arm_swing=52.0, ramp_in=(0.62, 0.86))
 RUN_CARRY = dict(sh=24.0, elbow=70.0, abd=10.0, wrist=-8.0, grip=0.95)     # = s05's run carry
+CLUTCH = dict(sh=6.0, elbow=118.0, abd=14.0, wrist=-24.0, grip=0.95)       # the basket held to her chest
 
 
 @lru_cache(maxsize=None)
@@ -139,11 +140,13 @@ class Skid:
         return x
 
     def crouch(self, t):
-        """Pelvis lowered (fraction of height) from standing."""
-        a, ts, tb = self.a, self.t_s, self.t_b
+        """Pelvis lowered (fraction of height) from standing: sits back into the slide, is
+        carried up over her feet when they stop, then sinks to spring (the anticipation)."""
+        ts, tb = self.t_s, self.t_b
+        te = ts + SKID
         c = lerp(0.03, 0.075, smoothstep(ts, ts + 0.2, t))
-        c = lerp(c, 0.035, smoothstep(ts + SKID + 0.05, ts + SKID + 0.4, t))
-        c = lerp(c, 0.085, smoothstep(tb - 0.2, tb, t))
+        c = lerp(c, 0.04, smoothstep(te - 0.05, te + 0.12, t))
+        c = lerp(c, 0.095, smoothstep(te + 0.10, tb, t))
         return c
 
     def path(self, t):
@@ -187,17 +190,19 @@ class Skid:
         p = F.Pose(0.0, 0.0, 0.0)
         for s, ((ax, ay), pitch) in self._feet(t).items():
             p.legs[s] = {"ik": (ax, ay), "pitch": pitch, "toe": 0.0, "abd": 3.0}
-        keys = [(ts, self.pitch0), (ts + 0.16, -16.0), (te - 0.04, -12.0), (te + 0.14, 11.0), (te + 0.42, 3.0),
-                (tb - 0.22, 4.0), (tb, 13.0)]
+        # sits back in the slide; momentum pitches her over her feet when they stop; she
+        # recoils from the wolf (leaning away, sinking), then springs forward into the bolt
+        keys = [(ts, self.pitch0), (ts + 0.15, -16.0), (te - 0.04, -12.0), (te + 0.10, 8.0),
+                (te + 0.22, -3.0), (tb, 12.0)]
         p.pitch = _pw(keys, t)
         back = smoothstep(ts, ts + 0.15, t) * (1.0 - smoothstep(te - 0.05, te + 0.15, t))
-        hunch = smoothstep(te, te + 0.4, t)
+        hunch = smoothstep(te, te + 0.3, t)
         p.spine = [-2.0 * back + 2.0 * hunch, -3.0 * back + 4.0 * hunch, -2.0 * back + 3.0 * hunch]
         p.head = -0.6 * p.pitch - 2.0 * hunch
         # the free (far, left) arm: thrown forward for balance, then drawn in, then back to drive
-        fl = smoothstep(ts, ts + 0.14, t) * (1.0 - smoothstep(te + 0.05, te + 0.35, t))
-        draw_in = smoothstep(te + 0.05, te + 0.35, t) * (1.0 - smoothstep(tb - 0.2, tb, t))
-        drive = smoothstep(tb - 0.2, tb, t)
+        fl = smoothstep(ts, ts + 0.14, t) * (1.0 - smoothstep(te + 0.02, te + 0.22, t))
+        draw_in = smoothstep(te + 0.02, te + 0.22, t) * (1.0 - smoothstep(tb - 0.14, tb, t))
+        drive = smoothstep(tb - 0.14, tb, t)
         p.arms["L"] = dict(sh=72.0 * fl + 28.0 * draw_in - 26.0 * drive, abd=10.0,
                            elbow=30.0 * fl + 92.0 * draw_in + 70.0 * drive, wrist=4.0, grip=0.4 + 0.3 * draw_in)
         p.arms["R"] = dict(RUN_CARRY)
@@ -234,10 +239,19 @@ def girl():
     a.key("head_yaw", [(2.58, 0.0), (2.86, 112.0, "out3"), (3.16, 106.0), (3.44, 0.0, "inout")], fade=0.12)
     a.key("head", [(2.58, 0.0), (2.86, -6.0), (3.16, -4.0), (3.44, 0.0)], fade=0.12)
     a.key("yaw", [(2.6, 0.0), (2.9, 20.0), (3.16, 18.0), (3.46, 0.0)], fade=0.12)
+    # the face-off: she clutches the basket to her chest; her eyes dart to the way out (toward
+    # us) a beat before her body goes
+    te = T_SKID + SKID
+    a.arm("R", te - 0.12, T_BOLT + 0.06, fade=0.12, **CLUTCH)
+    a.key("head_yaw", [(T_BOLT - 0.16, 0.0), (T_BOLT - 0.06, 38.0, "out3"), (T_BOLT + 0.12, 26.0),
+                       (T_BOLT + 0.34, 0.0, "inout")], fade=0.06)
+    a.key("yaw", [(T_BOLT - 0.12, 0.0), (T_BOLT + 0.04, 12.0), (T_BOLT + 0.22, YAW_BOLT)], fade=0.06,
+          fade_out=0.1)
     a.blink(2.20)
     a.blink(3.30)
     a.blink(5.10)
     a.blink(9.30)
+    a.blink(12.22)
     return a
 
 
@@ -286,7 +300,7 @@ def ref_x(t):
     return float(np.interp(t, ts, xs))
 
 
-# (t, screen x, screen y of the trail under her, zoom)
+# (t, screen x, screen y of the trail under her, zoom): tracking her, until the wolf
 CAM_KEYS = [
     (1.00, 540.0, 1350.0, 1.00),
     (2.50, 600.0, 1345.0, 0.90),
@@ -294,12 +308,17 @@ CAM_KEYS = [
     (5.80, 610.0, 1345.0, 0.82),
     (7.20, 540.0, 1350.0, 0.80),
     (10.40, 520.0, 1350.0, 0.80),
-    (11.70, 400.0, 1345.0, 0.77),
-    (12.50, 310.0, 1345.0, 0.76),
-    (12.85, 320.0, 1350.0, 0.78),
-    (13.75, 660.0, 1362.0, 1.00),
-    (14.30, 520.0, 1362.0, 1.00),
+    (11.70, 430.0, 1345.0, 0.77),
+    (12.50, 400.0, 1345.0, 0.76),
+    (13.00, 400.0, 1345.0, 0.76),
 ]
+# the face-off and the bolt: the camera holds on the two of them (her at screen x ~384, the
+# wolf filling the right of the frame), pushes in to zoom 1.0 as she bolts and accelerates
+# right after her, into the whip
+FACE_SX, FACE_Z = 400.0, 0.78
+PUSH = (12.95, 0.80)                    # zoom FACE_Z -> 1.0
+PAN = (13.08, 13.98, 900.0)             # the pan right: speed eases 0 -> 900 px/s over this
+TRAIL_SY = 1345.0                       # the trail's line on the screen
 
 
 @lru_cache(maxsize=None)
@@ -307,22 +326,43 @@ def _cam_keys():
     return L.CamPath(CAM_KEYS)
 
 
-def _cam_own(t):
+def _cam_track(t):
     k_ = _cam_keys()(t)
     x = ref_x(t)
     return L.cam_for((x, float(PATH.ground_y(x))), (k_.x, k_.y), k_.zoom)
 
 
+def _pan_dist(t):
+    """Distance the camera has panned right by t (speed PAN[2] * smoothstep(PAN[0], PAN[1]))."""
+    a, b, v = PAN
+    if t <= a:
+        return 0.0
+    T = b - a
+    u = min(1.0, (t - a) / T)
+    d = v * T * (u ** 3 - 0.5 * u ** 4)
+    return d + (v * (t - b) if t > b else 0.0)
+
+
+def _cam_end(t):
+    z = FACE_Z * (1.0 / FACE_Z) ** L.k(t, *PUSH)
+    x = _skid().x_stop + (540.0 - FACE_SX) / FACE_Z + 10.0 * (t - 12.4) + _pan_dist(t)
+    return Camera(x, float(PATH.ground_y(x)) - (TRAIL_SY - 960.0) / z, z)
+
+
 def camera(t):
     if t <= 1.0:
         return L.s03_cam(t + 14.0)
-    return L.cam_mix(L.s03_cam(t + 14.0), _cam_own(t), ease("inout", (t - 1.0) / 1.3))
+    c = L.cam_mix(L.s03_cam(t + 14.0), _cam_track(t), ease("inout", (t - 1.0) / 1.3))
+    if t > 12.2:
+        c = L.cam_mix(c, _cam_end(t), ease("inout", (t - 12.2) / 0.5))
+    return c
 
 
 # ----------------------------------------------------------------------------- the thicket
-# The black thickets on the far side of the path, the whole length of the scene (S.FOREST's
-# own band, PATH_MARKS thicket 8200-11800, is the same seed: where both draw, they coincide).
-TH = S.Forest(terrain=PATH, seed=7, thicket=(4800.0, 13900.0))
+# The black thickets on the far side of the path, the whole length of the scene. (S.FOREST
+# adds its own band, PATH_MARKS thicket 8200-11800, over it: denser there. Seed 13: no gaps
+# in the brambles where the wolf walks; it is never seen whole in them.)
+TH = S.Forest(terrain=PATH, seed=13, thicket=(4800.0, 13900.0))
 PAR = TH.thicket_par                    # 0.9: the wolf in the thicket lives on this plane
 
 
@@ -345,11 +385,11 @@ BW_OFF = 4.0                            # its clock: tau = t + BW_OFF (its actio
 BW_SIZE = 360.0                         # (on its plane: about her size on the screen)
 # where its body (root) is on the screen, relative to her: (t, dx). Its head is ~340 px ahead
 # of the root, so the eyes are ~dx + 340 from her.
-BW_KEYS = [(-1.0, -710.0), (1.0, -700.0), (2.0, -680.0), (2.80, -650.0),     # pacing her ([wolf])
+BW_KEYS = [(-1.0, -710.0), (1.0, -700.0), (1.9, -680.0), (2.35, -665.0),     # pacing her ([wolf])
            (3.30, -655.0), (4.1, -690.0), (5.0, -600.0), (6.3, -500.0),        # the glimpses
            (7.2, -590.0), (8.6, -560.0), (9.4, -545.0), (10.0, -540.0),        # the run
            (10.6, -250.0), (11.3, 420.0)]                                      # it surges past her
-BW_STOP = (2.80, 3.30)                  # it stops (and sinks into the brambles) when she stops
+BW_STOP = (2.35, 3.30)                  # it stops (and sinks into the brambles) as she stops
 BW_GONE = (11.05, 11.35)                # it dives into the thicket ahead of her: gone
 
 
@@ -398,7 +438,7 @@ def _bw_build(shift):
     w.stalk(to=bw_target(-1.0), dur=3.0)          # (already pacing her in s03's last seconds)
     plan.append((-1.0, bw_target(-1.0)))
     leg(-1.0, BW_STOP[0], "stalk")
-    w.stand(dur=0.2, low=2.6, head=-26.0, ears=0.9)
+    w.stand(dur=0.5, low=3.0, head=-30.0, ears=0.9)
     w.at(BW_STOP[1] + o)
     leg(BW_STOP[1], 6.3, "walk")
     leg(6.3, 10.0)
@@ -495,6 +535,8 @@ def _occlusion(f, t, sx, sy):
 def draw_bw_body(f, t, mood):
     """The wolf's body in the thicket (behind the brambles, in their dark)."""
     a = 1.0 - smoothstep(BW_GONE[0], BW_GONE[1], t)
+    # it sinks into the brambles as she stops (and they hide it while she looks back)
+    a *= 1.0 - smoothstep(BW_STOP[0] + 0.1, BW_STOP[0] + 0.4, t) * (1.0 - smoothstep(BW_STOP[1], BW_STOP[1] + 0.5, t))
     if t < 0.8 or a <= 0.0:
         return
     col = S.fogged(mood, 0.27)
@@ -529,19 +571,62 @@ def draw_bw_eyes(f, t, mood):
 
 
 # ----------------------------------------------------------------------------- the wolf on the path
-W_GAP = 475.0                           # its root is this far past where she stops (her face at its nose)
+W_GAP = 525.0                           # its root is this far past where she stops (her face at its nose)
 W_OUT = (11.45, 12.45)                  # it steps out of the fog onto the path
 W_TURN = (13.45, 0.45)                  # it wheels after her (s05 finishes the same turn at its -0.10)
+W_PIVOT = 1.3                           # ... swinging its hindquarters round its forehand (1: withers fixed)
 
 
 def x_wolf():
     return _skid().x_stop + W_GAP
 
 
+class _Wheel(_QTurn):
+    """The engine's turn, pivoting on the forehand instead of in place: the withers stay put
+    while the hindquarters swing round behind (the root moves back by the chord), so the head
+    follows her past its nose and it comes round already behind her."""
+    kind = "wheel"
+
+    def __init__(self, A, t0, state, dur=0.9, fade=0.2, base=None, via="front", pivot=1.0, **kw):
+        _QTurn.__init__(self, A, t0, state, dur=dur, fade=fade, base=base, via=via, **kw)
+        self.half = 0.5 * A.PR["chord"] * A.S * float(pivot)
+        self.c0 = math.cos(self.y0 * D2R)
+        for k_, (a_, _b) in self.sch.items():
+            yF, yH = self._yaws(a_[1])
+            self.mid[k_] = self._ideal_at(k_, yF if _FRONT[k_] else yH, self._root(a_[1]))
+        x1 = self._root(1.0)
+        self.legs1 = A._stand_legs(x1, self.y1)
+        self.end_state = dict(self.end_state, x=x1, legs={k_: list(v) for k_, v in self.legs1.items()})
+
+    def _root(self, u):
+        yF, yH = self._yaws(u)
+        return self.x0 + self.half * (self.c0 - math.cos(0.5 * (yF + yH) * D2R))
+
+    def _ideal_at(self, k_, yaw, x):
+        keep = self.x0
+        self.x0 = x                     # (construction time only)
+        try:
+            return self._ideal(k_, yaw)
+        finally:
+            self.x0 = keep
+
+    def pose(self, t):
+        P = _QTurn.pose(self, t)
+        P["x"] = self._root(clamp((t - self.t0) / self.dur))
+        return P
+
+
+class _PathWolf(Wolf):
+    CLIPS = dict(Wolf.CLIPS, wheel=_Wheel)
+
+    def wheel(self, dur=0.6, via="front", pivot=1.0):
+        return self._add("wheel", dur=dur, via=via, pivot=pivot)
+
+
 @lru_cache(maxsize=None)
 def pw():
     X = x_wolf()
-    w = Wolf(x=X + 290.0, ground=PATH.ground_y, facing=-1, size=330.0, seed=1)
+    w = _PathWolf(x=X + 290.0, ground=PATH.ground_y, facing=-1, size=330.0, seed=1)
     G = {k_: dict(v) for k_, v in w.GAIT.items()}
     G["walk"] = dict(G["walk"], acc=3.4, dec=3.4, pose=dict(G["stalk"]["pose"], hf=0.80, hh=0.80, neck=6.0))
     G["gallop"] = dict(G["gallop"], acc=7.0)
@@ -550,8 +635,8 @@ def pw():
     w.walk(to=X, dur=W_OUT[1] - W_OUT[0] - 0.2)
     w.stand(dur=0.3, low=0.8, head=-16.0, ears=0.9)
     w.at(W_TURN[0])
-    w.turn(dur=W_TURN[1], via="front")
-    w.gallop(to=X + 3000.0, dur=3.0)
+    w.wheel(dur=W_TURN[1], via="front", pivot=W_PIVOT)
+    w.gallop(to=X + 2400.0, dur=3.0)
     w.overlay("snarl", 12.40, dur=0.62, ears=-0.4, amount=0.75)
     w.overlay("bite", 13.02, dur=0.30, n=1)
     return w
