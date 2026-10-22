@@ -319,6 +319,197 @@ def camera(t):
     return L.cam_mix(L.s03_cam(t + 14.0), _cam_own(t), ease("inout", (t - 1.0) / 1.3))
 
 
+# ----------------------------------------------------------------------------- the thicket
+# The black thickets on the far side of the path, the whole length of the scene (S.FOREST's
+# own band, PATH_MARKS thicket 8200-11800, is the same seed: where both draw, they coincide).
+TH = S.Forest(terrain=PATH, seed=7, thicket=(4800.0, 13900.0))
+PAR = TH.thicket_par                    # 0.9: the wolf in the thicket lives on this plane
+
+
+def lcam(t, par=PAR):
+    return camera(t).parallax(par)
+
+
+def her_sx(t):
+    return camera(t).to_screen((ref_x(t), 0.0))[0]
+
+
+def layer_x(t, sx, par=PAR):
+    """Layer x (plane par) that is at screen x sx at time t."""
+    lc = lcam(t, par)
+    return lc.x + (sx - 540.0) / lc.zoom
+
+
+# ----------------------------------------------------------------------------- the wolf in the thicket
+BW_OFF = 4.0                            # its clock: tau = t + BW_OFF (its actions start at t = -4)
+BW_SIZE = 360.0                         # (on its plane: about her size on the screen)
+# where its body (root) is on the screen, relative to her: (t, dx)
+BW_KEYS = [(1.0, -700.0), (2.0, -680.0), (2.62, -650.0),            # pacing her, eyes open on [wolf]
+           (4.5, -600.0), (5.5, -520.0), (6.3, -470.0),              # the glimpses
+           (7.3, -600.0), (8.6, -560.0), (9.7, -540.0), (10.45, -520.0),   # the run
+           (11.25, 1100.0)]                                          # it surges past her
+BW_STOP = (2.62, 3.55)                  # it stops when she stops
+
+
+def _bw_target(t, dx):
+    return layer_x(t, her_sx(t) + dx)
+
+
+@lru_cache(maxsize=None)
+def bw():
+    w = Wolf(x=_bw_target(-1.0, BW_KEYS[0][1]) - 900.0, ground=TH.thicket_ground, facing=1, size=BW_SIZE, seed=3)
+    G = {k_: dict(v) for k_, v in w.GAIT.items()}
+    # a prowl: the walk on the stalk's low frame (hidden in the brambles, the eyes in them)
+    G["stalk"] = dict(G["walk"], k=1.0, acc=1.4, dec=1.6,
+                      pose=dict(hf=0.72, hh=0.75, neck=2.0, head=-14.0, tail=-30.0, ears=0.8, ruff=0.3, arch=0.03))
+    G["walk"] = dict(G["walk"], acc=1.8, dec=1.8)
+    G["trot"] = dict(G["trot"], acc=3.2, dec=3.0)
+    G["gallop"] = dict(G["gallop"], acc=6.0)
+    w.GAIT = G
+    o = BW_OFF
+    prev = -4.0
+    for tk, dx in BW_KEYS[:3]:
+        w.stalk(to=_bw_target(tk, dx), dur=tk - prev)
+        prev = tk
+    w.stand(dur=BW_STOP[1] - BW_STOP[0] - 0.05, low=0.9, head=-16.0, ears=0.9)
+    w.at(BW_STOP[1] + o)
+    prev = BW_STOP[1]
+    kinds = {3: "walk", 4: "walk", 5: "walk", 6: "trot", 7: "trot", 8: "trot", 9: "trot", 10: "gallop"}
+    for i in range(3, len(BW_KEYS)):
+        tk, dx = BW_KEYS[i]
+        getattr(w, kinds[i])(to=_bw_target(tk, dx), dur=tk - prev)
+        prev = tk
+    # its head turned to us (both eyes on her) while it paces her; turned away in the glimpses
+    w.overlay("look", 1.2 + o, dur=1.3, turn=42.0)
+    w.overlay("look", 6.0 + o, dur=4.4, turn=38.0, head=-6.0)
+    return w
+
+
+def bw_eyes(t):
+    """The eyes of the wolf in the thicket at scene t: [(pos (layer coords), visibility)], r, ang,
+    openness."""
+    w = bw()
+    P = w.state(t + BW_OFF)
+    R = solve_quadruped(w, P)
+    front = R["sh"]
+    if front < -0.35:
+        return [], 0.0, 0.0
+    Lh = w.PR["head"] * w.S
+    s = 1.0 if R["cF"] >= 0 else -1.0
+    near = _head_pts(R, [_EYE], Lh, hl=-0.085 * s)[0]
+    far = _head_pts(R, [_EYE], Lh, hl=0.085 * s)[0]
+    vis_far = smoothstep(0.22, 0.5, front)
+    vis = clamp((front + 0.35) / 0.35) if front < 0 else 1.0
+    ang = math.degrees(math.atan2(-R["hs"], R["hc"] * s))
+    out = [((near[0], near[1]), vis)]
+    if vis_far > 0.01:
+        out.append(((far[0], far[1]), vis * vis_far))
+    return out, 0.030 * Lh, ang
+
+
+EYE_OPEN = [(1.42, 0.0), (1.53, 1.0), (2.74, 1.0), (2.82, 0.0), (5.86, 0.0), (6.0, 1.0), (11.3, 1.0)]
+
+
+def eye_open(t):
+    """Openness of the thicket wolf's eyes: they open on [wolf], shut just before she looks
+    back, open again beside her (and she runs), and pace her until it surges ahead."""
+    v = _pw_lin(EYE_OPEN, t)
+    # a slow blink now and then
+    k = math.floor(t / 2.3)
+    tb = k * 2.3 + 2.3 * hash01(13, k, 77)
+    if hash01(13, k, 78) < 0.5 and 0.0 <= t - tb < 0.2:
+        v *= abs(math.cos((t - tb) / 0.2 * math.pi))
+    return v
+
+
+def _pw_lin(keys, t):
+    if t <= keys[0][0]:
+        return keys[0][1]
+    for (ta, va), (tb, vb) in zip(keys, keys[1:]):
+        if t <= tb:
+            return lerp(va, vb, smoothstep(ta, tb, t))
+    return keys[-1][1]
+
+
+def _occlusion(f, t, sx, sy):
+    """1 = the point (screen) is clear of the action-plane trunks, 0 = behind one."""
+    cam = f.cam
+    occ = 1.0
+    for tr in FOREST._trees(f, FOREST.plane):
+        x0 = (tr["x"] - cam.x) * cam.zoom + 540.0
+        hw = 0.5 * tr["w"] * cam.zoom
+        occ = min(occ, smoothstep(-2.0, 9.0, abs(sx - x0) - hw))
+    return occ
+
+
+def draw_bw_body(f, t, mood):
+    """The wolf's body in the thicket (behind the brambles, in their dark)."""
+    if t > 11.4 or t < 0.8:
+        return
+    with S.plane(f, PAR) as c:
+        bw().draw(f, t + BW_OFF, c, color=S.fogged(mood, 0.24), eyes=False)
+
+
+def draw_bw_eyes(f, t, mood):
+    op = eye_open(t)
+    if op <= 0.01 or t > 11.6:
+        return
+    eyes, r, ang = bw_eyes(t)
+    col = (1.0, 1.0, 0.97)
+    lc = f.lcam(PAR)
+    flare = math.exp(-((t - 1.50) / 0.18) ** 2) + 0.6 * math.exp(-((t - 5.95) / 0.16) ** 2)
+    with S.plane(f, PAR) as c:
+        for e, v in eyes:
+            draw.ellipse(c, e, r * 1.15, r * op * 0.85, ang - 8.0)
+            draw.fill(c, col, v)
+    with f.emit(par=PAR) as G:
+        for e, v in eyes:
+            sx, sy = lc.to_screen(e)
+            k = v * op * _occlusion(f, t, sx, sy)
+            if k > 0.01:
+                draw.glow_disc(G, e, r * 6.0, col, 0.6 * k)
+                if flare > 0.02:
+                    draw.glow_disc(G, e, r * 14.0, col, 0.35 * k * flare)
+
+
+# ----------------------------------------------------------------------------- the wolf on the path
+W_GAP = 475.0                           # its root is this far past where she stops (her face at its nose)
+W_OUT = (11.25, 12.45)                  # it steps out of the fog onto the path
+W_TURN = (13.45, 0.45)                  # it wheels after her (s05 finishes the same turn at its -0.10)
+
+
+def x_wolf():
+    return _skid().x_stop + W_GAP
+
+
+@lru_cache(maxsize=None)
+def pw():
+    X = x_wolf()
+    w = Wolf(x=X + 290.0, ground=PATH.ground_y, facing=-1, size=330.0, seed=1)
+    G = {k_: dict(v) for k_, v in w.GAIT.items()}
+    G["walk"] = dict(G["walk"], acc=3.4, dec=3.4, pose=dict(G["stalk"]["pose"], hf=0.80, hh=0.80, neck=6.0))
+    G["gallop"] = dict(G["gallop"], acc=7.0)
+    w.GAIT = G
+    w.stand(dur=W_OUT[0])
+    w.walk(to=X, dur=W_OUT[1] - W_OUT[0])
+    w.stand(dur=W_TURN[0] - W_OUT[1] - 0.02, low=0.8, head=-16.0, ears=0.9)
+    w.at(W_TURN[0])
+    w.turn(dur=W_TURN[1], via="front")
+    w.gallop(to=X + 3000.0, dur=3.0)
+    w.overlay("snarl", 12.40, dur=0.62, ears=-0.4, amount=0.75)
+    w.overlay("bite", 13.02, dur=0.30, n=1)
+    return w
+
+
+def pw_fog(t):
+    """How deep in the fog the wolf on the path still is (it steps out of it)."""
+    return 0.78 * (1.0 - smoothstep(W_OUT[0] + 0.1, W_OUT[1] - 0.15, t))
+
+
+def draw_pw(f, c, t, mood):
+    pw().draw(f, t, c, color=mood.ink, breath=True)
+
+
 # ----------------------------------------------------------------------------- light
 def mood_at(t):
     import copy
@@ -342,9 +533,24 @@ def render(f, t, T):
     cam = camera(t)
     f.set_camera(cam)
     mood = mood_at(t)
-    FOREST.draw_back(f, mood, shafts=False)
+
+    def hook(f_, i, Ly):
+        if i == 3:
+            draw_bw_body(f_, t, mood)
+
+    FOREST.draw_back(f, mood, shafts=False, hook=hook)
+    TH.draw_thicket(f, mood)
+    draw_bw_eyes(f, t, mood)
     FOREST.draw_plane(f, mood)
     prints().draw(f, PATH, t, mood)
+    fog = pw_fog(t)
+    if t >= W_OUT[0] - 0.3:
+        if fog > 0.01:
+            with S.depth_layer(f, mood, 1.0, fog, blur=6.0 * fog) as c:
+                draw_pw(f, c, t, mood)
+        else:
+            with f.layer() as c:
+                draw_pw(f, c, t, mood)
     with f.layer() as c:
         _draw_girl(f, c, t, mood)
     sx = cam.to_screen((ref_x(t), 0.0))[0]

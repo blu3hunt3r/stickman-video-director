@@ -132,16 +132,25 @@ RUN_PATH = [(0.0, RUN, 780.0 / H), (600.0, SNOW_RUN, 700.0 / H), (1300.0, SNOW_R
             (4200.0, WADE, 490.0 / H)]
 
 
-def _smooth_run(a, sigma=0.10, rate=240.0):
+@lru_cache(maxsize=None)
+def _run_dy(x0, sigma=0.10, rate=240.0):
+    """(ts, dy): the smoothed-minus-raw pelvis height of the plain run (see _smooth_run)."""
+    from scipy.ndimage import gaussian_filter1d
+    a = Actor(GIRL, L.look_up(), x=x0, ground=foot_y, facing=1, seed=7, name="red")
+    a.walk(path=RUN_PATH, at=-3.0)
+    seg = a.segs[0]
+    ts = np.arange(seg.t0, TRIP + 0.5, 1.0 / rate)
+    raw = np.array([seg.root(float(t))[1] for t in ts])
+    return ts, gaussian_filter1d(raw, sigma * rate, mode="nearest") - raw
+
+
+def _smooth_run(a, x0):
     """engine.motion's walk pops the pelvis at footfalls (its leg-reach clamp), badly on this
     slope with running strides (60-160 px in a frame). Ride the pelvis on a Gaussian-smoothed
     copy of the walk's own heights instead: a steady crouched run; a planted foot that ends
     up out of reach hangs a little, under the deep snow."""
-    from scipy.ndimage import gaussian_filter1d
     seg = a.segs[0]
-    ts = np.arange(seg.t0, TRIP + 0.5, 1.0 / rate)
-    raw = np.array([seg.root(float(t))[1] for t in ts])
-    dy = gaussian_filter1d(raw, sigma * rate, mode="nearest") - raw
+    ts, dy = _run_dy(x0)
 
     def fn(t, ts=ts, dy=dy):
         # an offset on the walk's own height; it fades out exactly as the fall's segment
@@ -154,7 +163,7 @@ def _smooth_run(a, sigma=0.10, rate=240.0):
 def _run_actor(x0=X0):
     a = Actor(GIRL, L.look_up(), x=x0, ground=foot_y, facing=1, seed=7, name="red")
     a.walk(path=RUN_PATH, at=-3.0)
-    return _smooth_run(a)
+    return _smooth_run(a, x0)
 
 
 # ----------------------------------------------------------------------------- the fall and after
@@ -568,8 +577,13 @@ W_STOP = 1480.0                         # where it stops on [stopped] (root x)
 W_GAPS = [(0.9, 700.0), (2.1, 760.0), (3.3, 780.0), (4.55, 800.0)]    # (t, how far behind her)
 
 
+@lru_cache(maxsize=None)
+def _run_ref():
+    return _run_actor()                 # a private copy: nothing adds to it
+
+
 def _girl_run_x(t):
-    return _run_actor().root(t)[0]
+    return _run_ref().root(t)[0]
 
 
 def _wolf(stop_to):

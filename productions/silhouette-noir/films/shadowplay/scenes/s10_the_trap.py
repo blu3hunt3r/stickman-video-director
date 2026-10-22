@@ -700,6 +700,75 @@ def room_camera(t):
 
 
 # ----------------------------------------------------------------------------- D: the lock
+LOCK_C = (470.0, 1010.0)                  # the lock's centre in the insert (world px, camera fixed)
+LOCK_S = 2.4
+# her pinch on the key's bow, in the key's own frame (x along the key from the keyhole, y across
+# it; units of lock_closeup's scale; the bow spans x 40..170, |y| < 60): the thumb lies over the
+# bow's face, the index finger curls round its end, the palm and the curled fingers sit beside it
+PALM = [(28, -96), (70, -104), (124, -112), (150, -136), (140, -178), (96, -206), (40, -204), (6, -170), (4, -124)]
+FINGERS = [((108, -96), (190, -66), (204, 0), 17, 14),          # index: round the bow's end
+           ((128, -128), (176, -116), (172, -84), 15, 13),      # middle, curled
+           ((112, -160), (150, -160), (146, -134), 14, 12)]     # ring, curled
+THUMB = ((54, -98), (104, -50), (128, -14), 18, 15)
+WRIST = (40, -170)
+ELBOW_W = (-420.0, 1980.0)                # the forearm leaves the frame here (world px)
+
+
+def _key_frame(u):
+    a = math.radians(-90.0 + 90.0 * clamp(u))
+    ca, sa = math.cos(a), math.sin(a)
+    cx, cy = LOCK_C
+    s = LOCK_S
+
+    def K(x, y):
+        return (cx + (x * ca - y * sa) * s, cy + (x * sa + y * ca) * s)
+    return K
+
+
+def _hand_polys(u):
+    """Her right hand pinching the key (palm, curled fingers, thumb over the bow) and the
+    forearm reaching in from below left, as polygons in world px."""
+    K = _key_frame(u)
+    s = LOCK_S
+    polys = [[K(x, y) for x, y in PALM]]
+    for (a, m, b, ra, rb) in FINGERS + [THUMB]:
+        pa, pm, pb = K(*a), K(*m), K(*b)
+        polys.append(_capsule_poly(pa, pm, ra * s, (ra + rb) * 0.5 * s))
+        polys.append(_capsule_poly(pm, pb, (ra + rb) * 0.5 * s, rb * s))
+    w = K(*WRIST)
+    polys.append(_capsule_poly(w, ELBOW_W, 58.0, 150.0))
+    return polys
+
+
+def _capsule_poly(a, b, ra, rb, n=10):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    Ln = math.hypot(dx, dy) or 1.0
+    ang = math.atan2(dy, dx)
+    pts = []
+    for i in range(n + 1):
+        th = ang + math.pi / 2 + math.pi * i / n
+        pts.append((a[0] + ra * math.cos(th), a[1] + ra * math.sin(th)))
+    for i in range(n + 1):
+        th = ang - math.pi / 2 + math.pi * i / n
+        pts.append((b[0] + rb * math.cos(th), b[1] + rb * math.sin(th)))
+    return pts
+
+
+def _sleeve_poly(u):
+    """The red cuff over the forearm's lower half."""
+    w = _key_frame(u)(*WRIST)
+    b = ELBOW_W
+    dx, dy = b[0] - w[0], b[1] - w[1]
+    Ln = math.hypot(dx, dy)
+    nx, ny = -dy / Ln, dx / Ln
+
+    def at(k, r):
+        return (w[0] + dx * k + nx * r, w[1] + dy * k + ny * r)
+    k0 = 0.36
+    r0 = lerp(58.0, 150.0, k0) + 14.0
+    return [at(k0 + 0.02, r0), at(k0, 0.0), at(k0 + 0.02, -r0), at(1.05, -170.0), at(1.05, 170.0)]
+
+
 def insert_scene(f, t):
     u = L.k_(t, T_KEY[0], T_KEY[1] - T_KEY[0], "inout")
     bolt = L.k_(t, T_KEY[1] - 0.08, 0.06, "in")
@@ -712,14 +781,36 @@ def insert_scene(f, t):
     lit = 1.0
     for tb in BLOWS:
         lit -= 0.35 * L.k_(t, tb, 0.02) * (1.0 - L.k_(t, tb + 0.02, 0.12))
+    cx, cy = LOCK_C
+    s = LOCK_S
+    gap_x = cx + 150 * s
     with f.layer() as Lc:
-        lock_closeup(Lc, f, (470.0, 1010.0), scale=2.4, bolt=bolt, key_turn=u, light=clamp(lit), t=t)
-    # the hall bulb behind us: a warm sheen down the door face
+        lock_closeup(Lc, f, LOCK_C, scale=s, bolt=bolt, key_turn=u, light=clamp(lit), t=t)
+    # the hall bulb behind her: a warm wash down the door face, brass on the escutcheon
     with f.light(blur=30.0) as A:
-        glow_ellipse(A, (260.0, 640.0), 520.0, 900.0, AMBER, 0.10)
+        glow_ellipse(A, (300.0, 560.0), 640.0, 1000.0, AMBER, 0.20)
+        glow_ellipse(A, (cx - 30.0, cy - 120.0), 150.0, 260.0, AMBER, 0.16)
+    # the deadbolt crosses the bright gap (lock_closeup's gap light would wash over it)
+    bl = 90 * s * bolt
+    if bolt > 0.0:
+        with f.layer() as Lc:
+            draw.rect(Lc, gap_x - 20 * s, cy - 22 * s, gap_x + bl, cy + 22 * s)
+            draw.fill(Lc, mix(INK, PAL.fog_at(1.0), 0.18))
+        with f.light(blur=2.0) as A:
+            A.rectangle(gap_x - 20 * s, cy - 22 * s, 20 * s + bl, 3.0 * s)
+            draw.fill(A, HOT, 0.45 * clamp(lit))
+    # her hand turning the key; the red cuff of the coat
+    polys = _hand_polys(u)
+    with f.layer() as Lc:
+        L.fill_polys(Lc, polys, INK)
+        draw.poly(Lc, _sleeve_poly(u))
+        draw.fill(Lc, mix(INK, RED, 0.62))
+    with f.light(blur=1.5) as A:
+        L.polys_rim(A, polys, HOT, 0.55 * clamp(lit), (-7.0, 3.0))            # the gap light, right
+        L.polys_rim(A, [_sleeve_poly(u)], AMBER, 0.35, (6.0, 6.0))             # the bulb, above left
     with f.emit() as G:
-        draw.circle(G, (470.0 + 150 * 2.4 + 5.0, 1010.0), 6.0)
-        draw.fill(G, HOT, 0.5 * clamp(lit))
+        draw.circle(G, (gap_x + 5.0, cy), 6.0)
+        draw.fill(G, HOT, 0.5 * clamp(lit) * (1.0 - bolt))
     f.post["bloom"] = 0.3
 
 
