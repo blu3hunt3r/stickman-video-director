@@ -60,9 +60,9 @@ XOVER = 200.0
 ATTACK, RELEASE, LOOKAHEAD, BRIDGE = 0.03, 0.25, 0.06, 0.30
 # fader rides on the whole score (dB breakpoints, cosine between): the chase under line 8 down, the dread
 # under the s06/s07 lines and the s10 lines up, the wordless embrace (s10 133.2-139) up
-MUSIC_RIDE = [(0.0, 0.0), (52.55, 0.0), (52.95, -4.0), (61.7, -4.0), (62.1, 0.0),
+MUSIC_RIDE = [(0.0, 0.0), (52.55, 0.0), (52.95, -5.5), (61.7, -5.5), (62.1, 0.0),
               (66.9, 0.0), (67.2, 3.0), (79.9, 3.0), (81.0, 0.0),
-              (81.5, 0.0), (81.9, 4.0), (87.4, 4.0), (91.0, 0.0),
+              (81.5, 0.0), (81.9, 2.5), (87.4, 2.5), (90.0, 0.0),
               (126.3, 0.0), (126.6, 2.0), (133.1, 2.0), (133.7, 4.0), (138.9, 4.0), (139.4, 0.0)]
 MASTER_LUFS, CEILING_DBTP, LIMIT_AT = -14.0, -1.0, -1.25
 SILENCE = dict(t0=A(5, "quieter"), fall=0.45, hold=37.25, back=38.1, music=-60.0, amb=-32.0, sfx=-10.0)

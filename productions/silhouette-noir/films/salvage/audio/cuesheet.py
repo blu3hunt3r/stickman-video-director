@@ -206,7 +206,8 @@ def designed(C):
     add(cue(w("s12", "then"), "knife_draw", -3, "story", label="knife drawn"))
     add(cue(w("s12", "then") + 0.2, "knife_glint", -13, "sync", label="knife glint 2"))
     add(cue(w("s12", "cut"), "hose_cut", 1, "story", label="SLASH"))
-    add(cue(w("s12", "cut") + 0.06, "air_escape", -5, "story", dur=3.6, label="air hisses"))
+    add(cue(w("s12", "cut") + 0.06, "air_escape", -5, "story", dur=3.6, label="air hisses",
+            fade=(g("s12", 7.85), g("s12", 8.35))))                 # the deck is gone when the camera dips under
     add(cue(g("s12", 8.0), "cam_plunge", -9, "sync", label="camera tilts under"))
     add(cue(g("s12", 8.5), "hose_bubbles", -10, "sync", space="underwater", label="severed hose sinks"))
 
@@ -239,7 +240,7 @@ def designed(C):
     add(cue(g("s15", 4.05), "deck_step", -9, "fallback", params=dict(wet=1), label="onto the deck"))
     add(cue(w("s15", "told") - 0.35, "helmet_unlock", -6, "sync", label="helmet off"))
     add(cue(g("s15", 6.25), "deck_step", -11, "fallback", params=dict(wet=1), label="steps toward him"))
-    add(cue(g("s15", 6.8), "meridian_bell", 3, "story", params=dict(strike=1.0, length=24.0), label="TOLL 2 (loudest)",
+    add(cue(g("s15", 6.8), "meridian_bell", 5, "story", params=dict(strike=1.0, length=24.0), label="TOLL 2 (loudest)",
             xwater=(C.g("s16", -0.9), 2.8), fade=(C.g("s16", 11.2), C.g("s16", 15.1))))
 
     # ---------------------------------------------------------------- s16 the sea keeps
@@ -369,7 +370,7 @@ def layers(C):
                    fin=0.6, fout=0.9, space="night_air")],
         winch=[dict(t0=w("s12", "mine"), t1=g("s12", 9.4), rate=0.36, load=0.55, gain=-8.0, fin=0.15, fout=1.2,
                     space="night_air"),
-               dict(t0=g("s14", -0.2), t1=w("s14", "bell") + 0.35, rate=0.47, load=0.85, gain=-10.0, fin=0.5, fout=0.08,
+               dict(t0=g("s14", -0.2), t1=w("s14", "bell") + 0.35, rate=0.47, load=0.85, gain=-12.5, fin=0.5, fout=0.08,
                     space="night_air")],
         bubbles=[dict(t0=g("s01", 7.8), t1=g("s02", 0.9), density=24.0, gain=-11.0, fin=0.8, fout=0.5),
                  dict(t0=g("s11", 7.2), t1=g("s11", 10.0), density=16.0, gain=-15.0, fin=1.0, fout=0.6)],

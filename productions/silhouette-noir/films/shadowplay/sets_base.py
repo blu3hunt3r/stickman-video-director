@@ -440,5 +440,5 @@ def camera_for(point, zoom=1.0, par=1.0, rot=0.0, origin=(W / 2, H / 2)):
     p = max(par, 1e-6)
     cx = ox + (point[0] - ox) / p
     cy = oy + (point[1] - oy) / p
-    z = 1.0 + (zoom - 1.0) / p
+    z = max(zoom, 1e-6) ** (1.0 / p)          # Camera.parallax: layer zoom = zoom ** par
     return Camera(cx, cy, max(z, 1e-3), rot)

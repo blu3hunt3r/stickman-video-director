@@ -176,7 +176,10 @@ def render_beds(C, seed=0, debug=False):
             lv = dsp.loudness_integrated(bed[act])
             if np.isfinite(lv):
                 bed *= db2lin(TARGET[name] - lv)
-        bed *= db2lin(gdb)[:, None]
+        # automation: dB breakpoints, interpolated in amplitude so crossfades between beds do not
+        # dip into a hole halfway (a dB-linear fade from -80 dB is still -40 dB at its midpoint)
+        pp = sorted(pts)
+        bed *= np.interp(tt, [p[0] for p in pp], [db2lin(p[1]) for p in pp])[:, None]
         info["beds"][name] = dict(spans=[(round(a, 2), round(b, 2)) for a, b in spans], target=TARGET[name])
         amb += bed.astype(np.float32)
         if debug:

@@ -1006,7 +1006,7 @@ def bar_rects(rect=FULL, n=7, axis="h", sizes=None, gap=0.0, seed=0, irregular=0
 
 
 def bars(ctx, u, rect=FULL, n=7, axis="h", colors=(INK,), sizes=None, gap=0.0, frm="alt",
-         mode="slide", overlap=0.6, ease="out5", seed=0, cut=1.0, lengths=None, alpha=1.0):
+         mode="slide", overlap=0.6, ease="out5", seed=0, cut=1.0, lengths=None, alpha=1.0, bleed=0.0):
     """Bass bars: n flat cut-paper bars that slide / grow into their slots, staggered.
 
     axis 'h': horizontal bars that move horizontally ('v': vertical bars moving vertically).
@@ -1014,7 +1014,9 @@ def bars(ctx, u, rect=FULL, n=7, axis="h", colors=(INK,), sizes=None, gap=0.0, f
     mode: 'slide' (in from off-frame; u=1 at rest), 'grow' (extend from the side through a
     clean cut), 'out' (leave, continuing their travel; u=1 gone), 'inout' (u<.5 in, u>.5 out).
     lengths: None = full span; 'random' = Psycho-style strips of random length/offset; or a
-    list of (start_frac, end_frac). Returns the bars' rest rects.
+    list of (start_frac, end_frac). bleed: px each bar extends past its slot on both long
+    edges, so abutting bars overlap and their scissor-cut edges leave no hairline seams
+    (about 3 px for gap=0; 0 keeps the old exact slots). Returns the bars' rest rects.
     """
     slots = bar_rects(rect, n, axis, sizes, gap, seed)
     rk, steps = ranks(n, "random" if frm == "random" else "ltr", seed)
@@ -1030,9 +1032,9 @@ def bars(ctx, u, rect=FULL, n=7, axis="h", colors=(INK,), sizes=None, gap=0.0, f
         else:
             s0, s1 = -0.01, 1.01
         if axis == "h":
-            r = (x0 + span * s0, b0, x0 + span * s1, b1)
+            r = (x0 + span * s0, b0 - bleed, x0 + span * s1, b1 + bleed)
         else:
-            r = (a0, y0 + span * s0, a1, y0 + span * s1)
+            r = (a0 - bleed, y0 + span * s0, a1 + bleed, y0 + span * s1)
         if frm == "alt":
             side = -1.0 if i % 2 == 0 else 1.0
         elif frm == "end":

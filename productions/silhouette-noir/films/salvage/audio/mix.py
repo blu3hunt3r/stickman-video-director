@@ -58,6 +58,7 @@ VO_DEFAULT = os.path.join(HERE, "vo", "narration_full.wav")
 VO_TARGET = -16.0            # narration stem, integrated (pre-master)
 VO_PEAK_DBTP = -4.0          # dialogue limiter: plosives are held here, not by the master limiter
 VO_PAD, VO_FADE, VO_HPF = 0.040, 0.008, 80.0
+VO_LEVEL_KEEP = 0.6          # line leveller: each line keeps 60 % of its deviation from the median line
 
 BUS_DB = dict(music=1.5, feature=0.0, sfx=0.0, hits=0.0, layers=0.0, amb=0.0)      # bus trims
 DUCK = dict(music=-8.0, feature=-4.0, sfx=-3.0, hits=-1.5, layers=-4.0, amb=-2.0)
@@ -133,7 +134,7 @@ def load_vo(path, C, N):
         src = src * db2lin(-20.0 - lv)
     src = dsp.compressor(src, thresh_db=-24.0, ratio=2.2, attack_ms=8.0, release_ms=120.0, knee_db=6.0, mode="rms")
     vo = np.zeros(N)
-    edits = []
+    edits, pieces = [], []
     for v in C.tl["vo"]:
         a = max(0.0, float(v["src_t0"]) - VO_PAD)
         b = min(len(src) / SR, float(v["src_t1"]) + VO_PAD)
@@ -141,9 +142,15 @@ def load_vo(path, C, N):
             continue
         seg = dsp.fade(src[n_of(a):n_of(b)], VO_FADE, VO_FADE)
         dst = float(v["start"]) - (float(v["src_t0"]) - a)
-        dsp.mix_into(vo, seg, n_of(dst))
+        pieces.append((v, a, b, dst, seg, _lufs(seg)))
+    # gentle line leveller: the performance's shape stays, the outliers come 40 % of the way in
+    lv_ok = [p[5] for p in pieces if np.isfinite(p[5])]
+    med = float(np.median(lv_ok)) if lv_ok else 0.0
+    for v, a, b, dst, seg, lvl in pieces:
+        gdb = (VO_LEVEL_KEEP - 1.0) * (lvl - med) if np.isfinite(lvl) else 0.0
+        dsp.mix_into(vo, seg * db2lin(gdb), n_of(dst))
         edits.append(dict(line=v["n"], film_in=round(dst, 3), film_out=round(dst + len(seg) / SR, 3),
-                          src_in=round(a, 3), src_out=round(b, 3), text=v["text"][:48]))
+                          src_in=round(a, 3), src_out=round(b, 3), level_db=_r(gdb), text=v["text"][:48]))
     vo2 = np.stack([vo, vo], axis=1)
     del vo
     lv = dsp.loudness_integrated(vo2)
@@ -320,7 +327,8 @@ def render_layers(C, built, N, sends):
     for k, sp in enumerate(L["winch"]):
         a, b = max(0, n_of(sp["t0"])), min(N, n_of(sp["t1"]))
         n = b - a
-        x, _ = _calib(S.winch_track(n, rng, sp["rate"], sp["load"]), LAYER_LUFS["winch"])
+        x = dsp.sos(S.winch_track(n, rng, sp["rate"], sp["load"]), "lowpass", 6500.0, 2)
+        x, _ = _calib(x, LAYER_LUFS["winch"])
         x *= _span_env(n, sp["fin"], sp["fout"]) * db2lin(sp["gain"])
         xs = dsp.pan_stereo(dsp.decorrelate(x, rng, amount=0.2), 0.2)
         dsp.mix_into(deck, xs.astype(np.float32), a)
@@ -375,7 +383,7 @@ def master_chain(pre, ref):
     ref = dsp.sos(ref, "highpass", 30.0, 2)
     l0 = dsp.loudness_integrated(ref)
     g1 = db2lin(-18.0 - l0)
-    _, cg = dsp.compressor(ref * g1, thresh_db=-14.0, ratio=1.6, attack_ms=20.0, release_ms=300.0, knee_db=8.0,
+    _, cg = dsp.compressor(ref * g1, thresh_db=-12.0, ratio=1.6, attack_ms=20.0, release_ms=300.0, knee_db=8.0,
                            mode="rms", return_gain=True)
     info["glue_gr_db_max"] = _r(-dsp.lin2db(np.min(cg)))
     pre *= g1 * cg[:, None]
@@ -494,6 +502,9 @@ def measure(C, master, stems, act, cue_rows, sinfo):
                            momentary_at_tolls=[_r(_curve_at(tm, lm, t - 0.1, t + 1.2)) for t in tolls],
                            film_momentary_max=_r(lm[i_max]), film_momentary_max_at=round(float(tm[i_max]), 2),
                            toll2_is_loudest=bool(tolls and abs(float(tm[i_max]) - tolls[-1]) < 1.5))
+    if tolls:
+        far = np.abs(tm - tolls[-1]) > 2.0
+        arc["the_bell"]["toll2_margin_over_rest_lu"] = _r(_curve_at(tm, lm, tolls[-1] - 0.1, tolls[-1] + 1.2) - float(np.max(lm[far])))
     arc["resonant_fade_s16"] = dict(short_term={f"{t:.0f}": _r(_curve_at(ts, ls, t - 0.05, t + 0.05)) for t in (167, 171, 175, 178, 180)},
                                     last_0_8s_momentary_max=_r(_curve_at(tm, lm, C.duration - 0.6, C.duration)))
     rep["arc"] = arc

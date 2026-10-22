@@ -281,9 +281,21 @@ def vo_music_balance(vo, music, act, tl, rate=1000):
     return res
 
 
-def explain_clicks(clicks, cues, rows, onsets, ainfo, vinfo):
+def _d2_near(x, k, half=96, ctx=960):
+    """Largest 2nd difference of the 7 kHz-high-passed signal within +-half samples of k."""
+    a, b = max(0, k - ctx), min(len(x), k + ctx)
+    hp = dsp.sos(np.asarray(x[a:b], dtype=np.float64), "highpass", 7000.0, 4)
+    d2 = np.abs(np.diff(hp, n=2, axis=0))
+    d2 = d2.max(axis=1) if d2.ndim > 1 else d2
+    j = k - a - 1
+    return float(d2[max(0, j - half): j + half].max()) if len(d2) else 0.0
+
+
+def explain_clicks(clicks, cues, rows, onsets, ainfo, vinfo, stems=None, master=None):
     """Attribute every detected transient to a designed onset (an SFX cue, a score note / hit /
-    silence edge, a bed event) or flag it UNEXPLAINED (a real discontinuity to fix)."""
+    silence edge, a bed event), else to the texture of the stem that carries it (a consonant in
+    the narration, a raindrop in a bed, a crackle in an SFX), or flag it UNEXPLAINED: a
+    discontinuity no stem has, i.e. made by the mix itself."""
     lens = {(r["t"], r["name"]): r.get("len_s", 1.0) for r in rows}
     beds = []
     for e in ainfo.get("events", []):
@@ -297,13 +309,14 @@ def explain_clicks(clicks, cues, rows, onsets, ainfo, vinfo):
         t = c["t"]
         cand = [(t - to, f"score:{kind}@{to}") for (to, kind) in onsets if -0.01 <= t - to <= 0.04]
         cand += [(t - cu["t"], f"sfx:{cu['name']}@{cu['t']}") for cu in cues
-                 if -0.01 <= t - cu["t"] <= min(2.5, lens.get((cu["t"], cu["name"]), 1.0))]
+                 if -0.01 <= t - cu["t"] <= lens.get((cu["t"], cu["name"]), 1.0)]
         cand += [(t - tb, f"bed:{nm}@{tb}") for (tb, nm) in beds if -0.01 <= t - tb <= 0.4]
-        for e in vinfo.get("edges", []):
-            for te in (e["t_in"], e["t_out"]):
-                if abs(t - te) < 0.03:
-                    cand.append((t - te, f"vo edge line {e['n']}"))
         src = min(cand, key=lambda d: abs(d[0]))[1] if cand else None
+        if src is None and stems is not None:
+            k = int(round(t * SR)) - 1
+            dm = _d2_near(master, k)
+            ks = [nm for nm, x in stems.items() if _d2_near(x, k) >= 0.5 * dm]
+            src = ("texture:" + "+".join(ks)) if ks else None
         out.append(dict(c, source=src or "UNEXPLAINED"))
     return out
 
@@ -408,8 +421,13 @@ def main(argv=None):
 
     # ---- checks
     chk = qa.check_master(master, SR, N)
-    chk["clicks"] = explain_clicks(chk["clicks"], cues, rows, sinfo.get("onsets", []), ainfo, vinfo)
-    every = explain_clicks(qa.find_clicks(master, SR, max_report=10 ** 6), cues, rows, sinfo.get("onsets", []), ainfo, vinfo)
+    chk["clicks"] = explain_clicks(chk["clicks"], cues, rows, sinfo.get("onsets", []), ainfo, vinfo, stems, master)
+    every = explain_clicks(qa.find_clicks(master, SR, max_report=10 ** 6), cues, rows, sinfo.get("onsets", []), ainfo, vinfo,
+                           stems, master)
+    chk["clicks_by_source"] = {}
+    for c in every:
+        kk = c["source"].split(":")[0] if not c["source"].startswith("texture") else c["source"]
+        chk["clicks_by_source"][kk] = chk["clicks_by_source"].get(kk, 0) + 1
     chk["clicks_unexplained"] = [c for c in every if c["source"] == "UNEXPLAINED"]
     chk["clicks_explained_of_total"] = [len(every) - len(chk["clicks_unexplained"]), len(every)]
     report["master"] = chk

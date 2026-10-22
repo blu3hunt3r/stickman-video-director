@@ -257,10 +257,10 @@ def designed():
 
     # ------------------------------------------------------------------ s05 DEEP SNOW
     off, snow, stopped, waited = A(8, "off"), A(8, "snow"), A(8, "stopped"), A(8, "waited")
-    D.steps(52.0, 57.0, 2.6, "snow_wade", -9.0, tag="s05 wading uphill", weight=0.3)
-    D.add(52.0, "girl_breath_run", -10.0, dur=5.1, tag="her breath, climbing", rate=2.8, intensity=0.85)
-    D.steps(52.25, 58.6, 2.2, "wolf_paw", -11.0, pan=-0.35, tag="the wolf bounds after her", pace="gallop", depth=0.8)
-    D.add(52.3, "wolf_pant", -13.0, -0.35, dur=6.2, tag="wolf panting behind", rate=2.2)
+    D.steps(52.0, 57.0, 2.6, "snow_wade", -12.0, tag="s05 wading uphill", weight=0.3)
+    D.add(52.0, "girl_breath_run", -14.0, dur=5.1, tag="her breath, climbing", rate=2.8, intensity=0.85)
+    D.steps(52.25, 58.6, 2.2, "wolf_paw", -14.0, pan=-0.35, tag="the wolf bounds after her", pace="gallop", depth=0.8)
+    D.add(52.3, "wolf_pant", -16.0, -0.35, dur=6.2, tag="wolf panting behind", rate=2.2)
     D.add(off, "cloth_rustle", -14.0, lock="word", tag="she crosses the stakes on 'off'", size=0.8)
     for t in (52.9, 54.4, 55.9):
         D.add(t, "basket_creak", -17.0, lock="free", tag="basket swinging")
@@ -302,15 +302,15 @@ def designed():
     D.add(90.6, "fall_deep_snow", -9.0, tag="she falls backwards")
     for t, p in ((89.2, 0.3), (90.0, -0.4), (91.2, 0.5), (92.4, -0.2)):
         D.add(t, "chitin_click", -11.0, p, lock="free", tag="chitin rattle")
-    for t, p, g in ((91.7, 0.4, -7.0), (92.3, -0.3, -6.0), (92.9, 0.2, -5.0)):
+    for t, p, g in ((91.7, 0.4, -9.0), (92.3, -0.3, -8.5), (92.9, 0.2, -7.5)):
         D.add(t, "leg_stab", g, p, tag="charging legs hit the snow")
     D.add(93.6, "wolf_leap", 0.0, tag="the WOLF leaps over her")
 
     # ------------------------------------------------------------------ s08 FIRE
-    D.add(94.15, "leg_stab", -4.0, 0.3, tag="the fight: leg stabs")
+    D.add(94.15, "leg_stab", -5.5, 0.3, tag="the fight: leg stabs")
     D.add(94.35, "wolf_snarl", -3.0, -0.2, tag="the fight snarl")
     D.add(94.95, "leg_stab", -5.0, -0.4, tag="leg stab")
-    D.add(95.3, "wolf_bite", -2.0, 0.1, tag="the wolf bites a leg")
+    D.add(95.3, "wolf_bite", -3.5, 0.1, tag="the wolf bites a leg")
     D.add(95.5, "spider_hiss", -6.0, 0.2, tag="Grandmother hisses")
     D.add(95.9, "leg_stab", -6.0, 0.5, tag="leg stab")
     D.add(96.25, "kneel_snow", -6.0, tag="she is knocked down", weight=1.0)
@@ -332,7 +332,7 @@ def designed():
     D.steps(105.05, 106.5, 3.3, gain_db=-12.0, tag="she runs to the web", pace="run", weight=0.3)
     fire = A(15, "fire")
     D.add(fire, "lantern_smash", 0.0, lock="word", tag="SMASH on 'fire'")
-    D.add(fire + 0.08, "fire_whoosh", -2.0, tag="fire races along the web", size=1.0, pan0=-0.5, pan1=0.8)
+    D.add(fire + 0.28, "fire_whoosh", -3.0, tag="fire races along the web (after the word reads)", size=1.0, pan0=-0.5, pan1=0.8)
     D.add(fire + 0.95, "fire_whoosh", -5.0, tag="up the threads into the canopy", size=0.85, pan0=0.4, pan1=-0.6)
     D.add(fire + 1.7, "fire_whoosh", -7.0, tag="down toward the valley", size=0.7, pan0=-0.2, pan1=0.3)
     D.add(108.1, "spider_shriek", -3.0, tag="the spider burns and recoils")

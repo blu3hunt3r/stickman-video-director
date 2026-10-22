@@ -740,6 +740,12 @@ class Score:
             # bus peak control: transients may sit at most BUS_PLR dB over the score's loudness
             y, lg = dsp.limiter(y, SCORE_LUFS + BUS_PLR[k], lookahead_ms=3.0, release_ms=120.0, return_gain=True)
             gr[k] = round(float(-dsp.lin2db(np.min(lg))), 2)
+            hop = n_of(0.25)
+            blk = -dsp.lin2db(lg[: (N // hop) * hop].reshape(-1, hop).min(axis=1))
+            top = np.argsort(blk)[::-1][:6]
+            gr[k + "_detail"] = dict(over_1db_s=round(float(np.sum(lg < db2lin(-1.0)) / SR), 2),
+                                     over_3db_s=round(float(np.sum(lg < db2lin(-3.0)) / SR), 2),
+                                     worst=[(round(i * 0.25, 2), round(float(blk[i]), 1)) for i in sorted(top) if blk[i] > 0.5])
             self.b[k] = y.astype(np.float32)
         return dict(raw_lufs=round(float(lv), 2), gain_db=round(float(dsp.lin2db(g)), 2), bus_limiter_gr_db=gr)
 
@@ -863,7 +869,7 @@ def compose(S):
         for e in range(2):
             idx = bb * 2 + e
             S.spic(tb + e * q4 / 2, pat[idx], 0.95 if idx in (0, 3, 6) else 0.6)
-    S.crash(girls, 0.6, gain_db=-4.0)
+    S.crash(girls, 0.6, gain_db=-9.0)   # broadband: kept under the word
     S.mark(girls, "the chase: timpani, gran cassa, spiccato, breaths (142 bpm)")
     S.strings(girls, skid, "A4 C5 E5", 0.55, 0.05, 0.12, "pont", dyn=[(girls, -8.0), (skid, 0.0)], gain_db=-8.0)
     S.strings(girls, skid, "A2 E3", 0.6, 0.05, 0.12, "trem", gain_db=-10.0)
@@ -895,8 +901,8 @@ def compose(S):
             idx = bb * 2 + e
             S.spic(tb + e * qk / 2, m(pat[idx]) + up, 0.95 if idx in (0, 3, 6) else 0.62)
     S.crash(52.0, 0.7, gain_db=-3.0)
-    S.stab(off, ["A2", "E3", "A3", "C4"], 0.9)
-    S.stab(ridge, ["Bb2", "F3", "Bb3", "D4"], 0.95)
+    S.stab(off, ["A2", "E3", "A3", "C4"], 0.9, gain_db=-4.0)       # under the line: hit, but "the path" reads
+    S.stab(ridge, ["Bb2", "F3", "Bb3", "D4"], 0.95, gain_db=-4.0)
     S.mark(52.0, "s05 downbeat after the whip")
     S.mark(off, "'off' (the path): stab")
     S.mark(ridge, "'ridge': stab, the climb a semitone up (Bb)")
@@ -907,7 +913,7 @@ def compose(S):
     S.brass(ridge, snow - ridge, "Bb3 F4", 0.7, "horn", dyn=[(0.0, -4.0), (snow - ridge, 0.0)], gain_db=-6.0)
     S.brass(52.0, snow - 52.0, "A1 E2", 0.55, "trombone", dyn=[(0.0, -8.0), (snow - 52.0, 0.0)], gain_db=-9.0)
     # the fall: big hit, then the music stumbles in half time until 'stopped'
-    S.stab(snow, ["A1", "E2", "A2", "E3"], 1.0)
+    S.stab(snow, ["A1", "E2", "A2", "E3"], 1.0, gain_db=-3.0)
     S.boom(snow, 0.7)
     S.mark(snow, "'snow': the fall - big hit, half time")
     q5 = (stopped - snow) / 4.0

@@ -1038,7 +1038,7 @@ def render_score(C=None, heart=None, seed=0, debug=False):
         gate[a:b] = np.minimum(gate[a:b], np.maximum(gdn, gup))
     main *= gate[:, None]
     feat *= gate[:, None]
-    feat += _st(hb) * 0.9
+    feat += _st(hb) * 0.63                     # felt more than heard: the silence leads
     info["marks"] = sorted(plan.marks)
     info["silences"] = [(round(a, 3), round(b, 3)) for a, b, _, _ in plan.mask]
     if debug:
