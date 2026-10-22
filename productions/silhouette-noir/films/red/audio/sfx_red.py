@@ -35,12 +35,13 @@ import math
 
 import numpy as np
 
-from .common import SR, place, pan_curve  # noqa: F401  (also sets sys.path)
+from .common import SR, pan_curve  # noqa: F401  (also sets sys.path)
+from .common import place as _place_raw
 from audio import dsp
 from audio import sfx as libsfx
 from audio.dsp import (TWO_PI, ar_env, bandpass, brown, crackle, db2lin, exp_env, fade, n_of, onepole_lp,
                        pink, saturate, smooth_noise, sos, t_axis, to_stereo, tv_bandpass, tv_lowpass, white)
-from audio.sfx import _burst, _click, _drop, _hit, _thump  # shared helpers (read-only use)
+from audio.sfx import _burst, _click, _drop, _hit, _sum, _thump  # shared helpers (read-only use)
 
 REF_LUFS = -16.0
 PEAK_CAP_DBTP = -4.0
@@ -149,6 +150,17 @@ def _N(t):
     return max(1, n_of(t))
 
 
+def place(dst, x, t, gain=1.0):
+    """Add a layer at t (s) with a 2 ms fade-out on its tail (no layer ends on a step)."""
+    x = np.asarray(x, dtype=np.float64)
+    k = min(len(x), n_of(0.002))
+    if k > 1:
+        x = x.copy()
+        w = np.linspace(1.0, 0.0, k)
+        x[-k:] *= w if x.ndim == 1 else w[:, None]
+    return _place_raw(dst, x, t, gain)
+
+
 def _pk(x):
     """Peak-normalise a layer (so layer gains below read as relative dB)."""
     m = np.max(np.abs(x)) if len(x) else 0.0
@@ -181,10 +193,11 @@ def _crunch(n, rng, env, rate=4000.0, lo=700.0, hi=7500.0, res=(), spread=0.8, l
 
 
 def _env_hr(t, a, L, roll, roll_amt, roll_w):
-    """Heel + roll load curve for a foot / paw in snow."""
+    """Heel + roll load curve for a foot / paw in snow (ends by ~1.3 L: no stray grains)."""
     e1 = np.clip(t / a, 0, 1) ** 1.5 * np.exp(-np.maximum(t - a, 0) / (L * 0.30))
     e2 = roll_amt * np.exp(-0.5 * ((t - roll) / roll_w) ** 2)
-    return np.clip(e1 + e2, 0, 1.3)
+    end = max(L * 1.3, roll + 2.5 * roll_w)
+    return np.clip(e1 + e2, 0, 1.3) * np.clip((end - t) / (0.25 * L), 0, 1)
 
 
 def _swish(n, rng, f0, f1, q=0.9, color="pink", curve=1.0):
@@ -247,9 +260,10 @@ def _spray(n, rng, t60=0.25, lo=2500.0, hi=11000.0, attack=0.004):
     return bandpass(g, lo, hi, 2) * 0.8 + bandpass(white(n, rng), lo, hi, 2) * e * 0.12
 
 
-def _whump(n, rng, lp=260.0, tau=0.05, attack=0.006):
+def _whump(n, rng, lp=260.0, tau=0.05, attack=0.006, hp=55.0):
     t = t_axis(n)
-    return sos(brown(n, rng), "lowpass", lp, 2) * np.clip(t / attack, 0, 1) * np.exp(-t / tau)
+    x = sos(sos(brown(n, rng), "lowpass", lp, 2), "highpass", hp, 2)
+    return x * np.clip(t / attack, 0, 1) * np.exp(-t / tau)
 
 
 # ============================================================================ the girl
@@ -275,9 +289,9 @@ def _snow_step(dur, p, rng):
     hi = 8200 - 2200 * depth - 1500 * w
     res = [(rng.uniform(1300, 2100), 2.2, 0.5), (rng.uniform(2900, 4300), 2.8, 0.35)]
     cr = _pk(_crunch(n, rng, env, rate, lo, hi, res))
-    wh = _pk(_whump(n, rng, 230 + 150 * (1 - depth), 0.03 + 0.04 * w + 0.04 * depth))
-    th = _pk(_thump(n, 125 - 35 * w, 64 - 14 * w, 0.010, 0.045 + 0.06 * w))
-    x = cr + wh * _g(-11 + 8 * w + 3 * depth) + th * _g(-17 + 11 * w)
+    wh = _pk(_whump(n, rng, 230 + 150 * (1 - depth), 0.03 + 0.04 * w + 0.04 * depth, hp=110 - 50 * w))
+    th = _pk(sos(_thump(n, 135 - 35 * w, 75 - 14 * w, 0.010, 0.04 + 0.05 * w), "highpass", 60, 2))
+    x = cr + wh * _g(-19 + 8 * w + 3 * depth) + th * _g(-25 + 11 * w)
     if rng.uniform() < float(p.get("squeak", 0.35)) and not run:
         m = _N(L * 0.55)
         sq = dsp.friction(m, rng.uniform(650, 1150) * np.linspace(1.0, 0.82, m), rng, jitter=0.22,
@@ -307,8 +321,8 @@ def _snow_wade(dur, p, rng):
     env = _env_hr(ts, 0.02, L, L * 0.55, 0.6, L * 0.2)
     cr = _pk(_crunch(ns, rng, env, 3000 + 2500 * w, 380, 5200, [(rng.uniform(900, 1500), 2.0, 0.6)]))
     place(out, cr, sync, 1.0)
-    place(out, _pk(_whump(_N(0.4), rng, 240, 0.07 + 0.04 * w)), sync, _g(-4 + 3 * w))
-    place(out, _pk(_thump(_N(0.3), 105, 55, 0.012, 0.08)), sync, _g(-12 + 6 * w))
+    place(out, _pk(_whump(_N(0.4), rng, 240, 0.07 + 0.04 * w, hp=70)), sync, _g(-9 + 3 * w))
+    place(out, _pk(sos(_thump(_N(0.3), 110, 62, 0.012, 0.08), "highpass", 50, 2)), sync, _g(-16 + 6 * w))
     po = _swish(_N(0.25), rng, 1400, 520, q=0.8) * np.hanning(_N(0.25))
     place(out, _pk(po), sync + L * 0.9, _g(-11))
     place(out, _pk(_spray(_N(0.5), rng, 0.3, 2000, 9000)), sync + 0.02, _g(-13))
@@ -347,7 +361,7 @@ def _snow_skid(dur, p, rng):
     L = rng.uniform(0.5, 0.65) * (1.25 if wolf else 1.0)
     n = _N(L + 0.5)
     t = t_axis(n)
-    env = np.clip(t / 0.02, 0, 1) * np.clip(1.0 - t / L, 0, 1) ** 0.6
+    env = np.clip(t / 0.02, 0, 1) * np.clip(1.0 - t / L, 0, 1) ** 1.2
     out = np.zeros(n)
     lo, hi = (260, 5000) if wolf else (500, 7500)
     for k in range(4 if wolf else 2):
@@ -387,7 +401,7 @@ def _fall_deep_snow(dur, p, rng):
     set_ = bandpass(set_, 900, 7000, 2) + 0.4 * bandpass(white(m2, rng), 2500, 8000, 2) * np.exp(-t_axis(m2) / 0.5) * 0.05
     place(out, _pk(set_), sync + 0.35, _g(-17))
     st = _wide(out, rng, 0.25)
-    return Out(st, 1.0, sync)
+    return Out(st, 0.0, sync)
 
 
 @_sfx("girl_breath_run", kind="sustained", norm="int", default_dur=6.0, space=0.6, family="breath_girl")
@@ -439,8 +453,8 @@ def _girl_gasp(dur, p, rng):
     """A sharp frightened inhale ('hhk!'), a child's voice catching."""
     n = _N(0.6)
     t = t_axis(n)
-    L = rng.uniform(0.18, 0.26)
-    e = np.clip(t / 0.025, 0, 1) * np.exp(-np.maximum(t - 0.04, 0) / (L * 0.5))
+    L = rng.uniform(0.16, 0.24)
+    e = np.clip(t / 0.03, 0, 1) ** 1.5 * (0.75 + 0.25 * np.clip(1 - t / L, 0, 1)) * np.clip((L - t) / 0.035, 0, 1)
     inh = _formants(white(n, rng), [(1400, 300, 0), (2900, 400, -1), (4500, 700, -3)]) * e
     f0 = 420 * (1 + 0.25 * np.exp(-t / 0.08))
     v = _formants(_pulses(n, f0, rng, 0.04, 0.2), [(1100, 150, 0), (2200, 200, -5)]) * e * (t < 0.08)
@@ -556,10 +570,10 @@ def _wolf_paw(dur, p, rng):
     env = _env_hr(t, 0.008 if gal else 0.014, L, L * 0.55, 0.45, L * 0.18)
     cr = _pk(_crunch(n, rng, env, 4200, 260, 5600 - 1200 * depth, [(rng.uniform(700, 1100), 1.8, 0.7),
                                                                     (rng.uniform(1800, 2600), 2.4, 0.4)]))
-    wh = _pk(_whump(n, rng, 210, 0.05 + 0.04 * depth))
-    th = _pk(_thump(n, 82, 44, 0.014, 0.1))
+    wh = _pk(_whump(n, rng, 210, 0.05 + 0.04 * depth, hp=50))
+    th = _pk(sos(_thump(n, 95, 60, 0.014, 0.09), "highpass", 45, 2))
     pad = _pk(_burst(_N(0.05), rng, 140, 900, t60=0.03, attack=0.002))
-    x = cr + wh * _g(-3) + th * _g(-7)
+    x = cr + wh * _g(-10) + th * _g(-14)
     place(x, pad, 0.0, _g(-6))
     if gal:
         place(x, _pk(_spray(_N(0.4), rng, 0.2, 1800, 8500)), 0.01, _g(-9))
@@ -587,7 +601,7 @@ def _wolf_huff(dur, p, rng):
         e = np.clip(t / 0.006, 0, 1) * np.exp(-t / (L * 0.45))
         flut = 1.0 + 0.7 * np.sin(TWO_PI * rng.uniform(28, 40) * t) * np.exp(-t / 0.07)
         x = _wolf_tract(white(m, rng)) * e * flut
-        ch = sos(brown(m, rng), "lowpass", 220, 2) * e
+        ch = sos(sos(brown(m, rng), "lowpass", 220, 2), "highpass", 50, 2) * e
         place(out, _pk(x) + _pk(ch) * _g(-8), k * rng.uniform(0.32, 0.4), _g(-3 * k))
     return Out(out, 0.0, 0.0)
 
@@ -808,7 +822,7 @@ def _wolf_land(dur, p, rng):
         x, _ = render_sync("wolf_paw", params=dict(pace="gallop", depth=0.6), seed=int(rng.integers(1 << 30)))
         place(out, dsp.mono(x), tt + rng.uniform(0, 0.012), _g(-2 * (k % 2)))
     place(out, _pk(_whump(_N(0.6), rng, 190, 0.14, 0.01)), 0.0, _g(2))
-    place(out, _pk(_thump(_N(0.6), 75, 36, 0.03, 0.3)), 0.0, _g(-2))
+    place(out, _pk(sos(_thump(_N(0.6), 78, 42, 0.03, 0.3), "highpass", 38, 2)), 0.0, _g(-2))
     place(out, _pk(_spray(_N(0.9), rng, 0.5, 1800, 8000)), 0.02, _g(-8))
     gm = _N(0.35)
     gx = _growl_core(gm, rng, 70, 0.7) * np.clip(t_axis(gm) / 0.02, 0, 1) * np.exp(-t_axis(gm) / 0.12)
@@ -895,11 +909,12 @@ def _thread_creak(dur, p, rng):
     t = t_axis(n)
     u = np.clip(t / L, 0, 1)
     env = np.clip(t / 0.35, 0, 1) ** 1.5 * np.clip((L - t) / 0.5, 0, 1)
-    rate = 18 + 45 * np.abs(smooth_noise(n, 0.9, rng)) + 25 * np.sin(np.pi * u)
-    cr = dsp.friction(n, rate, rng, jitter=0.35, body=[(175, 5, 1.0), (410, 6, 0.8), (1050, 9, 0.4), (2300, 12, 0.15)])
+    rate = 14 + 38 * np.abs(smooth_noise(n, 0.9, rng)) + 22 * np.sin(np.pi * u)
+    cr = dsp.friction(n, rate, rng, jitter=0.35, body=[(190, 6, 0.7), (430, 8, 1.0), (980, 10, 0.8), (1900, 12, 0.35),
+                                                         (3100, 14, 0.12)])
     f = f0 * (1.0 - 0.18 * u) * (1 + 0.004 * smooth_noise(n, 3, rng))
     bow = dsp.saw(f, n) * (0.6 + 0.4 * np.abs(smooth_noise(n, 30, rng)))
-    bow = _formants(bow, [(f0 * 3.1, 120, 0), (f0 * 7.2, 260, -4), (1900, 500, -10)])
+    bow = sos(_formants(bow, [(f0 * 3.1, 120, 0), (f0 * 7.2, 260, -4), (1900, 500, -10)]), "lowpass", 1600, 2)
     sn = _grains(n, rng, 6, env, 0.6)
     sn = sos(sn, "highpass", 2500, 2)
     x = _pk(cr) * env + _pk(bow) * env * _g(-9) + _pk(sn) * _g(-14)
@@ -973,7 +988,7 @@ def _spider_drop(dur, p, rng):
     n = _N(1.8)
     out = np.zeros((n, 2))
     m = _N(0.7)
-    body = _pk(_whump(m, rng, 170, 0.18, 0.01)) + _pk(_thump(m, 62, 32, 0.04, 0.35)) * _g(-3)
+    body = _pk(_whump(m, rng, 170, 0.18, 0.01, hp=45)) + _pk(sos(_thump(m, 74, 46, 0.04, 0.35), "highpass", 38, 2)) * _g(-3)
     dsp.mix_into(out, to_stereo(body), 0)
     pans = rng.uniform(-0.85, 0.85, 8)
     for k in range(8):
@@ -985,7 +1000,7 @@ def _spider_drop(dur, p, rng):
         place(ra, _click_one(rng, 0.7), rng.uniform(0.05, 0.6), _g(-rng.uniform(4, 12)))
     out += _wide(ra, rng, 0.5) * _g(-4)
     out += _wide(_pk(_spray(n, rng, 0.8, 1500, 8000)), rng, 0.5) * _g(-9)
-    return Out(out, 1.0, 0.0)
+    return Out(out, 0.0, 0.0)
 
 
 @_sfx("spider_eyes", family="spider_eyes", space=0.4)
@@ -1075,13 +1090,13 @@ def _bottle_roll(dur, p, rng):
     place(out, _pk(_glass_ring(rng, _N(0.6), t60=0.18)), 0.0, _g(-12))
     roll_e = np.clip((t - 0.08) / 0.1, 0, 1) * np.clip((1.62 - t) / 0.25, 0, 1)
     rot = 0.5 + 0.5 * np.sin(TWO_PI * np.cumsum(3.2 - 1.2 * np.clip(t / 1.6, 0, 1)) / SR)
-    rum = sos(brown(n, rng), "lowpass", 600, 2) * roll_e * (0.4 + 0.6 * rot)
+    rum = sos(sos(brown(n, rng), "lowpass", 500, 2), "highpass", 70, 2) * roll_e * (0.4 + 0.6 * rot)
     sl = bandpass(pink(n, rng), 180, 900, 2) * roll_e * (0.3 + 0.7 * np.abs(smooth_noise(n, 4, rng)))
-    out += _pk(rum) * _g(-6) + _pk(sl) * _g(-9)
+    out += _pk(rum) * _g(-10) + _pk(sl) * _g(-12)
     for tt in np.sort(rng.uniform(0.2, 1.4, 5)):
         place(out, _drop(rng, rng.uniform(280, 520), rng.uniform(0.012, 0.025), chirp=0.4), tt, _g(-14))
-    cr = _crunch(n, rng, roll_e * 0.6, 900, 600, 5000)
-    out += _pk(cr) * _g(-12)
+    cr = _crunch(n, rng, roll_e * 0.6, 900, 600, 4000)
+    out += _pk(cr) * _g(-17)
     if int(p.get("clink", 1)):
         tc = 1.62
         place(out, _pk(_hit(rng, [2350, 3870, 5640, 7210], [0.6, 0.45, 0.3, 0.2], click=1.0, click_hp=3500, n=_N(0.8))), tc, _g(-1))
@@ -1152,8 +1167,9 @@ def _lantern_smash(dur, p, rng):
     nf = _N(1.6)
     tf = t_axis(nf)
     fw = tv_lowpass(white(nf, rng), lambda x: 300 + 2700 * (1 - math.exp(-x / 0.12)) * math.exp(-x / 0.9), q=0.7, block=64)
-    fw = sos(fw, "highpass", 70, 2) * np.clip(tf / 0.06, 0, 1) ** 1.5 * np.exp(-tf / 0.55) * _flutter(nf, rng, 14, 0.5)
-    lo = sos(brown(nf, rng), "lowpass", 180, 2) * np.clip(tf / 0.05, 0, 1) * np.exp(-tf / 0.4)
+    rel = np.clip((1.6 - tf) / 0.5, 0, 1)
+    fw = sos(fw, "highpass", 70, 2) * np.clip(tf / 0.06, 0, 1) ** 1.5 * np.exp(-tf / 0.55) * _flutter(nf, rng, 14, 0.5) * rel
+    lo = sos(sos(brown(nf, rng), "lowpass", 180, 2), "highpass", 45, 2) * np.clip(tf / 0.05, 0, 1) * np.exp(-tf / 0.4) * rel
     dsp.mix_into(out, _wide(_pk(fw) * _g(-1) + _pk(lo) * _g(-4), rng, 0.4), n_of(0.05))
     cr = sos(crackle(n, 60, rng), "highpass", 1800, 2) * np.clip((t - 0.1) / 0.2, 0, 1) * np.exp(-t / 1.6)
     out += _wide(_pk(cr) * _g(-12), rng, 0.6)
@@ -1172,7 +1188,7 @@ def _fire_whoosh(dur, p, rng):
     env = np.clip(t / 0.12, 0, 1) ** 1.6 * np.where(u < 0.45, 1.0, np.exp(-(u - 0.45) / 0.22))
     fc = 260 + 2200 * np.sin(np.pi * np.clip(u * 0.9, 0, 1)) ** 0.8
     roar = tv_bandpass(pink(n, rng), fc, q=0.6, block=64) * _flutter(n, rng, 13, 0.55)
-    low = sos(brown(n, rng), "lowpass", 260, 2) * (1 + 0.4 * smooth_noise(n, 6, rng))
+    low = sos(sos(brown(n, rng), "lowpass", 260, 2), "highpass", 50, 2) * (1 + 0.4 * smooth_noise(n, 6, rng))
     cre = np.clip(t / 0.08, 0, 1) * np.exp(-np.maximum(t - 0.3, 0) / (L * 0.4))
     cr = sos(_grains(n, rng, 380, cre, 1.0), "highpass", 1500, 2)
     hs = bandpass(white(n, rng), 3500, 11000, 2)
@@ -1188,9 +1204,9 @@ def fire_bed(n, rng, intensity=1.0):
     out = np.zeros((n, 2))
     surge = 0.75 + 0.25 * smooth_noise(n, 0.35, rng)
     for ch in range(2):
-        roar = sos(brown(n, rng), "lowpass", 380 + 120 * intensity, 2) * surge
+        roar = sos(sos(brown(n, rng), "lowpass", 380 + 120 * intensity, 2), "highpass", 65, 2) * surge
         fl = bandpass(pink(n, rng), 220, 1800, 2) * _flutter(n, rng, 11, 0.6) * surge
-        pops = _grains(n, rng, 55 * intensity + 8, np.ones(n), 1.1)
+        pops = np.tanh(_grains(n, rng, 55 * intensity + 8, np.ones(n), 0.7) / 2.5) * 2.5
         pops = dsp.resonator_bank(pops, [rng.uniform(1200, 1800), rng.uniform(2600, 3600), rng.uniform(4800, 6200)],
                                   [6, 7, 8], [1.0, 0.8, 0.5])
         big = dsp.resonator_bank(_grains(n, rng, 3 * intensity + 0.5, np.ones(n), 0.8), [380, 720, 1150], [5, 6, 7], [1, 0.7, 0.4])
@@ -1209,11 +1225,11 @@ def _fire_roar(dur, p, rng):
 def ember_bed(n, rng, density=1.0):
     out = np.zeros((n, 2))
     for ch in range(2):
-        cr = _grains(n, rng, 7 * density, np.ones(n), 1.0)
+        cr = np.tanh(_grains(n, rng, 7 * density, np.ones(n), 0.6) / 2.0) * 2.0
         cr = dsp.resonator_bank(cr, [rng.uniform(2200, 3200), rng.uniform(4200, 5600)], [6, 8], [1.0, 0.6])
-        sm = sos(brown(n, rng), "lowpass", 160, 2) * (0.6 + 0.4 * smooth_noise(n, 0.3, rng))
+        sm = sos(sos(brown(n, rng), "lowpass", 160, 2), "highpass", 40, 2) * (0.6 + 0.4 * smooth_noise(n, 0.3, rng))
         sz = bandpass(white(n, rng), 4000, 10000, 2) * np.clip(smooth_noise(n, 0.5, rng), 0, 1) ** 2
-        out[:, ch] = _pk(cr) + _pk(sm) * _g(-14) + _pk(sz) * _g(-26)
+        out[:, ch] = _pk(cr) + _pk(sm) * _g(-24) + _pk(sz) * _g(-26)
     return out
 
 
@@ -1233,7 +1249,7 @@ def _fire_flare(dur, p, rng):
     env = np.where(t < sync, (t / sync) ** 2.4, np.exp(-(t - sync) / 0.45))
     fc = np.where(t < sync, 300 + 4200 * (t / sync) ** 2, 4500 * np.exp(-(t - sync) / 0.5) + 500)
     x = tv_bandpass(pink(n, rng), fc, q=0.5, block=64) * _flutter(n, rng, 15, 0.4)
-    x += 0.6 * sos(brown(n, rng), "lowpass", 300, 2)
+    x += 0.6 * sos(sos(brown(n, rng), "lowpass", 300, 2), "highpass", 50, 2)
     air = bandpass(white(n, rng), 3000, 12000, 2) * np.exp(-np.abs(t - sync) / 0.3)
     return Out(_wide(_pk(x * env) + _pk(air) * _g(-10), rng, 0.6), 0.0, sync)
 
@@ -1258,7 +1274,8 @@ def _door_wood(dur, p, rng):
     slab = _pk(_thump(_N(0.5), 150 + 30 * f, 70, 0.015, 0.14 + 0.06 * f))
     planks = _pk(_hit(rng, [96, 182, 263, 415, 640, 985, 1510], [0.3, 0.26, 0.22, 0.18, 0.13, 0.09, 0.06], spread=0.05, click=0.6, n=_N(0.6)))
     cont = _pk(_burst(_N(0.06), rng, 120, 3200, t60=0.02, attack=0.0004))
-    place(out, slab + planks * _g(-2) + 0 * slab, sync, 1.0)
+    place(out, slab, sync, 1.0)
+    place(out, planks, sync, _g(-2))
     place(out, cont, sync, _g(-3))
     lt = sync + rng.uniform(0.04, 0.08)
     place(out, _pk(_hit(rng, [1850, 2720, 4180, 6050], [0.12, 0.1, 0.07, 0.05], click=1.0)), lt, _g(-7))
@@ -1554,7 +1571,7 @@ def _stakes_pop(dur, p, rng):
     for k in range(cnt):
         tt = span * (k / max(cnt - 1, 1)) ** 0.85 + rng.uniform(-0.01, 0.01)
         x = _pk(_hit(rng, [rng.uniform(520, 700), rng.uniform(1250, 1500), rng.uniform(2300, 2800)], [0.05, 0.035, 0.025], click=0.8, n=_N(0.12)))
-        x += _pk(_burst(_N(0.03), rng, 2000, 7000, t60=0.008)) * _g(-10)
+        x = _sum(x, _pk(_burst(_N(0.03), rng, 2000, 7000, t60=0.008)) * _g(-10))
         dsp.mix_into(out, pan_curve(x, (-0.55 if k % 2 else 0.55) * rng.uniform(0.7, 1.0)), n_of(max(0.0, tt)), _g(-rng.uniform(0, 4) - 4 * k / cnt))
     return Out(out, -3.0, 0.0)
 
@@ -1622,7 +1639,7 @@ def _letter_fall(dur, p, rng):
     m = _N(sync)
     sw = _swish(m, rng, 300, 1500, q=0.7) * np.linspace(0, 1, m) ** 2
     place(out, _pk(sw), 0.0, _g(-8))
-    flap = _pk(_burst(_N(0.1), rng, 140, 2500, t60=0.035, attack=0.001)) + _pk(_thump(_N(0.2), 160, 90, 0.01, 0.06)) * _g(-5)
+    flap = _sum(_pk(_burst(_N(0.1), rng, 140, 2500, t60=0.035, attack=0.001)), _pk(_thump(_N(0.2), 160, 90, 0.01, 0.06)) * _g(-5))
     place(out, flap, sync, 1.0)
     place(out, _pk(_spray(_N(0.6), rng, 0.4, 2000, 8000)), sync + 0.01, _g(-12))
     return Out(out, -2.0, sync)
@@ -1635,7 +1652,7 @@ def _grid_tick(dur, p, rng):
     out = np.zeros((n, 2))
     k = int(p.get("count", 7))
     for i in range(k):
-        x = _pk(_burst(_N(0.02), rng, 1800, 8000, t60=0.006, attack=0.0002)) + _pk(_thump(_N(0.04), 520, 330, 0.004, 0.012)) * _g(-6)
+        x = _sum(_pk(_burst(_N(0.02), rng, 1800, 8000, t60=0.006, attack=0.0002)), _pk(_thump(_N(0.04), 520, 330, 0.004, 0.012)) * _g(-6))
         dsp.mix_into(out, pan_curve(x, -0.7 + 1.4 * i / max(k - 1, 1)), n_of(0.012 * i), _g(-rng.uniform(0, 4)))
     return Out(out, -6.0, 0.0)
 

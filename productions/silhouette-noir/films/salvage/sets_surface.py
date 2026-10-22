@@ -23,9 +23,9 @@ Typical split shot (S02, S14, S15):
 import math
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep
+from engine.core import W, H, clamp, lerp, hash01, noise1, smoothstep
 
-from .sets_common import (PAL, INK, SEA_Y, mix, water_at, sky_at, line)
+from .sets_common import (PAL, SEA_Y, mix, water_at, sky_at, line)
 
 # ----------------------------------------------------------------------------- the swell
 # (amplitude px, wavelength px, period s, phase, direction). A calm night swell: the boat

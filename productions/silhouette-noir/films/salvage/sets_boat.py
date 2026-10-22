@@ -16,16 +16,16 @@ LOCAL frame: origin = waterline amidships, bow toward -x, y down. The boat rides
         boat.draw(L, t, pump_angle=200 * t, winch_angle=-90 * t, line_to=(60, 900))
     boat.draw_lights(f, t, lantern=1.0, window=0.6)
     feet_y = boat.deck_y(300, t)        # stand a figure on the deck at world x=300
-    hand = boat.pump_crank(t, 200 * t)["near"]
+    hand = boat.pump_crank(t, 200 * t)["left"]   # grip of the near crank (also "right", hubs, R)
 """
 import math
 
 from engine import draw
-from engine.core import clamp, lerp, hash01, noise1, flicker
+from engine.core import clamp, lerp, flicker
 
 from .sets_common import (PAL, INK, RED, DIVE_X, shape, put, paint, round_rect, hole_circle,
-                          solid_circle, oriented, line, xf, mix, sag_curve)
-from .sets_surface import float_pose, sea_y
+                          solid_circle, oriented, line, mix, sag_curve)
+from .sets_surface import float_pose
 
 # ----------------------------------------------------------------------------- local layout
 # Deck / sheer line (top of the hull outline), bow to stern.

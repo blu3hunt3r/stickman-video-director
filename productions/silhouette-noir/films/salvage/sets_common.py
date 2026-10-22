@@ -5,7 +5,8 @@ ONE WORLD FOR THE WHOLE FILM (continuity comes from moving through it)
     x : right, world px. y : DOWN. An adult is ~600 px tall at zoom 1, so 1 m = M = 333 px.
     y = 0 is mean sea level. The sky is y < 0, the water y > 0 (y = depth below the surface).
     The seabed lies at y ~ SEABED_Y = 9000 (~27 m). The boat floats at y ~ 0 with its stern
-    davit right above DIVE_X; the Meridian lies on the seabed below, her bridge under DIVE_X.
+    davit right above DIVE_X; the Meridian lies on the seabed below, her stern and her bell
+    (on its bracket, a diver's reach above the silt) right under DIVE_X.
     The wreck INTERIOR (shafts, captain's cabin) and the close-ups (hull plating, safe dial) are
     separate little worlds with their own origins (see sets_wreck / sets_interior).
 
@@ -14,7 +15,9 @@ PARALLAX LAYERS
     something that truly sits at (x, y) but farther away (depth 1/par times the action plane),
     draw it inside that layer at proj(par, x, y) and scale its size by par. This keeps far
     seabed, rock shelves and the wreck's ghost consistent with the action plane whatever the
-    camera does (exact at zoom 1, a close approximation at other zooms).
+    camera does (exact at zoom 1, a close approximation at other zooms). The deep scenes use
+    sets_deep.View instead (a true lens model drawn in the action plane), which stays right at
+    any zoom.
 """
 import math
 
@@ -28,7 +31,7 @@ from engine.palette import SALVAGE as PAL, RED, PAPER
 M = 333.0                  # world px per metre (adult 1.8 m = 600 px)
 SEA_Y = 0.0                # mean sea level
 SEABED_Y = 9000.0          # mean seabed depth (~27 m)
-DIVE_X = 0.0               # x of the shot line: boat davit sheave above, the wreck's bridge below
+DIVE_X = 0.0               # x of the shot line: boat davit sheave above, the wreck's bell below
 
 PAR_O = (W / 2.0, H / 2.0)  # Camera.parallax origin = the vanishing point of par -> 0
 

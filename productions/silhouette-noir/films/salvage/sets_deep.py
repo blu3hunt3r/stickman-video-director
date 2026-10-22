@@ -3,11 +3,12 @@ debris - and the small 2.5D projector the wreck uses.
 
 WHY A PROJECTOR. Things behind the action plane are placed at TRUE world positions
 (x, y) plus a distance z behind the action plane (z = 0 is the action plane, z < 0 is
-in front of it). View.P() maps them into action-plane coordinates with exactly the maths
-of Frame.layer(par) (par = LENS / (LENS + z)), so a seabed strip at z = 4000 is the
-same as a par-0.6 layer - but a ship 60 m long can recede into the murk, the seabed is a
-real ground plane, and everything stays consistent through any camera move (descents,
-cranes, pushes). Items are painted far to near; fog grows with z toward the backdrop
+in front of it). View.P() maps them into action-plane coordinates: X = cx + k (x - cx),
+k = par = LENS / (LENS + z), the vanishing point at the camera centre. At zoom 1 this is
+exactly Frame.layer(par); at other zooms it keeps true lens perspective (see View.k). A
+ship 60 m long can recede into the murk, the seabed is a real ground plane, and
+everything stays consistent through any camera move (descents, cranes, pushes).
+Items are painted far to near; fog grows with z toward the backdrop
 colour behind them; far bins are blurred (depth of field).
 
     view = View(f)                                  # this frame's camera
@@ -23,7 +24,7 @@ from engine import draw
 from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep
 
 from .sets_common import (PAL, INK, SEABED_Y, DIVE_X, M, mix, water_at, depth_light, oriented,
-                          jag, sway, line, blade, ell)
+                          jag, sway, blade, ell)
 
 LENS = 6000.0       # distance of the action plane from the lens (world px): sets the perspective
 FOG_LEN = 5200.0    # underwater visibility: fog(z) = 1 - exp(-z / FOG_LEN)
@@ -65,24 +66,37 @@ class View:
     """Per-frame projector: true world (x, y) at distance z behind the action plane ->
     action-plane coordinates (draw them in f.layer() / the main ctx)."""
 
-    def __init__(self, f, lens=LENS, fog_len=FOG_LEN, fog_gamma=0.85, fog_max=0.97, murk=None):
+    def __init__(self, f, lens=LENS, fog_len=FOG_LEN, fog_gamma=0.85, fog_max=0.97, murk=None, vp=None,
+                 down_fog=1.0):
+        """lens: distance of the action plane from the lens (smaller = stronger perspective);
+        fog_len: visibility (fog(z) = 1 - exp(-z / fog_len)), fog_gamma / fog_max shape it;
+        murk: darkness of the far haze (default MURK); vp: screen point (frame px) of the
+        vanishing point - default the frame centre. A low vp (e.g. (540, 1150..1500)) is a
+        'rising front' lens: the horizon sits low, the ground plane is a thin band and a wreck
+        towers over the diver. down_fog: extra fog for things far BELOW the eye (looking down
+        a descent column the seabed and wreck ghost in; 1.6 for mid-descent shots)."""
         cam = f.cam
         self.murk = murk
         self.f = f
         self.cx, self.cy, self.zoom = cam.x, cam.y, cam.zoom
+        self.vx, self.vy = (cam.x, cam.y) if vp is None else cam.to_world(vp)
         self.lens, self.fog_len, self.fog_gamma, self.fog_max = lens, fog_len, fog_gamma, fog_max
+        self.down_fog = down_fog
         self.rect = cam.view_rect(60)
 
     def par(self, z):
-        return self.lens / max(self.lens + z, 1e-3)
+        return self.lens / max(self.lens + z, 0.1 * self.lens)
 
     def k(self, z):
-        p = self.par(z)
-        return p * (1.0 + (self.zoom - 1.0) * p) / self.zoom
+        """Size of a thing at distance z relative to the action plane. A lens model: the
+        perspective does not change with Camera.zoom (zooming out keeps the far bow small),
+        unlike Frame.layer(par) whose layer zoom 1 + (zoom - 1) * par flattens and even
+        reverses perspective below zoom ~0.35. Identical to f.layer(par) at zoom 1."""
+        return self.par(z)
 
     def P(self, x, y, z):
         k = self.k(z)
-        return (self.cx + k * (x - self.cx), self.cy + k * (y - self.cy))
+        return (self.vx + k * (x - self.vx), self.vy + k * (y - self.vy))
 
     def Pp(self, p3):
         return self.P(p3[0], p3[1], p3[2])
@@ -90,7 +104,7 @@ class View:
     def unP(self, X, Y, z):
         """True world (x, y) at distance z of action-plane point (X, Y)."""
         k = self.k(z)
-        return (self.cx + (X - self.cx) / k, self.cy + (Y - self.cy) / k)
+        return (self.vx + (X - self.vx) / k, self.vy + (Y - self.vy) / k)
 
     def x_range(self, z, margin=200.0):
         x0, y0, x1, y1 = self.rect
@@ -111,17 +125,26 @@ class View:
         return haze_at(self.cy + (sy - H / 2) / BG_SPAN, self.murk)
 
     def tone(self, z, Y=None):
-        """Silhouette colour of an object at distance z seen in front of the backdrop."""
-        fz = self.fog(z)
+        """Silhouette colour of an object at distance z (and action-plane height Y) seen in
+        front of the backdrop. Looking DOWN into the deep costs visibility too (down_fog):
+        a wreck far below the camera is a ghost, while things above stay sharp silhouettes
+        against the light."""
+        Yc = self.cy if Y is None else Y
+        d = max(z, 0.0)
+        if self.down_fog > 0.0:
+            dy = (Yc - self.vy) / max(self.k(z), 1e-3) - 600.0
+            if dy > 0.0:
+                d = math.hypot(d, self.down_fog * dy)
+        fz = self.fog(d)
         if fz <= 0.0:
             return INK
-        return mix(INK, self.bg(self.cy if Y is None else Y), fz ** self.fog_gamma)
+        return mix(INK, self.bg(Yc), fz ** self.fog_gamma)
 
 
 def deep_backdrop(f, t, glow=None, murk=None):
     """The open water seen far away, screen space, by the camera's depth: brighter upward
-    (toward the light), darker downward. glow = (screen x, screen y, radius, strength): a
-    soft pool of light far behind - put it behind the subject (backlight)."""
+    (toward the light), darker downward. glow = (screen x, screen y, radius, strength), or a
+    list of them: soft pools of light far behind - put them behind the subjects (backlight)."""
     cy = f.cam.y
     n = 9
     stops = []
@@ -131,15 +154,16 @@ def deep_backdrop(f, t, glow=None, murk=None):
     with f.screen() as S:
         draw.linear(S, (0, -40), (0, H + 40), stops)
         S.paint()
-    if glow is not None:
-        gx, gy, gr, gs = glow
+    if glow:
+        glows = [glow] if isinstance(glow[0], (int, float)) else list(glow)
         col = haze_at(max(cy - 3000.0, 0.0), 0.0)
         with f.light(par=0.0, blur=30) as A:
             A.save()
             A.identity_matrix()
             A.scale(A.get_target().get_width() / W, A.get_target().get_height() / H)
-            draw.glow_disc(A, (gx, gy), gr, col, 0.45 * gs)
-            draw.glow_disc(A, (gx, gy), gr * 0.45, col, 0.30 * gs)
+            for gx, gy, gr, gs in glows:
+                draw.glow_disc(A, (gx, gy), gr, col, 0.45 * gs)
+                draw.glow_disc(A, (gx, gy), gr * 0.45, col, 0.30 * gs)
             A.restore()
 
 
@@ -157,10 +181,11 @@ class Painter:
         self._n += 1
         self.items.append((z, self._n, fn, (z < 0.0) if front is None else bool(front)))
 
-    def render(self, f, view, front=False, bins=((9000.0, 7.0), (3200.0, 3.5), (900.0, 1.4), (-1e9, 0.0))):
+    def render(self, f, view, front=False, bins=((9000.0, 7.0), (3200.0, 4.5), (900.0, 1.4), (-1e9, 0.0))):
         """Draw the main-pass items (front=False) or the front occluders (front=True), far to
         near. bins: [(z_from, blur_px)], far to near: items with z >= z_from (and below the
-        previous bin) go into a layer blurred by blur_px."""
+        previous bin) go into a layer blurred by blur_px. (Frame.layer renders blur >= 4.5 at
+        half resolution or less: the far bins cost a quarter of the fill at scale 1.)"""
         its = sorted([it for it in self.items if it[3] == front], key=lambda it: (-it[0], it[1]))
         if not its:
             return
@@ -353,12 +378,18 @@ def _wall_pts(seed, x_edge, y_top, y_bot, side=-1, depth=2400.0, ledges=5):
     return jag(body, seed=seed + 9, amp=26.0, step=60.0)
 
 
-REEF = (   # (seed, x_edge, y_top, y_bot, side, z) - the walls of the descent column; they stop
-          # above the sandy plain where the Meridian lies (the far ones run to the bottom)
-    (11, -2900.0, 1300.0, 6900.0, -1, 3600.0),
-    (12, -4200.0, 500.0, 9600.0, -1, 10500.0),
-    (13, 3300.0, 2600.0, 6400.0, 1, 5600.0),
-    (14, 6800.0, 900.0, 9600.0, 1, 14000.0),
+REEF = (   # (seed, x_edge, y_top, y_bot, side, z) - rock shelves framing the descent column
+          # above DIVE_X; they end above the sandy plain where the Meridian lies
+    (11, -1500.0, 1200.0, 6600.0, -1, 2600.0),
+    (13, 1900.0, 2300.0, 7200.0, 1, 4200.0),
+    (12, -2700.0, 300.0, 8200.0, -1, 9000.0),
+    (14, 3300.0, 800.0, 8600.0, 1, 14000.0),
+)
+
+
+REEF_FRONT = (   # near rock edges in front of the action plane (blurred occluders) for descents
+    (15, 950.0, 2600.0, 6200.0, 1, -1700.0),
+    (16, -1150.0, 600.0, 3900.0, -1, -2400.0),
 )
 
 
@@ -454,42 +485,75 @@ def chain_items(painter, pts3, link=64.0, seed=0):
         painter.add(a[2] - 1.0, fn)
 
 
+def _front_item(x, z, seed=0, w=900.0):
+    """A soft foreground occluder in front of the action plane (z < 0): a silt mound with a
+    rock and a tuft of sea grass, drawn by DeepWorld.draw_front (blurred)."""
+    rock = _rock_pts(seed + 50, w * 0.55, w * 0.32)
+
+    def fn(ctx, view):
+        k = view.k(z)
+        base = view.P(x, seabed_y(x, z) + 40, z)
+        pts = [(base[0] + (u - 0.5) * w * 1.8 * k, base[1] - math.sin(math.pi * u) ** 0.7 * w * 0.16 * k)
+               for u in [i / 16 for i in range(17)]]
+        pts += [(pts[-1][0], base[1] + 1400 * k), (pts[0][0], base[1] + 1400 * k)]
+        draw.poly(ctx, pts)
+        ctx.new_sub_path()
+        draw.poly(ctx, [(base[0] + w * 0.25 * k + px * k, base[1] - w * 0.08 * k + py * k) for px, py in rock])
+        t = view.f.t
+        for j in range(7):
+            u = (j + 0.5) / 7 - 0.5
+            sw = sway(t + j * 0.4, seed=seed * 13 + j, amp=12.0, period=5.0 + j * 0.3)
+            blade(ctx, (base[0] - w * 0.3 * k + u * 160 * k, base[1] - w * 0.1 * k), -90 + u * 46 + sw,
+                  (260 + 220 * hash01(seed, j)) * k, 16 * k, 1.5 * k, bend=u * 60 + sw * 2, n=7)
+        ctx.set_source_rgb(*INK)
+        ctx.fill()
+    return fn
+
+
+FRONT = ((-1350.0, -1500.0, 1), (1900.0, -2300.0, 2))   # default foreground occluders (x, z, seed)
+
+
 # ----------------------------------------------------------------------------- the world
 class DeepWorld:
     """The underwater world below the boat: seabed strips (with rocks and swaying sea grass),
     the reef walls of the descent column and the debris field, plus any extra items (the wreck
-    adds itself with world.wreck = Wreck()). Coordinates: see module doc."""
+    adds itself with world.wreck = Wreck()). Coordinates: see module doc.
+    reef: True (REEF), False, or a list of wall tuples (e.g. REEF + REEF_FRONT for descents);
+    front: foreground silt mounds [(x, z < 0, seed)] drawn by draw_front."""
 
-    def __init__(self, wreck=None, reef=True, debris=True, seed=0):
+    def __init__(self, wreck=None, reef=True, debris=True, seed=0, front=FRONT):
         self.wreck = wreck
         self.reef = reef
         self.debris = debris
         self.seed = seed
+        self.front = front or ()
 
     def painter(self, f, t, view, wreck_kw=None):
         P = Painter()
         for z in STRIPS:
             P.add(z, _strip_item(z, self.seed, grass=True, rocks=z > 300))
         if self.reef:
-            for r in REEF:
+            for r in (REEF if self.reef is True else self.reef):
                 P.add(r[5], _reef_item(*r))
         if self.debris:
             self._debris(P, t)
+        for x, z, sd in self.front:
+            P.add(z, _front_item(x, z, sd), front=True)
         if self.wreck is not None:
             self.wreck.add_items(P, t, **(wreck_kw or {}))
         return P
 
     def _debris(self, P, t):
         # crates and drums spilled near the stern (z from 300 to 2600)
-        for i, (x, z, w, h, tilt) in enumerate(((DIVE_X - 1400, 700.0, 300, 240, 11), (DIVE_X - 2350, 1500.0, 380, 260, -7),
-                                                (DIVE_X + 2300, 520.0, 260, 200, 24), (DIVE_X - 3600, 2600.0, 340, 300, 4))):
+        for i, (x, z, w, h, tilt) in enumerate(((DIVE_X - 1150, 420.0, 300, 240, 11), (DIVE_X - 2050, 1300.0, 380, 260, -7),
+                                                (DIVE_X - 600, 2300.0, 260, 200, 24), (DIVE_X - 3300, 2600.0, 340, 300, 4))):
             pts = _crate_pts(w, h, tilt, 60)
 
             def fn(ctx, view, x=x, z=z, pts=pts):
                 yb = seabed_y(x, z)
                 card(ctx, view, [(x + px, yb + py) for px, py in pts], z)
             P.add(z - 2, fn)
-        for i, (x, z, r, L, tilt) in enumerate(((DIVE_X - 1700, 420.0, 95, 300, 6), (DIVE_X + 1900, 1800.0, 95, 300, -12))):
+        for i, (x, z, r, L, tilt) in enumerate(((DIVE_X - 1550, 900.0, 95, 300, 6), (DIVE_X - 300, 1500.0, 95, 300, -12))):
             pts = _drum_pts(r, L, tilt)
 
             def fn(ctx, view, x=x, z=z, pts=pts):
@@ -499,7 +563,7 @@ class DeepWorld:
         # a broken spar (the main topmast) half buried in the silt
         a3 = (DIVE_X - 3100, seabed_y(DIVE_X - 3100, 1300) + 40, 1300.0)
         b3 = (DIVE_X - 900, seabed_y(DIVE_X - 900, 1900) - 300, 1900.0)
-        P.add(1600.0, lambda ctx, view: (rod3(ctx, view, a3, b3, 46, 30),
+        P.add(1600.0, lambda ctx, view, a3=a3, b3=b3: (rod3(ctx, view, a3, b3, 46, 30),
                                          rod3(ctx, view, (b3[0] - 260, b3[1] + 40, b3[2] - 40),
                                               (b3[0] - 520, b3[1] - 520, b3[2] - 80), 22, 16)))
         # the anchor chain snaking over the silt toward the camera

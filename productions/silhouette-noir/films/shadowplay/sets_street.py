@@ -12,13 +12,16 @@ leaves its streak, higher windows reflecting nearer the camera.
 import math
 
 import cairo
+import cv2
+import numpy as np
 
 from engine import draw
 from engine.core import clamp, lerp, hash01, noise1, fbm1, siren
+from engine.frame import surf_array, array_surface
 from engine.palette import RED
 
 from .sets_base import (PAL, INK, AMBER, HOT, RAIN, BLUE, mix, mul, layer_spec, opened, view_box,
-                        record, put, fill_path, glow, glow_ellipse, cone, rain_glints, add_streaks)
+                        glow, glow_ellipse, cone, rain_glints, add_streaks)
 
 
 # =========================================================================== street
@@ -78,7 +81,9 @@ class Street:
     # ------------------------------------------------------------------ drawing
     def draw(self, f, t, sources=(), layer=None, sky=1.0, rain=1.0, reflections=1.0, lamp_pools=()):
         """Surfaces, puddles, reflections of `sources` (dicts with rect/color/level, e.g.
-        Facade.light_sources() + streetlamp/police sources), rain splashes and ripples.
+        Facade.light_sources() + streetlamp/police sources; optional 'ground' = the road y
+        under a source standing in the street, where its reflection starts), rain splashes
+        and ripples.
         lamp_pools: [(x, level)] warm light pools on the far sidewalk (from streetlamps)."""
         spec = layer_spec(layer)
         par = spec["par"]
@@ -121,7 +126,7 @@ class Street:
             k = reflections * (1 - 0.7 * spec["fog"])
             z = f.lcam(par).zoom
             add_streaks(f, lambda c: self._streaks(c, t, sources, k, x0, x1, z), par=par, blur_v=7.0, blur_h=1.8, ds=2)
-            add_streaks(f, lambda c: self._puddle_reflections(c, t, sources, k, x0, x1), par=par, blur_v=5.0,
+            add_streaks(f, lambda c: self._puddle_reflections(c, t, sources, k, x0, x1, z), par=par, blur_v=2.5,
                         blur_h=1.5, ds=2)
         with f.light(par=par, blur=2.5) as A:
             for (lx, lv) in lamp_pools:
@@ -133,6 +138,61 @@ class Street:
             draw.fill(A, PAL.rain, 0.10 * sky)
             if rain > 0:
                 self._splashes(A, t, x0, x1, rain)
+
+    def reflect(self, f, t, draw_fn, foot_y, bbox, par=1.0, strength=0.55, ripple=1.0, length=0.8, seed=0):
+        """Mirror what draw_fn(ctx) draws (a figure in world coords, feet at foot_y, inside
+        world rect bbox) into the wet road: flipped about the feet, darkened, broken into
+        wavering rows by the rain and fading over `length` of its height. Her red coat leaves
+        a red smear in the street (S06). Call it BEFORE drawing the figure itself."""
+        Mx = f.lcam(par).matrix(f.scale)
+        bx0, by0, bx1, by1 = bbox
+        pts = [Mx.transform_point(x, y) for x, y in ((bx0, by0), (bx1, by0), (bx0, by1), (bx1, by1))]
+        fx, fy = Mx.transform_point((bx0 + bx1) / 2, foot_y)
+        ix0 = max(0, int(min(p[0] for p in pts)) - 8)
+        ix1 = min(f.pw, int(max(p[0] for p in pts)) + 8)
+        iy0 = max(0, int(min(p[1] for p in pts)) - 2)
+        iy1 = min(f.ph, int(math.ceil(fy)) + 1)
+        w, h = ix1 - ix0, iy1 - iy0
+        if w < 2 or h < 2:
+            return
+        surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
+        c = cairo.Context(surf)
+        c.set_matrix(Mx.multiply(cairo.Matrix(x0=-ix0, y0=-iy0)))
+        draw_fn(c)
+        src = surf_array(surf).astype(np.float32)
+        if not src[..., 3].any():
+            return
+        n = int(h * length)
+        dy0 = int(math.floor(fy))
+        rows = min(n, f.ph - dy0)
+        if rows <= 1:
+            return
+        out = np.zeros((rows, w, 4), np.float32)
+        kpx = f.scale * f.lcam(par).zoom
+        for j in range(rows):
+            sr = int(fy - iy0) - j - 1
+            if sr < 0:
+                break
+            amp = ripple * (1.5 + 0.06 * j) * kpx
+            sh = int(round(amp * (noise1(j * 0.35 + t * 2.3, seed) + 0.5 * math.sin(j * 1.7 + t * 9.0))))
+            row = np.roll(src[sr], sh, axis=0)
+            fade = (1.0 - j / max(rows, 1)) ** 1.6
+            if (j + int(t * 30)) % 7 == 0:
+                fade *= 0.45                                    # rain ripples break the image
+            out[j] = row * fade
+        out[..., :3] *= strength
+        out[..., 3] *= strength
+        out = cv2.GaussianBlur(out, (0, 0), sigmaX=max(0.6, 1.2 * kpx), sigmaY=max(0.8, 2.5 * kpx))
+        rs = array_surface(out)
+        ctx = f.ctx
+        ctx.save()
+        ctx.identity_matrix()
+        ry = Mx.transform_point(0, self.road_y)[1]
+        ctx.rectangle(ix0, max(dy0, ry), w, rows)
+        ctx.clip()
+        ctx.set_source_surface(rs, ix0, dy0)
+        ctx.paint()
+        ctx.restore()
 
     def _puddle_path(self, c, p, t):
         px, py, rx, ry = self.puddle_rect(p)
@@ -155,12 +215,16 @@ class Street:
             rx0, ry0, rx1, ry1 = src["rect"]
             if rx1 < x0 - 200 or rx0 > x1 + 200:
                 continue
-            hrel = clamp((self.g - ry1) / self.mirror_h)
+            gy = src.get("ground")              # a source standing in the street (a car)
+            hrel = clamp(((gy if gy is not None else self.g) - ry1) / self.mirror_h)
             lv = src["level"] * k * src.get("gain", 1.0) * (1.0 - 0.45 * hrel)
             col = src["color"]
             cx = (rx0 + rx1) / 2
             w = rx1 - rx0
-            root = top + band_h * 0.30 * hrel
+            if gy is not None:
+                root = gy + (gy - ry1) * (self.near_y - self.road_y) / self.mirror_h
+            else:
+                root = top + band_h * 0.30 * hrel
             length = band_h * (0.5 + 0.5 * min(lv, 1.0)) * (1.0 - 0.3 * hrel)
             seed = 400 + si
             # ripple dashes sized in SCREEN px so they survive any zoom
@@ -183,7 +247,10 @@ class Street:
             c.rectangle(cx - w * 0.4, root, w * 0.8, 6 * s)
             draw.fill(c, col, min(1.0, 0.6 * lv))
 
-    def _puddle_reflections(self, c, t, sources, k, x0, x1):
+    def _puddle_reflections(self, c, t, sources, k, x0, x1, zoom=1.0):
+        """Lights mirrored in the puddles, broken by the rain into horizontal slivers that
+        shimmer (sized in screen px so they hold up in close shots)."""
+        q = max(self.s, 1.0 / max(zoom, 1e-3))
         for p in self.puddles:
             px, py, rx, ry = self.puddle_rect(p)
             if px + rx < x0 or px - rx > x1:
@@ -191,16 +258,27 @@ class Street:
             c.save()
             self._puddle_path(c, p, t)
             c.clip()
-            for src in sources:
+            for si, src in enumerate(sources):
                 rx0, ry0, rx1, ry1 = src["rect"]
                 if rx1 < px - rx or rx0 > px + rx:
                     continue
                 ya = self.mirror(ry1)
                 yb = self.mirror(ry0)
-                span = max(yb - ya, 4)
-                wob = 4 * self.s * math.sin(t * 3.0 + px * 0.01)
-                c.rectangle(rx0 + wob, ya, rx1 - rx0, span * 2.2)
-                draw.fill(c, src["color"], min(1.0, 0.75 * src["level"] * k * src.get("gain", 1.0)))
+                span = max(yb - ya, 4) * 2.2
+                lv = min(1.0, 0.7 * src["level"] * k * src.get("gain", 1.0))
+                seed = 900 + si + int(px) % 97
+                yy = ya
+                pitch = 6.0 * q
+                while yy < ya + span:
+                    br = 0.5 + 0.5 * noise1(yy * 0.09 / q - t * 2.2, seed)
+                    gate = clamp((br - 0.22) * 2.4)
+                    if gate > 0.02:
+                        wob = 4 * q * noise1(yy * 0.05 / q + t * 3.1, seed + 5)
+                        ww = (rx1 - rx0) * (0.75 + 0.35 * br)
+                        cx = (rx0 + rx1) / 2 + wob
+                        c.rectangle(cx - ww / 2, yy, ww, pitch * (0.35 + 0.45 * br))
+                        draw.fill(c, src["color"], lv * gate * (1.0 - 0.6 * (yy - ya) / span))
+                    yy += pitch
             c.restore()
 
     def _splashes(self, A, t, x0, x1, k):
@@ -467,6 +545,17 @@ class PoliceCar(Car):
         s = self.s
         b, r = self.strobe(t, lights)
         (bx, by), (rx, ry) = self.bar()
+        fk = 1 - 0.7 * spec["fog"]
+        px, py = self.pos
+        if wash > 0:
+            # the strobe floods the street around the car (the body, drawn after, stays
+            # a silhouette against it): a hard pool on the wet asphalt, a wide cold wash
+            with f.light(par=spec["par"], blur=30.0) as A:
+                for (cx, cy), col, v in (((bx, by), BLUE, b), ((rx, ry), RED, r)):
+                    if v > 0.01:
+                        glow_ellipse(A, (cx, cy + 200 * s), 2600 * s, 1500 * s, col, 0.10 * v * wash * fk)
+                        glow_ellipse(A, (cx, py + 30 * s), 900 * s, 120 * s, col, 0.30 * v * wash * fk)
+                        glow(A, (cx, cy), 900 * s, col, 0.20 * v * wash * fk)
         with opened(f, spec) as L:
             self.draw_on(L)
             # the domes light up
@@ -474,26 +563,18 @@ class PoliceCar(Car):
                 if v > 0.01:
                     draw.ellipse(L, (cx, cy - 2 * s), 24 * s, 8 * s)
                     draw.fill(L, mix(col, (1, 1, 1), 0.35 * v), v)
-        fk = 1 - 0.7 * spec["fog"]
         with f.light(par=spec["par"], blur=8.0) as A:
             for (cx, cy), col, v in (((bx, by), BLUE, b), ((rx, ry), RED, r)):
                 if v <= 0.01:
                     continue
                 glow(A, (cx, cy), 120 * s, col, 0.9 * v * fk)
-                glow(A, (cx, cy), 900 * s, col, 0.20 * v * wash * fk)
-                # roof and hood catch the flash
+                # the roof and the top of the hood catch the flash; the flank stays dark
                 body, _, _, _ = self.outline()
                 A.save()
                 draw.smooth(A, body, close=True, tension=0.18)
                 A.clip()
-                glow_ellipse(A, (cx, cy + 20 * s), 300 * s, 60 * s, col, 0.35 * v * fk)
+                glow_ellipse(A, (cx, cy + 20 * s), 300 * s, 46 * s, col, 0.35 * v * fk)
                 A.restore()
-        if wash > 0:
-            # the strobe floods the whole street for a beat: very wide, low, cold/red light
-            with f.light(par=spec["par"], blur=30.0) as A:
-                for (cx, cy), col, v in (((bx, by), BLUE, b), ((rx, ry), RED, r)):
-                    if v > 0.01:
-                        glow_ellipse(A, (cx, cy + 200 * s), 2600 * s, 1500 * s, col, 0.10 * v * wash * fk)
         with f.emit(par=spec["par"]) as G:
             for (cx, cy), col, v in (((bx, by), BLUE, b), ((rx, ry), RED, r)):
                 if v > 0.01:
@@ -506,10 +587,13 @@ class PoliceCar(Car):
         s = self.s
         (bx, by), (rx, ry) = self.bar()
         out = []
+        gy = self.pos[1]
         if b > 0.01:
-            out.append(dict(rect=(bx - 30 * s, by - 12 * s, bx + 30 * s, by + 12 * s), color=BLUE, level=1.6 * b, gain=1.8))
+            out.append(dict(rect=(bx - 30 * s, by - 12 * s, bx + 30 * s, by + 12 * s), color=BLUE, level=1.6 * b, gain=1.8,
+                            ground=gy))
         if r > 0.01:
-            out.append(dict(rect=(rx - 30 * s, ry - 12 * s, rx + 30 * s, ry + 12 * s), color=RED, level=1.4 * r, gain=1.6))
+            out.append(dict(rect=(rx - 30 * s, ry - 12 * s, rx + 30 * s, ry + 12 * s), color=RED, level=1.4 * r, gain=1.6,
+                            ground=gy))
         return out
 
 

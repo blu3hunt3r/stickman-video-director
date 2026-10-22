@@ -10,9 +10,9 @@ They return a dict of useful world points (hand grips, glints, line attachment..
 import math
 
 from engine import draw
-from engine.core import clamp, lerp, hash01, noise1, smoothstep
+from engine.core import clamp, lerp, hash01, noise1
 
-from .sets_common import (PAL, INK, RED, mix, shape, put, paint, oriented, round_rect, hole_circle,
+from .sets_common import (PAL, INK, mix, shape, paint, oriented, round_rect, hole_circle,
                           solid_circle, ell, xf, sway, lit_paper)
 
 
@@ -134,7 +134,7 @@ def draw_safe(ctx, x, y, angle=0.0, s=1.0, door=0.0, lit=0.0, dial_angle=0.0, co
     paint(ctx, col)
     x0, y0, x1, y1 = SAFE["door"]
     if lit > 0:
-        face = mix(col, mix(PAL.fog_at(0.6), light, 0.45), 0.55 * lit)
+        face = mix(col, mix(PAL.fog_at(0.6), light, 0.62), 0.55 * lit)
         round_rect(ctx, 0, 0, SAFE["w"], SAFE["h"] - 24, 16)
         ctx.set_source_rgb(*face)
         ctx.fill()
@@ -420,11 +420,6 @@ def draw_knife(ctx, x, y, angle=0.0, s=1.0, sheathed=False, flip=False, color=No
     ctx.new_path()
     if sheathed:
         ctx.append_path(shape("sheath", _sheath))
-        ctx.save()
-        ctx.translate(-14, 0)
-        ctx.scale(0.55, 0.8)
-        ctx.translate(-10, 0)
-        ctx.restore()
         draw.smooth(ctx, oriented([(-100, -9), (-40, -10), (-22, -11), (-22, 11), (-40, 10), (-100, 9)]), close=True,
                     tension=0.3)
         solid_circle(ctx, (-102, 0), 9)

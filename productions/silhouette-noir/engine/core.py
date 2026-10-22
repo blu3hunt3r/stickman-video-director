@@ -114,7 +114,12 @@ EASES = {
 
 
 def ease(name, t):
-    return EASES[name](clamp(t))
+    t = clamp(t)
+    if t <= 0.0:
+        return 0.0          # exact endpoints, whatever the curve's float error
+    if t >= 1.0:
+        return 1.0
+    return EASES[name](t)
 
 
 def tween(t, t0, t1, a, b, e="inout"):

@@ -400,7 +400,7 @@ _GAIT_NUM = ("v", "L", "duty", "lift_f", "lift_h", "bob", "flex", "nod", "cmin",
 _POSE_KEYS = ("hf", "hh", "chord", "arch", "neck", "head", "hturn", "jaw", "snarl", "ears",
               "ruff", "tail", "tcurve", "tsway", "tlift", "wind", "eopen", "eglow", "bend",
               "sit", "lie", "breath", "speed", "fold_f", "fold_h", "grey", "headnod",
-              "tremble", "puff", "roll")
+              "tremble", "puff", "roll", "thook", "flick", "thang")
 
 
 def _blend_pose(a, b, w, S):
@@ -2437,3 +2437,2085 @@ def _breath_puffs(f, R, P, A, ctx, Lh):
 Wolf.CLIPS = {"stand": _QStand, "sit": _QSit, "lie": _QLie, "crouch": _QCrouch, "turn": _QTurn,
               "recoil": _QRecoil, "lunge": _QLunge, "snarl": _QSnarl, "howl": _QHowl,
               "look": _QLook, "bite": _QBite, "eyes": _QEyes}
+
+
+# ============================================================================= spider
+# Legs: 0-3 = left L1..L4, 4-7 = right R1..R4 (front to back). Body frame: origin at the
+# pedicel (waist), f forward, u up, l left; sizes in units of the body length S.
+_SP_THETA = (32.0, 64.0, 116.0, 148.0)         # horizontal leg directions from forward (deg)
+_SP_HIP_F = (0.32, 0.26, 0.20, 0.14)            # hip positions along the cephalothorax (S)
+_SP_HIP_L = 0.045
+_SP_REACH = (0.63, 0.58, 0.56, 0.63)            # neutral foot distance from the hip (x leg)
+_SP_SEG = (0.40, 0.38, 0.22)                    # femur, tibia, tarsus (x leg length)
+_SP_GROUP = (0.0, 0.5, 0.0, 0.5, 0.5, 0.0, 0.5, 0.0)   # alternating tetrapods
+_SP_KEYS = ("pitch", "abd", "mand", "palp", "eyes", "glow", "curl", "burn", "breath", "rear")
+
+
+def _sp_side(i):
+    return 1.0 if i < 4 else -1.0
+
+
+class _SpiderClip(_Clip):
+    def _base(self, x, t, y=None, feet=None):
+        A = self.A
+        P = dict(A.REST)
+        P["x"] = x
+        P["y"] = A.ground(x) - A.H if y is None else y
+        P["yaw"] = self.start["yaw"] if self.start else A.yaw0
+        P["t"] = t
+        P["thread"] = self.start.get("thread") if self.start else None
+        P["feet"] = [list(v) for v in (feet if feet is not None else self.start["feet"])]
+        return P
+
+
+class _SStand(_SpiderClip):
+    """Idle: the abdomen breathes, the body sways on its legs, palps and fangs work, now and
+    then a leg tip lifts and re-plants."""
+    kind = "stand"
+
+    def __init__(self, A, t0, state, dur=1.0, fade=0.25, base=None, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        self.end_state = dict(state, posture="stand")
+
+    def pose(self, t):
+        A = self.A
+        P = self._base(self.start["x"], t, y=self.start.get("y"))
+        A._idle(P, t)
+        # fidget: one leg at a time lifts a little and re-plants
+        k = math.floor(t / 1.7)
+        i = int(hash01(A.seed, k, 5) * 8) % 8
+        u = (t - k * 1.7 - 0.6 * hash01(A.seed, k, 6)) / 0.5
+        if 0.0 < u < 1.0 and hash01(A.seed, k, 7) < 0.7:
+            fo = P["feet"][i]
+            P["feet"][i] = [fo[0], fo[1] - 0.05 * A.LL * math.sin(math.pi * u), fo[2], 0.0, None]
+        return P
+
+
+class _SRun(_SpiderClip):
+    """walk / creep / charge segments: tetrapod gait whose phase is driven by distance, so
+    planted tips never slide; the run ends with every tip planted."""
+    kind = "run"
+
+    def __init__(self, A, t0, state, segs):
+        self.A, self.base, self.start = A, None, state
+        self.t0 = float(t0)
+        self.fade = 0.2
+        x0 = state["x"]
+        self.x0 = x0
+        self.fac = fac = 1.0 if math.cos(state["yaw"] * D2R) >= 0 else -1.0
+        pieces = []
+        tcur, xcur, vprev = self.t0, x0, 0.0
+        kinds = []
+        for i, sg in enumerate(segs):
+            gp = A.GAIT[sg["kind"]]
+            D = sg["to"] - xcur
+            v = (sg.get("speed") or gp["v"] * A.LL) * (1.0 if D >= 0 else -1.0)
+            if sg.get("dur"):
+                v = D / max(0.3, sg["dur"] - 0.4)
+            acc = gp["acc"] * A.LL
+            last = i == len(segs) - 1
+            nxt_sign = 0.0 if last else math.copysign(1.0, segs[i + 1]["to"] - sg["to"])
+            stop = last or nxt_sign != math.copysign(1.0, D)
+            for _ in range(60):
+                T_in = max(0.2, abs(v - vprev) / acc)
+                T_out = max(0.3, abs(v) / acc) if stop else 0.0
+                dr = 0.5 * (vprev + v) * T_in + 0.5 * v * T_out
+                if abs(dr) <= abs(D) or abs(v) < 5:
+                    break
+                v *= 0.9
+            cruise = (D - dr) / v if abs(v) > 1e-6 else 0.0
+            pieces.append((tcur, T_in, xcur, vprev, v))
+            xcur += 0.5 * (vprev + v) * T_in
+            tcur += T_in
+            if cruise > 0:
+                pieces.append((tcur, cruise, xcur, v, v))
+                xcur += v * cruise
+                tcur += cruise
+            if stop:
+                pieces.append((tcur, T_out, xcur, v, 0.0))
+                xcur += 0.5 * v * T_out
+                tcur += T_out
+                vprev = 0.0
+            else:
+                vprev = v
+            kinds.append((sg["kind"], tcur))
+        self.pieces, self.kinds = pieces, kinds
+        self.t_stop = tcur
+        self.x_end = xcur
+        # stride: the net displacement is a whole number of half cycles -> all tips planted
+        gk = A.GAIT[segs[0]["kind"]]
+        L0 = gk["L"] * A.LL
+        Dn = (self.x_end - x0) * fac
+        m = int(round(abs(Dn) / (0.5 * L0)))
+        self.L = abs(Dn) / (0.5 * m) if m > 0 else L0
+        self.beta = 0.65
+        self.phi0 = 0.13
+        self.lift = gk["lift"] * A.LL
+        self.first = [list(v) for v in state["feet"]]
+        self.k0 = [math.floor(self.phi0 - self._tau(i)) for i in range(8)]
+        # first steps: a start foot that would trail too far lifts early (no over-reach)
+        self.dir = 1.0 if Dn >= 0 else -1.0
+        L, b = self.L, self.beta
+        self.first_lo, self.first_td = [], []
+        for i in range(8):
+            k0, tau = self.k0[i], self._tau(i)
+            nx, nz = A._neutral(i, state["yaw"])
+            o = (self.first[i][0] - (x0 + nx)) * fac
+            if self.dir > 0:
+                lo = min((k0 + tau + b - self.phi0) * L, o + 0.5 * b * L)
+                td = (k0 + 1 + tau - self.phi0) * L
+                lo = min(max(lo, 0.02 * L), td - 0.15 * L)
+            else:
+                lo = max((k0 + tau - self.phi0) * L, o - 0.5 * b * L)
+                td = (k0 - 1 + tau + b - self.phi0) * L
+                lo = max(min(lo, -0.02 * L), td + 0.15 * L)
+            self.first_lo.append(lo)
+            self.first_td.append(td)
+        self.t1 = self.t_stop + 0.02
+        self.end_state = dict(state, x=self.x_end, y=None, feet=self._feet_at(self.t_stop + 1.0),
+                              posture="stand")
+
+    def _tau(self, i):
+        return _SP_GROUP[i] + 0.035 * (i % 4)
+
+    def _xva(self, t):
+        ps = self.pieces
+        if not ps or t <= ps[0][0]:
+            return self.x0, 0.0, 0.0
+        for ta, Tp, xa, va, vb in ps:
+            if t <= ta + Tp:
+                u = (t - ta) / Tp if Tp > 0 else 1.0
+                x = xa + Tp * (va * u + (vb - va) * (u ** 3 - 0.5 * u ** 4))
+                v = va + (vb - va) * u * u * (3 - 2 * u)
+                a = (vb - va) * 6.0 * u * (1.0 - u) / Tp if Tp > 0 else 0.0
+                return x, v, a
+        return self.x_end, 0.0, 0.0
+
+    def _plant(self, i, k, closed=False):
+        if k == self.k0[i] and not closed:
+            return self.first[i]
+        A = self.A
+        d = (k + self._tau(i) + 0.5 * self.beta - self.phi0) * self.L
+        nx, nz = A._neutral(i, self.start["yaw"])
+        x = self.x0 + self.fac * d + nx
+        return [x, A.ground(x), nz, 1.0, None]
+
+    def _swing(self, a_, b_, u):
+        us = u * u * (3 - 2 * u)
+        dist = abs(b_[0] - a_[0])
+        h = min(self.lift, 0.25 * self.A.LL * dist / max(self.L, 1.0) + 0.3 * self.lift) * \
+            math.sin(math.pi * u) ** 0.8
+        return [a_[0] + (b_[0] - a_[0]) * us, a_[1] + (b_[1] - a_[1]) * us - h,
+                a_[2] + (b_[2] - a_[2]) * us, 0.0, None]
+
+    def _feet_at(self, t):
+        x, v, a = self._xva(min(t, self.t_stop))
+        d = (x - self.x0) * self.fac
+        phi = self.phi0 + d / self.L
+        feet = []
+        for i in range(8):
+            lo, td = self.first_lo[i], self.first_td[i]
+            if (d - lo) * self.dir < 0:
+                feet.append(list(self.first[i]))
+                continue
+            if (d - td) * self.dir < 0:
+                k1 = self.k0[i] + (1 if self.dir > 0 else -1)
+                u = (d - lo) / (td - lo)
+                feet.append(self._swing(self.first[i], self._plant(i, k1), clamp(u)))
+                continue
+            psi = phi - self._tau(i)
+            k = math.floor(psi)
+            fr = psi - k
+            if fr < self.beta:
+                feet.append(list(self._plant(i, k, True)))
+            else:
+                u = (fr - self.beta) / (1.0 - self.beta)
+                feet.append(self._swing(self._plant(i, k, True), self._plant(i, k + 1, True), u))
+        return feet
+
+    def pose(self, t):
+        A = self.A
+        t = max(t, self.t0)
+        x, v, a = self._xva(t)
+        P = self._base(x, t, feet=self._feet_at(t))
+        phi = self.phi0 + (x - self.x0) * self.fac / self.L
+        sp = min(1.0, abs(v) / (0.5 * A.LL))
+        charge = 0.0
+        for kind, tk in self.kinds:
+            if kind == "charge":
+                charge = 1.0
+        charge *= _ss(0.0, 0.6, sp)
+        P["y"] += 0.018 * A.S * math.cos(4 * math.pi * phi) * sp + 0.10 * A.S * charge
+        P["pitch"] += 1.5 * math.sin(4 * math.pi * phi) * sp - 7.0 * charge - 4.0 * a / A.LL * self.fac
+        P["abd"] += 5.0 * math.sin(2 * math.pi * (phi - 0.15)) * sp
+        P["mand"] = max(P["mand"], 0.45 * charge)
+        A._idle(P, t, moving=sp)
+        return P
+
+
+class _SDescend(_SpiderClip):
+    """Down a silk thread from the anchor (x, top): head first, legs folded, then the legs
+    unfold and reach, the tips touch the ground one by one around the target, the body turns
+    level and settles between them. eyes_at: when (0..1) the eye cluster opens."""
+    kind = "descend"
+
+    def __init__(self, A, t0, state, dur=3.0, fade=0.0, base=None, top=None, frm=None,
+                 eyes_at=0.9, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        x = state["x"]
+        gy = A.ground(x)
+        self.x = x
+        self.top = gy - 2600.0 if top is None else float(top)
+        self.y0 = self.top + 0.5 * A.S if frm is None else float(frm)
+        self.y_end = gy - A.H
+        self.y_touch = gy - min(1.6 * A.H, 0.62 * A.LL)
+        self.eyes_at = eyes_at
+        self.final = A._stand_feet(x, state["yaw"])
+        order = sorted(range(8), key=lambda i: (i % 4, hash01(A.seed, i, 31)))
+        self.touch = {}
+        for n, i in enumerate(order):
+            self.touch[i] = 0.52 + 0.055 * n + 0.02 * hash01(A.seed, i, 32)
+        self.end_state = dict(state, feet=[list(v) for v in self.final], y=None,
+                              thread=(x, self.top), posture="stand")
+
+    def pose(self, t):
+        A, S, LL = self.A, self.A.S, self.A.LL
+        u = clamp((t - self.t0) / max(self.dur, 1e-6))
+        # height: a long ease down to touching height, then settle between the planted legs
+        if u < 0.72:
+            y = self.y0 + (self.y_touch - self.y0) * _s01(u / 0.72) ** 0.9
+        else:
+            y = self.y_touch + (self.y_end - self.y_touch) * _s01((u - 0.72) / 0.28)
+        P = self._base(self.x, t, y=y, feet=self.final)
+        P["thread"] = (self.x, self.top)
+        P["pitch"] = -84.0 + 84.0 * _ss(0.42, 0.97, u)
+        sway = (1.0 - _ss(0.4, 0.8, u))
+        P["yaw"] += 14.0 * sway * math.sin(2 * math.pi * 0.21 * (t - self.t0) + 1.0)
+        P["eyes"] = _ss(self.eyes_at, min(1.0, self.eyes_at + 0.08), u)
+        A._idle(P, t)
+        feet = []
+        for i in range(8):
+            unf = _ss(0.15 + 0.03 * (i % 4), 0.55 + 0.03 * (i % 4), u)
+            tb = A._leg_body_foot(i, unf)
+            fw = A._body_to_world(P, tb)
+            c = self.touch[i]
+            w = _ss(c - 0.12, c, u)
+            if w >= 1.0:
+                feet.append(list(self.final[i]))
+            else:
+                fi = self.final[i]
+                pt = [fw[0] + (fi[0] - fw[0]) * w, fw[1] + (fi[1] - fw[1]) * w,
+                      fw[2] + (fi[2] - fw[2]) * w]
+                feet.append([pt[0], pt[1], pt[2], 0.0, None])
+        P["feet"] = feet
+        return P
+
+
+class _SRecoil(_SpiderClip):
+    """Recoil (from fire): every leg flinches up and in, the body rears and skitters back,
+    the legs slap down again behind; burn > 0 keeps it twitching (and lights embers)."""
+    kind = "recoil"
+
+    def __init__(self, A, t0, state, dur=1.2, fade=0.06, base=None, dist=None, burn=0.0, **kw):
+        _Clip.__init__(self, A, t0, state, max(0.6, dur), fade, base, **kw)
+        self.fac = 1.0 if math.cos(state["yaw"] * D2R) >= 0 else -1.0
+        self.dist = 0.6 * A.S if dist is None else float(dist)
+        self.x0 = state["x"]
+        self.x1 = self.x0 - self.fac * self.dist
+        self.burn = burn
+        self.feet0 = [list(v) for v in state["feet"]]
+        self.feet1 = A._stand_feet(self.x1, state["yaw"])
+        self.end_state = dict(state, x=self.x1, y=None, feet=[list(v) for v in self.feet1],
+                              posture="stand", burn=burn)
+
+    def pose(self, t):
+        A, S, LL = self.A, self.A.S, self.A.LL
+        tau = max(0.0, t - self.t0)
+        fl = _ss(0.0, 0.07, tau) * (1.0 - _ss(0.35, 0.75, tau))
+        x = self.x0 + (self.x1 - self.x0) * _ss(0.02, 0.5, tau)
+        P = self._base(x, t)
+        P["y"] -= 0.14 * S * fl
+        P["y"] += 0.08 * S * _ss(0.4, 0.8, tau)
+        P["pitch"] += 24.0 * fl - 4.0 * _ss(0.4, 0.8, tau)
+        P["mand"] = max(0.7 * fl, 0.35 * _ss(0.3, 0.8, tau))
+        P["rear"] = fl
+        P["burn"] = self.burn
+        A._idle(P, t)
+        feet = []
+        for i in range(8):
+            j = i % 4
+            a0 = 0.01 + 0.012 * j + 0.01 * hash01(A.seed, i, 41)
+            b0 = 0.42 + 0.05 * j + 0.06 * hash01(A.seed, i, 42)
+            up = _ss(a0, a0 + 0.07, tau)
+            dn = _ss(b0, b0 + 0.16, tau)
+            tuck = A._body_to_world(P, A._leg_body_foot(i, 0.35 if j else 0.9, raise_=0.4 if j == 0 else 0.1))
+            f0, f1 = self.feet0[i], self.feet1[i]
+            if dn > 0.0:
+                pt = [tuck[k] + (f1[k] - tuck[k]) * dn for k in range(3)]
+                c = 1.0 if dn >= 1.0 else 0.0
+            else:
+                pt = [f0[k] + (tuck[k] - f0[k]) * up for k in range(3)]
+                c = 1.0 if up <= 0.0 else 0.0
+            if self.burn and tau > 0.8:   # agony: random jerks
+                jk = noise1(t * 7.0 + i * 1.7, A.seed + 43)
+                if jk > 0.35:
+                    pt[1] -= (jk - 0.35) * 0.25 * LL * self.burn
+                    c = 0.0
+            feet.append([pt[0], pt[1], pt[2], c, None])
+        P["feet"] = feet
+        return P
+
+
+class _SDie(_SpiderClip):
+    """Death: spasms, the legs curl in over the body, it sinks (or falls) onto its back
+    end; the eyes go out."""
+    kind = "die"
+
+    def __init__(self, A, t0, state, dur=2.5, fade=0.1, base=None, burn=0.0, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        self.x = state["x"]
+        self.burn = burn
+        self.y0 = state.get("y") or (A.ground(self.x) - A.H)
+        self.feet0 = [list(v) for v in state["feet"]]
+        self.end_state = dict(state, posture="dead", burn=burn)
+
+    def pose(self, t):
+        A, S, LL = self.A, self.A.S, self.A.LL
+        tau = max(0.0, t - self.t0)
+        u = clamp(tau / max(self.dur, 1e-6))
+        gy = A.ground(self.x)
+        y_rest = gy - 0.2 * S
+        drop = self.y0 < gy - 1.4 * A.H        # high up (hanging): a real fall
+        if drop:
+            g = 3600.0 * S / 500.0
+            yb = self.y0 + 0.5 * g * tau * tau
+            if yb >= y_rest:
+                tl = math.sqrt(2 * (y_rest - self.y0) / g)
+                yb = y_rest - 0.08 * S * abs(math.sin(9.0 * (tau - tl))) * math.exp(-5.0 * (tau - tl))
+        else:
+            yb = self.y0 + (y_rest - self.y0) * _s01(_ss(0.1, 0.55, u) ** 1.3)
+            yb -= 0.03 * S * math.sin(math.pi * _ss(0.55, 0.75, u))
+        P = self._base(self.x, t, y=yb)
+        if drop:
+            P["thread"] = None
+        P["pitch"] = -10.0 * _ss(0.2, 0.7, u) + 12.0 * math.sin(math.pi * _ss(0.0, 0.25, u))
+        P["abd"] = -10.0 * _ss(0.3, 0.8, u)
+        P["eyes"] = 1.0 - _ss(0.25, 0.85, u)
+        P["mand"] = 0.8 * math.sin(math.pi * _ss(0.0, 0.5, u))
+        P["burn"] = self.burn * (1.0 - _ss(0.6, 1.0, u) * 0.6)
+        A._idle(P, t, moving=1.0)
+        cu = _ss(0.05, 0.75, u)
+        feet = []
+        for i in range(8):
+            spas = max(0.0, noise1(t * 6.0 + i * 3.1, A.seed + 51)) * (1.0 - _ss(0.4, 1.0, u))
+            c_i = clamp(cu + 0.35 * spas * (1 - cu))
+            curl = A._body_to_world(P, A._leg_body_foot(i, 0.0, curl=1.0))
+            if drop:
+                stand = A._body_to_world(P, A._leg_body_foot(i, 0.5))
+            else:
+                stand = self.feet0[i]
+            pt = [stand[k] + (curl[k] - stand[k]) * c_i for k in range(3)]
+            feet.append([pt[0], pt[1], pt[2], 1.0 if c_i < 0.05 and not drop else 0.0, None])
+        P["feet"] = feet
+        P["curl"] = cu
+        return P
+
+
+class _SThreat(_SpiderClip):
+    """Threat display: the body rears, the two front pairs of legs rise high and spread,
+    fangs open."""
+    kind = "threat"
+
+    def __init__(self, A, t0, state, dur=1.5, fade=0.25, base=None, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        self.end_state = dict(state, posture="stand")
+
+    def pose(self, t):
+        A, S, LL = self.A, self.A.S, self.A.LL
+        u = clamp((t - self.t0) / 0.5)
+        dn = _ss(self.dur - 0.45, self.dur, t - self.t0)
+        e = u * (1.0 - dn)
+        P = self._base(self.start["x"], t, y=self.start.get("y"))
+        P["pitch"] += 18.0 * e
+        P["y"] -= 0.10 * S * e
+        P["mand"] = 0.8 * e
+        P["rear"] = e
+        A._idle(P, t)
+        for i in range(8):
+            j = i % 4
+            if j <= 1:
+                up = A._body_to_world(P, A._leg_body_foot(i, 1.0, raise_=0.55 if j == 0 else 0.3))
+                fo = P["feet"][i]
+                w = e * (1.0 if j == 0 else 0.8)
+                wig = 0.03 * LL * math.sin(2 * math.pi * (1.3 * t + 0.25 * i)) * e
+                P["feet"][i] = [fo[0] + (up[0] - fo[0]) * w, fo[1] + (up[1] - fo[1]) * w + wig,
+                                fo[2] + (up[2] - fo[2]) * w, 1.0 if w < 0.02 else 0.0, None]
+        return P
+
+
+class _SAct(_Clip):
+    """Overlay acts for the spider (stab, eyes)."""
+    overlay = True
+    kind = "act"
+    FIN, FOUT = 0.0, 0.0
+
+    def __init__(self, A, t0, state, dur=1.0, fade=0.0, base=None, **kw):
+        _Clip.__init__(self, A, t0, state, dur, 0.0, base, **kw)
+        self.inside = state is not None
+        if self.inside and base is None:
+            base = A.CLIPS["stand"](A, t0, state, dur=max(dur, 0.1))
+        self.base = base
+        self.fade_in, self.fade_out = self.FIN, self.FOUT
+        self.end_state = state if base is None else base.end_state
+
+    def pose(self, t):
+        return self.apply(self.base.pose(t), t)
+
+
+class _SStab(_SAct):
+    """Stab one leg into a target: wind up (lift back), a fast strike past the point, stuck
+    (tugging), pull out, return to the stride. target = (x, y) or a function t -> (x, y)."""
+    kind = "stab"
+
+    def __init__(self, A, t0, state, dur=None, fade=0.0, base=None, leg=0, target=(0.0, 0.0),
+                 hold=0.5, **kw):
+        self.tw, self.ts, self.th, self.tp, self.tb = 0.30, 0.085, max(0.0, hold), 0.16, 0.38
+        total = self.tw + self.ts + self.th + self.tp + self.tb
+        _SAct.__init__(self, A, t0, state, total, 0.0, base, **kw)
+        self.leg = int(leg) % 8
+        self.target = target
+
+    def apply(self, P, t):
+        tau = t - self.t0
+        if tau <= 0.0 or tau >= self.dur:
+            return P
+        A, S, LL = self.A, self.A.S, self.A.LL
+        P = dict(P)
+        feet = [list(v) for v in P["feet"]]
+        i = self.leg
+        tgt = self.target(t) if callable(self.target) else self.target
+        hip = A._hip_world(P, i)
+        # strike mostly in the screen plane so the blow reads in silhouette
+        T = (float(tgt[0]), float(tgt[1]), hip[2] + 0.25 * (feet[i][2] - hip[2]))
+        dx, dy = T[0] - hip[0], T[1] - hip[1]
+        dl = math.hypot(dx, dy) or 1.0
+        # wind-up: the tip cocked high over the target and drawn back toward the body
+        hd = 1.0 if dx >= 0 else -1.0
+        W = (T[0] - hd * 0.18 * LL, T[1] - 0.48 * LL, T[2])
+        sx, sy = T[0] - W[0], T[1] - W[1]
+        sl = math.hypot(sx, sy) or 1.0
+        ux, uy = sx / sl, sy / sl
+        pen = (T[0] + ux * 0.035 * LL, T[1] + uy * 0.035 * LL, T[2])
+        out = (T[0] - ux * 0.16 * LL, T[1] - uy * 0.16 * LL, T[2])
+        b0 = feet[i]
+        tw, ts, th, tp, tb = self.tw, self.ts, self.th, self.tp, self.tb
+        tdir = None
+        lunge = 0.0
+        if tau < tw:
+            w = _s01(tau / tw)
+            pt = [b0[k] + (W[k] - b0[k]) * w for k in range(3)]
+            pt[1] -= 0.08 * LL * math.sin(math.pi * w)
+            lunge = -0.5 * w
+        elif tau < tw + ts:
+            w = ((tau - tw) / ts) ** 1.6
+            pt = [W[k] + (pen[k] - W[k]) * w for k in range(3)]
+            tdir = (ux, uy)
+            lunge = -0.5 + 1.5 * w
+        elif tau < tw + ts + th:
+            jit = 0.006 * LL * math.sin(2 * math.pi * 9.0 * tau)
+            pt = [pen[0] + ux * jit, pen[1] + uy * jit, pen[2]]
+            tdir = (ux, uy)
+            lunge = 1.0
+        elif tau < tw + ts + th + tp:
+            w = _s01((tau - tw - ts - th) / tp)
+            pt = [pen[k] + (out[k] - pen[k]) * w for k in range(3)]
+            tdir = (ux, uy)
+            lunge = 1.0 - 0.6 * w
+        else:
+            w = _s01((tau - tw - ts - th - tp) / tb)
+            pt = [out[k] + (b0[k] - out[k]) * w for k in range(3)]
+            pt[1] -= 0.06 * LL * math.sin(math.pi * w)
+            lunge = 0.4 * (1 - w)
+        feet[i] = [pt[0], pt[1], pt[2], 0.0, tdir]
+        P["feet"] = feet
+        fac = 1.0 if math.cos(P["yaw"] * D2R) >= 0 else -1.0
+        side = 1.0 if (T[0] - P["x"]) * fac >= 0 else -1.0
+        P["x"] += fac * side * 0.05 * S * lunge
+        P["pitch"] -= 6.0 * lunge * side
+        P["mand"] = max(P["mand"], 0.6 * max(0.0, lunge))
+        return P
+
+
+class _SEyes(_SAct):
+    """Open / close the eye cluster: eyes(dur, open=1)."""
+    kind = "eyes"
+    FIN, FOUT = 0.5, 0.3
+
+    def apply(self, P, t):
+        if self.inside:
+            e = _env(t, self.t0, self.t1 + 1e9, self.fade_in, self.fade_out)
+        else:
+            e = _env(t, self.t0 - self.fade_in, self.t1 + self.fade_out, self.fade_in, self.fade_out)
+        if e <= 0.0:
+            return P
+        P = dict(P)
+        P["eyes"] += (self.kw.get("open", 1.0) - P["eyes"]) * e
+        return P
+
+
+class Spider(_Actor):
+    """"Grandmother": a giant Limbo spider. size = body length (cephalothorax + abdomen, px);
+    legs = leg length / size (default 3.0: a standing span of about 3.4 x size, 1700 px at
+    size 500); height = body height above the ground when standing (default 0.9 x size).
+
+        sp = Spider(x=540, ground=1500, facing=-1, size=500, seed=7)
+        sp.descend(dur=3.0, top=-200).stand(1.0).charge(to=200).stab(0, (300, 1490))
+        sp.overlay('stab', 9.0, leg=1, target=(380, 1495), hold=0.6)
+        sp.recoil(1.2, burn=1).die(2.5, burn=1)
+        sp.draw(f, t, ctx)
+    """
+
+    LOCO = ("walk", "creep", "charge")
+    REST = dict(pitch=0.0, abd=0.0, mand=0.08, palp=0.0, eyes=1.0, glow=1.0, curl=0.0, burn=0.0,
+                breath=0.0, rear=0.0)
+    GAIT = {
+        "creep": dict(v=0.12, L=0.42, lift=0.10, acc=0.5),
+        "walk": dict(v=0.32, L=0.50, lift=0.14, acc=0.9),
+        "charge": dict(v=0.95, L=0.62, lift=0.17, acc=2.6),
+    }
+
+    def __init__(self, x, ground, facing=1, size=500.0, seed=7, legs=3.0, height=None):
+        _Actor.__init__(self)
+        self.S = float(size)
+        self.LL = float(legs) * self.S
+        self.H = float(height) if height is not None else 0.9 * self.S
+        if callable(ground):
+            self.ground = ground
+        else:
+            gy = float(ground)
+            self.ground = lambda _x, _g=gy: _g
+        self.x0 = float(x)
+        self.yaw0 = 0.0 if facing >= 0 else 180.0
+        self.seed = int(seed)
+
+    # ----------------------------------------------------------- actions
+    def stand(self, dur=1.0):
+        """Idle on its legs (abdomen breathing, palps and fangs working, a leg fidgets)."""
+        return self._add("stand", dur=dur)
+
+    wait = stand
+
+    def walk(self, to, speed=None, dur=None):
+        """Tetrapod walk to body x `to` (forward or backward, it does not turn)."""
+        return self._add("walk", to=float(to), speed=speed, dur=dur)
+
+    def creep(self, to, speed=None, dur=None):
+        """Slow deliberate walk."""
+        return self._add("creep", to=float(to), speed=speed, dur=dur)
+
+    def charge(self, to, speed=None, dur=None):
+        """Fast low rush, fangs open: a mass of legs."""
+        return self._add("charge", to=float(to), speed=speed, dur=dur)
+
+    def descend(self, dur=3.0, top=None, frm=None, eyes_at=0.9):
+        """Come down a silk thread anchored at (x, top) head first, legs unfolding, tips
+        touching down one by one around x; frm = starting body y (default just under top)."""
+        return self._add("descend", dur=dur, top=top, frm=frm, eyes_at=eyes_at)
+
+    def stab(self, leg=0, target=(0.0, 0.0), t0=None, hold=0.5):
+        """Stab leg (0-3 left L1-L4, 4-7 right R1-R4; 0/4 = front) into target (x, y) or a
+        function t -> (x, y): wind-up 0.3 s, strike 0.085 s, stuck `hold` s, pull out, return.
+        t0 given: an overlay at absolute time t0; else chained after the previous action."""
+        if t0 is not None:
+            return self.overlay("stab", t0, 1.0, leg=leg, target=target, hold=hold)
+        return self._add("stab", leg=leg, target=target, hold=hold)
+
+    def threat(self, dur=1.5):
+        """Rear up, front legs high and spread, fangs open."""
+        return self._add("threat", dur=dur)
+
+    def recoil(self, dur=1.2, dist=None, burn=0.0):
+        """Flinch from fire: legs snap up, skitter back dist px; burn > 0: embers + twitching."""
+        return self._add("recoil", dur=dur, dist=dist, burn=burn)
+
+    def die(self, dur=2.5, burn=0.0):
+        """Spasms, legs curl in, sinks (or falls if hanging high); the eyes go out."""
+        return self._add("die", dur=dur, burn=burn)
+
+    def eyes(self, dur=0.6, open=1.0):
+        """Open / close the eye cluster (held after the action)."""
+        return self._add("eyes", dur=dur, open=open)
+
+    # ----------------------------------------------------------- plumbing
+    def _initial_state(self):
+        return dict(x=self.x0, yaw=self.yaw0, feet=self._stand_feet(self.x0, self.yaw0),
+                    posture="stand", thread=None, y=None)
+
+    def _make_run(self, t0, state, segs):
+        return _SRun(self, t0, state, segs)
+
+    def _neutral(self, i, yaw):
+        """World (dx, z) of leg i's neutral tip relative to the body x, for a yaw."""
+        j = i % 4
+        s = _sp_side(i)
+        th = _SP_THETA[j] * D2R
+        f = _SP_HIP_F[j] * self.S + _SP_REACH[j] * self.LL * math.cos(th)
+        l = s * (_SP_HIP_L * self.S + _SP_REACH[j] * self.LL * math.sin(th))
+        c, sn = math.cos(yaw * D2R), math.sin(yaw * D2R)
+        return f * c + l * sn, f * sn - l * c
+
+    def _stand_feet(self, x, yaw):
+        out = []
+        for i in range(8):
+            dx, z = self._neutral(i, yaw)
+            xx = x + dx * (1.0 + 0.04 * (hash01(self.seed, i, 21) - 0.5))
+            out.append([xx, self.ground(xx), z, 1.0, None])
+        return out
+
+    def _leg_body_foot(self, i, ext, raise_=0.0, curl=0.0):
+        """Body-frame tip (f, u, l) of leg i: ext 0 = folded tight, 1 = the standing reach;
+        raise_ lifts it (x leg length); curl 1 = the death curl over the body."""
+        j = i % 4
+        s = _sp_side(i)
+        S, LL, H = self.S, self.LL, self.H
+        th = _SP_THETA[j] * D2R
+        if curl > 0.0:
+            r = 0.10 * LL
+            return (_SP_HIP_F[j] * S + r * math.cos(th) * 0.6, -0.05 * LL + 0.04 * LL * (j % 2),
+                    s * (_SP_HIP_L * S + r * math.sin(th)))
+        r = (0.16 + (_SP_REACH[j] - 0.16) * ext) * LL
+        u = -H * ext + 0.28 * LL * (1.0 - ext) + raise_ * LL
+        return (_SP_HIP_F[j] * S + r * math.cos(th), u, s * (_SP_HIP_L * S + r * math.sin(th)))
+
+    def _body_to_world(self, P, p):
+        f, u, l = p
+        a = P["pitch"] * D2R
+        c, s = math.cos(a), math.sin(a)
+        f2, u2 = f * c - u * s, f * s + u * c
+        cy, sy = math.cos(P["yaw"] * D2R), math.sin(P["yaw"] * D2R)
+        return (P["x"] + f2 * cy + l * sy, P["y"] - u2, f2 * sy - l * cy)
+
+    def _hip_world(self, P, i):
+        j = i % 4
+        return self._body_to_world(P, (_SP_HIP_F[j] * self.S, -0.02 * self.S,
+                                       _sp_side(i) * _SP_HIP_L * self.S))
+
+    def _idle(self, P, t, moving=0.0):
+        sd = self.seed
+        still = 1.0 - moving
+        br = math.sin(2 * math.pi * (t / 3.1 + hash01(sd, 3)))
+        P["breath"] = br
+        P["y"] += 0.012 * self.S * br * still
+        P["pitch"] += 1.5 * fbm1(t * 0.3, sd + 5) * still
+        P["mand"] = max(P["mand"], 0.08 + 0.12 * max(0.0, noise1(t * 1.3, sd + 7)))
+        P["palp"] = noise1(t * 0.9, sd + 9)
+
+    def _blend(self, a, b, w):
+        if w <= 0.0:
+            return a
+        if w >= 1.0:
+            return b
+        P = dict(b)
+        for k in _SP_KEYS:
+            P[k] = a.get(k, 0.0) + (b.get(k, 0.0) - a.get(k, 0.0)) * w
+        P["x"] = a["x"] + (b["x"] - a["x"]) * w
+        P["y"] = a["y"] + (b["y"] - a["y"]) * w
+        P["yaw"] = lerp_angle(a["yaw"], b["yaw"], w)
+        feet = []
+        for i in range(8):
+            fa, fb = a["feet"][i], b["feet"][i]
+            d = math.hypot(fb[0] - fa[0], fb[1] - fa[1])
+            if d > 0.02 * self.LL and fa[3] > 0.5 and fb[3] > 0.5:
+                dl = 0.06 * (i % 4) + (0.03 if i >= 4 else 0.0)
+                u = _s01((w - dl) / 0.7)
+                lift = min(0.1 * self.LL, 0.5 * d) * math.sin(math.pi * u)
+                feet.append([fa[0] + (fb[0] - fa[0]) * u, fa[1] + (fb[1] - fa[1]) * u - lift,
+                             fa[2] + (fb[2] - fa[2]) * u, 1.0 if u in (0.0, 1.0) else 0.0, None])
+            else:
+                feet.append([fa[k] + (fb[k] - fa[k]) * w for k in range(3)] + [fb[3], fb[4]])
+        P["feet"] = feet
+        return P
+
+    # ----------------------------------------------------------- queries / drawing
+    def tips(self, t):
+        """World leg-tip positions [(x, y, contact), ...] at time t (after the IK)."""
+        P = self.state(t)
+        R = solve_spider(self, P)
+        return [(L[3][0], L[3][1], P["feet"][i][3]) for i, L in enumerate(R["legs"])]
+
+    def draw(self, f, t, ctx=None, color=None, eyes=True, thread=True, far_shade=0.18,
+             thread_color=None):
+        """Draw at time t. far_shade lifts the far-side legs toward the fog (depth);
+        thread_color defaults to a pale silk."""
+        P = self.state(t)
+        return draw_spider(f, P, self, ctx, color=color, eyes=eyes, thread=thread,
+                           far_shade=far_shade, thread_color=thread_color)
+
+
+Spider.CLIPS = {"stand": _SStand, "descend": _SDescend, "recoil": _SRecoil, "die": _SDie,
+                "threat": _SThreat, "stab": _SStab, "eyes": _SEyes}
+
+
+def _sp_leg_ik(hip, tip, LL, ndir, tdir=None):
+    """3-segment spider leg in the vertical plane through hip and tip (knee up).
+    Returns [hip, knee, ankle, tip] as world (x, y, z)."""
+    Lf, Lt, Lm = (_SP_SEG[0] * LL, _SP_SEG[1] * LL, _SP_SEG[2] * LL)
+    dx, dz = tip[0] - hip[0], tip[2] - hip[2]
+    r = math.hypot(dx, dz)
+    if r > 1e-3:
+        ux, uz = dx / r, dz / r
+    else:
+        ux, uz = ndir
+    up = hip[1] - tip[1]
+    if tdir is not None:            # the tarsus points along a given (screen) direction
+        hx = tdir[0] * ux if abs(ux) > 0.2 else tdir[0]
+        a_r, a_u = -hx * Lm, tdir[1] * Lm
+    else:
+        al = 16.0 * D2R
+        a_r, a_u = -math.sin(al) * Lm, math.cos(al) * Lm
+    A = (r + a_r, up + a_u)
+    K, A2 = _ik2((0.0, 0.0), A, Lf, Lt, +1)
+    if A[1] > -0.2 * Lf:        # tip raised (stab wind-up, threat): keep the knee outward
+        K2, A3 = _ik2((0.0, 0.0), A, Lf, Lt, -1)
+        if K2[0] * 0.7 + K2[1] > K[0] * 0.7 + K[1]:
+            K, A2 = K2, A3
+    T2 = (A2[0] - a_r, A2[1] - a_u)
+
+    def w(p):
+        return (hip[0] + ux * p[0], hip[1] - p[1], hip[2] + uz * p[0])
+    return [hip, w(K), w(A2), w(T2)]
+
+
+def solve_spider(A, P):
+    """Pose -> {legs: [[hip, knee, ankle, tip] world (x, y, z)], ...}."""
+    legs = []
+    yaw = P["yaw"] * D2R
+    for i in range(8):
+        hip = A._hip_world(P, i)
+        fo = P["feet"][i]
+        j = i % 4
+        th = _SP_THETA[j] * D2R
+        s = _sp_side(i)
+        fx, lx = math.cos(th), s * math.sin(th)
+        ndir = (fx * math.cos(yaw) + lx * math.sin(yaw), fx * math.sin(yaw) - lx * math.cos(yaw))
+        nl = math.hypot(*ndir) or 1.0
+        legs.append(_sp_leg_ik(hip, fo, A.LL, (ndir[0] / nl, ndir[1] / nl), fo[4]))
+    return dict(legs=legs)
+
+
+# body outlines in body-frame (f, u) units of S
+_SP_ABD = [(0.00, 0.03), (-0.08, 0.13), (-0.22, 0.24), (-0.40, 0.29), (-0.56, 0.26),
+           (-0.67, 0.16), (-0.70, 0.04), (-0.66, -0.07), (-0.55, -0.15), (-0.38, -0.18),
+           (-0.20, -0.14), (-0.07, -0.06)]
+_SP_CEPH = [(0.0, 0.036), (0.07, 0.12), (0.20, 0.15), (0.32, 0.138), (0.395, 0.09),
+            (0.415, 0.024), (0.385, -0.048), (0.29, -0.09), (0.145, -0.096), (0.035, -0.06)]
+_SP_EYES = [(0.380, 0.072, 0.016), (0.372, 0.100, 0.013), (0.352, 0.118, 0.010),
+            (0.395, 0.046, 0.009), (0.358, 0.085, 0.008), (0.336, 0.108, 0.007),
+            (0.372, 0.052, 0.007), (0.342, 0.130, 0.006)]
+
+
+def draw_spider(f, P, A, ctx=None, color=None, eyes=True, thread=True, far_shade=0.18,
+                thread_color=None):
+    """Draw a spider pose P (from Spider.state) on ctx. Returns the solved rig."""
+    ctx = ctx if ctx is not None else f.ctx
+    pal = f.pal if f is not None else None
+    ink = color or (pal.ink if pal is not None else (0.0, 0.0, 0.0))
+    S, LL = A.S, A.LL
+    t = P["t"]
+    R = solve_spider(A, P)
+    cy = math.cos(P["yaw"] * D2R)
+    sy = math.sin(P["yaw"] * D2R)
+    pa = P["pitch"] * D2R
+    cp, sp = math.cos(pa), math.sin(pa)
+
+    def bw(fu, l=0.0, rot=0.0, piv=(0.0, 0.0)):
+        f_, u_ = fu
+        if rot:
+            c_, s_ = math.cos(rot), math.sin(rot)
+            f_, u_ = piv[0] + (f_ - piv[0]) * c_ - (u_ - piv[1]) * s_, piv[1] + (f_ - piv[0]) * s_ + (u_ - piv[1]) * c_
+        f_ *= S
+        u_ *= S
+        f2, u2 = f_ * cp - u_ * sp, f_ * sp + u_ * cp
+        return (P["x"] + f2 * cy + l * sy, P["y"] - u2)
+
+    # silk thread ----------------------------------------------------------------
+    if thread and P.get("thread") is not None:
+        ab = P.get("abd", 0.0) * D2R
+        sn = bw((-0.69, 0.05), rot=ab + 0.06)
+        ax, ay = P["thread"]
+        tc = thread_color or (lerp(pal.fog_at(1.0), (1.0, 1.0, 1.0), 0.5) if pal is not None else (0.9, 0.9, 0.9))
+        ctx.move_to(ax, ay)
+        ctx.line_to(sn[0], sn[1])
+        draw.stroke(ctx, tc, max(1.2, 0.004 * S), 0.75)
+    # legs: far side first --------------------------------------------------------
+    far_col = lerp(ink, pal.fog_at(0.5), clamp(far_shade)) if (far_shade > 0 and pal is not None) else ink
+    order = sorted(range(8), key=lambda i: R["legs"][i][0][2])
+    rad = (0.0095 * LL, 0.0072 * LL, 0.0052 * LL, 0.0030 * LL, 0.0003 * LL)
+
+    def leg(i, col):
+        hip, kn, an, tip = R["legs"][i]
+        r0, r1, r2, r3, r4 = rad
+        draw.capsule(ctx, hip[:2], kn[:2], r0, r1)
+        draw.capsule(ctx, kn[:2], an[:2], r1 * 1.05, r2)
+        # tarsus: a long thin spike, with a small joint knob
+        draw.capsule(ctx, an[:2], tip[:2], r3, r4)
+        draw.circle(ctx, an[:2], r2 * 1.15)
+        draw.circle(ctx, kn[:2], r1 * 1.25)
+        draw.fill(ctx, col)
+
+    nfar = sum(1 for i in range(8) if R["legs"][i][0][2] < 0)
+    for n, i in enumerate(order):
+        if R["legs"][i][0][2] < 0 or abs(sy) > 0.5:
+            leg(i, far_col if n < nfar else ink)
+    # body -------------------------------------------------------------------------
+    ab = P.get("abd", 0.0) * D2R + 0.06
+    br = 1.0 + 0.025 * P.get("breath", 0.0)
+    lat = abs(sy)
+    abd = [bw((fx_ * (1.0 + 0.02 * P.get("breath", 0.0)), uy_ * br), rot=ab) for fx_, uy_ in _SP_ABD]
+    _smooth(ctx, abd, 0.5)
+    draw.fill(ctx, ink)
+    if lat > 0.05:   # lateral bulk when turned toward / away from the camera
+        draw.ellipse(ctx, bw((-0.36, 0.05), rot=ab), 0.27 * S * lat + 1.0, 0.22 * S * br)
+        draw.ellipse(ctx, bw((0.2, 0.02)), 0.16 * S * lat + 1.0, 0.12 * S)
+        draw.fill(ctx, ink)
+    # bristles on the abdomen (sparse, raked back)
+    hairs = []
+    for k in range(18):
+        u = (k + 0.5 * hash01(A.seed, k, 61)) / 18.0
+        idx = 1 + u * 7.0
+        a_ = int(idx)
+        fr = idx - a_
+        p0, p1 = _SP_ABD[a_], _SP_ABD[min(a_ + 1, len(_SP_ABD) - 1)]
+        px, py = p0[0] + (p1[0] - p0[0]) * fr, p0[1] + (p1[1] - p0[1]) * fr
+        nx, ny = px + 0.36, py - 0.05
+        nl = math.hypot(nx, ny) or 1.0
+        L = (0.025 + 0.03 * hash01(A.seed, k, 62)) * (1.0 + 0.6 * P.get("rear", 0.0))
+        tipp = (px + nx / nl * L - 0.02, py + ny / nl * L)
+        hairs.append([bw((px - 0.012, py), rot=ab), bw(tipp, rot=ab), bw((px + 0.012, py), rot=ab)])
+    for h in hairs:
+        _poly(ctx, h)
+    draw.fill(ctx, ink)
+    ceph = [bw(p) for p in _SP_CEPH]
+    _smooth(ctx, ceph, 0.5)
+    draw.fill(ctx, ink)
+    # pedipalps and fangs ---------------------------------------------------------------
+    mand = clamp(P.get("mand", 0.0))
+    palp = P.get("palp", 0.0)
+    for k, sgn in enumerate((1.0, -1.0)):
+        base = (0.385, -0.04)
+        a1 = -0.95 + 0.25 * palp * sgn + 0.2 * k
+        mid = (base[0] + 0.12 * math.cos(a1), base[1] + 0.12 * math.sin(a1))
+        a2 = a1 - 0.9 - 0.2 * palp
+        end = (mid[0] + 0.10 * math.cos(a2), mid[1] + 0.10 * math.sin(a2))
+        draw.capsule(ctx, bw(base), bw(mid), 0.016 * S, 0.013 * S)
+        draw.capsule(ctx, bw(mid), bw(end), 0.013 * S, 0.008 * S)
+    draw.fill(ctx, ink)
+    for k in range(2):
+        o = 0.012 * (k - 0.5)
+        ang = 0.25 + 0.65 * mand + 0.1 * k
+        fang = [(0.360 + o, -0.055), (0.400 + o, -0.068), (0.412 + o, -0.115), (0.405 + o, -0.16),
+                (0.375 + o, -0.20), (0.384 + o, -0.155), (0.373 + o, -0.11), (0.35 + o, -0.08)]
+        _poly(ctx, [bw(p, rot=ang, piv=(0.37, -0.06)) for p in fang])
+    draw.fill(ctx, ink)
+    # near legs over the body -------------------------------------------------------
+    for n, i in enumerate(order):
+        if not (R["legs"][i][0][2] < 0 or abs(sy) > 0.5):
+            leg(i, ink)
+    # eyes ------------------------------------------------------------------------------
+    eo = clamp(P.get("eyes", 1.0))
+    if eyes and eo > 0.01 and sy > -0.6:
+        col = (0.92, 0.96, 1.0)
+        pts = []
+        for k, (ex, ey_, er) in enumerate(_SP_EYES):
+            p = bw((ex, ey_))
+            pts.append((p, er * S))
+            draw.circle(ctx, p, er * S * (0.35 + 0.65 * eo))
+        draw.fill(ctx, col, eo * clamp(P.get("glow", 1.0)))
+        if f is not None:
+            with f.emit() as G:
+                c0 = bw((0.37, 0.09))
+                draw.glow_disc(G, c0, 0.13 * S, col, 0.35 * eo)
+                for p, r in pts[:4]:
+                    draw.glow_disc(G, p, r * 4.0, col, 0.5 * eo)
+    # embers when burning -----------------------------------------------------------------
+    burn = P.get("burn", 0.0)
+    if burn > 0.01 and f is not None:
+        with f.emit() as G:
+            for k in range(26):
+                i = k % 8
+                seg = int(hash01(A.seed, k, 71) * 3)
+                a_, b_ = R["legs"][i][seg], R["legs"][i][seg + 1]
+                u = hash01(A.seed, k, 72)
+                p = (a_[0] + (b_[0] - a_[0]) * u, a_[1] + (b_[1] - a_[1]) * u)
+                fl = max(0.0, noise1(t * 3.0 + k * 0.77, A.seed + 73))
+                if fl > 0.05:
+                    draw.glow_disc(G, p, (0.02 + 0.03 * fl) * S, (1.0, 0.55, 0.18), burn * fl)
+    return R
+
+
+# ============================================================================= fish school
+def _path_fn(path):
+    """center path: a function t -> (x, y), or keyframes [(t, x, y), ...] (smooth)."""
+    if callable(path):
+        return path
+    keys = sorted((float(a), float(b), float(c)) for a, b, c in path)
+    ts = [k[0] for k in keys]
+
+    def fn(t):
+        if t <= ts[0]:
+            k0, k1 = keys[0], keys[1] if len(keys) > 1 else keys[0]
+            if k1[0] == k0[0]:
+                return k0[1], k0[2]
+            # extrapolate linearly with the first segment's velocity
+            u = (t - k0[0]) / (k1[0] - k0[0])
+            return k0[1] + (k1[1] - k0[1]) * u, k0[2] + (k1[2] - k0[2]) * u
+        if t >= ts[-1]:
+            k0, k1 = keys[-2] if len(keys) > 1 else keys[-1], keys[-1]
+            if k1[0] == k0[0]:
+                return k1[1], k1[2]
+            u = (t - k0[0]) / (k1[0] - k0[0])
+            return k0[1] + (k1[1] - k0[1]) * u, k0[2] + (k1[2] - k0[2]) * u
+        i = bisect.bisect_right(ts, t) - 1
+        i = min(i, len(keys) - 2)
+        p0 = keys[max(i - 1, 0)]
+        p1, p2 = keys[i], keys[i + 1]
+        p3 = keys[min(i + 2, len(keys) - 1)]
+        u = (t - p1[0]) / (p2[0] - p1[0])
+        out = []
+        for c in (1, 2):      # Catmull-Rom (uniform)
+            a0, a1, a2, a3 = p0[c], p1[c], p2[c], p3[c]
+            out.append(0.5 * ((2 * a1) + (-a0 + a2) * u + (2 * a0 - 5 * a1 + 4 * a2 - a3) * u * u +
+                              (-a0 + 3 * a1 - 3 * a2 + a3) * u ** 3))
+        return out[0], out[1]
+    return fn
+
+
+_FISH_S = np.array([0.0, 0.14, 0.28, 0.44, 0.60, 0.75, 0.87])
+_FISH_W = np.array([0.012, 0.075, 0.098, 0.088, 0.062, 0.036, 0.018])
+
+
+class FishSchool:
+    """A coherent, swirling school of small fish, closed-form in t (no simulation state):
+    every fish has a slot in an elongated ellipsoid that twists (helical milling) around the
+    swimming direction, plus its own slow wander. Obstacles part the school (radial flow
+    around a disc) and it reforms behind them. Bodies bend with the turn and beat their tails;
+    flanks flash pale when they turn (a wave of glints rolls through the school).
+
+        school = FishSchool([(8.0, -300, 2400), (10.5, 1400, 2300)], n=150, seed=4)
+        school.draw(f, t, L, avoid=[(diver_x, diver_y, 120)])
+
+    center_path: function t -> (x, y) or keyframes [(t, x, y), ...]. size: fish length (px).
+    spread: (length, height) half-extents of the school (px). The school faces its velocity.
+    """
+
+    def __init__(self, center_path, n=120, seed=0, size=52.0, spread=(460.0, 170.0),
+                 swirl=0.6, wander=0.20, depth=0.35):
+        self.path = _path_fn(center_path)
+        self.n = int(n)
+        self.size = float(size)
+        self.spread = (float(spread[0]), float(spread[1]))
+        self.swirl = float(swirl)
+        self.wander = float(wander)
+        self.depth = float(depth)
+        rng = np.random.default_rng(int(seed) * 7919 + 17)
+        n = self.n
+        u = np.clip(rng.normal(0.0, 0.45, n), -1.15, 1.15)
+        v = np.clip(rng.normal(0.0, 0.45, n), -1.15, 1.15) * np.sqrt(np.maximum(0.05, 1.0 - 0.55 * u * u))
+        w = rng.uniform(-1.0, 1.0, n)
+        self.u0, self.v0, self.w0 = u, v, w
+        self.ph = rng.uniform(0.0, 2 * math.pi, (n, 6))
+        self.fq = rng.uniform(0.10, 0.32, (n, 3))
+        self.len = self.size * rng.uniform(0.82, 1.18, n)
+        self.bph = rng.uniform(0.0, 2 * math.pi, n)
+        self.side = np.where(rng.uniform(0, 1, n) < 0.5, -1.0, 1.0)
+
+    # ----------------------------------------------------------- kinematics
+    def _heading(self, t):
+        dt = 0.05
+        x0, y0 = self.path(t - dt)
+        x1, y1 = self.path(t + dt)
+        vx, vy = (x1 - x0) / (2 * dt), (y1 - y0) / (2 * dt)
+        return math.atan2(vy, vx), math.hypot(vx, vy)
+
+    def _raw(self, t):
+        """Fish centers (x, y) and depth w before obstacle avoidance."""
+        Lx, Ly = self.spread
+        a = self.wander
+        ph, fq = self.ph, self.fq
+        tp = 2 * math.pi * t
+        du = a * 0.55 * (np.sin(tp * fq[:, 0] + ph[:, 0]) + 0.5 * np.sin(tp * fq[:, 1] * 1.7 + ph[:, 1]))
+        dv = a * (np.sin(tp * fq[:, 1] + ph[:, 2]) + 0.5 * np.sin(tp * fq[:, 2] * 1.9 + ph[:, 3]))
+        dw = a * (np.sin(tp * fq[:, 2] + ph[:, 4]) + 0.5 * np.sin(tp * fq[:, 0] * 1.6 + ph[:, 5]))
+        u = self.u0 + du
+        v = self.v0 + dv
+        w = self.w0 + dw
+        th = 2 * math.pi * 0.11 * self.swirl * t + 1.8 * self.swirl * u
+        c, s = np.cos(th), np.sin(th)
+        v2 = v * c - w * s
+        w2 = v * s + w * c
+        cx, cy = self.path(t)
+        hd, _sp = self._heading(t)
+        ch, sh = math.cos(hd), math.sin(hd)
+        lu, lv = u * Lx, v2 * Ly
+        # facing left: keep "up" up (mirror the lateral axis)
+        if ch < 0:
+            lv = -lv
+        x = cx + lu * ch - lv * sh
+        y = cy + lu * sh + lv * ch
+        return x, y, np.clip(w2, -1.4, 1.4)
+
+    def _avoid(self, x, y, avoid):
+        if not avoid:
+            return x, y
+        sz = self.size
+        for ob in avoid:
+            ox, oy, r = float(ob[0]), float(ob[1]), float(ob[2])
+            r_in = r + 0.45 * sz
+            r_out = r_in + max(2.2 * sz, 1.4 * r)
+            dx, dy = x - ox, y - oy
+            d = np.hypot(dx, dy)
+            m = d < r_out
+            if not np.any(m):
+                continue
+            k = r_out / (r_out - r_in)
+            dd = np.maximum(d[m], 1e-3)
+            dn = r_in + (r_out - r_in) * (dd / r_out) ** k
+            # exactly on the obstacle: fall to the fish's preferred side
+            ux = np.where(d[m] > 1e-3, dx[m] / dd, 0.0)
+            uy = np.where(d[m] > 1e-3, dy[m] / dd, self.side[m])
+            x = x.copy()
+            y = y.copy()
+            x[m] = ox + ux * dn
+            y[m] = oy + uy * dn
+        return x, y
+
+    def positions(self, t, avoid=()):
+        """(x, y, heading, depth) arrays at time t (after avoidance)."""
+        x, y, w = self._raw(t)
+        x, y = self._avoid(x, y, avoid)
+        x0, y0, _ = self._raw(t - 0.06)
+        x0, y0 = self._avoid(x0, y0, avoid)
+        return x, y, np.arctan2(y - y0, x - x0), w
+
+    # ----------------------------------------------------------- drawing
+    def draw(self, f, t, ctx=None, avoid=(), color=None, glint=True, depth_fade=None):
+        """Draw the school at t. avoid: [(x, y, r), ...] discs the fish part around.
+        depth_fade (0..1, default from the constructor) tints the far fish toward the water."""
+        ctx = ctx if ctx is not None else f.ctx
+        pal = f.pal if f is not None else None
+        ink = color or (pal.ink if pal is not None else (0.0, 0.0, 0.0))
+        dfade = self.depth if depth_fade is None else depth_fade
+        dt = 0.06
+        xa, ya, w = self._raw(t)
+        xa, ya = self._avoid(xa, ya, avoid)
+        xb, yb, _ = self._raw(t - dt)
+        xb, yb = self._avoid(xb, yb, avoid)
+        xc, yc, _ = self._raw(t - 2 * dt)
+        xc, yc = self._avoid(xc, yc, avoid)
+        h1 = np.arctan2(ya - yb, xa - xb)
+        h0 = np.arctan2(yb - yc, xb - xc)
+        spd = np.hypot(xa - xb, ya - yb) / dt
+        om = (h1 - h0 + np.pi) % (2 * np.pi) - np.pi
+        om = om / dt
+        n = self.n
+        L = self.len * (1.0 + 0.22 * w * self.depth)
+        # spine: head forward, bending with the turn, tail beating
+        lag = np.clip(L / np.maximum(spd, 60.0), 0.05, 0.4)
+        s = _FISH_S[None, :]
+        beat_f = 2.2 + np.clip(spd / 260.0, 0.0, 2.5)
+        amp = 0.22 + 0.12 * np.clip(spd / 400.0, 0.0, 1.0)
+        bend = np.clip(-om * lag, -1.0, 1.0)[:, None] * s
+        beat = (amp[:, None] if np.ndim(amp) else amp) * np.sin(
+            2 * np.pi * beat_f[:, None] * t + self.bph[:, None] - 5.5 * s) * s * s
+        ang = h1[:, None] + np.pi + bend + beat                      # head -> tail direction
+        seg = np.diff(np.concatenate([np.zeros((1,)), _FISH_S]))[None, :] * L[:, None]
+        hx = xa + np.cos(h1) * 0.36 * L
+        hy = ya + np.sin(h1) * 0.36 * L
+        px = hx[:, None] + np.cumsum(np.cos(ang) * seg, axis=1)
+        py = hy[:, None] + np.cumsum(np.sin(ang) * seg, axis=1)
+        nx, ny = -np.sin(ang), np.cos(ang)
+        hw = _FISH_W[None, :] * L[:, None]
+        ux, uy = px + nx * hw, py + ny * hw
+        lx, ly = px - nx * hw, py - ny * hw
+        # tail fin: two lobes from the peduncle
+        ta = ang[:, -1]
+        tl = 0.17 * L
+        flap = 0.25 * np.sin(2 * np.pi * beat_f * t + self.bph - 5.5)
+        pxe, pye = px[:, -1], py[:, -1]
+        fu = (pxe + np.cos(ta + 0.55 + flap) * tl, pye + np.sin(ta + 0.55 + flap) * tl)
+        fl = (pxe + np.cos(ta - 0.55 + flap) * tl, pye + np.sin(ta - 0.55 + flap) * tl)
+        fn = (pxe + np.cos(ta + flap) * tl * 0.45, pye + np.sin(ta + flap) * tl * 0.45)
+        tipx = hx + np.cos(h1) * 0.02 * L
+        tipy = hy + np.sin(h1) * 0.02 * L
+        X = np.concatenate([tipx[:, None], ux[:, 1:], fu[0][:, None], fn[0][:, None], fl[0][:, None],
+                            lx[:, :0:-1]], axis=1)
+        Y = np.concatenate([tipy[:, None], uy[:, 1:], fu[1][:, None], fn[1][:, None], fl[1][:, None],
+                            ly[:, :0:-1]], axis=1)
+        # consistent winding (no cancelling where fish overlap)
+        area = np.sum(X * np.roll(Y, -1, axis=1) - np.roll(X, -1, axis=1) * Y, axis=1)
+        flip = area < 0
+        X[flip] = X[flip, ::-1]
+        Y[flip] = Y[flip, ::-1]
+        # depth bins: far fish paler (toward the water), near fish ink
+        order = np.argsort(w)
+        nb = 3
+        if pal is not None and dfade > 0:
+            cols = [lerp(ink, pal.fog_at(0.55), dfade * (1.0 - b / (nb - 1)) * 0.8) for b in range(nb)]
+        else:
+            cols = [ink] * nb
+        bins = np.minimum(nb - 1, ((w + 1.0) / 2.0 * nb).astype(int).clip(0, nb - 1))
+        for b in range(nb):
+            idx = order[bins[order] == b]
+            if len(idx) == 0:
+                continue
+            for i in idx:
+                xs, ys = X[i], Y[i]
+                ctx.move_to(xs[0], ys[0])
+                for k in range(1, len(xs)):
+                    ctx.line_to(xs[k], ys[k])
+                ctx.close_path()
+            draw.fill(ctx, cols[b])
+        if glint and pal is not None:
+            # flanks flash as fish turn; a slow wave of flashes rolls along the school
+            hd, _sp = self._heading(t)
+            proj = (xa * math.cos(hd) + ya * math.sin(hd)) / max(self.spread[0], 1.0)
+            wave = np.maximum(0.0, np.sin(2 * np.pi * (0.45 * t - 0.5 * proj) + self.bph * 0.15)) ** 10
+            fl_ = np.clip(np.abs(om) * 0.35, 0.0, 1.0) * 0.8 + wave * 0.9
+            fl_ *= 0.55 + 0.45 * (w > -0.2)
+            gcol = lerp(getattr(pal, "surface", pal.fog_at(1.0)), (1.0, 1.0, 1.0), 0.35)
+            for lo, hi, al in ((0.25, 0.6, 0.35), (0.6, 9.0, 0.7)):
+                idx = np.nonzero((fl_ > lo) & (fl_ <= hi))[0]
+                if len(idx) == 0:
+                    continue
+                for i in idx:
+                    # the flank only (no tail)
+                    ctx.move_to(px[i, 1], py[i, 1])
+                    for k in range(2, 6):
+                        ctx.line_to(0.5 * (px[i, k] + ux[i, k]), 0.5 * (py[i, k] + uy[i, k]))
+                    for k in range(5, 1, -1):
+                        ctx.line_to(0.6 * px[i, k] + 0.4 * lx[i, k], 0.6 * py[i, k] + 0.4 * ly[i, k])
+                    ctx.close_path()
+                draw.fill(ctx, gcol, al)
+
+
+# ============================================================================= birds
+# Crow shapes in units of the bird length S (beak tip to tail tip). Body frame: x forward
+# along the body axis, y up, origin at the body centre.
+_CROW_BODY = [(0.215, 0.020), (0.185, 0.085), (0.085, 0.115), (-0.05, 0.100), (-0.16, 0.060),
+              (-0.22, 0.015), (-0.20, -0.040), (-0.10, -0.088), (0.04, -0.108), (0.165, -0.078)]
+_CROW_FOLD = [(0.14, 0.095), (0.0, 0.115), (-0.16, 0.080), (-0.30, 0.030), (-0.42, -0.002),
+              (-0.39, -0.030), (-0.24, -0.024), (-0.07, -0.004), (0.09, 0.035)]
+_CROW_HIP = (0.0, -0.075)
+_CROW_HEAD = (0.21, 0.13)
+# beak in the head frame (x along the beak from the head centre, y up); the culmen hooks
+_CROW_BEAK_UP = [(0.02, 0.036), (0.08, 0.029), (0.13, 0.012), (0.168, -0.011), (0.138, -0.004),
+                 (0.06, -0.004), (0.02, -0.006)]
+_CROW_BEAK_LO = [(0.03, -0.003), (0.13, -0.004), (0.150, -0.012), (0.09, -0.027), (0.03, -0.032)]
+_CROW_HINGE = (0.035, -0.008)
+# spread wing planform: (span 0..1 from the shoulder, chord offset in S, + forward); five
+# fingered primaries at the tip
+_CROW_WING = [(0.00, 0.070), (0.20, 0.095), (0.42, 0.085), (0.62, 0.060), (0.80, 0.030),
+              (0.93, -0.010), (1.00, -0.060), (0.93, -0.066), (0.97, -0.112), (0.89, -0.106),
+              (0.92, -0.156), (0.84, -0.146), (0.86, -0.196), (0.77, -0.182), (0.78, -0.226),
+              (0.68, -0.206), (0.50, -0.216), (0.30, -0.222), (0.12, -0.200), (0.00, -0.150)]
+
+
+def _crow_xf(x, y, S, fac, pitch):
+    """Body-frame (S units) -> world transform for a bird centred at (x, y)."""
+    c, s = math.cos(pitch * D2R), math.sin(pitch * D2R)
+
+    def W(px, py):
+        return (x + fac * (px * c - py * s) * S, y - (px * s + py * c) * S)
+    return W
+
+
+def _flap(phase, glide=0.0):
+    """(phi, fold) at a flap phase (cycles): a strong downstroke, then a flexed upstroke.
+    glide 0..1 blends toward wings held out level."""
+    c = phase % 1.0
+    if c < 0.55:
+        phi = 0.95 - 1.75 * _s01(c / 0.55)
+        fold = 0.0
+    else:
+        u = (c - 0.55) / 0.45
+        phi = -0.80 + 1.75 * _s01(u)
+        fold = 0.85 * math.sin(math.pi * u)
+    if glide > 0.0:
+        g = clamp(glide)
+        phi = phi * (1.0 - g) + 0.10 * g
+        fold *= 1.0 - g
+    return phi, fold
+
+
+def _bird_wing(sh, S, fac, pitch, P, side, el, open_=1.0, ex=0.22):
+    """One spread wing as a world polygon. sh: shoulder (world). With P['phase'] the flap
+    travels out along the wing (the hand lags the arm, so the wing bends); otherwise
+    P['phi'] (elevation, rad) and P['fold'] are used as they are. side +1 = near wing;
+    el: view elevation (the near wing drops on screen when seen from above); ex: a slight
+    view yaw that separates the near and far wings along the body."""
+    cp, sp = math.cos(pitch * D2R), math.sin(pitch * D2R)
+    ph = P.get("phase")
+    glide = P.get("glide", 0.0)
+    phi, fold = P.get("phi", 0.0), P.get("fold", 0.0)
+    out = []
+    for a, b in _CROW_WING:
+        if ph is not None:
+            phi, fold = _flap(ph - 0.10 * a, glide)
+        span = 0.98 * S * (0.35 + 0.65 * open_) * (1.0 - 0.42 * fold)
+        sweep = fold * 0.55 + (1.0 - open_) * 0.6
+        f_ = (b - sweep * max(0.0, a - 0.35) - 0.22 * a * a * math.sin(phi)) * S
+        r_ = a * span
+        lat = side * r_ * math.cos(phi)
+        out.append((sh[0] + fac * (f_ * cp + lat * ex),
+                    sh[1] - f_ * sp - r_ * math.sin(phi) + lat * el))
+    return out
+
+
+def draw_bird(ctx, x, y, S, fac, P):
+    """Add a crow silhouette to ctx's current path (fill it yourself). (x, y) = body centre,
+    S = beak tip to tail tip (px), fac = +1 facing right. P keys (all optional):
+      pitch    body axis (deg, nose up +)
+      fly      0 wings folded .. 1 spread;  phase (flap cycles) + glide 0..1, or fixed phi
+               (rad, + up) and fold (upstroke flex)
+      el       view elevation (+ seen from above: the wings cross as an X; - from below)
+      hyaw     head turn (deg: 0 along the body, 90 at the camera, 180 looking back)
+      hpitch   beak angle (deg, + up; world-relative, birds keep the head level)
+      hx, hy   head centre in the body frame (S) - the caw thrust
+      beak     0..1 open;  hackle 0..1 throat feathers (raised when calling)
+      tail     tail angle to the body axis (deg, + up);  spread 0..1 fanned
+      legs     0 tucked .. 1 down;  grip (x, y) world foot point when perched."""
+    pitch = P.get("pitch", 0.0)
+    W = _crow_xf(x, y, S, fac, pitch)
+    fly = clamp(P.get("fly", 0.0))
+    el = P.get("el", 0.45)
+    if fly > 0.02:
+        sh = W(0.07, 0.05)
+        for side in (-1.0, 1.0):
+            _poly(ctx, _bird_wing(sh, S, fac, pitch, P, side, el, fly, P.get("ex", 0.22)))
+    # tail: a wedge, fanned when spread (wider when seen from above / below in flight)
+    tl = P.get("tail", 0.0) * D2R
+    sp = clamp(P.get("spread", 0.0)) * (1.0 if fly < 0.5 else 0.5 + abs(el))
+    tln = 0.40 - 0.04 * fly
+    dx_, dy_ = -math.cos(tl), math.sin(tl)
+    nx_, ny_ = math.sin(tl), math.cos(tl)
+    tail = []
+    for u_, v_ in ((0.0, 0.036), (0.45, 0.038 + 0.015 * sp), (0.92, 0.042 + 0.07 * sp),
+                   (0.985, 0.016 + 0.035 * sp), (1.0, -0.010), (0.92, -0.038 - 0.07 * sp),
+                   (0.45, -0.032 - 0.015 * sp), (0.0, -0.036)):
+        u_ *= tln
+        tail.append(W(-0.15 + u_ * dx_ + v_ * nx_, u_ * dy_ + v_ * ny_))
+    _poly(ctx, tail)
+    # legs
+    lg = clamp(P.get("legs", 0.0))
+    if lg > 0.02:
+        hip = W(*_CROW_HIP)
+        g = P.get("grip")
+        for dz in (-0.014, 0.014):
+            if g is not None:
+                foot = (g[0] + fac * dz * S, g[1])
+            else:      # dangling, trailing back as they tuck
+                foot = W(dz - 0.03 - 0.10 * (1.0 - lg), _CROW_HIP[1] - 0.13 * lg)
+            draw.capsule(ctx, hip, foot, 0.019 * S, 0.009 * S)
+            if g is not None:      # toes wrapped on the perch
+                draw.capsule(ctx, foot, (foot[0] + fac * 0.05 * S, foot[1] + 0.006 * S), 0.009 * S,
+                             0.005 * S)
+                draw.capsule(ctx, foot, (foot[0] - fac * 0.035 * S, foot[1] + 0.005 * S), 0.008 * S,
+                             0.0045 * S)
+    # body + folded wing
+    _smooth(ctx, [W(px, py) for px, py in _CROW_BODY], 0.5)
+    if fly < 0.6:
+        _smooth(ctx, [W(px, py) for px, py in _CROW_FOLD], 0.5)
+    # neck + head + beak
+    H = W(P.get("hx", _CROW_HEAD[0]), P.get("hy", _CROW_HEAD[1]))
+    draw.capsule(ctx, W(0.13, 0.045), H, 0.082 * S, 0.064 * S)
+    cyw = math.cos(P.get("hyaw", 0.0) * D2R)
+    k = max(abs(cyw), 0.22) * (1.0 if cyw >= 0.0 else -1.0)
+    hp = P.get("hpitch", 0.0) * D2R
+    ch, shp = math.cos(hp), math.sin(hp)
+    # flat-crowned head, long along the beak in profile, round when looking at us
+    draw.ellipse(ctx, H, (0.064 + 0.012 * abs(cyw)) * S, 0.063 * S,
+                 -P.get("hpitch", 0.0) * fac * abs(cyw))
+
+    def B(pts, rot=None):
+        out = []
+        for px, py in pts:
+            if rot is not None:
+                cx, cy, c, s = rot
+                px, py = cx + (px - cx) * c - (py - cy) * s, cy + (px - cx) * s + (py - cy) * c
+            X = px * ch - py * shp + 0.018
+            Y = px * shp + py * ch
+            out.append((H[0] + fac * k * X * S, H[1] - Y * S))
+        return out
+    _poly(ctx, B(_CROW_BEAK_UP))
+    bo = -clamp(P.get("beak", 0.0)) * 30.0 * D2R
+    _poly(ctx, B(_CROW_BEAK_LO, (_CROW_HINGE[0], _CROW_HINGE[1], math.cos(bo), math.sin(bo))))
+    hk = clamp(P.get("hackle", 0.0))
+    if hk > 0.02:      # shaggy throat feathers
+        for (ax, ay), (bx, by), (cx, cy) in (((-0.02, -0.045), (0.03, -0.065 - 0.035 * hk), (0.05, -0.035)),
+                                             ((-0.06, -0.03), (-0.02, -0.065 - 0.045 * hk), (0.0, -0.04)),
+                                             ((-0.10, -0.01), (-0.07, -0.06 - 0.035 * hk), (-0.04, -0.035))):
+            _poly(ctx, [(H[0] + fac * ax * S, H[1] - ay * S), (H[0] + fac * bx * S, H[1] - by * S),
+                        (H[0] + fac * cx * S, H[1] - cy * S)])
+
+
+def _bez3(p0, p1, p2, p3, u):
+    m = 1.0 - u
+    a, b, c, d = m * m * m, 3 * m * m * u, 3 * m * u * u, u * u * u
+    return (a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1])
+
+
+def _bez3_d(p0, p1, p2, p3, u):
+    m = 1.0 - u
+    a, b, c = 3 * m * m, 6 * m * u, 3 * u * u
+    return (a * (p1[0] - p0[0]) + b * (p2[0] - p1[0]) + c * (p3[0] - p2[0]),
+            a * (p1[1] - p0[1]) + b * (p2[1] - p1[1]) + c * (p3[1] - p2[1]))
+
+
+def _int_fall(tau, f0, f1, a, b):
+    """Phase (cycles) of a flap rate easing from f0 to f1 between tau = a and b."""
+    if tau <= a:
+        return f0 * tau
+    if tau >= b:
+        return f0 * a + (f0 + f1) * 0.5 * (b - a) + f1 * (tau - b)
+    u = (tau - a) / (b - a)
+    g = u - u ** 3 + 0.5 * u ** 4          # integral of (1 - smoothstep)
+    return f0 * a + (b - a) * (f1 * u + (f0 - f1) * g)
+
+
+class Crow:
+    """A crow on a perch (branch, roof ridge, fence stake): quick snapping head turns, tail
+    flicks, caws (bow, tail up, beak open, throat feathers raised), hop-turns; take_off()
+    flies it away, land() brings it in. Everything is keyed by absolute times.
+
+        c = Crow(620, 980, facing=-1, size=70, seed=3)        # (x, y) = the grip point
+        c.caw(1.2, n=3).turn(3.0).take_off(5.5, to=(1300, 400))
+        c.draw(f, t, ctx)
+
+    size = beak tip to tail tip (px); a real crow is ~45 cm."""
+
+    PITCH = 40.0          # perched body angle (deg, nose up)
+    LEG = 0.105           # hip height above the grip (S)
+
+    def __init__(self, x, y, facing=1, size=70.0, seed=0, el=0.45):
+        self.x, self.y = float(x), float(y)
+        self.fac = 1.0 if facing >= 0 else -1.0
+        self.S = float(size)
+        self.seed = int(seed)
+        self.el = float(el)
+        self.caws = []
+        self.turns = []
+        self.flight = None
+        self.landing = None
+
+    # ----------------------------------------------------------- actions (absolute times)
+    def caw(self, t0, n=3, gap=0.42):
+        """n caws from t0, `gap` s apart: each one a bow with the tail flicking up."""
+        self.caws.append((float(t0), int(n), float(gap)))
+        return self
+
+    def turn(self, t0):
+        """A little hop that turns the crow around on its perch (0.28 s)."""
+        self.turns.append(float(t0))
+        self.turns.sort()
+        return self
+
+    def take_off(self, t0, to, dur=1.6):
+        """Crouch, spring and flap away from the perch at t0, reaching `to` (x, y) after dur
+        seconds; it then keeps flying straight on."""
+        self.flight = (float(t0), (float(to[0]), float(to[1])), float(dur))
+        return self
+
+    def land(self, t1, frm, dur=1.5):
+        """Fly in from `frm` (x, y) and land on the perch at time t1 (flare, legs forward,
+        wings fold). Before t1 - dur the crow is at frm (keep it off screen)."""
+        self.landing = (float(t1), (float(frm[0]), float(frm[1])), float(dur))
+        return self
+
+    # ----------------------------------------------------------- state
+    def _head(self, t):
+        sd = self.seed
+        per = 0.85
+        k = math.floor(t / per)
+
+        def target(k_):
+            h = hash01(sd, k_, 3)
+            yaw = (0.0 if h < 0.36 else 40.0 if h < 0.56 else 90.0 if h < 0.74 else
+                   150.0 if h < 0.88 else -25.0)
+            return yaw, 22.0 * (hash01(sd, k_, 4) - 0.45)
+        tk = k * per + 0.6 * per * hash01(sd, k, 5)
+        if t < tk:            # still holding the previous fixation
+            return target(k - 1)
+        a, b = target(k - 1), target(k)
+        w = _ss(tk, tk + 0.07, t)          # saccade: ~70 ms, then hold
+        return a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w
+
+    def _facing(self, t):
+        fac = self.fac
+        for tt in self.turns:
+            if t >= tt + 0.14:
+                fac = -fac
+        return fac
+
+    def state(self, t):
+        """Pose dict: x, y (body centre), fac, plus the draw_bird keys."""
+        S, sd = self.S, self.seed
+        yaw, hp = self._head(t)
+        P = dict(fly=0.0, hyaw=yaw, hpitch=hp, beak=0.0, hackle=0.0, legs=1.0, spread=0.0,
+                 hx=_CROW_HEAD[0], hy=_CROW_HEAD[1], el=self.el)
+        pitch = self.PITCH + 2.0 * math.sin(2 * math.pi * t / 3.1 + sd)
+        k = math.floor(t / 2.3)
+        tf = k * 2.3 + 1.8 * hash01(sd, k, 9)
+        P["tail"] = (-10.0 + 2.0 * math.sin(t * 1.3 + sd)
+                     + 16.0 * math.sin(math.pi * clamp((t - tf) / 0.22)) * (hash01(sd, k, 10) < 0.6))
+        crouch, hop = 0.0, 0.0
+        fac = self._facing(t)
+        for tt in self.turns:
+            u = (t - tt) / 0.28
+            if 0.0 <= u <= 1.0:
+                hop = math.sin(math.pi * u)
+                crouch = max(crouch, 0.6 * math.sin(math.pi * min(1.0, u * 3.0)) * (u < 0.34))
+                P["hyaw"] = 0.0
+        for t0, n, gap in self.caws:
+            for i in range(n):
+                tc = t0 + i * gap
+                u = (t - tc) / 0.40
+                if -0.35 <= u <= 1.0:
+                    pre = _ss(-0.35, 0.0, u) * (1.0 - _ss(0.0, 0.15, u))      # rise
+                    bow = math.sin(math.pi * clamp(u)) if u > 0 else 0.0
+                    pitch += 6.0 * pre - 24.0 * bow
+                    P["hx"] += 0.035 * bow
+                    P["hy"] += 0.012 * pre - 0.035 * bow
+                    P["hpitch"] = (1.0 - max(pre, bow)) * P["hpitch"] + 8.0 * bow - 6.0 * pre
+                    P["hyaw"] *= 1.0 - max(pre, bow)
+                    P["beak"] = max(P["beak"], _ss(0.05, 0.3, u) * (1.0 - _ss(0.55, 0.9, u)))
+                    P["hackle"] = max(P["hackle"], bow)
+                    P["tail"] += 30.0 * bow
+                    P["spread"] = max(P["spread"], 0.6 * bow)
+        hip = (self.x - fac * 0.01 * S, self.y - (self.LEG - 0.04 * crouch + 0.10 * hop) * S)
+        P["grip"] = (self.x, self.y - 0.10 * hop * S) if hop > 0.05 else (self.x, self.y)
+        hy_ = -_CROW_HIP[1]
+        bx = hip[0] + fac * hy_ * math.sin(pitch * D2R) * S
+        by = hip[1] - hy_ * math.cos(pitch * D2R) * S
+        # ------------------------------------------------ landing
+        if self.landing is not None:
+            t1, frm, dur = self.landing
+            tau = t1 - t            # time left before touchdown
+            if tau > 0.0:
+                p1 = (bx, by)
+                dxl = p1[0] - frm[0]
+                D = math.hypot(dxl, p1[1] - frm[1]) or 1.0
+                dirx = 1.0 if dxl >= 0 else -1.0
+                c1 = (frm[0] + 0.35 * dxl, frm[1] + 0.35 * (p1[1] - frm[1]))
+                c2 = (p1[0] - dirx * min(0.25 * abs(dxl), 3.0 * S), p1[1] - min(0.2 * D, 2.0 * S))
+                s = clamp(1.0 - tau / dur)
+                u = 1.0 - (1.0 - s) ** 1.6
+                bx, by = _bez3(frm, c1, c2, p1, u)
+                vx, vy = _bez3_d(frm, c1, c2, p1, u)
+                fac = dirx
+                flare = _ss(0.40, 0.0, tau)
+                ph = _int_fall(t - (t1 - dur), 3.8, 6.0, dur - 0.45, dur)
+                glide = 0.6 * _ss(0.6, 1.0, noise1(t * 0.5, sd + 23)) * (1.0 - flare) + 0.25 * flare
+                climb = math.degrees(math.atan2(-vy, abs(vx) + 1e-6))
+                P.update(fly=1.0, phase=ph, glide=glide, legs=_ss(0.6, 0.15, tau), grip=None,
+                         hyaw=0.0, hpitch=0.0, beak=0.0, hackle=0.0, hx=0.25, hy=0.085,
+                         tail=-14.0 * flare + 4.0, spread=0.55 + 0.45 * flare)
+                pitch = clamp(0.5 * climb, -30.0, 30.0) * (1 - flare) + 40.0 * flare
+                pitch -= 5.0 * math.sin(2 * math.pi * ph) * (1 - flare)
+                by -= 0.04 * S * math.sin(2 * math.pi * ph) * (1 - flare)
+            elif tau > -0.3:       # touchdown: wings fold, a bob
+                w = clamp(-tau / 0.3)
+                P["fly"] = 1.0 - _s01(w)
+                P["phi"], P["fold"] = 0.55 * (1.0 - w), 0.3 * w
+                by += 0.03 * S * math.sin(math.pi * w)
+                pitch += 14.0 * (1.0 - w)
+        # ------------------------------------------------ take-off
+        if self.flight is not None:
+            t0, to, dur = self.flight
+            tau = t - t0
+            if -0.18 < tau < 0.0:          # crouch to spring, wings lifting
+                c = _s01((tau + 0.18) / 0.18)
+                by += 0.04 * c * S
+                pitch -= 14.0 * c
+                P["tail"] += 18.0 * c
+                P["hyaw"] *= 1.0 - c
+                P["hpitch"] *= 1.0 - c
+                P["fly"] = 0.3 * _s01((tau + 0.08) / 0.08)
+                P["phase"], P["glide"] = -0.25, 0.0
+            elif tau >= 0.0:
+                p0 = (bx, by + 0.04 * S)
+                dx, dy = to[0] - p0[0], to[1] - p0[1]
+                D = math.hypot(dx, dy) or 1.0
+                dirx = 1.0 if dx >= 0 else -1.0
+                c1 = (p0[0] + dirx * min(0.25 * abs(dx), 4.0 * S), p0[1] - min(0.25 * D, 2.5 * S))
+                c2 = (to[0] - 0.3 * dx, to[1] - 0.3 * dy)
+                s = clamp(tau / dur)
+                u = s * (0.35 + 0.65 * s)            # a spring off the perch, then accelerating
+                bx, by = _bez3(p0, c1, c2, to, u)
+                vx, vy = _bez3_d(p0, c1, c2, to, max(u, 0.02))
+                if tau > dur:
+                    sp_ = 1.65 / dur
+                    bx += vx * sp_ * (tau - dur)
+                    by += vy * sp_ * (tau - dur)
+                fac = dirx
+                # the wings open rising, then the first downstroke
+                ph = _int_fall(tau, 5.6, 3.9, 0.2, 1.4) - 0.25
+                glide = 0.8 * _ss(0.55, 0.9, noise1(t * 0.45, sd + 21)) * _ss(1.2, 1.8, tau)
+                op = 0.3 + 0.7 * _s01(tau / 0.12)
+                climb = math.degrees(math.atan2(-vy, abs(vx) + 1e-6))
+                P.update(fly=op, phase=ph, glide=glide, legs=1.0 - _ss(0.05, 0.4, tau), grip=None,
+                         hyaw=0.0, hpitch=0.0, beak=0.0, hackle=0.0, hx=0.25, hy=0.085,
+                         tail=4.0 - 18.0 * (1.0 - op), spread=0.55)
+                w0 = _s01(tau / 0.3)
+                pitch = clamp(0.5 * climb, -30.0, 30.0) * w0 + (self.PITCH - 14.0) * (1.0 - w0)
+                pitch -= 5.0 * math.sin(2 * math.pi * ph) * (1.0 - glide) * w0
+                by -= 0.04 * S * math.sin(2 * math.pi * ph) * (1.0 - glide) * w0
+        P["pitch"] = pitch
+        P["x"], P["y"], P["fac"] = bx, by, fac
+        return P
+
+    def draw(self, f, t, ctx=None, color=None):
+        """Draw at time t on ctx (default f.ctx). Returns the pose dict."""
+        ctx = ctx if ctx is not None else f.ctx
+        ink = color or (f.pal.ink if f is not None else (0.0, 0.0, 0.0))
+        P = self.state(t)
+        draw_bird(ctx, P["x"], P["y"], self.S, P["fac"], P)
+        draw.fill(ctx, ink)
+        return P
+
+
+class CrowFlock:
+    """A small flock flapping along a path (closed form): each bird keeps its own place in
+    the loose group, its own wingbeat and glides, and drifts slowly.
+
+        flock = CrowFlock([(0, -200, 500), (6, 1300, 260)], n=7, seed=2, size=46)
+        flock.draw(f, t, ctx)
+
+    path: keyframes [(t, x, y), ...] or a function t -> (x, y) for the flock centre.
+    el: view elevation (+ from above: wings cross as an X; - from below). depth_fade 0..1
+    tints the smaller (farther) birds toward the fog."""
+
+    def __init__(self, path, n=7, seed=0, size=46.0, spread=(260.0, 110.0), el=0.45,
+                 depth_fade=0.0):
+        self.path = _path_fn(path)
+        self.n = int(n)
+        self.S = float(size)
+        self.el = float(el)
+        self.depth_fade = float(depth_fade)
+        rng = np.random.default_rng(int(seed) * 31 + 5)
+        self.off = rng.normal(0.0, 0.5, (self.n, 2)) * np.array(spread, float)
+        self.scale = rng.uniform(0.78, 1.15, self.n)
+        self.freq = rng.uniform(3.4, 4.4, self.n)
+        self.ph = rng.uniform(0.0, 1.0, self.n)
+        self.seed = int(seed)
+
+    def birds(self, t):
+        """[(x, y, size, fac, P), ...] far (small) birds first."""
+        x0, y0 = self.path(t - 0.05)
+        x1, y1 = self.path(t + 0.05)
+        fac = 1.0 if x1 >= x0 else -1.0
+        cx, cy = self.path(t)
+        climb = math.degrees(math.atan2(-(y1 - y0), abs(x1 - x0) + 1e-6))
+        out = []
+        for i in np.argsort(self.scale):
+            sd = self.seed * 100 + int(i)
+            ox = self.off[i, 0] + self.S * noise1(t * 0.3, sd + 3)
+            oy = self.off[i, 1] + 0.8 * self.S * noise1(t * 0.35, sd + 4)
+            glide = clamp(1.4 * (noise1(t * 0.5, sd + 5) - 0.25))
+            ph = self.freq[i] * t + self.ph[i]
+            s = self.S * self.scale[i]
+            bob = 0.05 * s * math.sin(2 * math.pi * ph) * (1.0 - glide)
+            P = dict(fly=1.0, phase=ph, glide=glide, legs=0.0, tail=4.0, spread=0.55, el=self.el,
+                     pitch=clamp(0.5 * climb, -30, 30) - 5.0 * math.sin(2 * math.pi * ph) * (1 - glide),
+                     hx=0.25, hy=0.085)
+            out.append((cx + ox, cy + oy - bob, s, fac, P))
+        return out
+
+    def draw(self, f, t, ctx=None, color=None):
+        ctx = ctx if ctx is not None else f.ctx
+        pal = f.pal if f is not None else None
+        ink = color or (pal.ink if pal is not None else (0.0, 0.0, 0.0))
+        for x, y, s, fac, P in self.birds(t):
+            draw_bird(ctx, x, y, s, fac, P)
+            col = ink
+            if self.depth_fade > 0 and pal is not None:
+                col = lerp(ink, pal.fog_at(0.7), self.depth_fade * clamp((1.15 * self.S - s) / (0.4 * self.S)))
+            draw.fill(ctx, col)
+
+
+# ============================================================================= moths
+class Moths:
+    """Moths around a lamp: tiny erratic flappers that circle, jitter and now and then dive
+    at the bulb; the ones near the light are lit (and glow on f.emit()).
+
+        moths = Moths(lamp=(530, 610), n=12, seed=1, radius=90)
+        moths.draw(f, t, ctx)
+
+    lamp: (x, y) or a function t -> (x, y). size: wing half-span (px)."""
+
+    def __init__(self, lamp, n=12, seed=0, radius=90.0, size=5.0, lit=1.0):
+        self.lamp = lamp
+        self.n = int(n)
+        self.R = float(radius)
+        self.size = float(size)
+        self.lit = float(lit)
+        rng = np.random.default_rng(int(seed) * 13 + 3)
+        self.r0 = rng.uniform(0.35, 1.2, self.n)
+        self.w = rng.uniform(1.6, 3.6, self.n) * np.where(rng.uniform(0, 1, self.n) < 0.5, -1.0, 1.0)
+        self.ph = rng.uniform(0.0, 2 * math.pi, (self.n, 4))
+        self.tilt = rng.uniform(0.3, 0.8, self.n)
+        self.sz = rng.uniform(0.7, 1.3, self.n)
+        self.seed = int(seed)
+
+    def positions(self, t):
+        """[(x, y, distance to the lamp), ...]"""
+        lx, ly = self.lamp(t) if callable(self.lamp) else self.lamp
+        R = self.R
+        out = []
+        for i in range(self.n):
+            sd = self.seed * 50 + i
+            r = R * self.r0[i] * (1.0 + 0.4 * noise1(t * 0.8, sd + 1))
+            # a dive at the bulb now and then
+            k = math.floor(t / 2.2 + self.ph[i, 3])
+            td = (k - self.ph[i, 3]) * 2.2 + 1.4 * hash01(sd, k, 1)
+            u = (t - td) / 0.5
+            if 0.0 <= u <= 1.0 and hash01(sd, k, 2) < 0.5:
+                r *= 1.0 - 0.8 * math.sin(math.pi * u) ** 2
+            a = self.w[i] * t + self.ph[i, 0] + 1.2 * noise1(t * 1.5, sd + 2)
+            x = lx + r * math.cos(a) + 0.10 * R * noise1(t * 7.0, sd + 3)
+            y = (ly + r * math.sin(a) * self.tilt[i] + 0.10 * R * noise1(t * 6.3, sd + 4)
+                 + 0.15 * R * math.sin(t * 1.1 + self.ph[i, 1]))
+            out.append((x, y, math.hypot(x - lx, y - ly)))
+        return out
+
+    def _shape(self, ctx, i, x, y, t):
+        s = self.size * self.sz[i]
+        flap = abs(math.sin(2 * math.pi * 11.0 * t + self.ph[i, 2]))
+        w = s * (0.35 + 0.75 * flap)
+        up = 0.5 * s * (flap - 0.4)
+        ctx.move_to(x - w, y - up)
+        ctx.line_to(x - 0.15 * s, y + 0.35 * s)
+        ctx.line_to(x + 0.15 * s, y + 0.35 * s)
+        ctx.line_to(x + w, y - up)
+        ctx.line_to(x, y - 0.25 * s)
+        ctx.close_path()
+
+    def draw(self, f, t, ctx=None, color=None):
+        """Dark flappers away from the lamp; near it they turn into bright specks (drawn on
+        f.emit() too, so they stay visible over the lamp's glow)."""
+        ctx = ctx if ctx is not None else f.ctx
+        pal = f.pal if f is not None else None
+        ink = color or (pal.ink if pal is not None else (0.0, 0.0, 0.0))
+        light = getattr(pal, "lamp_hot", None) or getattr(pal, "light", (1.0, 0.9, 0.7))
+        lit = []
+        for i, (x, y, d) in enumerate(self.positions(t)):
+            k = clamp(1.25 - d / self.R) * self.lit if pal is not None else 0.0
+            self._shape(ctx, i, x, y, t)
+            draw.fill(ctx, lerp(ink, light, min(1.0, k)) if k > 0.02 else ink)
+            if k > 0.02:
+                lit.append((i, x, y, min(1.0, k)))
+        if lit and f is not None:
+            with f.emit() as G:
+                for i, x, y, k in lit:
+                    self._shape(G, i, x, y, t)
+                    draw.fill(G, light, 0.85 * k)
+                    draw.glow_disc(G, (x, y), self.size * self.sz[i] * 3.0, light, 0.35 * k)
+
+
+# ============================================================================= cat
+_CAT_PR = dict(
+    chord=1.0,
+    lw_f=0.07, lw_h=0.08,
+    scap_piv=(0.0, -0.05), scap=0.27, scap0=24.0, scap_k=0.40,
+    hum=0.21, rad=0.31, mc=0.085,
+    hipj=(-0.06, -0.17), fem=0.29, tib=0.31, mt=0.18,
+    paw=0.095,
+    toe_f=0.05, toe_h=-0.03,
+    neck=0.20, neck_base=(1.05, -0.12),
+    head=0.46,
+    tail=1.12,
+)
+
+_CAT_STAND = dict(_WOLF_STAND)
+_CAT_STAND.update(hf=0.84, hh=0.88, chord=1.0, arch=0.015, neck=40.0, head=-24.0, ears=0.5,
+                  tail=-45.0, tcurve=40.0, thook=-70.0, tsway=1.0, thang=0.0, flick=0.0)
+
+_CAT_GAIT = {
+    "walk": dict(g=0.0, v=1.15, L=1.05, duty=0.62, lift_f=0.11, lift_h=0.09, bob=0.008, flex=0.0,
+                 nod=2.0, cmin=0.5, acc=1.8, dec=2.0, swk_f=0.1, swk_h=0.05, over=0.03, lp_f=0.9,
+                 lp_h=1.0, brake_L=0.15, tsway=1.0, tau="walk",
+                 pose=dict(hf=0.80, hh=0.84, neck=30.0, head=-26.0, tail=30.0, tcurve=30.0,
+                           thook=-45.0, ears=0.5)),
+    "stalk": dict(g=0.0, k=1.0, v=0.40, L=0.75, duty=0.80, lift_f=0.09, lift_h=0.05, bob=0.003,
+                  flex=0.0, nod=0.8, cmin=0.30, acc=0.8, dec=0.9, swk_f=0.0, swk_h=0.0, over=0.03,
+                  lp_f=0.9, lp_h=1.0, brake_L=0.1, tsway=0.3, tau="walk",
+                  pose=dict(hf=0.60, hh=0.66, neck=-2.0, head=-12.0, tail=-8.0, tcurve=10.0,
+                            thook=-20.0, ears=0.9, arch=0.0)),
+    "trot": dict(g=1.0, v=2.4, L=1.6, duty=0.42, lift_f=0.16, lift_h=0.13, bob=-0.015, flex=0.0,
+                 nod=0.0, cmin=0.9, acc=3.0, dec=2.6, swk_f=0.35, swk_h=0.25, over=0.06, lp_f=0.8,
+                 lp_h=1.1, brake_L=0.18, tsway=0.6, tau="trot",
+                 pose=dict(hf=0.84, hh=0.875, neck=24.0, head=-20.0, tail=25.0, tcurve=30.0,
+                           thook=-20.0, ears=0.3)),
+    "gallop": dict(g=2.0, v=6.0, L=3.0, duty=0.26, lift_f=0.24, lift_h=0.20, bob=-0.05, flex=0.22,
+                   nod=0.0, cmin=1.2, acc=5.0, dec=4.0, swk_f=0.55, swk_h=-0.35, over=0.14, lp_f=0.7,
+                   lp_h=1.5, brake_L=0.18, tsway=0.3, tau="gallop",
+                   pose=dict(hf=0.78, hh=0.80, neck=10.0, head=-14.0, tail=5.0, tcurve=20.0,
+                             thook=-10.0, ears=-0.2)),
+}
+
+
+class _CSit(_QSit):
+    """Cat sit: upright chest, haunches down, hind paws tucked beside the front paws, tail
+    wrapped forward around the paws along the sill (tail='wrap') or hanging over its edge
+    (tail='hang'). The tail tip keeps flicking."""
+    T_IN = 0.8
+    STEP_LIFT = 0.03
+
+    def __init__(self, A, t0, state, dur=2.0, fade=0.25, base=None, look=0.0, tail="wrap", **kw):
+        self.tail_mode = tail
+        _QSit.__init__(self, A, t0, state, dur, fade, base, look=look, **kw)
+
+    def _targets(self):
+        A, S, fac, PR = self.A, self.A.S, self.fac, self.A.PR
+        ch = 0.50
+        K = dict(hf=0.90, hh=0.22, chord=ch, arch=0.12, neck=74.0, head=-12.0, ears=0.55,
+                 tsway=0.8, sit=1.0, hturn=self.look)
+        if self.tail_mode == "hang":
+            K.update(tail=-92.0, tcurve=-15.0, thook=45.0, thang=1.0)
+        else:
+            K.update(tail=-40.0, tcurve=125.0, thook=55.0, thang=0.0)
+        xf = self._front_x()
+        x1 = xf - fac * (0.5 * ch * PR["chord"] + 0.13) * S
+        legs1 = {}
+        for k in LEGS:
+            l0 = self.legs0[k]
+            if _FRONT[k]:
+                xx = xf + fac * (0.01 if k == "LF" else -0.01) * S
+                legs1[k] = [xx, A.ground(xx), l0[2], 0.0, 0.0, 0.0, 1.0]
+            else:
+                xx = xf - fac * (0.10 + (0.015 if k == "LH" else -0.015)) * S
+                legs1[k] = [xx, A.ground(xx), l0[2] * 1.4, 0.0, 0.0, 80.0, 1.0]
+        sched = {"LH": (0.2, 0.62), "RH": (0.3, 0.72), "LF": (0.0, 0.45), "RF": (0.05, 0.5)}
+        stage = {"x": (0.1, 0.85), "hh": (0.1, 0.95), "chord": (0.1, 0.9), "hf": (0.15, 0.9),
+                 "neck": (0.0, 0.7), "head": (0.0, 0.7), "tail": (0.3, 1.0), "tcurve": (0.4, 1.0),
+                 "thook": (0.4, 1.0)}
+        return K, x1, legs1, sched, stage
+
+
+class _CMeow(_QHead):
+    """Meow: the head lifts, the mouth opens and closes, ears ease back."""
+    kind = "meow"
+    FIN, FOUT = 0.15, 0.25
+
+    def _act(self, P, t, e):
+        u = clamp((t - self.t0) / max(self.dur, 0.2))
+        op = _ss(0.05, 0.35, u) * (1.0 - _ss(0.65, 0.95, u))
+        P["head"] += 12.0 * e
+        P["neck"] += 6.0 * e
+        P["jaw"] = max(P["jaw"], e * 0.9 * op)
+        P["ears"] += (0.2 - P["ears"]) * e * 0.6
+
+
+class _CFlick(_QHead):
+    """Tail flick: n quick twitches of the tail tip (overlay it on a narration word)."""
+    kind = "flick"
+    FIN, FOUT = 0.05, 0.15
+
+    def _act(self, P, t, e):
+        n = max(1, int(self.kw.get("n", 2)))
+        u = clamp((t - self.t0) / max(self.dur, 0.1))
+        P["flick"] += e * 55.0 * math.sin(2 * math.pi * n * u) * (1.0 - 0.4 * u)
+
+
+class Cat(Quadruped):
+    """A house cat (SHADOW PLAY window 12): sits on the sill with a living tail, walks it,
+    turns, looks round, meows. Same timeline API as the Wolf.
+
+        cat = Cat(x=540, ground=sill_y, facing=-1, size=60, seed=4)   # size = shoulder height
+        cat.sit(3.0).look(1.2, turn=70).stand(0.4).walk(to=700).turn(0.8).sit(4.0)
+        cat.overlay('flick', 2.79, 0.6)        # the tail flicks on the narration word
+        cat.draw(f, t, ctx)
+
+    Stance: the cat's ground is the sill top (a constant y or a function of x)."""
+
+    PR = _CAT_PR
+    STAND = _CAT_STAND
+    GAIT = _CAT_GAIT
+    BREATH = 2.2
+    old = 0.0
+
+    def __init__(self, x, ground, facing=1, size=60.0, seed=4):
+        Quadruped.__init__(self, x, ground, facing, size, seed)
+
+    def sit(self, dur=2.0, look=0.0, tail="wrap"):
+        """Sit: chest up, hind paws tucked, tail around the paws ('wrap') or over the edge
+        of the sill ('hang'). look: head turn toward the camera (deg)."""
+        return self._add("sit", dur=dur, look=look, tail=tail)
+
+    def look(self, dur=1.5, turn=60.0, head=None):
+        """Turn the head toward the camera by `turn` deg (180 = look back over the back)."""
+        return self._add("look", dur=dur, turn=turn, head=head)
+
+    def meow(self, dur=0.8):
+        """Lift the head and open the mouth (head act over the body action)."""
+        return self._add("meow", dur=dur)
+
+    def flick(self, dur=0.6, n=2):
+        """n quick twitches of the tail tip (head act; or overlay('flick', t0, dur))."""
+        return self._add("flick", dur=dur, n=n)
+
+    def eyes(self, dur=1.0, open=1.0):
+        """Open / close the eyes (only shows with draw(eyes=True))."""
+        return self._add("eyes", dur=dur, open=open)
+
+    def _idle(self, P, t, t0, moving=0.0, amp=1.0, period=None):
+        Quadruped._idle(self, P, t, t0, moving, amp, period)
+        sd = self.seed
+        still = 1.0 - moving
+        sw = P.get("tsway", 1.0)
+        P["thook"] = P.get("thook", 0.0) + 16.0 * sw * fbm1(t * 0.35, sd + 31)
+        k = math.floor(t / 2.6)
+        for kk in (k - 1, k):
+            tf = kk * 2.6 + 2.0 * hash01(sd, kk, 33)
+            u = (t - tf) / 0.5
+            if 0.0 <= u <= 1.0 and hash01(sd, kk, 34) < 0.75:
+                P["flick"] = P.get("flick", 0.0) + 32.0 * sw * still * math.sin(2 * math.pi * u) * math.sin(math.pi * u)
+
+    def draw(self, f, t, ctx=None, color=None, eyes=False, far_shade=0.0, whiskers=True):
+        """Draw the cat at time t on ctx (default f.ctx). eyes=True adds glowing eyes (off for
+        a backlit window cat); whiskers are drawn when the head is big enough."""
+        P = self.state(t)
+        return draw_cat(f, P, self, ctx, color=color, eyes=eyes, far_shade=far_shade,
+                        whiskers=whiskers)
+
+
+# ----------------------------------------------------------------------------- cat drawing
+_CAT_TORSO = [
+    (-0.17, 0.03), (0.0, 0.075), (0.25, 0.07), (0.50, 0.06), (0.75, 0.065), (0.95, 0.08),
+    (1.08, 0.055),                                                   # top line
+    (1.17, -0.08), (1.17, -0.24), (1.07, -0.36),                     # chest
+    (0.92, -0.41), (0.72, -0.39), (0.50, -0.35), (0.30, -0.36), (0.15, -0.38), (0.02, -0.35),
+    (-0.10, -0.28), (-0.19, -0.16), (-0.21, -0.04),                  # belly + pouch, haunch
+]
+_CAT_FORE = [(1, 0.0, 0.09, 0.08), (1, 0.55, 0.075, 0.075), (2, 0.0, 0.050, 0.070),
+             (2, 0.15, 0.048, 0.050), (2, 0.5, 0.040, 0.036), (2, 0.9, 0.032, 0.030),
+             (3, 0.0, 0.031, 0.034), (3, 0.4, 0.028, 0.027), (3, 1.0, 0.028, 0.026)]
+_CAT_HIND = [(0, -0.15, 0.10, 0.12), (0, 0.30, 0.13, 0.155), (0, 0.72, 0.10, 0.13),
+             (1, 0.0, 0.055, 0.105), (1, 0.30, 0.048, 0.080), (1, 0.66, 0.036, 0.048),
+             (1, 0.93, 0.030, 0.050), (2, 0.0, 0.028, 0.030), (2, 0.25, 0.026, 0.026),
+             (2, 1.0, 0.026, 0.025)]
+_CAT_LEG_R = {True: (0.0, 0.07, 0.042, 0.03, 0.03), False: (0.10, 0.055, 0.03, 0.028)}
+# paw relative to the toe tip, in wolf-paw units (scaled by PR['paw'] / 0.115)
+_CAT_PAW = [(0.006, 0.006), (0.0, 0.028), (-0.018, 0.046), (-0.045, 0.054), (-0.075, 0.052),
+            (-0.098, 0.038), (-0.104, 0.016), (-0.09, 0.0), (-0.045, -0.003)]
+# head, in head lengths Lh: x along the muzzle from the head joint, y up
+_CAT_HEAD = [(0.92, 0.06), (0.90, 0.13), (0.84, 0.20), (0.74, 0.32), (0.60, 0.43), (0.42, 0.48),
+             (0.22, 0.44), (0.06, 0.33), (-0.03, 0.14), (-0.04, -0.04), (0.06, -0.20),
+             (0.24, -0.29), (0.44, -0.27), (0.60, -0.18), (0.76, -0.11), (0.86, -0.07),
+             (0.91, 0.0)]
+_CAT_JAW = [(0.52, -0.08), (0.76, -0.08), (0.84, -0.08), (0.84, -0.12), (0.76, -0.17),
+            (0.62, -0.21), (0.48, -0.20)]
+_CAT_HINGE = (0.52, -0.10)
+_CAT_EAR = [(0.70, 0.36, 0.12), (0.50, 0.93, 0.28), (0.26, 0.40, 0.34)]   # (x, y, lateral)
+_CAT_EAR_PIV = (0.48, 0.40)
+_CAT_EYE = (0.70, 0.20, 0.17)
+
+
+def _cat_pts(R, pts, Lh, side=1.0, rot=None):
+    """Head-local (x, y[, l]) points in Lh units -> world. The lateral coordinate l (ears,
+    eyes, whiskers) spreads apart as the head turns toward the camera; side flips it."""
+    H0 = R["H0"]
+    hc, hs, ch, sh = R["hc"], R["hs"], R["ch"], R["sh"]
+    hx0 = R["rx"] + H0[0] * R["cF"]
+    hy0 = R["ry"] - H0[1]
+    out = []
+    for p in pts:
+        x, y = p[0], p[1]
+        l = p[2] * side if len(p) > 2 else 0.0
+        if rot is not None:
+            cx, cy, c, s = rot
+            x, y = cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c
+        f_ = (x * hc - y * hs) * Lh
+        u_ = (x * hs + y * hc) * Lh
+        out.append((hx0 + f_ * ch + l * Lh * sh, hy0 - u_))
+    return out
+
+
+def _q_leg(ctx, L, S, pr_fn, spec, paw, ps, leg_r, thin=1.0):
+    """One quadruped leg (outline + paw + lateral capsules when yawed) as sub-paths."""
+    js = L["j"]
+    lg, lt = L["lg"], L["lt"]
+    u0, u1 = js[0][1], js[-1][1]
+    span = (u0 - u1) or 1.0
+    loc = _limb_outline(js, spec, S, thin)
+    _smooth(ctx, [pr_fn(p, lg + (lt - lg) * clamp((u0 - p[1]) / span) ** 2) for p in loc], 0.5)
+    toe = js[-1]
+    ca, sa = math.cos(L["pa"] * D2R), math.sin(L["pa"] * D2R)
+    pw = []
+    for a_, b_ in paw:
+        a_ *= S * ps
+        b_ *= S * ps
+        pw.append(pr_fn((toe[0] + a_ * ca + b_ * sa, toe[1] - a_ * sa + b_ * ca), lt))
+    _poly(ctx, pw)
+    sa_ = abs(L["s"])
+    if sa_ > 0.04:
+        rr = leg_r[L["front"]]
+        w = [pr_fn(p, lg + (lt - lg) * clamp((u0 - p[1]) / span) ** 2) for p in js]
+        for i in range(len(js) - 1):
+            r = rr[i] * S * thin * sa_
+            if r > 0.5:
+                draw.capsule(ctx, w[i], w[i + 1], r * 1.1, r)
+
+
+def draw_cat(f, P, A, ctx=None, color=None, eyes=False, far_shade=0.0, whiskers=True):
+    """Draw a cat pose dict P (from Cat.state) on ctx. Returns the solved rig."""
+    ctx = ctx if ctx is not None else f.ctx
+    pal = f.pal if f is not None else None
+    ink = color or (pal.ink if pal is not None else (0.0, 0.0, 0.0))
+    R = solve_quadruped(A, P)
+    S, PR = A.S, A.PR
+    t = P["t"]
+    prM, prF, prH = _proj_fn(R, "M"), _proj_fn(R, "F"), _proj_fn(R, "H")
+    body = R["body"]
+    ps = PR["paw"] / 0.115
+    order = sorted(LEGS, key=lambda k: P["legs"][k][2])
+    far_col = lerp(ink, pal.fog_at(0.5), clamp(far_shade)) if (far_shade > 0 and pal is not None) else ink
+    for i, k in enumerate(order):
+        L = R["legs"][k]
+        _q_leg(ctx, L, S, prF if L["front"] else prH, _CAT_FORE if L["front"] else _CAT_HIND,
+               _CAT_PAW, ps, _CAT_LEG_R)
+        draw.fill(ctx, far_col if i < 2 else ink)
+    # ---------------------------------------------------------------- torso
+    bk = 1.0 + 0.02 * P.get("breath", 0.0)
+    tor = [body(s_, o_ * (bk if 9 <= i <= 13 else 1.0)) for i, (s_, o_) in enumerate(_CAT_TORSO)]
+    _smooth(ctx, [prM(p) for p in tor], 0.5)
+    sit = clamp(P.get("sit", 0.0))
+    if sit > 0.05:             # sitting: the folded thigh rounds out the base
+        for k in ("LH", "RH"):
+            js = R["legs"][k]["j"]
+            hp_, kn_, hk_ = js[0], js[1], js[2]
+            cx_ = (hp_[0] + kn_[0] + hk_[0]) / 3.0
+            cy_ = (hp_[1] + kn_[1] + hk_[1]) / 3.0 + 0.02 * S
+            rx_ = max(abs(hp_[0] - cx_), abs(kn_[0] - cx_), abs(hk_[0] - cx_)) + 0.05 * S
+            ry_ = max(abs(hp_[1] - cy_), abs(kn_[1] - cy_), abs(hk_[1] - cy_)) + 0.03 * S
+            draw.ellipse(ctx, prH((cx_, cy_), R["legs"][k]["lg"]), rx_ * sit, ry_ * sit)
+    side_w = max(abs(R["sF"]), abs(R["sH"]))
+    if side_w > 0.03:          # lateral mass while turned
+        for s_, up, dn, wd, sy in ((1.0, 0.07, -0.33, 0.17, "F"), (0.55, 0.05, -0.27, 0.16, "F"),
+                                   (0.05, 0.06, -0.25, 0.17, "H")):
+            pa_, pb_ = body(s_, up), body(s_, dn)
+            ctr = prM(((pa_[0] + pb_[0]) * 0.5, (pa_[1] + pb_[1]) * 0.5))
+            draw.ellipse(ctx, ctr, wd * S * abs(R["s" + sy]) + 0.5, abs(pa_[1] - pb_[1]) * 0.5)
+    # ---------------------------------------------------------------- neck
+    nb, H0 = R["neck0"], R["H0"]
+    draw.capsule(ctx, prF(nb), prF(H0), 0.17 * S, 0.115 * S)
+    # ---------------------------------------------------------------- head
+    Lh = PR["head"] * S
+    _smooth(ctx, _cat_pts(R, _CAT_HEAD, Lh), 0.45)
+    ja = -clamp(P.get("jaw", 0.0)) * 32.0 * D2R
+    _smooth(ctx, _cat_pts(R, _CAT_JAW, Lh, rot=(_CAT_HINGE[0], _CAT_HINGE[1], math.cos(ja),
+                                                 math.sin(ja))), 0.45)
+    sw = abs(R["sh"])
+    if sw > 0.03:              # the face widens as it turns to the camera
+        draw.ellipse(ctx, _cat_pts(R, [(0.45, 0.12)], Lh)[0], 0.50 * Lh * sw + 0.5, 0.34 * Lh)
+        draw.ellipse(ctx, _cat_pts(R, [(0.45, -0.10)], Lh)[0], 0.56 * Lh * sw + 0.5, 0.19 * Lh)
+        draw.ellipse(ctx, _cat_pts(R, [(0.76, -0.02)], Lh)[0], 0.18 * Lh * sw + 0.5, 0.12 * Lh)
+    ea = -(P.get("ears", 0.5) - 0.5) * 26.0 * D2R
+    erot = (_CAT_EAR_PIV[0], _CAT_EAR_PIV[1], math.cos(ea), math.sin(ea))
+    near = -1.0 if R["cF"] >= 0 else 1.0
+    pk = 0.09 * (1.0 - sw)              # in profile the far ear peeks out ahead of the near one
+    for side in (-near, near):
+        e_ = _CAT_EAR if side == near else [(x + pk, y - 0.3 * pk, l) for x, y, l in _CAT_EAR]
+        _poly(ctx, _cat_pts(R, e_, Lh, side=side, rot=erot))
+    # ---------------------------------------------------------------- tail
+    tb = body(-0.12, 0.0)
+    _, dsp = R["spine"](0.0)
+    base_ang = math.atan2(-dsp[1], -dsp[0])
+    dba = (base_ang - math.pi + math.pi) % (2 * math.pi) - math.pi
+    a0 = math.pi - P["tail"] * D2R + dba * 0.5
+    nseg = 14
+    Lt = PR["tail"] * S
+    seg = Lt / nseg
+    sway = P.get("tsway", 1.0)
+    ph = hash01(A.seed, 41)
+    hang = clamp(P.get("thang", 0.0))
+    gu = R["ry"]
+    pts, lat = [tb], [0.0]
+    run, om = 0.0, 0.0
+    wrap = clamp(P.get("sit", 0.0)) * (1.0 - hang)
+    nsg = -1.0 if R["cH"] >= 0 else 1.0          # lateral sign of the near side
+    for i in range(nseg):
+        v = (i + 0.5) / nseg
+        a_i = (a0 + P.get("tcurve", 0.0) * D2R * v + P.get("thook", 0.0) * D2R * _ss(0.55, 1.0, v)
+               + P.get("flick", 0.0) * D2R * _ss(0.45, 1.0, v)
+               + sway * 7.0 * D2R * math.sin(2 * math.pi * (t * 0.3 + ph) - 2.2 * v) * v)
+        p = pts[-1]
+        hx_, hy_ = math.cos(a_i) * seg, math.sin(a_i) * seg
+        # once wrapping, the horizontal part of the tail turns toward the camera side
+        q = (p[0] + hx_ * math.cos(om), p[1] + hy_)
+        l_ = lat[-1] + abs(hx_) * math.sin(om) * nsg
+        ug = gu - A.ground(R["rx"] + q[0] * R["cH"]) + 0.05 * S
+        if hang < 0.5 and q[1] < ug:       # lying on the sill: run along it (and around the paws)
+            dirx = 1.0 if (hx_ >= 0 or wrap > 0.5) else -1.0
+            run += seg
+            om = min(0.9, max(0.0, run - 0.35 * S) / (0.3 * S)) * wrap
+            q = (p[0] + dirx * 0.985 * seg * math.cos(om), ug)
+            l_ = lat[-1] + 0.985 * seg * math.sin(om) * nsg
+        pts.append(q)
+        lat.append(l_)
+    wpts = [prH(p, l_) for p, l_ in zip(pts, lat)]
+    wid = []
+    for i in range(len(wpts)):
+        v = i / (len(wpts) - 1)
+        wid.append((0.105 - 0.03 * v) * S * (1.0 - 0.35 * _ss(0.85, 1.0, v)))
+    _smooth(ctx, draw.ribbon(wpts, wid), 0.5)
+    draw.circle(ctx, wpts[-1], 0.5 * wid[-1])
+    draw.circle(ctx, wpts[0], 0.5 * wid[0])
+    draw.fill(ctx, ink)
+    # ---------------------------------------------------------------- whiskers
+    if whiskers and Lh > 14.0:
+        wk = max(0.7, 0.011 * Lh)
+        ctx.new_path()
+        for side in (1.0, -1.0):
+            for dy, ang in ((0.03, 10.0), (0.0, -2.0), (-0.03, -14.0)):
+                r_ = (0.84, 0.0 + dy, 0.06)
+                a = ang * D2R
+                m_ = (0.84 + 0.30 * math.cos(a), 0.0 + dy + 0.30 * math.sin(a), 0.06 + 0.16)
+                e_ = (0.84 + 0.58 * math.cos(a), 0.0 + dy + 0.58 * math.sin(a) - 0.05, 0.06 + 0.34)
+                p0, p1, p2 = _cat_pts(R, [r_, m_, e_], Lh, side=side)
+                ctx.move_to(*p0)
+                ctx.curve_to(p1[0], p1[1], p1[0], p1[1], p2[0], p2[1])
+        draw.stroke(ctx, ink, wk)
+    if eyes:
+        _cat_eyes(f, R, P, A, ctx, Lh)
+    return R
+
+
+def _cat_eyes(f, R, P, A, ctx, Lh):
+    op = clamp(P.get("eopen", 1.0))
+    t = P["t"]
+    k = math.floor(t / 3.1)
+    tb = k * 3.1 + 3.1 * hash01(A.seed, k, 77)
+    if 0.0 <= t - tb < 0.18:
+        op *= abs(math.cos((t - tb) / 0.18 * math.pi))
+    if op <= 0.02 or R["sh"] < -0.4:
+        return
+    pal = f.pal if f is not None else None
+    col = getattr(pal, "light", (1.0, 0.9, 0.6)) if pal is not None else (1.0, 0.9, 0.6)
+    r = 0.075 * Lh
+    es = []
+    near = -1.0 if R["cF"] >= 0 else 1.0
+    es.append((_cat_pts(R, [_CAT_EYE], Lh, side=near)[0], 1.0))
+    vis = _ss(0.25, 0.55, abs(R["sh"]))
+    if vis > 0.01:
+        es.append((_cat_pts(R, [_CAT_EYE], Lh, side=-near)[0], vis))
+    for e, v in es:
+        draw.ellipse(ctx, e, r, r * 0.62 * op, -12.0 * (1 if R["cF"] >= 0 else -1))
+        draw.fill(ctx, col, v)
+    if f is not None:
+        with f.emit() as G:
+            for e, v in es:
+                draw.glow_disc(G, e, r * 5.0, col, 0.5 * op * v)
+
+
+Cat.CLIPS = {"stand": _QStand, "sit": _CSit, "turn": _QTurn, "look": _QLook, "eyes": _QEyes,
+             "meow": _CMeow, "flick": _CFlick}

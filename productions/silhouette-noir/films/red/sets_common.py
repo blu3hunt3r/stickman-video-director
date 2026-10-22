@@ -146,7 +146,16 @@ LATER = Mood(
     fog_stops=_fog_scaled(0.37), snow=mix(INK, SNOW, 0.54), snow_dark=mix(INK, SNOW, 0.33),
     mist=mix(INK, _FOG[2][1], 0.40), shaft=SNOW, shaft_a=0.0, lamp_gain=1.45, night=0.8)
 
-MOODS = {"day": DAY, "deep": DEEP, "dusk": DUSK, "night": NIGHT, "dawn": DAWN_M, "later": LATER}
+# s10: the grey morning after the fire: flat, cold, no shafts, lamps barely matter
+MORNING = Mood(
+    "morning",
+    sky=[(0.0, mix(INK, PAL.sky_top, 0.74)), (0.6, mix(INK, PAL.sky_bottom, 0.84)),
+         (1.0, mix(INK, PAL.sky_bottom, 0.8))],
+    fog_stops=_fog_scaled(0.84), snow=mix(INK, SNOW, 0.88), snow_dark=mix(INK, SNOW, 0.68),
+    mist=mix(INK, _FOG[2][1], 0.84), shaft=SNOW, shaft_a=0.0, lamp_gain=0.75, night=0.1)
+
+MOODS = {"day": DAY, "deep": DEEP, "dusk": DUSK, "night": NIGHT, "dawn": DAWN_M, "later": LATER,
+         "morning": MORNING}
 
 
 def get_mood(m):
@@ -188,6 +197,15 @@ def fogged(mood, d, col=None):
     mood = get_mood(mood)
     col = mood.ink if col is None else col
     return mix(col, mood.fog_at(d), clamp(d))
+
+
+def tinted(mood, d):
+    """A copy of mood with every surface color pre-fogged to depth d (for props and sets
+    painted straight onto a far plane without an offscreen fog pass)."""
+    mood = get_mood(mood)
+    return Mood(mood.name, mood.sky, mood.fog_stops, fogged(mood, d, mood.snow), fogged(mood, d, mood.snow_dark),
+                mood.mist, mood.shaft, mood.shaft_a, mood.lamp_gain, ink=fogged(mood, d), lamp=mood.lamp,
+                night=mood.night)
 
 
 def backdrop(f, mood, glow=None, glow_r=900.0, glow_a=0.35):

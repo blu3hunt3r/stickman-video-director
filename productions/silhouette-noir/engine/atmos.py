@@ -1464,11 +1464,18 @@ def bubbles(f, src, rate=6.0, t=None, seed=0, rise=(150.0, 250.0), size=(1.5, 6.
     """A rising stream of bubbles from src (x, y): `rate` per second, rising `rise` px/s
     (bigger ones faster, accelerating), wobbling, growing as they rise (growth per 1000 px),
     drifting with `current` px/s, and bursting at world y `surface` (or fading after `height`
-    px). t_start/t_end limit emission. Additive pale bubbles. Returns the count drawn."""
+    px). t_start/t_end limit emission. Additive pale bubbles. Returns the count drawn.
+    src may also be a callable src(te) -> (x, y): a MOVING source (a sinking diver's
+    helmet); each bubble starts where the source was when it was emitted (keep it cheap: it
+    is called once per live bubble)."""
     t = _now(f, t)
     col = _rgb(color) if color is not None else _mix(_pal(f, "surface", WHITE), WHITE, 0.55)
     litf, _ = _litfn(lit, lit_color, f)
-    D = height if surface is None else max(1.0, min(height, src[1] - surface))
+    moving = callable(src)
+    if moving:
+        D = height
+    else:
+        D = height if surface is None else max(1.0, min(height, src[1] - surface))
     vmin = rise[0] * 0.7
     life = float(_rise_time(D, vmin)) + 0.15
     k0 = int(math.floor((t - life) * rate)) - 1
@@ -1487,8 +1494,17 @@ def bubbles(f, src, rate=6.0, t=None, seed=0, rise=(150.0, 250.0), size=(1.5, 6.
     h2 = _vhash(seed, k, 2)
     r0 = lerp(size[0], size[1], h2 * h2)
     v = lerp(rise[0], rise[1], _vhash(seed, k, 3)) * (0.75 + 0.45 * np.minimum(r0 / max(size[1], 1e-3), 1.2))
+    if moving:
+        src, D = _moving_src(src, t - tau, surface, height)
     return _bubble_set(f, par, src, tau, r0, v, k, seed, growth, wobble, spread, current, surface, D, col, alpha,
                        litf, lit_gain)
+
+
+def _moving_src(src, tk, surface, height):
+    """Per-bubble emission points (and rise limits) for a callable source src(te) -> (x, y)."""
+    P = np.array([src(float(te)) for te in np.atleast_1d(tk)], np.float64).reshape(-1, 2)
+    D = height if surface is None else np.maximum(1.0, np.minimum(height, P[:, 1] - surface))
+    return (P[:, 0], P[:, 1]), D
 
 
 def _bubble_set(f, par, src, tau, r0, v, k, seed, growth, wobble, spread, current, surface, D, col, alpha,
@@ -1502,6 +1518,10 @@ def _bubble_set(f, par, src, tau, r0, v, k, seed, growth, wobble, spread, curren
     d, r, tau, r0, v, k, tD = d[alive], r[alive], tau[alive], r0[alive], v[alive], k[alive], tD[alive]
     if kick is not None:
         kick = (kick[0][alive], kick[1][alive])
+    if np.ndim(src[0]) > 0:                    # per-bubble sources (moving emitter)
+        src = (np.asarray(src[0])[alive], np.asarray(src[1])[alive])
+    if np.ndim(D) > 0:
+        D = np.asarray(D)[alive]
     side = (_vhash(seed, k, 4) - 0.5) * 2.0
     om = 9.0 - 0.45 * np.minimum(r, 12.0)
     phw = TAU * _vhash(seed, k, 5)
@@ -1529,13 +1549,18 @@ def exhale(f, src, t0, n=24, t=None, seed=0, size=(1.5, 11.0), rise=(170.0, 260.
            growth=0.7, wobble=1.2, current=0.0, surface=None, height=1500.0, color=None, alpha=1.0,
            lit=None, lit_gain=2.0, lit_color=None, par=1.0):
     """A diver's exhale at time t0: a burst of n bubbles (a few big wobbly ones) kicked out of
-    src, then rising as in bubbles(). Returns the count drawn."""
+    src, then rising as in bubbles(). src may be a callable src(te) -> (x, y) (a moving
+    source, see bubbles()). Returns the count drawn."""
     t = _now(f, t)
     if t < t0:
         return 0
     col = _rgb(color) if color is not None else _mix(_pal(f, "surface", WHITE), WHITE, 0.55)
     litf, _ = _litfn(lit, lit_color, f)
-    D = height if surface is None else max(1.0, min(height, src[1] - surface))
+    moving = callable(src)
+    if moving:
+        D = height
+    else:
+        D = height if surface is None else max(1.0, min(height, src[1] - surface))
     k = np.arange(n)
     tk = t0 + 0.38 * _vhash(seed, k, 11) ** 1.4
     tau = t - tk
@@ -1548,13 +1573,16 @@ def exhale(f, src, t0, n=24, t=None, seed=0, size=(1.5, 11.0), rise=(170.0, 260.
     v = lerp(rise[0], rise[1], _vhash(seed, k, 13)) * (0.8 + 0.35 * np.minimum(r0 / max(size[1], 1e-3), 1.0))
     kx = (_vhash(seed, k, 14) - 0.5) * 2.0 * 260.0
     ky = 150.0 + 200.0 * _vhash(seed, k, 15)
+    if moving:
+        src, D = _moving_src(src, t - tau, surface, height)
     return _bubble_set(f, par, src, tau, r0, v, k + 1000 * (seed % 97), seed, growth, wobble, spread * 0.3, current,
                        surface, D, col, alpha, litf, lit_gain, kick=(kx, ky))
 
 
 def breathing(f, src, period=4.0, phase=0.0, n=20, t=None, seed=0, **kw):
     """A diver breathing: an exhale() every `period` s (first at `phase`), each with its own
-    seed. Extra keywords go to exhale(). Returns the count drawn."""
+    seed. Extra keywords go to exhale(). src may be a callable src(te) -> (x, y) (moving
+    source). Returns the count drawn."""
     t = _now(f, t)
     life = 8.0
     total = 0

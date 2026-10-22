@@ -12,6 +12,7 @@ that open those layers for you).
     door_swing(t, keys) / slam(t, t0, ...)                          door angle helpers
     lock_closeup(ctx, f, center, scale, bolt, key_turn)             the lock, close
     red_coat(ctx, hook, scale, sway)                                her coat on its hook (RED)
+    match_flame(f, t, tip, level, scale)                            the match she strikes (S07)
     paper_blood(ctx, center, scale, seed, grow)                     red cut-paper splash
 """
 import math
@@ -21,12 +22,12 @@ import cv2
 import numpy as np
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep, ease, pulse
+from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, ease
 from engine.frame import cached, array_surface
 from engine.palette import RED
 
-from .sets_base import (PAL, INK, AMBER, HOT, RAIN, BLUE, PX_M, mix, mul, layer_spec, opened,
-                        glow, glow_ellipse, cone, shadow_screen, rrect)
+from .sets_base import (PAL, INK, AMBER, HOT, mix, mul, layer_spec, opened,
+                        glow, glow_ellipse, cone, shadow_screen)
 
 
 def _xf(pts, at, angle, s, flip=1):
@@ -50,9 +51,25 @@ def binoculars(ctx, at, angle=0.0, scale=1.0, view="side", flip=1, strap=0.0, co
     view='front' seen from where they point (the man in her window, S08): two objective
                  lenses and the hinge; `at` = centre of the hinge. Lens glints: use
                  binocular_glints(f, at, scale) on top.
-    Returns the world point of the eyepieces (side) or the two lens centres (front)."""
+    view='pair'  both barrels seen square-on to the hinge (the iconic shape: eyepieces close,
+                 objectives wide); angle=90 stands them on their objectives (on her sill).
+    Returns the world point of the eyepieces (side, pair) or the two lens centres (front)."""
     col = color or INK
     s = scale
+    if view == "pair":
+        for sgn in (-1, 1):
+            def P(pts):
+                q = _xf([(x, sgn * y) for (x, y) in pts], at, angle, s, 1)
+                return q if sgn > 0 else q[::-1]          # keep one winding: no holes where parts overlap
+            draw.poly(ctx, P([(-33, 6.5), (-32, 5.0), (-27, 5.0), (-27, 17.0), (-32, 17.0), (-33, 15.5)]))   # eyecup
+            draw.poly(ctx, P([(-28, 6.0), (-19, 6.5), (-19, 16.5), (-28, 16.0)]))                 # eyepiece
+            draw.smooth(ctx, P([(-21, 3.0), (-6, 3.0), (3, 9.0), (4, 31.0), (-7, 32.0), (-21, 20.0)]), close=True,
+                        tension=0.12)                                                           # prism housing
+            draw.poly(ctx, P([(1, 10.0), (25, 10.5), (31, 9.5), (31, 31.0), (25, 30.0), (1, 30.5)]))    # objective
+        draw.poly(ctx, _xf([(-24, -5.5), (2, -5.5), (2, 5.5), (-24, 5.5)], at, angle, s))             # hinge
+        draw.poly(ctx, _xf([(-21, -7.5), (-13, -7.5), (-13, 7.5), (-21, 7.5)], at, angle, s))        # focus wheel
+        draw.fill(ctx, col)
+        return _xf([(-33, 0)], at, angle, s)[0]
     if view == "front":
         cx, cy = at
         ca, sa = math.cos(math.radians(angle)), math.sin(math.radians(angle))
@@ -583,22 +600,21 @@ class Door:
         op = clamp(open)
         with f.light(par=par, blur=3.0) as A:
             if op < 0.02:
-                # the gap under the door, interrupted by the shadows of feet
-                a, b = P(0, 0, 0), P(self.w, 0, 0)
+                # the gap under the door (in the door's own perspective), broken by the feet
                 n = 40
+                open_ = []
                 for k in range(n):
-                    u0, u1 = k / n, (k + 1) / n
-                    um = (u0 + u1) / 2 * self.w
-                    blocked = any(abs(um - fx) < 34 for fx in feet)
-                    if blocked:
-                        continue
-                    p0 = (lerp(a[0], b[0], u0), lerp(a[1], b[1], u0))
-                    p1 = (lerp(a[0], b[0], u1), lerp(a[1], b[1], u1))
-                    A.rectangle(p0[0], p0[1] - 5, p1[0] - p0[0], 6)
+                    u0, u1 = k / n * self.w, (k + 1) / n * self.w
+                    if not any(abs((u0 + u1) / 2 - fx) < 34 for fx in feet):
+                        open_.append((u0, u1))
+                for (u0, u1) in open_:
+                    draw.poly(A, [P(u0, 0, 0), P(u1, 0, 0), P(u1, 0, 6), P(u0, 0, 6)])
                 draw.fill(A, HOT, 0.9 * hall)
-                # faint glow on the floor in front of it
-                mid = ((a[0] + b[0]) / 2, a[1])
-                glow_ellipse(A, mid, abs(b[0] - a[0]) * 0.6, 24, AMBER, 0.25 * hall)
+                # and its fan on the floor inside, with the same gaps
+                for (u0, u1) in open_:
+                    draw.poly(A, [P(u0, 0, 0), P(u1, 0, 0), P(u1 + 6, 80, 0), P(u0 - 6, 80, 0)])
+                draw.linear(A, P(self.w / 2, 0, 0), P(self.w / 2, 80, 0), [(0, AMBER, 0.32 * hall), (1, AMBER, 0.0)])
+                A.fill()
             else:
                 q = self.opening_quad()
                 draw.poly(A, q)
@@ -676,34 +692,91 @@ def coat_hook(ctx, hook, scale=1.0, color=None):
 
 
 def red_coat(ctx, hook, scale=1.0, sway=0.0, t=0.0, color=None, hook_too=True):
-    """Her red coat hanging from a hook by its collar loop (1.05 m = 360 px at scale 1).
-    sway: degrees of swing (e.g. after she brushes it). RED is a story colour: keep it."""
+    """Her red trench coat hanging from a hook by its collar loop (1.05 m = 360 px at
+    scale 1): collar, sloping shoulders, sleeves hanging free of the body, a belt, the front
+    edge and the folds as darker reds (no lines). sway: degrees of swing (after she brushes
+    it). RED is a story colour: nothing else may use it."""
     s = scale
+    col = color or RED
     x, y = hook[0] + 6 * s, hook[1] + 4 * s
     a = math.radians(sway + 0.8 * math.sin(t * 0.9))
     ca, sa = math.cos(a), math.sin(a)
 
     def P(px, py):
-        return (x + px * ca - py * sa, y + px * sa + py * ca)
-    loop = [P(-6 * s, 0), P(6 * s, 0), P(4 * s, 14 * s), P(-4 * s, 14 * s)]
-    coat = [(-14, 10), (14, 10), (40, 26), (62, 40), (70, 70), (74, 150), (82, 240), (92, 330), (96, 360),
-            (40, 366), (0, 360), (-40, 366), (-96, 360), (-92, 330), (-82, 240), (-74, 150), (-70, 70),
-            (-62, 40), (-40, 26)]
-    pts = [P(px * s, py * s) for px, py in coat]
-    draw.smooth(ctx, pts, close=True, tension=0.25)
-    draw.poly(ctx, loop)
-    draw.fill(ctx, color or RED)
-    # sleeves hang a shade darker in front of the body; collar notch in the outline
+        return (x + px * ca * s - py * sa * s, y + px * sa * s + py * ca * s)
+
+    def poly(pts, smooth=0.0):
+        q = [P(px, py) for px, py in pts]
+        if smooth:
+            draw.smooth(ctx, q, close=True, tension=smooth)
+        else:
+            draw.poly(ctx, q)
+    # body: collar loop, shoulders, a straight hang flaring to the hem
+    poly([(-5, 0), (5, 0), (4, 14), (-4, 14)])
+    body = [(-18, 10), (18, 10), (44, 22), (64, 40), (68, 70), (70, 150), (78, 250), (88, 330), (92, 362),
+            (50, 368), (6, 364), (-40, 369), (-92, 362), (-88, 330), (-78, 250), (-70, 150), (-68, 70),
+            (-64, 40), (-44, 22)]
+    poly(body, 0.22)
+    draw.fill(ctx, col)
+    # folds: long darker bands down the skirt, the shadowed side away from the light
+    for (fx, w0, w1) in ((-46, 6, 14), (-12, 4, 10), (30, 5, 13), (62, 4, 9)):
+        poly([(fx - w0, 200), (fx + w0, 200), (fx + w1 + 3, 364), (fx - w1 + 3, 366)], 0.3)
+    poly([(-92, 362), (-88, 330), (-78, 250), (-70, 150), (-68, 70), (-56, 70), (-60, 160), (-66, 260),
+          (-72, 340), (-74, 364)], 0.25)
+    draw.fill(ctx, mix(col, INK, 0.30))
+    # front edge (overlapping placket) and the belt with its buckle
+    poly([(4, 30), (14, 30), (16, 364), (6, 364)])
+    poly([(-70, 178), (70, 178), (71, 196), (-71, 196)])
+    draw.fill(ctx, mix(col, INK, 0.45))
+    poly([(-12, 174), (12, 174), (12, 200), (-12, 200)])
+    draw.fill(ctx, mix(col, INK, 0.65))
+    poly([(-6, 180), (6, 180), (6, 194), (-6, 194)])
+    draw.fill(ctx, col)
+    # sleeves hang in front of the sides, a little apart from the body
     for sgn in (-1, 1):
-        sl = [P(sgn * 58 * s, 44 * s), P(sgn * 74 * s, 70 * s), P(sgn * 80 * s, 220 * s), P(sgn * 60 * s, 228 * s),
-              P(sgn * 52 * s, 90 * s)]
-        draw.smooth(ctx, sl, close=True, tension=0.3)
-    draw.fill(ctx, mix(color or RED, INK, 0.35))
+        sl = [(sgn * 56, 40), (sgn * 72, 64), (sgn * 82, 160), (sgn * 86, 238), (sgn * 64, 246), (sgn * 58, 150),
+              (sgn * 50, 70)]
+        poly(sl, 0.3)
+        draw.fill(ctx, mix(col, INK, 0.22 if sgn > 0 else 0.42))
+        poly([(sgn * 66, 226), (sgn * 87, 222), (sgn * 88, 246), (sgn * 64, 250)])
+        draw.fill(ctx, mix(col, INK, 0.5))
+    # collar and lapels: the darkest red (turned up under the hook)
     for sgn in (-1, 1):
-        draw.poly(ctx, [P(sgn * 4 * s, 12 * s), P(sgn * 30 * s, 26 * s), P(sgn * 12 * s, 70 * s)])
-    draw.fill(ctx, mix(color or RED, INK, 0.55))
+        poly([(sgn * 4, 10), (sgn * 30, 22), (sgn * 26, 56), (sgn * 12, 80), (sgn * 6, 40)])
+    draw.fill(ctx, mix(col, INK, 0.55))
     if hook_too:
         coat_hook(ctx, hook, s)
+
+
+# =========================================================================== match
+def match_flame(f, t, tip, level=1.0, scale=1.0, par=1.0, seed=0, stick_angle=-60.0, stick=True):
+    """A struck match (S07): the stick from her fingers to `tip` (world), a flickering
+    teardrop flame with a hot core, and its small warm halo. level 0..1 (flare -> steady ->
+    out). For the room's light use Apartment9.match_light at the same point."""
+    if level <= 0.01:
+        return
+    s = scale
+    fl = 0.85 + 0.15 * noise1(t * 11.0, seed) + 0.06 * math.sin(t * 37.0 + seed)
+    lean = 6.0 * noise1(t * 3.0, seed + 2)
+    hgt = (34 + 6 * noise1(t * 8.0, seed + 4)) * s * level
+    x, y = tip
+    with f.layer(par=par) as L:
+        if stick:
+            a = math.radians(stick_angle)
+            draw.capsule(L, (x - math.cos(a) * 140 * s, y - math.sin(a) * 140 * s), (x, y), 2.4 * s, 3.2 * s)
+            draw.fill(L, INK)
+        pts = [(x - 7 * s, y), (x - 6 * s, y - hgt * 0.45), (x + lean * s * 0.6, y - hgt), (x + 6 * s, y - hgt * 0.45),
+               (x + 7 * s, y)]
+        draw.smooth(L, pts, close=True, tension=0.45)
+        draw.fill(L, mix(AMBER, HOT, 0.6), min(1.0, level))
+        draw.ellipse(L, (x, y - hgt * 0.28), 3.2 * s, hgt * 0.22)
+        draw.fill(L, (1.0, 0.97, 0.9), min(1.0, level))
+    with f.light(par=par, blur=4.0) as A:
+        glow(A, (x, y - hgt * 0.4), 60 * s, HOT, 0.55 * level * fl)
+        glow(A, (x, y - hgt * 0.4), 300 * s, AMBER, 0.16 * level * fl)
+    with f.emit(par=par) as G:
+        draw.circle(G, (x, y - hgt * 0.4), 9 * s)
+        draw.fill(G, HOT, level * fl)
 
 
 # =========================================================================== paper blood

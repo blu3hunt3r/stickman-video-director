@@ -28,12 +28,11 @@ import math
 import cairo
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep
-from engine.frame import Camera, cached
+from engine.core import W, H, clamp, lerp, hash01, fbm1
 
-from .sets_base import (PAL, INK, AMBER, HOT, RAIN, mix, mul, layer_spec, opened, view_box,
+from .sets_base import (PAL, INK, AMBER, HOT, mix, mul, layer_spec, opened, view_box,
                         boxes_overlap, record, put, fill_path, local_matrix, rrect, level_of,
-                        shadow_screen, rain_glints, glow, texture_surface, camera_for, switch)
+                        shadow_screen, rain_glints, glow, texture_surface, camera_for)
 
 COLS, ROWS = 5, 8
 #: the facade lock (bible, "World"): window centres on screen and window size in px
@@ -760,6 +759,12 @@ class Facade:
             if "ground" in parts:
                 fill_path(L, self.d.ground, INK, M=self.M)
             if "fire_escape" in parts:
+                # wet iron: a hairline of sky caught on every top edge, then the ink
+                off = 1.3 / max(f.lcam(par).zoom * f.scale, 1e-3) * f.scale
+                L.save()
+                L.translate(0, -off)
+                fill_path(L, self.d.fire, mix(INK, PAL.fog_at(1.0), 0.95), 0.85, M=self.M)
+                L.restore()
                 fill_path(L, self.d.fire, INK, M=self.M)
             if "roof" in parts:
                 fill_path(L, self.d.roof, INK, M=self.M)
@@ -1492,27 +1497,28 @@ class Skyline:
 
 
 # =========================================================================== sky
-def night_sky(f, t, glow_y=None, glow=1.0, clouds=0.7, par=0.05, lightning=0.0, spread=1100.0):
-    """Rainy city night sky. Blue-black at the top; low clouds lit from below by the city,
-    brightest at `glow_y` (world y at layer `par`: put it at or just below the roofline so the
-    silhouettes of cornices and water tanks stand out), drifting cloud texture, optional
-    lightning 0..1 (lights the clouds only; flash the set separately)."""
-    f.sky(PAL.sky_top, PAL.sky_bottom, mid=mix(PAL.sky_top, PAL.sky_bottom, 0.35), mid_at=0.55)
-    cam = f.lcam(par)
-    if glow_y is None:
-        glow_y = cam.to_world((W / 2, H * 0.7))[1]
+def night_sky(f, t, horizon=None, glow=1.0, clouds=0.7, lightning=0.0, spread=520.0, glow_y=None, par=0.05):
+    """Rainy city night sky (screen space, behind everything). Blue-black at the top; low
+    clouds lit from below by the city, brightest at screen y `horizon` (px): put it at or
+    just below the roofline so cornices and water tanks stand out against it (default
+    0.55 H; or give glow_y, a world y seen through layer `par`). Drifting cloud texture;
+    lightning 0..1 lights the clouds only (flash the set separately)."""
+    f.sky(PAL.sky_top, mix(PAL.sky_top, PAL.sky_bottom, 0.7), mid=mix(PAL.sky_top, PAL.sky_bottom, 0.25), mid_at=0.4)
+    if horizon is None:
+        horizon = f.lcam(par).to_screen((W / 2, glow_y))[1] if glow_y is not None else H * 0.55
+    hz = float(horizon)
+    sp = float(spread)
     if glow > 0:
-        # wide city glow below glow_y, fading upward over `spread`
-        f.haze(PAL.fog_at(1.0), 0.62 * glow, y0=glow_y - spread * 0.35, y1=glow_y + 4000, feather=spread * 1.3,
-               par=par)
-        f.haze(mix(PAL.fog_at(1.0), PAL.rain, 0.35), 0.30 * glow, y0=glow_y - spread * 0.1, y1=glow_y + 4000,
-               feather=spread * 0.6, par=par)
+        # the city's glow on the underside of the clouds, rising from behind the roofs
+        f.haze(PAL.fog_at(1.0), 0.80 * glow, y0=hz - sp * 0.15, y1=H + 600, feather=sp * 1.2, screen=True)
+        f.haze(mix(PAL.fog_at(1.0), AMBER, 0.16), 0.30 * glow, y0=hz + sp * 0.05, y1=H + 600, feather=sp * 0.6,
+               screen=True)
     if clouds > 0:
-        # cloud undersides catch the glow: brighter patches near the band, darker rifts above
-        f.haze(PAL.fog_at(1.0), 0.42 * clouds, y0=glow_y - spread * 2.2, y1=glow_y + spread * 0.3,
-               feather=spread * 1.2, tex=1.0, tex_scale=0.42, scroll=(5.0, 0.0), seed=4, par=par)
-        f.haze(PAL.sky_top, 0.35 * clouds, y0=glow_y - spread * 3.5, y1=glow_y - spread * 0.8,
-               feather=spread * 1.4, tex=1.0, tex_scale=0.3, scroll=(3.0, 0.0), seed=8, par=par)
+        # cloud banks: brighter where they catch the glow, darker rifts higher up
+        f.haze(mix(PAL.fog_at(1.0), PAL.rain, 0.25), 0.50 * clouds, y0=hz - sp * 2.2, y1=hz + sp * 0.2,
+               feather=sp * 1.3, tex=1.0, tex_scale=0.75, scroll=(7.0, 0.0), seed=4, screen=True)
+        f.haze(PAL.sky_top, 0.55 * clouds, y0=-600, y1=hz - sp * 1.3, feather=sp * 1.2, tex=1.0, tex_scale=0.55,
+               scroll=(4.0, 0.0), seed=8, screen=True)
     if lightning > 0:
-        f.haze(PAL.lightning, 0.5 * lightning, y0=glow_y - spread * 3.0, y1=glow_y + spread * 0.4,
-               feather=spread * 1.4, tex=0.8, tex_scale=0.42, scroll=(5.0, 0.0), seed=4, par=par)
+        f.haze(PAL.lightning, 0.55 * lightning, y0=hz - sp * 3.0, y1=hz + sp * 0.4, feather=sp * 1.4, tex=0.8,
+               tex_scale=0.6, scroll=(7.0, 0.0), seed=4, screen=True)

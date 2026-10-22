@@ -12,9 +12,9 @@ import cv2
 import numpy as np
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep
+from engine.core import W, H, clamp, hash01, fbm1, smoothstep
 from engine.frame import Camera, surf_array, array_surface, cached
-from engine.palette import SHADOWPLAY, RED, PAPER
+from engine.palette import SHADOWPLAY
 
 PAL = SHADOWPLAY
 INK = PAL.ink
@@ -327,6 +327,22 @@ def add_streaks(f, draw_fn, par=1.0, blur_v=18.0, blur_h=3.0, ds=4, gain=1.0):
         pat.set_matrix(cairo.Matrix(xx=w / float(W), yy=h / float(H)))
         S.set_source(pat)
         S.paint()
+
+
+def occlude_emit(f, par, path_fn, even_odd=False):
+    """Erase the emissive (bloom) buffer under an occluder. f.emit glows are added at
+    finish(), after every layer, so a wall drawn in front of lit windows cannot hide their
+    bloom by itself: call this with the occluder's outline (path_fn(ctx) builds it in world
+    coords; even_odd for a wall with holes)."""
+    with f.emit(par=par) as G:
+        G.save()
+        G.new_path()
+        path_fn(G)
+        if even_odd:
+            G.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+        G.set_operator(cairo.OPERATOR_CLEAR)
+        G.fill()
+        G.restore()
 
 
 # ----------------------------------------------------------------------------- glows

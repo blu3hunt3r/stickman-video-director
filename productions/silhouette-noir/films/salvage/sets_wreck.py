@@ -1,47 +1,97 @@
-"""SALVAGE sets - E. THE MERIDIAN, exterior: a 63 m steamer lying on her PORT side.
+"""SALVAGE sets - E. THE MERIDIAN, exterior: a 63 m steamer lying over on her PORT side.
 
-The wreck is a small 2.5D silhouette model (sections swept along her length, rods, plates)
-placed in the deep world and projected with sets_deep.View, so she recedes into the murk:
-her stern lies just behind the action plane under the boat (DIVE_X), her bow is lost
-~17 000 px away in the fog. On her side, her DECK faces the camera's left: the bridge
-house, the stump of the funnel, the masts, boat davits and ventilators stick out toward
-the open water, the rails that crossed her decks now stand VERTICAL, and her starboard side
-is the roof of the wreck. Every lifeboat is still in its davits.
+The wreck is a small 2.5D model (hull sections swept along her length, rods, plates) set in
+the deep world and projected with sets_deep.View (lens perspective + depth fog), so she
+recedes into the murk. Default pose Wreck(heading=0, heel=70, bell_z=150):
+  * her length runs straight away from the camera: the STERN (s = 0) sits just behind the
+    action plane under the boat (DIVE_X); the bow is lost ~21 000 px deep in the fog;
+  * heeled 70 deg to port: her starboard side is the wreck's ROOF (the cut holes, the line
+    port), her DECK faces the camera's left: bridge house, funnel stump (the funnel lies
+    fallen on the silt), masts with crosstree, shrouds and derricks leaning out over open
+    water, lifeboats still in their davits, broken rails standing nearly vertical;
+  * her transom faces the camera with her NAME in raised letters (draw_lit reveals it).
 
-Near the action plane, at the stern (where the story happens):
-  * the ship's BELL hangs from a bracket on the poop deckhouse roof (bell_point()), swaying;
-  * the captain's cabin is in that deckhouse; the winch line enters through a starboard
-    port (line_entry());
-  * three holes in her starboard bilge plating with steel PETALS BENT OUTWARD (holes()):
-    they stick up from the wreck's roof edge, a clear silhouette against the light above.
+Story anchors, all near the action plane, as world (x, y, z) (feed them to view.P / view.k):
+  * bell_pose(t) / bell_point(t) / bell_screen(view, t): the ship's BELL hangs on a short
+    chain from a bracket arm out of her port quarter, low over the silt (a diver's reach),
+    swaying in the current. Crown ~ (26, 8254, 150), bracket end (0, 7925, 150);
+  * line_entry() ~ (1887, 5840, 1640): the starboard port (facing up) over the captain's
+    cabin where the winch line goes in (S07-S08);
+  * holes(): three holes cut from INSIDE in her starboard bilge, z 3240..5040, steel petals
+    BENT OUTWARD (up), a torn silhouette on her roof edge against the light above;
+  * stern_top(), roof_y(s), transom(), funnel_pose(), bracket_point().
 
-Ship coordinates: s = metres*333 from the counter (stern) toward the bow, b = transverse
-(+ starboard = world UP now), h = height above the keel (+ = toward the deck = world left,
-toward the camera). Wreck.W(s, b, h) -> world (x, y, z).
+Ship coordinates: s = along her length from the counter (stern) toward the bow (333 px/m),
+b = transverse (+ starboard = world UP after the heel), h = height above the keel (+ toward
+the deck = world LEFT). Wreck.W(s, b, h) -> world (x, y, z).
 
-S06 close-up of the cut plating is a separate set, HullPlating, with hole_push() for the
-camera that pushes into a hole (into S08).
+S06's close-up of the cut plating is its own little set, HullPlating, with hole_push() for
+the camera that pushes into the main hole (cut to S08 when its darkness fills the frame).
 
     wreck = Wreck()
-    world = DeepWorld(wreck=wreck)
-    deep_backdrop(f, t, glow=(700, 500, 900, 0.6))
-    view = world.draw(f, t, wreck_kw=dict(bell=True))
-    X, Y, k = wreck.bell_screen(view, t)   # where the bell hangs this frame (action-plane coords)
+    world = DeepWorld(wreck=wreck, reef=False)
+    f.set_camera(Camera(x=250, y=7250, zoom=0.3))
+    deep_backdrop(f, t, glow=[(300, 560, 1250, 1.3)], murk=0.28)
+    view = world.draw(f, t, view=View(f, murk=0.28, vp=(540, 1150)), wreck_kw=dict(bell=True))
+    ...  action plane: the diver at seabed_y(x), his lamp ...
+    wreck.draw_lit(f, t, view, lamp, aim)            # warm pool, rivets, NAME on the transom
+    world.draw_front(f, t, view)                      # foreground silt / rocks (z < 0)
+    b = wreck.bell_screen(view, t)                    # (b["X"], b["Y"]) = bell crown on screen
 """
 import math
 
+import cairo
+
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep
+from engine.core import clamp, lerp, hash01, fbm1, smoothstep
 from engine.frame import Camera
 
-from .sets_common import (PAL, INK, DIVE_X, SEABED_Y, mix, oriented, jag, riveted_edge, round_rect,
-                          hole_circle, solid_circle, line, sag_curve, sway, shape, put, paint)
-from .sets_deep import View, rod3, prism3, card, convex_hull, fill_grad, seabed_y
-from .sets_props import draw_bell, bell_swing, BELL_H
+from .sets_common import DIVE_X, SEABED_Y, mix, oriented, jag, riveted_edge, solid_circle, line, sway
+from .sets_deep import View, rod3, prism3, convex_hull
+from .sets_props import draw_bell, bell_swing
 
 
 def _ss(a, b, x):
     return smoothstep(a, b, x)
+
+
+_TEXT = {}
+
+
+def _text_path(text, face="DejaVu Serif", spacing=0.12):
+    """Cached unit-size outline of `text` (letters spaced by `spacing`, baseline at y = 0.36,
+    cap height ~0.73). Returns (cairo path, (width, 1.0))."""
+    key = (text, face, spacing)
+    if key not in _TEXT:
+        S = 200.0                                   # lay out big (no hinting artefacts), then scale
+        surf = cairo.ImageSurface(cairo.FORMAT_A8, 8, 8)
+        c = cairo.Context(surf)
+        fo = cairo.FontOptions()
+        fo.set_hint_metrics(cairo.HINT_METRICS_OFF)
+        fo.set_hint_style(cairo.HINT_STYLE_NONE)
+        c.set_font_options(fo)
+        c.select_font_face(face, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        c.set_font_size(S)
+        x = 0.0
+        for ch in text:
+            e = c.text_extents(ch)
+            c.move_to(x, 0.36 * S)
+            c.text_path(ch)
+            x += e.x_advance + spacing * S
+        big = c.copy_path()
+        c.new_path()
+        for kind, pts in big:
+            q = [v / S for v in pts]
+            if kind == cairo.PATH_MOVE_TO:
+                c.move_to(*q)
+            elif kind == cairo.PATH_LINE_TO:
+                c.line_to(*q)
+            elif kind == cairo.PATH_CURVE_TO:
+                c.curve_to(*q)
+            else:
+                c.close_path()
+        _TEXT[key] = (c.copy_path(), ((x - spacing * S) / S, 1.0))
+    return _TEXT[key]
 
 
 class _MainPass:
@@ -55,10 +105,11 @@ class _MainPass:
 
 
 class Wreck:
-    """The Meridian on the seabed. heading: angle of her length to the view axis (negative =
-    the bow recedes to the left and the deck faces the camera); z0: distance of her stern
-    keel behind the action plane; bell_x: world x where the bell hangs (default DIVE_X,
-    right under the boat's davit)."""
+    """The Meridian on the seabed. heading: angle (deg) of her length to the view axis (0 = the
+    bow recedes straight away; negative swings the bow to the left); heel: how far she lies
+    over to port (deg; 90 = flat on her side); bell_z: distance of the bell's bracket behind
+    the action plane; bell_x: world x of the bracket end (default DIVE_X, right under the
+    boat's davit). The whole ship is placed from these so the bell is always within reach."""
 
     D = 2330.0          # keel to main deck
     BEAM = 3500.0
@@ -67,13 +118,14 @@ class Wreck:
     FOC = 280.0
     BURY = 230.0        # her port side is sunk this deep into the silt
 
-    BELL_SBH = (260.0, -930.0, 2580.0 + 430.0)    # end of the bell's bracket arm (s, b, h): low on her
-                                                  # port quarter, a diver's reach above the silt
-    BELL_SCALE = 1.5                              # the bell prop is drawn at this size (k * 1.5)
+    BELL_SBH = (260.0, -1150.0, 2580.0 + 380.0)   # end of the bell's bracket arm (s, b, h): out of her
+                                                  # port quarter, low over the silt (a diver's reach)
+    BELL_SCALE = 1.8                              # the bell prop is drawn at this size (k * 1.8)
+    BELL_DROP = 330.0                             # chain from the bracket end to the bell's crown
     LINE_SH = (1750.0, 1900.0)                    # the starboard port (facing up) over the captain's cabin
     HOLES = ((3350.0, 560.0, 150.0), (4250.0, 760.0, 185.0), (5150.0, 600.0, 130.0))   # (s, h, radius)
 
-    def __init__(self, heading=24.0, bell_z=150.0, bell_x=None, heel=90.0):
+    def __init__(self, heading=0.0, bell_z=150.0, bell_x=None, heel=70.0):
         th = math.radians(heading)
         ph = math.radians(heel)
         self.heading, self.heel = heading, heel
@@ -152,16 +204,35 @@ class Wreck:
         return [self.W(s, b, h) for b, h in self.section(s)]
 
     # ---------------------------------------------------------------- anchors
-    def bell_point(self, t=0.0):
-        """World (x, y, z) of the bell bracket's end - the bell's crown hangs here."""
+    def bracket_point(self):
+        """World (x, y, z) of the end of the bell's bracket arm (the chain hangs from here)."""
         return self.W(*self.BELL_SBH)
 
-    def bell_screen(self, view, t=0.0):
-        """(X, Y, k): the bell's hanging point in action-plane coords this frame and the
-        scale to draw props there (draw_bell(ctx, X, Y, s=k * Wreck.BELL_SCALE, ...))."""
-        x, y, z = self.bell_point(t)
+    def bell_pose(self, t=0.0, bell_angle=None, clapper=None, seed=1):
+        """The bell hanging on its short chain under the bracket, swaying in the current:
+        dict(pivot = bracket end (x, y, z), crown = top of the bell (x, y, z), angle, clapper)."""
+        px, py, pz = self.bracket_point()
+        if bell_angle is None:
+            ang, cl = bell_swing(t, seed=seed, amp=6.0, period=5.4)
+        else:
+            ang, cl = bell_angle, (0.0 if clapper is None else clapper)
+        a = math.radians(ang)
+        crown = (px - math.sin(a) * self.BELL_DROP, py + math.cos(a) * self.BELL_DROP, pz)
+        return dict(pivot=(px, py, pz), crown=crown, angle=ang, clapper=cl)
+
+    def bell_point(self, t=0.0):
+        """World (x, y, z) of the bell's crown this frame (where a line gets tied)."""
+        return self.bell_pose(t)["crown"]
+
+    def bell_screen(self, view, t=0.0, bell_angle=None, clapper=None):
+        """The bell this frame in action-plane coords: dict(X, Y = crown, s = prop scale for
+        draw_bell, k = depth scale, angle, clapper, pivot = (X, Y) of the bracket end)."""
+        bp = self.bell_pose(t, bell_angle, clapper)
+        x, y, z = bp["crown"]
         X, Y = view.P(x, y, z)
-        return X, Y, view.k(z)
+        k = view.k(z)
+        return dict(X=X, Y=Y, k=k, s=k * self.BELL_SCALE, angle=bp["angle"], clapper=bp["clapper"],
+                    pivot=view.Pp(bp["pivot"]))
 
     def line_entry(self):
         """World (x, y, z) of the starboard port (now facing up) where the winch line enters
@@ -235,19 +306,26 @@ class Wreck:
             n, f_ = box(s0, s1, b0, b1, h0, h1)
             zm = sum(p[2] for p in n + f_) / 8
             P.add(zm - 200, lambda ctx, view, n=n, f_=f_: prism3(ctx, view, n, f_))
-        # stern rail (now vertical): stanchions + rails across the poop at the stern
-        def rail_across(s, b0, b1, h0, step, r=24.0):
+        # stern rail (now standing on end): a few stanchions + two rails across the poop, bent and
+        # broken in places (a regular rail reads as a ladder)
+        def rail_across(s, b0, b1, h0, step, r=15.0, seed=5):
             items = []
             nb = max(2, int((b1 - b0) / step))
+            tops = []
             for i in range(nb + 1):
                 bb = lerp(b0, b1, i / nb)
-                items.append((W_(s, bb, h0), W_(s, bb, h0 + 330), r, r * 0.8))
-            for hh in (h0 + 330, h0 + 175):
-                items.append((W_(s, b0, hh), W_(s, b1, hh), r * 0.8, r * 0.8))
+                lean = 120 * (hash01(seed, i) - 0.5)
+                top = W_(s - lean, bb, h0 + 330)
+                tops.append(top)
+                if hash01(seed, i, 1) > 0.18:
+                    items.append((W_(s, bb, h0), top, r, r * 0.8))
+            for i in range(nb):
+                if hash01(seed, i, 2) > 0.3:
+                    items.append((tops[i], tops[i + 1], r * 0.8, r * 0.8))
             return items
-        rails = rail_across(90, -1180, 1180, dp, 260)
-        # starboard rails along the deck edge (receding comb on the wreck's roof edge)
-        def rail_along(s0, s1, h0, step, r=24.0):
+        rails = rail_across(90, -1180, 1180, dp, 520)
+        # starboard rails along the deck edge (a receding comb on the wreck's upper edge)
+        def rail_along(s0, s1, h0, step, r=15.0, seed=7):
             items = []
             n = max(2, int((s1 - s0) / step))
             prev = None
@@ -255,8 +333,9 @@ class Wreck:
                 s = lerp(s0, s1, i / n)
                 bb = self.hb_deck(s) - 30
                 bot, top = W_(s, bb, h0), W_(s, bb, h0 + 330)
-                items.append((bot, top, r, r * 0.8))
-                if prev is not None:
+                if hash01(seed, i) > 0.12:
+                    items.append((bot, top, r, r * 0.8))
+                if prev is not None and hash01(seed, i, 1) > 0.15:
                     items.append((prev, top, r * 0.8, r * 0.8))
                 prev = top
             return items
@@ -266,21 +345,33 @@ class Wreck:
             P.add((a3[2] + b3[2]) / 2 - 60, lambda ctx, view, a3=a3, b3=b3, r0=r0, r1=r1: rod3(ctx, view, a3, b3, r0, r1))
         # ensign staff at the stern, bent
         a3, b3, c3 = W_(60, 0, dp), W_(60, 0, dp + 900), W_(60, -260, dp + 1500)
-        P.add(a3[2] - 100, lambda ctx, view: (rod3(ctx, view, a3, b3, 30, 24), rod3(ctx, view, b3, c3, 24, 16)))
-        # the bell's bracket: an arm out of her port quarter (now horizontal, low over the silt) + a brace
+        P.add(a3[2] - 100, lambda ctx, view, a3=a3, b3=b3, c3=c3: (rod3(ctx, view, a3, b3, 30, 24),
+                                                                   rod3(ctx, view, b3, c3, 24, 16)))
+        # the bell's bracket: an arm out of her port quarter (now nearly level, low over the silt),
+        # a brace, and the bell on a short chain (bell=False: the empty bracket, a broken chain end)
         s_, b_, h_ = self.BELL_SBH
         br0, br1 = W_(s_, b_, dp - 10), W_(s_, b_, h_ + 20)
-        brace0, brace1 = W_(s_, b_ + 320, dp - 10), W_(s_, b_, dp + 300)
+        brace0, brace1 = W_(s_, b_ + 360, dp - 10), W_(s_, b_, dp + 280)
         bs = self.BELL_SCALE
+        bp = self.bell_pose(t, bell_angle, clapper)
 
-        def bracket(ctx, view, t=t):
+        def bracket(ctx, view, bp=bp):
             rod3(ctx, view, br0, br1, 34, 28)
             rod3(ctx, view, brace0, brace1, 20, 18)
+            z = bp["pivot"][2]
+            k = view.k(z)
+            A = view.Pp(bp["pivot"])
+            col = view.tone(z, A[1])
+            draw.circle(ctx, A, 30 * k)                         # the shackle eye
+            ctx.set_source_rgb(*col)
+            ctx.fill()
             if bell:
-                X, Y = view.Pp(br1)
-                k = view.k(br1[2])
-                ang, cl = bell_swing(t, seed=1) if bell_angle is None else (bell_angle, clapper or 0.0)
-                draw_bell(ctx, X, Y - 6 * k, angle=ang, clapper=cl, s=k * bs, color=view.tone(br1[2], Y), yoke=True)
+                C = view.Pp(bp["crown"])
+                line(ctx, [A, C], max(11 * k, 0.8), col)
+                draw_bell(ctx, C[0], C[1], angle=bp["angle"], clapper=bp["clapper"], s=k * bs, color=col, yoke=False)
+            else:
+                C = (A[0] + 0.25 * (view.Pp(bp["crown"])[0] - A[0]) + 6 * k, A[1] + 110 * k)
+                line(ctx, [A, C], max(11 * k, 0.8), col)
         P.add(br1[2] - 150, bracket)
         # mainmast (broken), crosstree, slack shrouds, hanging derricks
         sm = 4700.0
@@ -356,8 +447,11 @@ class Wreck:
             lo = [W_(s_c + math.cos(2 * math.pi * i / n) * r, b_c + math.sin(2 * math.pi * i / n) * r, h0) for i in range(n)]
             hi = [W_(s_c + math.cos(2 * math.pi * i / n) * r, b_c + math.sin(2 * math.pi * i / n) * r, h1) for i in range(n)]
             return lo, hi
-        lo, hi = cyl(8600, 0, D + 820, D + 2050, 470)
+        lo, hi = cyl(8600, 0, D + 820, D + 1250, 470)          # the stump, torn off
+        hi = [(x + 40 * (hash01(i, 3) - 0.5), y + 60 * (hash01(i, 4) - 0.5), z) for i, (x, y, z) in enumerate(hi)]
         P.add(sum(p[2] for p in lo + hi) / (2 * len(lo)) - 160, lambda ctx, view, lo=lo, hi=hi: prism3(ctx, view, lo, hi))
+        for item in self._fallen_funnel():
+            P.add(*item)
         for (s_c, b_c) in ((7900, 760), (7900, -760), (11550, 600)):
             lo, hi = cyl(s_c, b_c, D + 820 if s_c < 11300 else D, D + 1520, 110, 10)
             mouth = [W_(s_c - 40, b_c + math.cos(2 * math.pi * i / 16) * 230, D + 1660 + math.sin(2 * math.pi * i / 16) * 230)
@@ -394,7 +488,8 @@ class Wreck:
         sf = 16900.0
         f0, f1 = W_(sf, 0, D), W_(sf, 0, D + 6000)
         c0, c1 = W_(sf, -820, D + 4600), W_(sf, 820, D + 4600)
-        P.add((f0[2] + f1[2]) / 2 - 300, lambda ctx, view: (rod3(ctx, view, f0, f1, 70, 38), rod3(ctx, view, c0, c1, 28, 28)))
+        P.add((f0[2] + f1[2]) / 2 - 300, lambda ctx, view, f0=f0, f1=f1, c0=c0, c1=c1: (rod3(ctx, view, f0, f1, 70, 38),
+                                                                                       rod3(ctx, view, c0, c1, 28, 28)))
         # the cut holes: steel petals bent OUTWARD (up, off her starboard plating)
         if petals:
             for (c3, r), (s, h, _) in zip(self.holes(), self.HOLES):
@@ -433,6 +528,150 @@ class Wreck:
             ctx.fill()
         return fn
 
+    def funnel_pose(self):
+        """(base, mouth) world points of the fallen funnel's axis: it broke off the midship house
+        and lies across the silt beside her, its open mouth toward the stern."""
+        bx, by, bz = self.W(8600, 0, self.D + 1300)
+        from .sets_deep import seabed_y as _sy
+        base = (bx - 250, _sy(bx - 250, bz - 300) - 520, bz - 300)
+        mx = bx - 1900
+        mouth = (mx, _sy(mx, bz - 2000) - 440, bz - 2000)
+        return base, mouth
+
+    def _fallen_funnel(self, R=470.0, n=16):
+        base, mouth = self.funnel_pose()
+        ax = [mouth[i] - base[i] for i in range(3)]
+        L = math.sqrt(sum(v * v for v in ax))
+        u = [v / L for v in ax]
+        # a frame around the axis: e1 horizontal-ish, e2 = u x e1
+        e1 = (-u[2], 0.0, u[0])
+        n1 = math.hypot(e1[0], e1[2]) or 1.0
+        e1 = (e1[0] / n1, 0.0, e1[2] / n1)
+        e2 = (u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0])
+
+        def ring(c, r, wob=0.0, seed=0):
+            out = []
+            for i in range(n):
+                a = 2 * math.pi * i / n
+                rr = r * (1 + wob * (hash01(seed, i) - 0.5))
+                out.append(tuple(c[q] + rr * (math.cos(a) * e1[q] + math.sin(a) * e2[q]) for q in range(3)))
+            return out
+        rings = [ring(base, R * 1.02, 0.12, 3), ring(tuple(base[q] + ax[q] * 0.5 for q in range(3)), R),
+                 ring(mouth, R * 1.04, 0.05, 4)]
+        items = []
+        for r0, r1 in zip(rings, rings[1:]):
+            zm = sum(p[2] for p in r0 + r1) / (2 * n)
+            items.append((zm, lambda ctx, view, r0=r0, r1=r1: prism3(ctx, view, r0, r1)))
+        # its mouth: the open black end with a thin rim (reads as a pipe, not a log)
+        inner = ring(tuple(mouth[q] - u[q] * 30 for q in range(3)), R * 0.86)
+
+        def mouth_fn(ctx, view, rim=rings[-1], inner=inner):
+            pr = [view.Pp(p) for p in rim]
+            pi = [view.Pp(p) for p in inner]
+            draw.poly(ctx, oriented(pr))
+            draw.poly(ctx, oriented(pi, cw=False))
+            z = sum(p[2] for p in rim) / n
+            ctx.set_source_rgb(*view.tone(z, sum(p[1] for p in pr) / n))
+            ctx.fill()
+            draw.poly(ctx, pi)
+            ctx.set_source_rgb(*view.tone(z + 2500, sum(p[1] for p in pi) / n))
+            ctx.fill()
+        items.append((mouth[2] - 40, mouth_fn))
+        return items
+
+    # ---------------------------------------------------------------- the beam on her stern
+    NAME = "MERIDIAN"
+
+    def transom(self):
+        """Her stern plate (the transom, s = 0) as world points, for lighting and decals."""
+        return self.sec3(0.0)
+
+    def draw_lit(self, f, t, view, lamp, aim, spread=17.0, length=3400.0, power=1.0, name=True, blur=1.2):
+        """What the helmet lamp reveals on her stern: a warm pool on the transom with plate seams,
+        rivet rows and the raised letters of her NAME (running up the plate - she is on her side).
+        lamp = (X, Y) action-plane position of the lamp, aim = direction (dx, dy). Draw it after
+        the wreck (it is additive light); the beam itself is atmos' job."""
+        W_ = self.W
+        L = math.hypot(*aim) or 1.0
+        ux, uy = aim[0] / L, aim[1] / L
+        sec = self.section(0.0)
+        poly = [view.Pp(W_(0.0, b, h)) for b, h in sec]
+        cx = sum(p[0] for p in poly) / len(poly)
+        cy = sum(p[1] for p in poly) / len(poly)
+        d = (cx - lamp[0]) * ux + (cy - lamp[1]) * uy
+        if d <= 0 or power <= 0:
+            return
+        hit = (lamp[0] + ux * d, lamp[1] + uy * d)
+        r = max(d * math.tan(math.radians(spread)) * 1.25, 60.0)
+        fall = clamp(1.0 - d / length) ** 0.7 * power
+        if fall <= 0.01:
+            return
+        lit = f.pal.light
+        k = view.k(W_(0, 0, 2000)[2])
+        h0, _, _ = self._shape_params(0.0)
+        dh = self.deck_h(0.0)
+
+        def surf(b, h):
+            return view.Pp(W_(0.0, b, h))
+
+        with f.light(blur=blur) as A:
+            draw.poly(A, poly)                     # clip first: the group then only spans the transom
+            A.clip()
+            A.push_group()
+            draw.radial(A, hit, 0, r, [(0, lit, 0.62 * fall), (0.45, lit, 0.34 * fall), (1, lit, 0.0)])
+            A.paint()
+            A.set_operator(cairo.OPERATOR_DEST_OUT)
+            # plate seams (dark lines) - butts across, strakes along
+            for bb in (-880.0, -300.0, 300.0, 880.0):
+                hs = [lerp(h0, dh, i / 8) for i in range(9)]
+                pts = [surf(bb + 25 * math.sin(h / 400.0), h) for h in hs]
+                line(A, pts, max(7 * k, 1.0), (0, 0, 0), 0.75)
+            for hh in (lerp(h0, dh, 0.36), lerp(h0, dh, 0.7)):
+                pts = [surf(lerp(-1250, 1250, i / 12), hh) for i in range(13)]
+                line(A, pts, max(7 * k, 1.0), (0, 0, 0), 0.75)
+            if name:
+                self._name_path(A, view, offset=(5 * k, 6 * k))
+                A.set_source_rgba(0, 0, 0, 0.85)
+                A.fill()
+            A.set_operator(cairo.OPERATOR_OVER)
+            A.pop_group_to_source()
+            A.paint()
+            # raised things catch the light: rivet heads and the letters (still clipped to the plate)
+            src = [(0, lit, 0.95 * fall), (0.5, lit, 0.55 * fall), (1, lit, 0.0)]
+            for bb in (-880.0, -300.0, 300.0, 880.0):
+                for i in range(18):
+                    h = lerp(h0 + 40, dh - 40, i / 17)
+                    for side in (-1, 1):
+                        draw.circle(A, surf(bb + 25 * math.sin(h / 400.0) + side * 30, h), max(7 * k, 0.7))
+            for hh in (lerp(h0, dh, 0.36), lerp(h0, dh, 0.7)):
+                for i in range(31):
+                    draw.circle(A, surf(lerp(-1200, 1200, i / 30), hh + 28), max(7 * k, 0.7))
+            draw.radial(A, hit, 0, r, src)
+            A.fill()
+            if name:
+                self._name_path(A, view)
+                draw.radial(A, hit, 0, r * 1.1, [(0, lit, 1.0 * fall), (0.55, lit, 0.6 * fall), (1, lit, 0.0)])
+                A.fill()
+            A.reset_clip()
+
+    def _name_path(self, ctx, view, offset=(0.0, 0.0)):
+        """Append the raised name's outline (on the transom, reading port to starboard = up)."""
+        path, (w, hgt) = _text_path(self.NAME)
+        h_c = self.deck_h(0.0) - 330.0
+        size = 210.0
+        b0 = -w * size / 2
+        O = view.Pp(self.W(0.0, b0, h_c))
+        Ub = view.Pp(self.W(0.0, b0 + 1.0, h_c))
+        Uh = view.Pp(self.W(0.0, b0, h_c + 1.0))
+        # text x -> along +b, text y (down) -> along -h
+        xx, yx = (Ub[0] - O[0]) * size, (Ub[1] - O[1]) * size
+        xy, yy = -(Uh[0] - O[0]) * size, -(Uh[1] - O[1]) * size
+        ctx.save()
+        ctx.transform(cairo.Matrix(xx, yx, xy, yy, O[0] + offset[0], O[1] + offset[1]))
+        ctx.new_path()
+        ctx.append_path(path)
+        ctx.restore()
+
     def draw(self, f, t, view=None, **kw):
         """Draw the wreck alone (no seabed) - e.g. over a custom backdrop."""
         from .sets_deep import Painter
@@ -441,6 +680,14 @@ class Wreck:
         self.add_items(P, t, **kw)
         P.render(f, view)
         return view
+
+
+def _ring_mask(cx, cy, r0, r1):
+    """A radial alpha pattern: 1 at r0 fading to 0 at r1 (for masking a bulge's shading)."""
+    g = cairo.RadialGradient(cx, cy, r0, cx, cy, r1)
+    g.add_color_stop_rgba(0, 0, 0, 0, 1.0)
+    g.add_color_stop_rgba(1, 0, 0, 0, 0.0)
+    return g
 
 
 # ----------------------------------------------------------------------------- S06 hull plating close-up
@@ -480,16 +727,16 @@ class HullPlating:
         out = []
         n = 7 + seed % 3
         for i in range(n):
-            a = 2 * math.pi * (i + 0.45 * hash01(seed, i)) / n
-            L = r * (0.55 + 0.75 * hash01(seed, i, 1))
+            a = 2 * math.pi * (i + 0.5 * hash01(seed, i)) / n
+            L = r * (0.4 + 1.0 * hash01(seed, i, 1) ** 1.3)          # some torn short, some long
             curl = 0.35 + 0.6 * hash01(seed, i, 2)
-            wb = r * (0.55 + 0.35 * hash01(seed, i, 3))
+            wb = r * (0.45 + 0.5 * hash01(seed, i, 3))
             ca, sa = math.cos(a), math.sin(a)
             px, py = -sa, ca
             base = (hx + ca * r * 0.92, hy + sa * r * 0.92)
-            # the tongue bends toward the camera: in projection it reaches outward and curls
-            tip = (base[0] + ca * L + px * L * 0.35 * (hash01(seed, i, 4) - 0.5),
-                   base[1] + sa * L + py * L * 0.35 * (hash01(seed, i, 4) - 0.5))
+            # the tongue bends toward the camera: in projection it reaches outward, twists, curls
+            tw = 0.7 * (hash01(seed, i, 4) - 0.5)
+            tip = (base[0] + ca * L + px * L * tw, base[1] + sa * L + py * L * tw)
             pts = [(base[0] - px * wb / 2 - ca * 10, base[1] - py * wb / 2 - sa * 10)]
             for k in range(1, 5):
                 u = k / 5
@@ -505,8 +752,14 @@ class HullPlating:
                 cy = lerp(base[1], tip[1], u) + sa * curl * 30 * math.sin(math.pi * u)
                 pts.append((cx + px * w, cy + py * w))
             pts.append((base[0] + px * wb / 2 - ca * 10, base[1] + py * wb / 2 - sa * 10))
-            out.append((jag(pts, seed=seed * 31 + i, amp=4.0, step=14.0), curl))
+            out.append((jag(pts, seed=seed * 31 + i, amp=6.0, step=11.0), curl))
         return out
+
+    def petal_tips(self, hole=0, t=0.0):
+        """World (x, y) tips of the petals around hole `hole` (0 = the big one) - where the
+        gloved hand touches an edge in s06."""
+        hx, hy, r, seed = self.HOLES[hole]
+        return [pts[len(pts) // 2] for pts, curl in self.petal_shapes(hx, hy, r, seed, t)]
 
     def draw(self, f, t, lamp=(-300.0, -200.0), power=1.0, beam_r=900.0, water=None, rivets=True):
         """Plate (lit pool around `lamp` = where the beam hits), hull edge, the three holes and
@@ -556,31 +809,116 @@ class HullPlating:
                 pts = [(xb + 0.1 * y, y) for y in range(int(y0) - 200, int(y1) + 200, 60)]
                 line(c, pts, 4.0, plate_dark, 0.35)
         c.restore()
-        # holes: black, with their petals bent toward us overhanging the lit plate
+        # the petals' shadows on the lit plate, thrown away from the lamp (longer for the curled ones)
+        c.save()
+        c.new_path()
+        c.move_to(x0 - 2000, edge[0][1])
+        for p in edge:
+            c.line_to(*p)
+        c.line_to(x0 - 2000, edge[-1][1])
+        c.close_path()
+        c.clip()
+        for hx, hy, r, seed in self.HOLES:
+            dxl, dyl = hx - lamp[0], hy - lamp[1]
+            dl = math.hypot(dxl, dyl) or 1.0
+            ux, uy = dxl / dl, dyl / dl
+            kk = clamp(1.2 - dl / (beam_r * 1.4)) * power
+            if kk <= 0:
+                continue
+            for pts, curl in self.petal_shapes(hx, hy, r, seed, t):
+                sh = []
+                for x, y in pts:
+                    w = clamp((math.hypot(x - hx, y - hy) - r * 0.85) / (r * 1.2)) * (60.0 + 110.0 * curl)
+                    sh.append((x + ux * w, y + uy * w))
+                draw.poly(c, sh)
+            c.set_source_rgba(*pal.ink, 0.55 * kk)
+            c.fill()
+        c.restore()
+        # the plate is dished outward around each hole (it was pushed from inside): the side of
+        # the bulge that faces the lamp catches it, the far side falls into shade
+        for hx, hy, r, seed in self.HOLES:
+            dxl, dyl = lamp[0] - hx, lamp[1] - hy
+            dl = math.hypot(dxl, dyl) or 1.0
+            kk = clamp(1.25 - dl / (beam_r * 1.5)) * power
+            if kk <= 0:
+                continue
+            ux, uy = dxl / dl, dyl / dl
+            R = r * 2.1
+            c.save()
+            c.new_path()
+            c.arc(hx, hy, R, 0, 2 * math.pi)
+            c.clip()
+            c.push_group()
+            draw.linear(c, (hx - ux * R, hy - uy * R), (hx + ux * R, hy + uy * R),
+                        [(0, pal.ink, 0.42 * kk), (0.45, pal.ink, 0.0), (0.62, lit, 0.0), (0.85, lit, 0.22 * kk),
+                         (1, lit, 0.0)])
+            c.paint()
+            c.pop_group_to_source()
+            c.mask(_ring_mask(hx, hy, r * 0.9, R))
+            c.restore()
+        # holes: black, with their petals bent toward us overhanging the lit plate. Each petal
+        # is shaded as a bent plate: its outer face tilts toward the hole's axis as it curls,
+        # so the petals on the far side of a hole turn their faces to the lamp (lit steel over
+        # the black hole) and the near ones turn away (dark tongues over the lit plate).
+        Hl = 650.0                                     # the lamp's distance in front of the plate
+        steel_dark = mix(pal.ink, plate_dark, 0.55)
+        steel_lit = mix(plate_dark, pal.light, 0.80)
+        edges = []
         for hx, hy, r, seed in self.HOLES:
             pts = jag([(hx + math.cos(2 * math.pi * i / 20) * r, hy + math.sin(2 * math.pi * i / 20) * r) for i in range(20)],
                       seed=seed, amp=9.0, step=22.0)
             draw.poly(c, pts)
-            c.set_source_rgb(*mix(pal.ink, (0, 0, 0), 0.6))
+            c.set_source_rgb(*mix(pal.ink, (0, 0, 0), 0.7))
             c.fill()
             for pts, curl in self.petal_shapes(hx, hy, r, seed, t):
+                n = len(pts)
+                tip = pts[n // 2]
+                base = ((pts[0][0] + pts[-1][0]) / 2, (pts[0][1] + pts[-1][1]) / 2)
+                ra = math.atan2(base[1] - hy, base[0] - hx)
+                ca, sa = math.cos(ra), math.sin(ra)
+                stops = []
+                fold = 0.3 + 0.2 * hash01(seed, int(ra * 100), 7)      # the crease where it bent
+                for u in (0.0, fold - 0.01, fold + 0.01, 0.7, 1.0):
+                    px, py = lerp(base[0], tip[0], u), lerp(base[1], tip[1], u)
+                    beta = math.radians(80.0 * curl * (0.2 if u < fold else 0.55 + 0.45 * u))
+                    nx, ny, nz = -ca * math.sin(beta), -sa * math.sin(beta), math.cos(beta)
+                    lx, ly, lz = lamp[0] - px, lamp[1] - py, Hl
+                    ll = math.sqrt(lx * lx + ly * ly + lz * lz)
+                    dif = max(0.0, (nx * lx + ny * ly + nz * lz) / ll)
+                    pool = clamp(1.0 - math.hypot(lamp[0] - px, lamp[1] - py) / beam_r) ** 0.8 * power
+                    stops.append((u, mix(steel_dark, steel_lit, clamp(dif ** 2.2 * pool * 1.35)), 1.0))
                 draw.poly(c, pts)
-            c.set_source_rgb(*pal.ink)
-            c.fill()
-        # rim light on the petal tips that curl into the beam (thin warm edges), additive
-        with f.light(blur=2.0) as A:
-            for hx, hy, r, seed in self.HOLES:
-                d = math.hypot(hx - lamp[0], hy - lamp[1])
-                k = clamp(1 - d / (beam_r * 1.2)) * power
-                if k <= 0:
-                    continue
-                for pts, curl in self.petal_shapes(hx, hy, r, seed, t):
-                    tip = pts[len(pts) // 2]
-                    line(A, pts[len(pts) // 2 - 2: len(pts) // 2 + 1], 3.0, pal.light, 0.5 * k * curl)
+                draw.linear(c, base, tip, stops)
+                c.fill()
+                # the torn edges that face the lamp catch a thin hot line
+                lx, ly = lamp[0] - tip[0], lamp[1] - tip[1]
+                pool = clamp(1.0 - math.hypot(lx, ly) / (beam_r * 1.1)) * power
+                if pool > 0.02:
+                    run = []
+                    sgn = 1.0 if sum(pts[i][0] * pts[i - 1][1] - pts[i - 1][0] * pts[i][1] for i in range(n)) < 0 else -1.0
+                    for i in range(n - 1):
+                        (ax, ay), (bx, by) = pts[i], pts[i + 1]
+                        ex, ey = bx - ax, by - ay
+                        el = math.hypot(ex, ey) or 1.0
+                        nx_, ny_ = sgn * ey / el, -sgn * ex / el          # outward normal
+                        mx, my = lamp[0] - (ax + bx) / 2, lamp[1] - (ay + by) / 2
+                        ml = math.hypot(mx, my) or 1.0
+                        face = (nx_ * mx + ny_ * my) / ml
+                        if face > 0.25:
+                            run.append((ax, ay))
+                            run.append((bx, by))
+                        elif run:
+                            edges.append((run, pool))
+                            run = []
+                    if run:
+                        edges.append((run, pool))
+        with f.light(blur=1.6) as A:
+            for run, pool in edges:
+                line(A, run, 2.6, pal.light, min(0.85, 0.75 * pool))
         return self.HOLES[0]
 
 
-def hole_push(t, t0, t1, hole=(0.0, 0.0, 230.0), start=None, zoom_end=14.0, e="inout"):
+def hole_push(t, t0, t1, hole=(0.0, 0.0, 230.0), start=None, zoom_end=6.5, e="inout"):
     """Camera for S06 -> S08: from `start` (Camera, default a framing of the three holes)
     push into the hole centre; zoom grows exponentially so the push feels constant, and the
     hole's darkness fills the frame by t1 (cut to S08 there)."""

@@ -13,11 +13,10 @@ import math
 import cairo
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, siren
+from engine.core import clamp, lerp, hash01, noise1, siren
 from engine.palette import RED
 
-from .sets_base import (PAL, INK, AMBER, HOT, BLUE, PX_M, mix, mul, layer_spec, opened, glow, glow_ellipse,
-                        cone, rrect, texture_surface)
+from .sets_base import (PAL, INK, AMBER, HOT, BLUE, RAIN, PX_M, mix, mul, layer_spec, opened, glow, glow_ellipse)
 
 
 # =========================================================================== stairwell
@@ -25,10 +24,12 @@ class Stairwell:
     """Straight down a square stairwell (S06).
 
     Stairwell(center=(540, 960), scale=1.0, floors=7, well=1.0, outer=2.05, floor_h=3.0,
-              treads=5, seed=0)
+              treads=5, seed=0, stretch=0.0)
       center   world point of the vanishing point (the bottom of the well)
       well     half-width of the open well (m): the handrail runs round it
       outer    half-width of the shaft (m): the outer walls
+      stretch  m added to the well's half-length in y (the flights along y get longer):
+               ~1.2 makes the shaft fill a 9:16 frame
       floors   storeys below the camera's landing; flights on all 4 sides of every storey
 
     Space is metres: x right, y down the screen, z = depth below the top landing. The
@@ -36,8 +37,10 @@ class Stairwell:
     focal `focal` px per metre at 1 m. `roll` (deg) turns the shaft about its axis.
 
     draw(f, t, cam_h=2.5, focal=520, roll=0, layer=None, bulbs=1.0, bottom=0.0, fade=11.0,
-         flicker=0.3, hooks=None)
+         flicker=0.3, hooks=None, windows=1.0, police=0.0)
       bottom   light on the lobby floor at the bottom of the well (0 = into the dark)
+      windows  the tall stair windows on the long wall (night outside, rain-blue)
+      police   0..1 the siren reaching the windows (blue/red)
       fade     depth (m) over which the shaft falls off into black
       hooks    {floor_index: fn(f, t)} drawn right after that storey (deep to near): put the
                small figure in the right place in the painter's order
@@ -47,7 +50,7 @@ class Stairwell:
     vertigo(u, ...) -> (cam_h, focal): a dolly-zoom pair keeping storey `ref` the same size."""
 
     def __init__(self, center=(540.0, 960.0), scale=1.0, floors=7, well=1.0, outer=2.05, floor_h=3.0, treads=5,
-                 seed=0):
+                 seed=0, stretch=0.0):
         self.c = (float(center[0]), float(center[1]))
         self.s = float(scale)
         self.n = int(floors)
@@ -57,10 +60,23 @@ class Stairwell:
         self.treads = int(treads)
         self.seed = seed
         self.m = (self.a + self.b) / 2.0
+        self.dy = max(0.0, float(stretch))
 
     # ------------------------------------------------------------------ projection
+    def _ymap(self, y):
+        """The stretch: a translation outside the well, a uniform scale across it."""
+        d, a = self.dy, self.a
+        if d == 0.0:
+            return y
+        if y >= a:
+            return y + d
+        if y <= -a:
+            return y - d
+        return y * (a + d) / a
+
     def project(self, x, y, z, cam_h=2.5, focal=520.0, roll=0.0):
         d = max(cam_h + z, 0.05)
+        y = self._ymap(y)
         if roll:
             r = math.radians(roll)
             x, y = x * math.cos(r) - y * math.sin(r), x * math.sin(r) + y * math.cos(r)
@@ -91,11 +107,12 @@ class Stairwell:
         u = clamp(u)
         segs = self._segments()
         lens = []
+        Y = self._ymap
         for (kind, p0, p1, pc) in segs:
             if kind == "flight":
-                lens.append(math.hypot(p1[0] - p0[0], p1[1] - p0[1]))
+                lens.append(math.hypot(p1[0] - p0[0], Y(p1[1]) - Y(p0[1])))
             else:
-                lens.append(math.hypot(pc[0] - p0[0], pc[1] - p0[1]) + math.hypot(p1[0] - pc[0], p1[1] - pc[1]))
+                lens.append(math.hypot(pc[0] - p0[0], Y(pc[1]) - Y(p0[1])) + math.hypot(p1[0] - pc[0], Y(p1[1]) - Y(pc[1])))
         per = sum(lens)
         dist = u * per * self.n
         fl = min(int(dist // per), self.n - 1)
@@ -112,7 +129,7 @@ class Stairwell:
                     z += (flights_done + v) * self.h / 4
                     hx, hy = p1[0] - p0[0], p1[1] - p0[1]
                 else:
-                    la = math.hypot(pc[0] - p0[0], pc[1] - p0[1])
+                    la = math.hypot(pc[0] - p0[0], Y(pc[1]) - Y(p0[1]))
                     if v * L < la:
                         w = v * L / la
                         x, y = lerp(p0[0], pc[0], w), lerp(p0[1], pc[1], w)
@@ -140,30 +157,42 @@ class Stairwell:
             out.append((sx * (self.b - 0.15), sy * (self.b - 0.15), i * self.h - 2.3, i))
         return out
 
+    def _flick(self, t, i, flicker):
+        return 1.0 - flicker * 0.5 * (1 + noise1(t * 7.0 + i * 3.1, self.seed + 5)) * (hash01(self.seed, i, 3) < 0.35)
+
+    def _lamps(self, t, flicker):
+        """(x, stretched y, z, flicker level) of every bulb at time t (cached per t)."""
+        key = (t, flicker)
+        if getattr(self, "_lamps_key", None) != key:
+            self._lamps_key = key
+            self._lamps_val = [(bx, self._ymap(by), bz, self._flick(t, i, flicker)) for (bx, by, bz, i) in self._bulbs()]
+        return self._lamps_val
+
     def _light(self, x, y, z, t, bulbs, flicker, fade):
         e = 0.0
-        for (bx, by, bz, i) in self._bulbs():
+        y = self._ymap(y)
+        for (bx, by, bz, fl) in self._lamps(t, flicker):
             d2 = (x - bx) ** 2 + (y - by) ** 2 + (z - bz) ** 2
-            fl = 1.0 - flicker * 0.5 * (1 + noise1(t * 7.0 + i * 3.1, self.seed + 5)) * (hash01(self.seed, i, 3) < 0.35)
-            e += 1.6 * fl / (0.6 + d2)
+            e += 1.9 * fl / (0.32 + d2)
         e *= bulbs
         return e * math.exp(-z / max(fade, 0.1))
 
     # ------------------------------------------------------------------ drawing
     def draw(self, f, t, cam_h=2.5, focal=520.0, roll=0.0, layer=None, bulbs=1.0, bottom=0.0, fade=11.0,
-             flicker=0.3, hooks=None):
+             flicker=0.3, hooks=None, windows=1.0, police=0.0):
         hooks = hooks or {}
+        self._win = (windows, police, t)
         spec = layer_spec(layer)
         P = lambda x, y, z: self.project(x, y, z, cam_h, focal, roll)
         a, b, h = self.a, self.b, self.h
         n = self.n
-        wall_c = mix(INK, PAL.fog_at(1.0), 0.16)
+        wall_c = mix(INK, mix(PAL.fog_at(1.0), AMBER, 0.22), 0.12)
         with opened(f, spec) as L:
             # the bottom of the well: lobby floor tiles, lit or lost in the dark
             zb = n * h
             q = [P(-b, -b, zb), P(b, -b, zb), P(b, b, zb), P(-b, b, zb)]
             draw.poly(L, q)
-            draw.fill(L, mix(INK, mul(AMBER, 0.5), 0.35 * bottom))
+            draw.fill(L, mix(INK, mix(AMBER, HOT, 0.2), 0.5 * bottom))
             if bottom > 0.02:
                 k = 8
                 for i in range(k):
@@ -174,27 +203,20 @@ class Stairwell:
                             draw.poly(L, [P(x0, y0, zb), P(x1, y0, zb), P(x1, y1, zb), P(x0, y1, zb)])
                 draw.fill(L, INK, 0.55)
         V = (cam_h, focal)
+        # all the walls in one soft, half-res pass (smooth plaster; it halves the cost), the
+        # shaft walls above the top landing rising past the camera to the frame edges
+        wspec = dict(spec)
+        wspec["blur"] = max(spec.get("blur", 0.0), 4.5)
+        with opened(f, wspec) as L:
+            for i in range(n - 1, -1, -1):
+                self._storey_walls(L, t, i, P, bulbs, flicker, fade, wall_c, V)
+            z_top = max(-cam_h + 0.2, -h)
+            self._wall_mesh(L, P, z_top, 0.0, t, bulbs, flicker, fade, wall_c, nu=6, nv=2, dark_near=0.85)
         for i in range(n - 1, -1, -1):
             with opened(f, spec) as L:
-                self._storey(L, t, i, P, bulbs, flicker, fade, wall_c, V)
+                self._storey(L, t, i, P, bulbs, flicker, fade, V)
             if i in hooks:
                 hooks[i](f, t)
-        # the shaft walls above the top landing, rising past the camera to the frame edges
-        with opened(f, spec) as L:
-            z_top = max(-cam_h + 0.2, -h)
-            for k in range(4):
-                sx = ((0, -1), (1, 0), (0, 1), (-1, 0))[k]
-                if sx[0] == 0:
-                    ys = sx[1] * b
-                    quad = [P(-b, ys, z_top), P(b, ys, z_top), P(b, ys, 0), P(-b, ys, 0)]
-                else:
-                    xs = sx[0] * b
-                    quad = [P(xs, -b, z_top), P(xs, b, z_top), P(xs, b, 0), P(xs, -b, 0)]
-                draw.poly(L, quad)
-                e = self._light(sx[0] * b * 0.9, sx[1] * b * 0.9, z_top * 0.5, t, bulbs, flicker, fade)
-                draw.linear(L, P(sx[0] * b, sx[1] * b, 0), P(sx[0] * b, sx[1] * b, z_top),
-                            [(0, mix(wall_c, mul(AMBER, 0.55), clamp(0.45 * e)), 1), (1, INK, 1)])
-                L.fill()
         # bulbs: hot cores and haloes, dimmer with depth
         with f.light(par=spec["par"], blur=6.0) as A:
             for (bx, by, bz, i) in self._bulbs():
@@ -203,6 +225,7 @@ class Stairwell:
                 p = P(bx * 0.97, by * 0.97, bz)
                 k = bulbs * math.exp(-max(bz, 0) / max(fade, 0.1))
                 ppm = self.s * focal / max(cam_h + bz, 0.05)
+                glow(A, p, 2.4 * ppm, AMBER, 0.10 * k)          # the dusty air round it
                 glow(A, p, 1.2 * ppm, AMBER, 0.30 * k)
                 glow(A, p, 0.25 * ppm, HOT, 0.8 * k)
             if bottom > 0.02:
@@ -215,6 +238,57 @@ class Stairwell:
                 ppm = self.s * focal / max(cam_h + bz, 0.05)
                 draw.circle(G, p, max(1.0, 0.06 * ppm))
                 draw.fill(G, HOT, bulbs * math.exp(-max(bz, 0) / max(fade, 0.1)))
+
+    def _wall_light(self, x, y, z, nx, ny, t, bulbs, flicker, fade):
+        """Light on a wall point (unstretched coords) with the wall's inward normal."""
+        e = 0.0
+        ym = self._ymap(y)
+        for (bx, by, bz, fl) in self._lamps(t, flicker):
+            dx, dy, dz = bx - x, by - ym, bz - z
+            d2 = dx * dx + dy * dy + dz * dz
+            lam = max(0.0, (dx * nx + dy * ny) / math.sqrt(d2 + 1e-6))
+            e += 2.6 * fl * (0.25 + 0.75 * lam) / (0.32 + d2)
+        return bulbs * e * math.exp(-max(z, 0.0) / max(fade, 0.1))
+
+    def _wall_mesh(self, L, P, za, zb, t, bulbs, flicker, fade, wall_c, nu=6, nv=3, dark_near=0.0):
+        """The four shaft walls between depths za and zb, shaded per vertex by every bulb
+        (a Coons-patch mesh): pools of light, dark between, falling off with depth."""
+        b = self.b
+        lit = mix(mul(AMBER, 0.72), HOT, 0.12)
+        mesh = cairo.MeshPattern()
+        sides = (((-b, -b), (b, -b), (0, 1)), ((b, -b), (b, b), (-1, 0)), ((b, b), (-b, b), (0, -1)),
+                 ((-b, b), (-b, -b), (1, 0)))
+        for (c0, c1, (nx, ny)) in sides:
+            grid = []
+            for vj in range(nv + 1):
+                z = lerp(za, zb, vj / nv)
+                row = []
+                for ui in range(nu + 1):
+                    x, y = lerp(c0[0], c1[0], ui / nu), lerp(c0[1], c1[1], ui / nu)
+                    e = self._wall_light(x, y, z, nx, ny, t, bulbs, flicker, fade)
+                    col = mix(wall_c, lit, clamp(0.8 * e) ** 1.2)
+                    if dark_near > 0:
+                        # walls right by the lens: out of the light's reach and out of focus
+                        col = mix(col, INK, dark_near * (1.0 - vj / nv))
+                    row.append((P(x, y, z), col))
+                grid.append(row)
+            for vj in range(nv):
+                for ui in range(nu):
+                    q = (grid[vj][ui], grid[vj][ui + 1], grid[vj + 1][ui + 1], grid[vj + 1][ui])
+                    mesh.begin_patch()
+                    mesh.move_to(*q[0][0])
+                    for (p, _) in q[1:]:
+                        mesh.line_to(*p)
+                    for ci, (_, col) in enumerate(q):
+                        mesh.set_corner_color_rgb(ci, *col[:3])
+                    mesh.end_patch()
+            L.move_to(*P(c0[0], c0[1], za))
+            L.line_to(*P(c1[0], c1[1], za))
+            L.line_to(*P(c1[0], c1[1], zb))
+            L.line_to(*P(c0[0], c0[1], zb))
+            L.close_path()
+        L.set_source(mesh)
+        L.fill()
 
     def _bar(self, L, P, V, a3, b3, width):
         """A round bar between two 3D points, its width true to depth at both ends."""
@@ -234,48 +308,135 @@ class Stairwell:
         L.line_to(p0[0] - nx * w0, p0[1] - ny * w0)
         L.close_path()
 
-    def _storey(self, L, t, i, P, bulbs, flicker, fade, wall_c, V):
+    def _storey_walls(self, L, t, i, P, bulbs, flicker, fade, wall_c, V):
+        """Storey i's four walls: plaster lit by the bulbs, the stair window, the doors.
+        They never overlap a deeper storey on screen, so all walls go down first."""
         a, b, h, m = self.a, self.b, self.h, self.m
         z0 = i * h
-        nt = self.treads
-        # outer walls of this storey (seen as the band outside the stairs, darker deep down)
+        wall_c = mix(INK, wall_c, 0.35 + 0.65 * math.exp(-z0 / max(0.7 * fade, 0.1)))     # the shaft darkens down
+        cam_h, focal = V
+        # outer walls: dark plaster with a pool of light round each bulb that reaches them
+        faces = []
         for k in range(4):
             sx = ((0, -1), (1, 0), (0, 1), (-1, 0))[k]
-            # the wall face at x/y = +-b from this storey's floor (z0 + h) up to z0
             if sx[0] == 0:
                 ys = sx[1] * b
-                quad = [P(-b, ys, z0), P(b, ys, z0), P(b, ys, z0 + h), P(-b, ys, z0 + h)]
+                faces.append([P(-b, ys, z0), P(b, ys, z0), P(b, ys, z0 + h), P(-b, ys, z0 + h)])
             else:
                 xs = sx[0] * b
-                quad = [P(xs, -b, z0), P(xs, b, z0), P(xs, b, z0 + h), P(xs, -b, z0 + h)]
-            e = self._light(sx[0] * b * 0.9, sx[1] * b * 0.9, z0 + h * 0.5, t, bulbs, flicker, fade)
-            draw.poly(L, quad)
-            draw.fill(L, mix(wall_c, mul(AMBER, 0.55), clamp(0.45 * e)) if e > 0 else wall_c)
-            # dado rail line and a door frame on every storey's landing wall
+                faces.append([P(xs, -b, z0), P(xs, b, z0), P(xs, b, z0 + h), P(xs, -b, z0 + h)])
+        self._wall_mesh(L, P, z0, z0 + h, t, bulbs, flicker, fade, wall_c, nu=(6, 4, 3)[min(i, 2)],
+                        nv=(3, 2, 1)[min(i, 2)])
+        for (bx, by, bz, j) in self._bulbs():
+            if not (z0 - 0.2 <= bz <= z0 + h) or bz < -cam_h + 0.3:
+                continue
+            e = bulbs * self._flick(t, j, flicker) * math.exp(-max(bz, 0.0) / max(fade, 0.1))
+            if e <= 0.01:
+                continue
+            c = P(bx, by, bz)
+            r = 1.7 * self.s * focal / max(cam_h + bz + 0.8, 0.05)
+            for q in faces:
+                draw.poly(L, q)
+            draw.radial(L, c, 0, r, [(0, mix(AMBER, HOT, 0.4), 0.55 * clamp(e)), (0.35, AMBER, 0.12 * clamp(e)),
+                                     (1, AMBER, 0)])
+            L.fill()
+        # a tall window on the long wall: rain-blue night, mullions, a cold pool round it
+        wk, pol, tw = getattr(self, "_win", (1.0, 0.0, t))
+        if wk > 0.01:
+            dz = math.exp(-z0 / max(fade, 0.1))
+            col = mix(PAL.fog_at(1.0), RAIN, 0.35)
+            if pol > 0:
+                bb, rr = siren(tw + i * 0.13, rate=1.6)
+                col = mix(col, mix(BLUE, RED, rr / max(bb + rr, 1e-3)), clamp(pol * max(bb, rr)))
+            zt_, zb_ = z0 + 0.55, z0 + 2.35
+            c = P(0.0, b, z0 + 1.45)
+            r = 1.9 * self.s * focal / max(cam_h + z0 + 1.45, 0.05)
+            for q in faces:
+                draw.poly(L, q)
+            draw.radial(L, c, 0, r, [(0, mix(wall_c, col, 0.35 * wk * dz), 1), (1, wall_c, 0)])
+            L.fill()
+            wq = [P(-0.45, b, zt_), P(0.45, b, zt_), P(0.45, b, zb_), P(-0.45, b, zb_)]
+            draw.poly(L, wq)
+            draw.linear(L, P(0.0, b, zt_), P(0.0, b, zb_), [(0, mix(INK, col, clamp(0.55 * wk * dz)), 1),
+                                                            (1, mix(INK, col, clamp(0.22 * wk * dz)), 1)])
+            L.fill()
+            # rain running down the glass
+            for j in range(7):
+                xr = -0.40 + 0.80 * hash01(self.seed + i, j, 61)
+                zr = lerp(zt_, zb_, 0.15 + 0.6 * hash01(self.seed + i, j, 62))
+                draw.poly(L, [P(xr - 0.008, b, zr), P(xr + 0.008, b, zr), P(xr + 0.008, b, zr + 0.35), P(xr - 0.008, b, zr + 0.35)])
+            draw.fill(L, col, 0.35 * wk * dz)
+            for (xa, xb, za, zb2) in ((-0.03, 0.03, zt_, zb_), (-0.45, 0.45, z0 + 1.15, z0 + 1.2),
+                                      (-0.45, 0.45, z0 + 1.75, z0 + 1.8)):
+                draw.poly(L, [P(xa, b, za), P(xb, b, za), P(xb, b, zb2), P(xa, b, zb2)])
+            draw.fill(L, INK, 0.9)
+        # the floor landing's two apartment doors (corner -1,-1 at the bottom of this storey),
+        # some with light under them
+        zc = z0 + h
+        for side in (0, 1):
+            if side == 0:
+                q = [P(-b + 0.14, -b, zc - 2.05), P(-a - 0.08, -b, zc - 2.05), P(-a - 0.08, -b, zc), P(-b + 0.14, -b, zc)]
+                g = [P(-b + 0.14, -b, zc - 0.03), P(-a - 0.08, -b, zc - 0.03), P(-a - 0.08, -b, zc), P(-b + 0.14, -b, zc)]
+            else:
+                q = [P(-b, -b + 0.14, zc - 2.05), P(-b, -a - 0.08, zc - 2.05), P(-b, -a - 0.08, zc), P(-b, -b + 0.14, zc)]
+                g = [P(-b, -b + 0.14, zc - 0.03), P(-b, -a - 0.08, zc - 0.03), P(-b, -a - 0.08, zc), P(-b, -b + 0.14, zc)]
+            draw.poly(L, q)
+            draw.fill(L, INK, 0.45)
+            if hash01(self.seed, i, 40 + side) < 0.5:
+                draw.poly(L, g)
+                draw.fill(L, mix(AMBER, HOT, 0.3), 0.8 * math.exp(-zc / max(fade, 0.1)))
+
+    def _storey(self, L, t, i, P, bulbs, flicker, fade, V):
+        a, b, h, m = self.a, self.b, self.h, self.m
+        z0 = i * h
+        cam_h, focal = V
+        nt = self.treads
+        if i == 0:
+            e = self._light(-m, -m, 0.0, t, bulbs, flicker, fade)
+            draw.poly(L, [P(-b, -b, 0.0), P(-a, -b, 0.0), P(-a, -a, 0.0), P(-b, -a, 0.0)])
+            draw.fill(L, self._tread_col(e))
+        # corner landings (flat), each at the level its flight arrives at
         for k in range(4):
-            fx, fy = ((-1, -1), (1, -1), (1, 1), (-1, 1))[k]
-            # corner landing (flat), at the level reached after k flights
+            fx, fy = ((1, -1), (1, 1), (-1, 1), (-1, -1))[k]
             zc = z0 + (k + 1) * h / 4
             cx0, cy0 = min(fx * a, fx * b), min(fy * a, fy * b)
             cx1, cy1 = max(fx * a, fx * b), max(fy * a, fy * b)
             e = self._light(fx * m, fy * m, zc, t, bulbs, flicker, fade)
             draw.poly(L, [P(cx0, cy0, zc), P(cx1, cy0, zc), P(cx1, cy1, zc), P(cx0, cy1, zc)])
             draw.fill(L, self._tread_col(e))
-        # flights: treads with lit nosings, then the inner stringer face, balusters, rail
+        # flights: treads with lit nosings (more treads on the long sides of a stretched well)
         for k in range(4):
             zs = z0 + k * h / 4
-            for j in range(nt):
-                u0, u1 = j / nt, (j + 1) / nt
-                zt = zs + (j + 1) * h / 4 / nt
+            nk = nt if k % 2 == 0 else max(nt, int(round(nt * (a + self.dy) / a)))
+            for j in range(nk):
+                u0, u1 = j / nk, (j + 1) / nk
+                zt = zs + (j + 1) * h / 4 / nk
                 quad = self._tread_quad(k, u0, u1)
                 e = self._light(*self._flight_xy(k, (u0 + u1) / 2, m), zt, t, bulbs, flicker, fade)
-                pts = [P(x, y, zt) for (x, y) in quad]
-                draw.poly(L, pts)
+                draw.poly(L, [P(x, y, zt) for (x, y) in quad])
                 draw.fill(L, self._tread_col(e))
-                # nosing: a thin strip at the front edge of the tread catches the light
-                nq = self._tread_quad(k, u1 - 0.12 / nt, u1)
-                draw.poly(L, [P(x, y, zt) for (x, y) in nq])
-                draw.fill(L, self._tread_col(e * 1.8 + 0.02))
+                if i < 4:
+                    # nosing: a thin strip at the front edge of the tread catches the light
+                    nq = self._tread_quad(k, u1 - 0.12 / nk, u1)
+                    draw.poly(L, [P(x, y, zt) for (x, y) in nq])
+                    draw.fill(L, self._tread_col(e * 1.8 + 0.02))
+        # the risers below the nosings fall into shadow
+        for k in range(4):
+            zs = z0 + k * h / 4
+            nk = nt if k % 2 == 0 else max(nt, int(round(nt * (a + self.dy) / a)))
+            for j in range(nk):
+                u1 = (j + 1) / nk
+                zt = zs + (j + 1) * h / 4 / nk
+                rq = self._tread_quad(k, u1, min(1.0, u1 + 0.10 / nk))
+                draw.poly(L, [P(x, y, zt + 0.02) for (x, y) in rq])
+        draw.fill(L, INK, 0.5)
+        # the wall stringers (the flights' outer edges against the walls)
+        for k in range(4):
+            zs = z0 + k * h / 4
+            ze = zs + h / 4
+            e0, e1 = self._flight_xy(k, 0.0, b), self._flight_xy(k, 1.0, b)
+            draw.poly(L, [P(e0[0], e0[1], zs - 0.22), P(e1[0], e1[1], ze - 0.22), P(e1[0], e1[1], ze), P(e0[0], e0[1], zs)])
+        draw.fill(L, INK, 0.75)
         # the inner stringer: the stair's edge seen against the drop
         for k in range(4):
             zs = z0 + k * h / 4
@@ -287,10 +448,9 @@ class Stairwell:
         # balusters (radial bars in this view) and the handrail spiralling down
         ar = a - 0.04
         rh = 0.92
-        cam_h = V[0]
         for k in range(4):
             zs = z0 + k * h / 4
-            nb = int(2 * a / 0.13)
+            nb = int(2 * (a if k % 2 == 0 else a + self.dy) / 0.13)
             for j in range(nb + 1):
                 u = (j + 0.5) / (nb + 1)
                 x, y = self._flight_xy(k, u, ar)

@@ -20,13 +20,24 @@ import numpy as np
 from engine import draw
 from engine.core import clamp, lerp, fbm1, smoothstep
 from .sets_common import (get_mood, mix, NIGHT, INK, SNOW, view, plane, depth_layer, backdrop, rnd, srnd,
-                          soft_layer, glow, light_pool, fogged, flick, mist_band, ground_mist)
+                          soft_layer, glow, light_pool, fogged, flick, mist_band, ground_mist, tinted)
 from .sets_terrain import PATH, plane_ground, _plane_ground, PATH_MARKS
 from .sets_props import Lantern, Doorway, swing_angle
 from .sets_forest import _orient, _fill, _taper_limb, _curve, _make_spruce, _make_tree
 
 MARKS = dict(street=(-4200.0, 300.0), mother_door=PATH_MARKS["mother_door"], well=-760.0, gate=0.0,
              lanterns=(-2650.0, -1080.0, -330.0))
+
+
+DOOR_SIZE = 1.45          # door scale of a real-size house (the mother's door); rows use DOOR_SIZE * sc
+
+
+class _LayerGround:
+    """Adapter: a layer's ground function as a terrain (for props that ask terrain.ground_y)."""
+
+    def __init__(self, g):
+        self.ground_y = g
+        self.snow_y = g
 
 
 # ----------------------------------------------------------------------------- house builder
@@ -203,8 +214,8 @@ class Village:
     # the row in front); the far row tops the hill with the church
     LAYERS = [
         dict(name="far", par=0.30, depth=0.70, blur=3.5, off=-700.0, sc=0.18, gap=(220.0, 520.0), lit=0.55),
-        dict(name="mid", par=0.55, depth=0.46, blur=2.2, off=-560.0, sc=0.30, gap=(300.0, 760.0), lit=0.55),
-        dict(name="near", par=0.80, depth=0.22, blur=0.0, off=-250.0, sc=0.45, gap=(500.0, 1100.0), lit=0.6, direct=True),
+        dict(name="mid", par=0.55, depth=0.46, blur=2.2, off=-560.0, sc=0.30, gap=(170.0, 460.0), lit=0.55),
+        dict(name="near", par=0.80, depth=0.22, blur=0.0, off=-250.0, sc=0.45, gap=(220.0, 620.0), lit=0.6, direct=True),
     ]
 
     def __init__(self, terrain=PATH, seed=21, x_range=MARKS["street"]):
@@ -228,7 +239,7 @@ class Village:
             else:
                 L["g"] = base
         self._built = {}
-        self.door = Doorway(self.door_x, terrain, size=1.45, wall_on=False, seed=seed + 1)
+        self.door = Doorway(self.door_x, terrain, size=DOOR_SIZE, wall_on=False, seed=seed + 1)
         self.lantern = Lantern(size=2.1)
 
     # ------------------------------------------------------------ layout
@@ -255,8 +266,13 @@ class Village:
             w = (1300 + 600 * rnd(s, k, 1)) * sc
             wall = (620 + 160 * rnd(s, k, 2)) * sc
             pitch = 50 + 9 * rnd(s, k, 3)
+            door = x + w / 2 + w * 0.28 * srnd(s, k, 11) if L["name"] in ("near", "mid") else None
             items.append(("house", _house(x + w / 2, L["g"], w, wall, pitch, s + k, sc=sc,
-                                          windows=1 + int(2.5 * rnd(s, k, 4)), lit=L["lit"])))
+                                          windows=1 + int(2.5 * rnd(s, k, 4)), lit=L["lit"], door=door)))
+            if door is not None:
+                n_doors = sum(1 for kd, it in items if kd == "house" and "door_x" in it)
+                items[-1][1]["door_x"] = door
+                items[-1][1]["door_id"] = L["name"][0] + str(n_doors)      # "n0", "n1", ... "m0", ...
             x += w + lerp(*L["gap"], rnd(s, k, 5))
             # trees and spruces between houses
             if rnd(s, k, 6) < 0.6:
@@ -364,14 +380,21 @@ class Village:
                     draw.fill(S, col, a)
 
     # ------------------------------------------------------------ public draw
-    def draw_back(self, f, mood=NIGHT, smoke=True, mist=True):
+    def draw_back(self, f, mood=NIGHT, smoke=True, mist=True, doors=None, door_light=None, t=None):
         """Sky, the far hill with the church, mid and near rows of houses (lit windows glow
-        through the fog), chimney smoke and mist between the rows."""
+        through the fog), chimney smoke and mist between the rows.
+
+        doors: how far the front doors of the rows across the street stand open (the village
+        watching, S02/S10): None/0 = all shut, a float = all, {id: amount}, or a callable
+        (id, t) -> amount (see door_schedule). door_light: interior light of an open door
+        (default 1 at night, 0.6 by day). doorways() lists ids and where villagers stand."""
         mood = get_mood(mood)
+        t = f.t if t is None else t
         backdrop(f, mood, glow=(540.0, 1250.0), glow_r=1300.0, glow_a=0.22)
         for i, L in enumerate(self.layers):
             items = self._layer_items(L)
             par = L["par"]
+            lit_doors = []
             vx0, vy0, vx1, vy1 = view(f, par, 1200)
             vis = [(k, it) for k, it in items if vx0 < (it["x"] if k != "spruce" else it[0][0][0][0][0]) < vx1]
             lamps = [it for k, it in vis if k == "lamp"]
@@ -379,14 +402,18 @@ class Village:
                 with plane(f, par) as c:
                     self._ground(f, c, L, mood, tint=L["depth"])
                     self._paint_houses(f, c, vis, mood, L["depth"], par)
+                    lit_doors = self._row_doors(c, L, vis, mood, doors, door_light, t)
                     self._fence_row(f, c, L, mood, tint=L["depth"])
             else:
                 with depth_layer(f, mood, par, L["depth"], blur=L["blur"]) as c:
                     self._ground(f, c, L, mood)
                     self._paint_houses(f, c, vis, mood, 0.0, par)
+                    lit_doors = self._row_doors(c, L, vis, mood, doors, door_light, t, tint=0.0)
                     if mist:
                         xs = np.linspace(vx0 + 900, vx1 - 900, 14)
                         mist_band(c, xs, np.asarray(L["g"](xs), dtype=float), mood.mist, 0.5, up=380.0, down=120.0)
+            if lit_doors:
+                self._door_wedges(f, L, lit_doors, mood)
             if lamps:
                 self._row_lamps(f, L, lamps, mood)
             self._window_glow(f, vis, mood, par, L["depth"])
@@ -394,6 +421,116 @@ class Village:
                 self._smoke(f, vis, mood, par, L["depth"])
             if mist and L.get("direct"):
                 ground_mist(f, par, L["g"], mood.mist, 0.35, up=300.0, down=100.0)
+
+    @staticmethod
+    def _door_amount(doors, i, t):
+        if doors is None:
+            return 0.0
+        if callable(doors):
+            return clamp(float(doors(i, t)))
+        if isinstance(doors, dict):
+            return clamp(float(doors.get(i, 0.0)))
+        return clamp(float(doors))
+
+    def _row_doors(self, c, L, vis, mood, doors, light, t, tint=None):
+        """Front doors of a row's houses (porch, frame, step); open ones show the lit room.
+        Returns [(x, y, w, h, light)] of the open, lit ones (for their glow and wedge)."""
+        tm = tinted(mood, L["depth"] if tint is None else tint)
+        G = _LayerGround(L["g"])
+        light = (1.0 if mood.night > 0.3 else 0.6) if light is None else light
+        out = []
+        for kind, h in vis:
+            if kind != "house" or h.get("door_x") is None:
+                continue
+            o = self._door_amount(doors, h["door_id"], t)
+            size = DOOR_SIZE * L["sc"]
+            Doorway(h["door_x"], G, size=size, wall_on=False, seed=self.seed + 31 + len(h["door_id"])).draw_back(
+                None, c, tm, open_=o, light=light * smoothstep(0.0, 0.35, o), t=t)
+            a = light * smoothstep(0.0, 0.35, o)
+            if a > 0.01:
+                out.append((h["door_x"], float(L["g"](h["door_x"])), 150 * size, 420 * size, a))
+        return out
+
+    def _door_wedges(self, f, L, lit, mood):
+        """Glow of the open doors and the wedge of light each throws across the snow (an
+        additive pass on the row's plane, so nearer houses hide it)."""
+        if mood.night <= 0.3:
+            return
+        g = mood.lamp_gain * clamp((mood.night - 0.3) / 0.4) * (1.0 - 0.5 * L["depth"])
+        with soft_layer(f, L["par"], k=4, op="add", blur=10.0) as A:
+            for (x, gy, dw, dh, a) in lit:
+                glow(A, (x, gy - dh * 0.45), dw * 1.8, mood.lamp, 0.3 * a * g)
+                reach = dh * 0.75
+                draw.linear(A, (0, gy - 4), (0, gy + reach), [(0, mood.lamp, 0.55 * a * g), (1, mood.lamp, 0.0)])
+                draw.poly(A, [(x - dw * 0.5, gy - 4), (x + dw * 0.5, gy - 4), (x + dw * 2.2, gy + reach),
+                              (x - dw * 2.2, gy + reach)])
+                A.fill()
+
+    def doorways(self, f=None):
+        """Front doors of the rows of houses up the slope across the street (near row "n0",
+        "n1", ... and the smaller mid row "m0", ...), where villagers stand and watch (S02,
+        S10). Each: dict(id, row, x, y, par, sc, world_x[, sx, sy]), sorted by world_x: the
+        threshold in that row's layer coords (draw a villager there inside
+        f.layer(par=par), scaled by sc relative to the action plane); world_x is the
+        action-plane x it lines up with when the camera is at rest; with a frame f, (sx, sy)
+        is the threshold on screen (frame px) for f's camera. Open/close: draw_back(doors=...)."""
+        out = []
+        for L in self.layers:
+            if L["name"] not in ("near", "mid"):
+                continue
+            cam = f.lcam(L["par"]) if f is not None else None
+            for kind, h in self._layer_items(L):
+                if kind == "house" and h.get("door_x") is not None:
+                    x = h["door_x"]
+                    d = dict(id=h["door_id"], row=L["name"], x=x, y=float(L["g"](x)), par=L["par"], sc=L["sc"],
+                             world_x=540.0 + (x - 540.0) / L["par"])
+                    if cam is not None:
+                        d["sx"], d["sy"] = cam.to_screen((x, d["y"]))
+                        top = cam.to_screen((x, d["y"] - 420.0 * DOOR_SIZE * L["sc"]))[1]
+                        d["visible"] = (-60.0 < d["sx"] < 1140.0 and not self._hidden(f, d["sx"], top))
+                    out.append(d)
+        return sorted(out, key=lambda d: d["world_x"])
+
+    def _hidden(self, f, sx, sy):
+        """True if screen point (sx, sy) is behind one of the action-plane houses."""
+        for kind, h in self._plane_items():
+            x0, y0 = f.cam.to_screen((h["x"] - h["w"] / 2 - 90.0, h["ridge"]))
+            x1, y1 = f.cam.to_screen((h["x"] + h["w"] / 2 + 90.0, h["gy"]))
+            if x0 < sx < x1 and sy < y1:
+                cx = (x0 + x1) / 2
+                ey = f.cam.to_screen((h["x"], h["eave"]))[1]
+                roof = y0 + (ey - y0) * abs(sx - cx) / max((x1 - x0) / 2, 1e-6)
+                if sy > roof:
+                    return True
+        return False
+
+    def doors_near(self, world_x, n=3, row=None, f=None):
+        """Ids of the n doorways closest to action-plane x (e.g. the mother's door V.door_x
+        for the S02 two-shot), left to right. With a frame f the match is made on screen for
+        f's camera, skipping doors off screen or hidden behind the street's houses (best:
+        these are the doors you will actually see)."""
+        ds = [d for d in self.doorways(f) if (row is None or d["row"] == row) and d.get("visible", True)]
+        if f is not None:
+            sx = f.cam.to_screen((world_x, 0.0))[0]
+            key = lambda d: abs(d["sx"] - sx)
+        else:
+            key = lambda d: abs(d["world_x"] - world_x)
+        ds = sorted(ds, key=key)[:n]
+        return [d["id"] for d in sorted(ds, key=lambda d: d["world_x"])]
+
+    @staticmethod
+    def door_schedule(close_at, open_at=None, dur=0.35):
+        """doors= callable for draw_back: door id -> open amount over time. close_at
+        {id: t} shuts each door at its time (S02: the light wedges vanish on [didn't],
+        [know], [yet]); open_at {id: t} opens it (default: open from the start)."""
+        open_at = open_at or {}
+
+        def fn(i, t):
+            a = 1.0 if i not in open_at else smoothstep(open_at[i], open_at[i] + dur, t)
+            if i in close_at:
+                a *= 1.0 - smoothstep(close_at[i], close_at[i] + dur, t)
+            return a if (i in close_at or i in open_at) else 0.0
+        return fn
 
     def _row_lamps(self, f, L, lamps, mood):
         """Lantern posts in a rear row (pre-fogged), with an occludable additive glow."""

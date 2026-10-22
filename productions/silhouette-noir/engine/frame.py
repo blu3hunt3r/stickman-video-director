@@ -53,8 +53,10 @@ class Camera:
     def parallax(self, par, origin=(W / 2, H / 2)):
         """Camera for a layer with parallax factor `par` (1 = action plane)."""
         ox, oy = origin
+        # zoom ** par matches 1 + (zoom - 1) * par to first order near zoom 1, but
+        # never flattens, reverses or collapses on deep zoom-outs (zoom < ~0.4)
         return Camera(ox + (self.x - ox) * par, oy + (self.y - oy) * par,
-                      max(1e-3, 1.0 + (self.zoom - 1.0) * par), self.rot)
+                      max(1e-3, self.zoom) ** par, self.rot)
 
     def matrix(self, scale=1.0):
         m = cairo.Matrix()
@@ -377,7 +379,8 @@ class Frame:
         if g.any() and P["glow"] > 0:
             gf = g.astype(np.float32)
             s1, s2 = P["glow_sigma"]
-            gb = _blur(gf, s1) * 0.85 + _blur(gf, s2) * 1.25
+            # sigmas are full-resolution glow-buffer px: scale them so previews match
+            gb = _blur(gf, s1 * self.scale) * 0.85 + _blur(gf, s2 * self.scale) * 1.25
             gb = cv2.resize(gb, (self.gw * GLOW_DS, self.gh * GLOW_DS),
                             interpolation=cv2.INTER_LINEAR)[:self.ph, :self.pw]
             out += gb * P["glow"]
@@ -387,7 +390,7 @@ class Frame:
             small = cv2.resize(out, (max(1, self.pw // k), max(1, self.ph // k)), interpolation=cv2.INTER_AREA)
             thr = P["bloom_threshold"] * 255
             br = np.clip(small - thr, 0, None) * (255.0 / max(255 - thr, 1))
-            br = _blur(br, 3.0) * 0.7 + _blur(br, 9.0) * 0.6
+            br = _blur(br, 3.0 * self.scale) * 0.7 + _blur(br, 9.0 * self.scale) * 0.6
             out += cv2.resize(br, (self.pw, self.ph), interpolation=cv2.INTER_LINEAR) * P["bloom"]
         if P["exposure"] != 1.0:
             out *= P["exposure"]

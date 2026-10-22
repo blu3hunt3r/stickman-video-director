@@ -368,14 +368,18 @@ class Forest:
             self.markers.draw_front(f, mood)
         if occluders:
             L = self.fg
-            trees = self._trees(f, L)
-            brambles = self._brambles(f)
+            # zoomed far out (zoom < ~0.7) the foreground planes shrink to blurry specks
+            # at the ground line: fade them away instead
+            fade_t = smoothstep(0.3, 0.6, f.lcam(L["par"]).zoom)
+            fade_b = smoothstep(0.35, 0.65, f.lcam(self.FGV["par"]).zoom)
+            trees = self._trees(f, L) if fade_t > 0.01 else []
+            brambles = self._brambles(f) if fade_b > 0.01 else []
             if not trees and not brambles:
                 return
             cam = f.lcam(L["par"])
             if brambles:
                 with f.layer(par=self.FGV["par"], blur=self.FGV["blur"]) as c:
-                    _fill(c, brambles, mood.ink)
+                    _fill(c, brambles, mood.ink, fade_b)
             if trees:
                 with f.layer(par=L["par"], blur=L["blur"]) as c:
                     for t in trees:
@@ -385,6 +389,7 @@ class Forest:
                             hw = t["w"] * cam.zoom * 0.7
                             d = max(keep_clear[0] - (sx + hw), (sx - hw) - keep_clear[1], 0.0)
                             a = smoothstep(0.0, 160.0, d)
+                        a *= fade_t
                         if a > 0.01:
                             _fill(c, [t["body"]], mood.ink, a)
 
@@ -537,12 +542,14 @@ def _fill(c, polys, rgb, a=1.0):
         draw.fill(c, rgb, a)
 
 
-def _make_tree(L, x, base_y, w, seed, ground=None):
+def _make_tree(L, x, base_y, w, seed, ground=None, height=None):
     """One winter tree: tall straight trunk (root flare, knots, stubs), sparse thin limbs
-    with twigs, snow on the limbs and a drift mound at the base. Layer coords."""
+    with twigs, snow on the limbs and a drift mound at the base. Layer coords.
+    height: None = the trunk runs out of frame (5200 px); a number = a whole tree whose
+    trunk tapers to a point at that height (seen from afar, e.g. the valley view)."""
     kind = L["name"]
     far = kind in ("ghost", "far")
-    H = 5200.0
+    H = 5200.0 if height is None else float(height)
     lean = srnd(seed, 1) * (2.5 if not far else 1.5) + (srnd(seed, 2) * 6.0 if rnd(seed, 3) < 0.12 else 0.0)
     tl = math.tan(math.radians(lean))
     snag = rnd(seed, 4) < (0.10 if kind in ("near", "plane", "mid") else 0.05)
@@ -557,6 +564,8 @@ def _make_tree(L, x, base_y, w, seed, ground=None):
     def width(h):
         flare = 1.0 + 0.95 * math.exp(-h / (0.55 * w)) + 0.25 * math.exp(-h / (1.6 * w))
         taper = 1.0 - 0.22 * clamp(h / 3000.0)
+        if height is not None:
+            taper *= max(0.04, 1.0 - (h / H) ** 1.6)
         return w * flare * taper
 
     left, right = [], []
@@ -743,11 +752,11 @@ def _make_fg_clump(x, gy, sc, seed):
         if rnd(seed, 55 + i) < 0.25:                     # seed head
             hx, hy = pts[-1]
             polys.append(_orient(draw.ellipse_pts((hx, hy - 8 * sc), 5 * sc, 16 * sc, n=10, angle=a)))
-    for j in range(2 + int(2 * rnd(seed, 60))):          # bramble arcs with thorns
-        side = 1 if j % 2 else -1
-        p0 = (x + srnd(seed, 61 + j) * 60 * sc, gy + 10)
-        L = (220 + 240 * rnd(seed, 62 + j)) * sc
-        pts = _curve(p0, side * (20 + 25 * rnd(seed, 63 + j)), L, side * (90 + 60 * rnd(seed, 64 + j)), n=9)
+    side = 1 if rnd(seed, 66) < 0.5 else -1
+    for j in range(1 + int(1.8 * rnd(seed, 60))):        # bramble arcs with thorns, all leaning one way
+        p0 = (x + srnd(seed, 61 + j) * 60 * sc, gy + 10)  # (symmetric arcs read as legs)
+        L = (200 + 220 * rnd(seed, 62 + j)) * sc
+        pts = _curve(p0, side * (8 + 30 * rnd(seed, 63 + j)), L, side * (55 + 55 * rnd(seed, 64 + j)), n=9)
         polys.append(_taper_limb(pts, 5.5 * sc, 2.0 * sc))
         for i in range(1, 8):
             px, py = pts[i]

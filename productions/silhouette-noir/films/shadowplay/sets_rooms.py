@@ -1,14 +1,17 @@
 """SHADOW PLAY - interiors.
 
-HerRoom      her dark room seen from inside, looking out through her window (S02, S12):
-             wall with the window, sash and mullions, sheer curtain, sill with plant, mug and
-             binoculars, radiator, armchair, floor lamp, rain on the glass.
-her_room_interior(...)  her room as seen from ACROSS the street (S08), for Facade(variant='hers').
 Room3D       a one-point-perspective box room with per-pixel lighting (bulbs, torches,
-             light through a window or a door, with mullions and shadows of blockers).
+             light through a window or a doorway, with mullions and the shadows of blockers).
 Apartment9   the theatre (S04, S07, S09, S10): bare room, window, the sheet on its wire, the
-             bare-bulb lamp, the table with the puppet rig, the door to the hallway.
-KillerRoom   his room (S11): a 5 x 8 board of pinned paper dolls, desk, lamp, blinds.
+             bare-bulb lamp (in front of the sheet for the show, behind it for her trap), the
+             table with the puppet rig, the door to the hallway in the left wall.
+HerRoom      her dark room seen from inside, looking out through her window (S02, S12):
+             sash and mullions, a heavy curtain she can draw (and part a crack), sill with
+             plant, mug and binoculars, radiator, armchair, floor lamp, rain on the glass.
+NineWindow   window 9 from inside (S08 over her shoulder): the same wall, bare.
+HerEntry     her front door from inside with the RED coat on its hook (S06).
+her_room_interior(...)  her room as seen from ACROSS the street (S08), for Facade(variant='hers').
+KillerRoom   his room (S11): 40 paper dolls pinned on the facade lock, a torch beam finds them.
 
 Room coordinates (Room3D) are metres: X right (0 = middle), Y up (0 = floor), Z into the
 room (back wall at Z = depth). Room3D.P(X, Y, Z) gives the world point; Room3D.place(X, Z)
@@ -21,14 +24,14 @@ import cv2
 import numpy as np
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, smoothstep, siren
-from engine.frame import surf_array, array_surface, cached
-from engine.palette import RED
+from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, siren
+from engine.frame import array_surface, surf_array
+from engine.palette import RED, PAPER
 
-from .sets_base import (PAL, INK, AMBER, HOT, RAIN, BLUE, PX_M, mix, mul, layer_spec, opened, view_box,
-                        record, put, glow, glow_ellipse, cone, shadow_screen, rain_glints, rrect, local_matrix)
-from .sets_props import (binoculars, BareLamp, Sheet, Door, flashlight_beam, lamp_light, red_coat, coat_hook,
-                         paper_blood)
+from .sets_base import (PAL, INK, AMBER, HOT, BLUE, PX_M, mix, mul, layer_spec, opened, glow, glow_ellipse,
+                        shadow_screen, rrect, camera_for, texture_surface, occlude_emit)
+from .sets_props import (binoculars as draw_binoculars, BareLamp, Sheet, Door, flashlight_beam, lamp_light,
+                         red_coat, coat_hook, paper_blood)
 
 
 # =========================================================================== Room3D
@@ -350,7 +353,7 @@ class Apartment9:
             center = (C[0] + Ax / (1 - m), C[1] + Ay / (1 - m))
         bulb_r = 0.012                    # a clear bulb: the filament is the source
         pen = 2 * bulb_r * abs(zs - caster_z) / max(abs(caster_z - lz), 1e-3)
-        soft = pen * r.ppm(zs) * 0.5
+        soft = pen * r.ppm(zs) * 0.3      # Gaussian sigma ~ a third of the penumbra's width
         return center, m, soft
 
     # ------------------------------------------------------------------ lights
@@ -417,7 +420,8 @@ class Apartment9:
     def draw(self, f, t, layer=None, lamp=0.0, lamp_at="front", lamp_tilt=0.0, lamp_broken=False, sheet=True,
              table=True, rig=True, crank=0.0, puppets=None, casters=None, caster_z=None, door_open=0.0, hall=0.0,
              door_mask=None, locked=0.0, street=0.35, police=0.0, flashlights=(), outside=None, tears=(),
-             sheet_hit=None, sheet_fall=0.0, blood=(), hooks=None, dust=1.0, lamp_stand=True, extra_lights=()):
+             sheet_hit=None, sheet_fall=0.0, blood=(), hooks=None, dust=1.0, lamp_stand=True, extra_lights=(),
+             feet=()):
         """Draw apartment 9 in a given state.
 
         lamp        bulb level (sets.switch for the flicker-on); lamp_at 'front' | 'behind' | (X, Z)
@@ -429,6 +433,8 @@ class Apartment9:
         casters     fn(ctx) drawing what throws shadows on the sheet, at depth caster_z
                     (default: the puppets + rods at the table's depth)
         door_open   0..1 (sets.door_swing / slam); hall 0..1 hallway light; locked 0..1
+        feet        positions (door px from the hinge, 0..310) of feet outside the closed door:
+                    they break the line of light under it (S09 end)
         door_mask   fn(u, v) -> blocker in the doorway (u 0 hinge..1 free edge, v 0 floor..1 top)
         street      cold street light through the window; police 0..1 strobes through it
         flashlights [dict(pos=(X,Y,Z), dir=(dx,dy,dz), cone, power)] torch beams (S04)
@@ -489,8 +495,8 @@ class Apartment9:
             hooks["after_props"](f, t)
         # 5) the door
         with opened(f, spec) as L:
-            self.door.draw(f, t, L, open=door_open, hall=hall, locked=locked, key=False)
-        self.door.light(f, t, open=door_open, hall=hall, par=par, spill=0.0)
+            self.door.draw(f, t, L, open=door_open, hall=hall, locked=locked, key=False, feet=feet)
+        self.door.light(f, t, open=door_open, hall=hall, par=par, spill=0.0, feet=feet)
         if "after_door" in hooks:
             hooks["after_door"](f, t)
         # 6) air: lamp halo, torch beams, dust
@@ -681,29 +687,45 @@ class Apartment9:
 
 # =========================================================================== her room
 class HerRoom:
-    """Her room seen from inside, looking out (S02 reveal, S12). An elevation view of the
-    window wall; draw the outside world (sky, facade at a small scale) FIRST, then this.
+    """Her room seen from inside, looking out through her window (S02 reveal, S12). An
+    elevation of the window wall in the action-plane scale (1 m = 343 px at scale 1). Draw the
+    world outside (sky, facade, rain) FIRST: the wall is drawn with the glass left open.
 
     HerRoom(origin=(540, 1800), scale=1.0)   origin = floor point under the window centre
-      .glass            world rect of the glass (the view out)
-      .sill_y           world y of the sill top
-      .binocular_rest   where her binoculars lie on the sill (world)
-      .chair_seat       world point on the armchair seat (for her, sitting)
-      .lamp_bulb        world point of the floor lamp's bulb
-    draw(f, t, layer=None, curtain=1.0, rain=1.0, binoculars=True, plant=True, mug=True,
-         radiator=True, lamp=0.0, chair=True, outside_light=1.0)
-    draw_chair(f, t, layer) the armchair alone (e.g. as a blurred foreground occluder)."""
+      .glass           world rect of the glass (1.5 x 1.9 m, the facade windows' 4:5)
+      .sill_y          world y of the sill top        .floor_y   the floor
+      .binocular_rest  her binoculars' grip point, standing on their objectives on the sill
+      .chair_seat      a point on the armchair seat (her hips when she sits watching)
+      .lamp_bulb       the floor lamp's bulb          .curtain_edge(close, gap)  leading edge x
+    draw(f, t, layer=None, curtain=0.0, gap=0.0, gap_at=0.55, rain=1.0, binoculars=True,
+         plant=True, mug=True, radiator=True, lamp=0.0, chair=True, outside_light=1.0,
+         condensation=1.0, room_light=0.0, wipe=None)
+      condensation  0..1 the steamed lower pane (blurs and lifts what is behind it)
+      wipe     (u, v, r) a patch she wiped clear (glass fractions, r in px at scale 1)
+      curtain  0 = open (gathered right of the window) .. 1 = drawn across the glass (S12)
+      gap      0..1 a crack held open in the drawn curtain at gap_at (fraction of the glass
+               width from the left): her fingers part it (S12 "Mostly.")
+      lamp     her floor lamp (S08 seen from outside it is on; inside she keeps it off)
+      room_light  a warm fill on the wall from a light behind the camera
+    draw_chair(f, t, layer) the armchair alone (a blurred foreground occluder for dollies)."""
 
     def __init__(self, origin=(540.0, 1800.0), scale=1.0):
         self.o = (float(origin[0]), float(origin[1]))
         self.s = s = float(scale)
         ox, oy = self.o
-        self.glass = (ox - 206 * s, oy - 978 * s, ox + 206 * s, oy - 292 * s)
-        self.sill_y = oy - 292 * s
-        self.binocular_rest = (ox + 96 * s, self.sill_y - 13 * s)
-        self.chair_seat = (ox - 330 * s, oy - 170 * s)
-        self.lamp_bulb = (ox + 420 * s, oy - 1010 * s)
-        self.rod_y = self.glass[1] - 70 * s
+        self.floor_y = oy
+        self.glass = (ox - 257 * s, oy - 858 * s, ox + 257 * s, oy - 206 * s)
+        self.sill_y = oy - 206 * s
+        self.binocular_rest = (ox + 120 * s, self.sill_y - 33 * s)     # grip point, standing on the sill
+        self.chair_seat = (ox - 400 * s, oy - 154 * s)
+        self.lamp_bulb = (ox + 500 * s, oy - 500 * s)
+        self.rod_y = self.glass[1] - 80 * s
+
+    # ------------------------------------------------------------------ geometry
+    def curtain_edge(self, close=0.0):
+        """World x of the drawn curtain's leading edge (it slides from the right)."""
+        x0, y0, x1, y1 = self.glass
+        return lerp(x1 + 30 * self.s, x0 - 30 * self.s, clamp(close))
 
     def _wall(self, c):
         s = self.s
@@ -712,75 +734,171 @@ class HerRoom:
         draw.rect(c, ox - 4000 * s, oy - 4000 * s, ox + 4000 * s, oy + 2000 * s)
         draw.rect(c, x0, y0, x1, y1)
 
-    def draw(self, f, t, layer=None, curtain=1.0, rain=1.0, binoculars=True, plant=True, mug=True, radiator=True,
-             lamp=0.0, chair=True, outside_light=1.0, condensation=1.0):
+    # ------------------------------------------------------------------ drawing
+    def draw(self, f, t, layer=None, curtain=0.0, gap=0.0, gap_at=0.55, rain=1.0, binoculars=True, plant=True,
+             mug=True, radiator=True, lamp=0.0, chair=True, outside_light=1.0, condensation=1.0, room_light=0.0,
+             dressing="hers", wipe=None):
         spec = layer_spec(layer)
         par = spec["par"]
         s = self.s
         ox, oy = self.o
         x0, y0, x1, y1 = self.glass
         gw, gh = x1 - x0, y1 - y0
-        # glass: condensation at the bottom, a faint cold sheen
-        with f.light(par=par, blur=8.0) as A:
-            draw.linear(A, (0, y1 - gh * 0.35), (0, y1), [(0, PAL.fog_at(1.0), 0.0), (1, PAL.fog_at(1.0), 0.20 * condensation)])
-            A.rectangle(x0, y0, gw, gh)
-            A.fill()
+        hers = dressing == "hers"
+        # glass: condensation creeping up from the bottom (it blurs the street behind it and
+        # catches its light, so whatever stands on the sill reads against it), drops of rain
+        self._frost(f, par, condensation, wipe)
         if rain > 0:
             self._rain_on_glass(f, t, par, rain)
+        cover = clamp(curtain) if hers else 0.0
+        occlude_emit(f, par, self._wall, even_odd=True)
         with opened(f, spec) as L:
-            # wall with the opening; a lamp-lit room lifts the wall
             L.new_path()
             self._wall(L)
             L.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
-            wall = mix(INK, mix(AMBER, PAL.fog_at(1.0), 0.6), 0.05 + 0.25 * lamp)
-            draw.fill(L, wall)
+            base = 0.05 if hers else 0.09
+            warm = mix(AMBER, PAL.fog_at(1.0), 0.55)
+            wall = mix(INK, warm, base + 0.25 * lamp)
+            if room_light > 0:
+                # a light behind the camera, low and to the left: the wall falls off upward
+                draw.radial(L, (ox - 260 * s, oy + 120 * s), 0, 1500 * s,
+                            [(0, mix(INK, warm, base + 0.42 * room_light), 1), (0.55, mix(INK, warm, base + 0.2 * room_light), 1),
+                             (1, wall, 1)])
+                L.fill()
+            else:
+                draw.fill(L, wall)
             L.set_fill_rule(cairo.FILL_RULE_WINDING)
+            if not hers:
+                # apartment 9: bare plaster with damp stains, a nail and the sheet's wire
+                self._stains(L)
             self._sash(L)
-            if curtain > 0:
-                self._curtain(L, t, curtain)
             self._sill(L)
             if radiator:
                 self._radiator(L)
-            if plant:
-                self._plant(L, t)
-            if mug:
-                mx, my = ox + 175 * s, self.sill_y
-                draw.poly(L, [(mx - 15 * s, my - 34 * s), (mx + 15 * s, my - 34 * s), (mx + 13 * s, my), (mx - 13 * s, my)])
-                L.new_sub_path()
-                L.arc(mx + 18 * s, my - 18 * s, 9 * s, -math.pi / 2, math.pi / 2)
-                L.arc_negative(mx + 18 * s, my - 18 * s, 4.5 * s, math.pi / 2, -math.pi / 2)
-                L.close_path()
-                draw.fill(L, INK)
-            if binoculars:
+            rim = (mix(PAL.fog_at(1.0), PAL.rain, 0.35), 0.5 * outside_light * (1.0 - 0.9 * cover))
+            if hers and plant:
+                self._rimmed(L, lambda c: self._plant(c, t), rim)
+            if hers and mug:
+                self._rimmed(L, self._mug, rim)
+            if hers and binoculars:
                 bx, by = self.binocular_rest
-                binoculars(L, (bx, by), angle=180.0, scale=s * 1.05, view="side", flip=1, strap=0.8, t=t)
-            self._lamp(L, lamp)
-            if chair:
-                self._chair(L)
-        # light coming in through the window: sill top, reveal, curtain folds; lamp glow
+                self._rimmed(L, lambda c: draw_binoculars(c, (bx, by), angle=90.0, scale=s * 1.05, view="pair"), rim)
+            if hers:
+                self._lamp(L, lamp)
+                self._curtain(L, t, cover, gap, gap_at)
+                if cover > 0.01:
+                    x_edge = self.curtain_edge(cover)
+                    occlude_emit(f, par, lambda c: c.rectangle(x_edge, self.rod_y, x1 + 200 * s - x_edge,
+                                                               oy - self.rod_y))
+                if chair:
+                    self._chair(L)
+            else:
+                # the sheet's wire, strung wall to wall in front of the window top
+                draw.capsule(L, (x0 - 600 * s, y0 - 46 * s), (x1 + 600 * s, y0 - 40 * s), 1.4 * s, 1.4 * s)
+                draw.fill(L, INK)
+        # light from outside: sill, reveal, the pale patch on the floor (less as she closes it)
+        k = outside_light * (1.0 - 0.92 * cover)
         with f.light(par=par, blur=4.0) as A:
-            k = outside_light
-            A.rectangle(x0 - 50 * s, self.sill_y - 2 * s, gw + 100 * s, 4 * s)
-            draw.fill(A, PAL.fog_at(1.0), 0.8 * k)
-            draw.linear(A, (x0, 0), (x0 + 34 * s, 0), [(0, PAL.fog_at(1.0), 0.0), (1, PAL.fog_at(1.0), 0.35 * k)])
-            A.rectangle(x0 - 34 * s, y0 - 34 * s, 34 * s, gh + 34 * s)
-            A.fill()
-            glow_ellipse(A, ((x0 + x1) / 2, self.sill_y + 10 * s), gw * 0.8, 40 * s, PAL.fog_at(1.0), 0.25 * k)
-            glow_ellipse(A, ((x0 + x1) / 2, oy), gw * 1.1, 70 * s, PAL.fog_at(1.0), 0.12 * k)
-            if curtain > 0:
-                for j in range(5):
-                    fx = x1 - gw * 0.05 + j * 30 * s
-                    if fx < x1:
-                        draw.linear(A, (fx - 8 * s, 0), (fx + 8 * s, 0), [(0, PAL.fog_at(1.0), 0), (0.5, PAL.fog_at(1.0), 0.18 * k),
-                                                                          (1, PAL.fog_at(1.0), 0)])
-                        A.rectangle(fx - 8 * s, y0, 16 * s, gh)
-                        A.fill()
-        if lamp > 0.01:
-            lamp_light(f, self.lamp_bulb, lamp, scale=s * 1.3, par=par, radius=1300)
+            if k > 0.01:
+                A.rectangle(x0 - 50 * s, self.sill_y - 2 * s, gw + 100 * s, 4 * s)
+                draw.fill(A, PAL.fog_at(1.0), 0.8 * k)
+                # the wet-looking sill top under the glass and the bottom rail's glint
+                draw.linear(A, (0, self.sill_y - 1 * s), (0, self.sill_y + 18 * s), [(0, PAL.fog_at(1.0), 0.45 * k),
+                                                                                     (1, PAL.fog_at(1.0), 0.0)])
+                A.rectangle(x0 - 40 * s, self.sill_y - 1 * s, gw + 80 * s, 19 * s)
+                A.fill()
+                # the casing catches the light round the glass
+                cw = 36 * s
+                for (p0, p1, rc) in (((x0, 0), (x0 - cw, 0), (x0 - cw, y0 - cw, cw, gh + cw)),
+                                     ((x1, 0), (x1 + cw, 0), (x1, y0 - cw, cw, gh + cw)),
+                                     ((0, y0), (0, y0 - cw), (x0 - cw, y0 - cw, gw + 2 * cw, cw))):
+                    draw.linear(A, p0, p1, [(0, PAL.fog_at(1.0), 0.20 * k), (1, PAL.fog_at(1.0), 0.0)])
+                    A.rectangle(*rc)
+                    A.fill()
+                if radiator:
+                    # the radiator's top catches the window light
+                    rt = oy - 176 * s
+                    A.save()
+                    A.new_path()
+                    self._radiator(A, fill=False)
+                    A.clip()
+                    draw.linear(A, (0, rt), (0, rt + 40 * s), [(0, PAL.fog_at(1.0), 0.32 * k), (1, PAL.fog_at(1.0), 0.0)])
+                    A.rectangle(ox - 240 * s, rt, 480 * s, 40 * s)
+                    A.fill()
+                    A.restore()
+                glow_ellipse(A, ((x0 + x1) / 2, self.sill_y + 10 * s), gw * 0.8, 40 * s, PAL.fog_at(1.0), 0.25 * k)
+                # light bounced off the sill and the floor onto the wall round the window
+                glow_ellipse(A, ((x0 + x1) / 2, (y0 + y1) / 2 + gh * 0.2), gw * 1.25, gh * 0.95, PAL.fog_at(1.0), 0.07 * k)
+                # the window's four panes thrown on the floor (foreshortened, the mullions dark)
+                d0, d1 = oy + 26 * s, oy + 210 * s
+                draw.linear(A, (0, d0), (0, d1), [(0, PAL.fog_at(1.0), 0.42 * k), (1, PAL.fog_at(1.0), 0.05 * k)])
+                xm = (x0 + x1) / 2
+                for (ua, ub) in ((0.0, 0.48), (0.52, 1.0)):
+                    for (va, vb) in ((0.0, 0.46), (0.54, 1.0)):
+                        ya, yb = lerp(d0, d1, va), lerp(d0, d1, vb)
+                        wa, wb = 1.0 + 0.5 * va, 1.0 + 0.5 * vb
+                        draw.poly(A, [(xm + (lerp(x0, x1, ua) - xm) * wa, ya), (xm + (lerp(x0, x1, ub) - xm) * wa, ya),
+                                      (xm + (lerp(x0, x1, ub) - xm) * wb, yb), (xm + (lerp(x0, x1, ua) - xm) * wb, yb)])
+                A.fill()
+            if hers and cover < 0.98:
+                # rim light down the curtain's leading edge
+                ex = self.curtain_edge(cover)
+                draw.linear(A, (ex - 14 * s, 0), (ex + 6 * s, 0), [(0, PAL.fog_at(1.0), 0.0), (0.7, PAL.fog_at(1.0), 0.5 * outside_light),
+                                                                   (1, PAL.fog_at(1.0), 0.0)])
+                A.rectangle(ex - 14 * s, self.rod_y, 20 * s, oy - self.rod_y)
+                A.fill()
+            if hers and gap > 0.01 and cover > 0.3:
+                gx = lerp(x0, x1, gap_at)
+                gwid = 26 * s * gap
+                draw.linear(A, (gx - gwid, 0), (gx + gwid, 0), [(0, PAL.fog_at(1.0), 0), (0.5, PAL.fog_at(1.0), 0.75 * outside_light),
+                                                                (1, PAL.fog_at(1.0), 0)])
+                A.rectangle(gx - gwid, self.rod_y + 10 * s, 2 * gwid, oy - self.rod_y - 10 * s)
+                A.fill()
+                glow_ellipse(A, (gx, oy + 30 * s), 90 * s * gap, 20 * s, PAL.fog_at(1.0), 0.3 * outside_light)
+            if room_light > 0:
+                glow(A, (ox - 260 * s, oy + 200 * s), 900 * s, AMBER, 0.06 * room_light)
+        if lamp > 0.01 and hers:
+            lamp_light(f, self.lamp_bulb, lamp, scale=s * 1.2, par=par, radius=1200)
 
-    def draw_chair(self, f, t, layer=None):
+    def draw_chair(self, f, t, layer=None, at=None, rim=0.0):
+        """The armchair alone (at=(x, floor_y) to move it), e.g. as a blurred foreground;
+        rim = window light along its top edges."""
         with opened(f, layer) as L:
-            self._chair(L)
+            self._rimmed(L, lambda c: self._chair(c, at), (PAL.fog_at(1.0), rim), clip=False, d=3.0 * self.s)
+
+    def _rimmed(self, L, fn, rim, clip=True, d=None):
+        """Draw fn's ink silhouette with a hairline of window light on its top edges (the
+        light comes from behind it, through the glass)."""
+        col, a = rim
+        if a <= 0.01:
+            fn(L)
+            return
+        L.push_group()
+        fn(L)
+        pat = L.pop_group()
+        x0, y0, x1, y1 = self.glass
+        d = 1.3 * max(self.s, 0.5) if d is None else d
+        L.save()
+        if clip:
+            L.rectangle(x0 - 6 * self.s, y0, x1 - x0 + 12 * self.s, y1 - y0 + 4 * self.s)     # only against the glass
+            L.clip()
+        L.translate(0, -d)
+        draw.rgba(L, col, a)
+        L.mask(pat)
+        L.restore()
+        L.set_source(pat)
+        L.paint()
+
+    def _mug(self, L):
+        s = self.s
+        ox, oy = self.o
+        mx, my = ox + 205 * s, self.sill_y
+        draw.poly(L, [(mx - 15 * s, my - 34 * s), (mx + 15 * s, my - 34 * s), (mx + 13 * s, my), (mx - 13 * s, my)])
+        L.new_sub_path()
+        L.arc(mx + 18 * s, my - 18 * s, 9 * s, -math.pi / 2, math.pi / 2)
+        L.arc_negative(mx + 18 * s, my - 18 * s, 4.5 * s, math.pi / 2, -math.pi / 2)
+        L.close_path()
+        draw.fill(L, INK)
 
     # ------------------------------------------------------------------ pieces
     def _sash(self, L):
@@ -788,8 +906,7 @@ class HerRoom:
         x0, y0, x1, y1 = self.glass
         cx = (x0 + x1) / 2
         ym = y0 + (y1 - y0) * 0.5
-        cw = 34 * s
-        # casing (architrave) and the sash bars
+        cw = 36 * s
         draw.rect(L, x0 - cw, y0 - cw, x1 + cw, y0)
         draw.rect(L, x0 - cw, y0, x0, y1)
         draw.rect(L, x1, y0, x1 + cw, y1)
@@ -798,62 +915,81 @@ class HerRoom:
                 (x0, ym - 13 * s, x1, ym + 13 * s), (cx - 6 * s, y0, cx + 6 * s, y1)]
         for b in bars:
             draw.rect(L, *b)
-        # window latch on the meeting rail
-        draw.ellipse(L, (cx, ym - 14 * s), 14 * s, 6 * s)
+        draw.ellipse(L, (cx, ym - 14 * s), 14 * s, 6 * s)       # sash lock on the meeting rail
         draw.fill(L, INK)
 
-    def _curtain(self, L, t, k):
-        """Sheer curtain on the right, from a rod with ball finials down to the floor."""
+    def _curtain(self, L, t, close, gap, gap_at):
+        """A heavy drape on a rod with ball finials. Open it gathers right of the window;
+        drawn, it covers the glass; `gap` holds a crack open at gap_at."""
         s = self.s
         x0, y0, x1, y1 = self.glass
         ox, oy = self.o
         ry = self.rod_y
-        draw.capsule(L, (x0 - 120 * s, ry), (x1 + 160 * s, ry), 5 * s, 5 * s)
-        for ex in (x0 - 124 * s, x1 + 164 * s):
+        draw.capsule(L, (x0 - 200 * s, ry), (x1 + 210 * s, ry), 5 * s, 5 * s)
+        for ex in (x0 - 204 * s, x1 + 214 * s):
             draw.circle(L, (ex, ry), 11 * s)
         draw.fill(L, INK)
-        sw = 10 * s * fbm1(t * 0.35, 21)
-        pts = [(x1 - 110 * s, ry), (x1 + 150 * s, ry), (x1 + 160 * s + sw * 0.2, oy - 6 * s),
-               (x1 - 30 * s + sw, oy - 4 * s), (x1 - 52 * s + sw * 0.8, (ry + oy) / 2 + 40 * s),
-               (x1 - 96 * s + sw * 0.4, ry + 200 * s)]
-        draw.smooth(L, pts, close=True, tension=0.3)
-        draw.fill(L, INK, 0.55 * k)
-        # deeper folds
-        for j in range(4):
-            fx = x1 - 70 * s + j * 52 * s
-            pts = [(fx, ry + 6 * s), (fx + 14 * s, ry + 6 * s), (fx + 20 * s + sw * 0.6, oy - 8 * s), (fx + 2 * s + sw * 0.6, oy - 8 * s)]
+        right = x1 + 190 * s
+        edge = self.curtain_edge(close)
+        sw = 8 * s * fbm1(t * 0.35, 21)
+        hem = oy - 10 * s
+        panels = [(edge, right)]
+        if gap > 0.01 and close > 0.3:
+            gx = lerp(x0, x1, gap_at)
+            gw = 26 * s * gap
+            if edge < gx - gw:
+                panels = [(edge, gx - gw), (gx + gw, right)]
+        for (a, b) in panels:
+            pts = [(a, ry + 4 * s), (b, ry + 4 * s), (b + sw * 0.3, hem), (a + sw, hem)]
             draw.poly(L, pts)
-        draw.fill(L, INK, 0.35 * k)
+            draw.fill(L, INK, 0.94)
+            # folds: tone bands, deeper when gathered; the ones nearest the glass catch its light
+            n = max(2, int((b - a) / (34 * s)))
+            gather = 1.0 - 0.6 * clamp(close)
+            for j in range(n):
+                fx = a + (b - a) * (j + 0.5) / n
+                near = math.exp(-max(0.0, fx - x1) / (160 * s)) if close < 0.5 else 0.5
+                ka = (0.06 + 0.16 * near) * gather
+                draw.linear(L, (fx - 14 * s, 0), (fx + 14 * s, 0),
+                            [(0, PAL.fog_at(1.0), 0.0), (0.6, PAL.fog_at(1.0), ka), (1, PAL.fog_at(1.0), 0.0)])
+                L.rectangle(fx - 14 * s, ry + 6 * s, 28 * s, hem - ry - 6 * s)
+                L.fill()
+        # curtain rings on the rod
+        for (a, b) in panels:
+            n = max(2, int((b - a) / (30 * s)))
+            for j in range(n + 1):
+                draw.circle(L, (lerp(a, b, j / n), ry), 7 * s)
+        draw.fill(L, INK)
 
     def _sill(self, L):
         s = self.s
         ox, oy = self.o
         y = self.sill_y
-        draw.rect(L, ox - 270 * s, y, ox + 270 * s, y + 20 * s)
-        draw.rect(L, ox - 240 * s, y + 20 * s, ox + 240 * s, y + 44 * s)
+        draw.rect(L, ox - 320 * s, y, ox + 320 * s, y + 20 * s)
+        draw.rect(L, ox - 290 * s, y + 20 * s, ox + 290 * s, y + 44 * s)
         draw.fill(L, INK)
 
-    def _radiator(self, L):
+    def _radiator(self, L, fill=True):
         s = self.s
         ox, oy = self.o
-        top, bot = oy - 236 * s, oy - 36 * s
-        x = ox - 176 * s
-        while x < ox + 176 * s:
+        top, bot = oy - 176 * s, oy - 30 * s
+        x = ox - 200 * s
+        while x < ox + 200 * s:
             rrect(L, x, top, x + 20 * s, bot, 9 * s)
             x += 26 * s
-        draw.rect(L, ox - 180 * s, bot - 30 * s, ox + 180 * s, bot - 18 * s)
-        draw.rect(L, ox - 180 * s, top + 16 * s, ox + 180 * s, top + 26 * s)
-        for fx in (ox - 160 * s, ox + 150 * s):
+        draw.rect(L, ox - 204 * s, bot - 26 * s, ox + 204 * s, bot - 16 * s)
+        draw.rect(L, ox - 204 * s, top + 14 * s, ox + 204 * s, top + 24 * s)
+        for fx in (ox - 184 * s, ox + 172 * s):
             draw.rect(L, fx, bot, fx + 12 * s, oy)
-        # valve
-        draw.rect(L, ox + 180 * s, top + 40 * s, ox + 214 * s, top + 52 * s)
-        draw.circle(L, (ox + 214 * s, top + 34 * s), 13 * s)
-        draw.fill(L, INK)
+        draw.rect(L, ox + 204 * s, top + 40 * s, ox + 236 * s, top + 52 * s)
+        draw.circle(L, (ox + 236 * s, top + 34 * s), 13 * s)
+        if fill:
+            draw.fill(L, INK)
 
     def _plant(self, L, t):
         s = self.s
         x0 = self.glass[0]
-        px, py = x0 + 50 * s, self.sill_y
+        px, py = x0 + 60 * s, self.sill_y
         draw.poly(L, [(px - 44 * s, py - 70 * s), (px + 44 * s, py - 70 * s), (px + 32 * s, py), (px - 32 * s, py)])
         draw.rect(L, px - 50 * s, py - 80 * s, px + 50 * s, py - 66 * s)
         sw = 3 * s * math.sin(t * 0.7)
@@ -872,35 +1008,129 @@ class HerRoom:
         draw.fill(L, INK)
 
     def _lamp(self, L, lamp):
-        """Floor lamp with a drum shade, right of the window."""
+        """Floor lamp with a drum shade (1.6 m), right of the window."""
         s = self.s
         ox, oy = self.o
-        lx = ox + 420 * s
-        draw.ellipse(L, (lx, oy - 6 * s), 70 * s, 12 * s)
-        draw.rect(L, lx - 5 * s, oy - 980 * s, lx + 5 * s, oy - 6 * s)
-        shade = [(lx - 92 * s, oy - 960 * s), (lx + 92 * s, oy - 960 * s), (lx + 70 * s, oy - 1110 * s), (lx - 70 * s, oy - 1110 * s)]
+        lx = self.lamp_bulb[0]
+        draw.ellipse(L, (lx, oy - 6 * s), 62 * s, 11 * s)
+        draw.rect(L, lx - 5 * s, oy - 470 * s, lx + 5 * s, oy - 6 * s)
         draw.fill(L, INK)
+        shade = [(lx - 88 * s, oy - 463 * s), (lx + 88 * s, oy - 463 * s), (lx + 66 * s, oy - 549 * s), (lx - 66 * s, oy - 549 * s)]
         draw.poly(L, shade)
         if lamp > 0.01:
-            draw.linear(L, (0, oy - 1110 * s), (0, oy - 960 * s), [(0, mix(INK, AMBER, 0.65 * lamp), 1),
+            draw.linear(L, (0, oy - 549 * s), (0, oy - 463 * s), [(0, mix(INK, AMBER, 0.65 * lamp), 1),
                                                                    (1, mix(INK, HOT, 0.9 * lamp), 1)])
             L.fill()
         else:
             draw.fill(L, INK)
 
-    def _chair(self, L):
-        """Wingback armchair, seen from behind, facing the window."""
+    def _chair(self, L, at=None):
+        """Wingback armchair seen from behind, facing the window (1.05 m back)."""
         s = self.s
         cx, cy = self.chair_seat
         ox, oy = self.o
-        back = [(cx - 150 * s, oy - 10 * s), (cx - 168 * s, cy - 40 * s), (cx - 190 * s, cy - 250 * s),
-                (cx - 176 * s, cy - 330 * s), (cx - 120 * s, cy - 352 * s), (cx - 40 * s, cy - 380 * s),
-                (cx + 40 * s, cy - 380 * s), (cx + 120 * s, cy - 352 * s), (cx + 176 * s, cy - 330 * s),
-                (cx + 190 * s, cy - 250 * s), (cx + 168 * s, cy - 40 * s), (cx + 150 * s, oy - 10 * s)]
+        if at is not None:
+            cx, oy = at
+        top = oy - 360 * s
+        back = [(cx - 150 * s, oy - 10 * s), (cx - 166 * s, oy - 130 * s), (cx - 184 * s, oy - 250 * s),
+                (cx - 170 * s, top + 30 * s), (cx - 110 * s, top + 8 * s), (cx - 40 * s, top),
+                (cx + 40 * s, top), (cx + 110 * s, top + 8 * s), (cx + 170 * s, top + 30 * s),
+                (cx + 184 * s, oy - 250 * s), (cx + 166 * s, oy - 130 * s), (cx + 150 * s, oy - 10 * s)]
         draw.smooth(L, back, close=True, tension=0.28)
         for fx in (cx - 140 * s, cx + 128 * s):
             draw.rect(L, fx, oy - 30 * s, fx + 14 * s, oy)
         draw.fill(L, INK)
+
+    def _stains(self, L):
+        """Apartment 9's wall: damp stains and a pale rectangle where a picture hung."""
+        s = self.s
+        ox, oy = self.o
+        x0, y0, x1, y1 = self.glass
+        draw.rect(L, x1 + 160 * s, y0 + 40 * s, x1 + 330 * s, y0 + 250 * s)
+        draw.fill(L, PAL.fog_at(1.0), 0.06)
+        draw.circle(L, (x1 + 245 * s, y0 + 30 * s), 4 * s)                   # the nail
+        draw.fill(L, INK)
+        for k in range(5):
+            cx = x0 - 300 * s + 700 * s * hash01(41, k, 1)
+            draw.ellipse(L, (cx, y0 - 120 * s + 80 * s * hash01(41, k, 2)), (40 + 90 * hash01(41, k, 3)) * s,
+                         (60 + 160 * hash01(41, k, 4)) * s)
+            draw.fill(L, INK, 0.10)
+
+    def _frost(self, f, par, amount, wipe=None):
+        """Steamed lower pane: blur what is already drawn behind the glass's lower part and
+        lift it a little; the top edge is ragged and climbs into the corners. wipe=(u, v, r)
+        keeps a smeared patch clear (she wiped it to watch)."""
+        if amount <= 0.01:
+            return
+        s = self.s
+        x0, y0, x1, y1 = self.glass
+        gw, gh = x1 - x0, y1 - y0
+        M = f.lcam(par).matrix(f.scale)
+        top = y1 - gh * 0.46
+        corners = [M.transform_point(x, y) for (x, y) in ((x0, top), (x1, top), (x1, y1), (x0, y1))]
+        sig = max(1.0, 13.0 * s * abs(M.xx))
+        pad = int(3 * sig) + 2
+        bx0 = max(0, int(min(p[0] for p in corners)) - pad)
+        bx1 = min(f.pw, int(max(p[0] for p in corners)) + pad + 1)
+        by0 = max(0, int(min(p[1] for p in corners)) - pad)
+        by1 = min(f.ph, int(max(p[1] for p in corners)) + pad + 1)
+        if bx1 - bx0 < 4 or by1 - by0 < 4:
+            return
+        w, h = bx1 - bx0, by1 - by0
+        ms = cairo.ImageSurface(cairo.FORMAT_A8, w, h)
+        mc = cairo.Context(ms)
+        mc.translate(-bx0, -by0)
+        mc.transform(M)
+        mc.rectangle(x0, y0, gw, gh)
+        mc.clip()
+        # ragged edge, higher in the corners; density grows toward the bottom rail
+        n = 48
+        pts = []
+        for j in range(n + 1):
+            u = j / n
+            corner = (abs(u - 0.5) * 2) ** 3
+            y = top + gh * (0.12 - 0.16 * corner + 0.05 * (fbm1(u * 9.0, 61) - 0.5))
+            pts.append((lerp(x0, x1, u), y))
+        pts += [(x1, y1 + 4 * s), (x0, y1 + 4 * s)]
+        draw.poly(mc, pts)
+        g = cairo.LinearGradient(0, top - gh * 0.04, 0, y1)
+        g.add_color_stop_rgba(0.0, 0, 0, 0, 0.0)
+        g.add_color_stop_rgba(0.30, 0, 0, 0, 0.55 * amount)
+        g.add_color_stop_rgba(1.0, 0, 0, 0, min(1.0, 1.0 * amount))
+        mc.set_source(g)
+        mc.fill()
+        if wipe:
+            u, v, r = wipe
+            cx, cy = lerp(x0, x1, u), lerp(y0, y1, v)
+            r *= s
+            mc.set_operator(cairo.OPERATOR_DEST_OUT)
+            for j in range(9):                     # a few overlapping hand strokes
+                a = (j - 4) * 0.11
+                ex = cx + r * 0.9 * math.sin(a * 3.0)
+                ey = cy + r * 0.12 * (j - 4) * 0.5
+                rg = cairo.RadialGradient(ex, ey, r * 0.25, ex, ey, r * (0.75 + 0.1 * hash01(62, j)))
+                rg.add_color_stop_rgba(0, 0, 0, 0, 0.32)
+                rg.add_color_stop_rgba(1, 0, 0, 0, 0.0)
+                mc.set_source(rg)
+                mc.arc(ex, ey, r, 0, 2 * math.pi)
+                mc.fill()
+        ms.flush()
+        stride = ms.get_stride()
+        mask = np.ndarray((h, stride), dtype=np.uint8, buffer=ms.get_data())[:, :w].astype(np.float32) / 255.0
+        region = surf_array(f.surf)[by0:by1, bx0:bx1]
+        # blur at 1/d resolution (it is a soft blur anyway): ~10x cheaper than full res
+        d = max(1, int(sig / 4.0))
+        sw_, sh_ = max(2, w // d), max(2, h // d)
+        small = cv2.resize(region, (sw_, sh_), interpolation=cv2.INTER_AREA)
+        bl = cv2.resize(cv2.GaussianBlur(small, (0, 0), sig / d), (w, h), interpolation=cv2.INTER_LINEAR)
+        msk = cv2.resize(cv2.GaussianBlur(cv2.resize(mask, (sw_, sh_), interpolation=cv2.INTER_AREA), (0, 0),
+                                          sig * 1.2 / d), (w, h), interpolation=cv2.INTER_LINEAR)
+        mm = np.minimum(1.0, msk * 1.6)
+        out = cv2.blendLinear(region, bl, 1.0 - mm, mm)
+        fc = PAL.fog_at(1.0)
+        lift = (msk * (0.55 * 255.0))[..., None] * np.array([fc[2], fc[1], fc[0], 0.0], np.float32)
+        region[...] = cv2.add(out, lift.astype(np.uint8))
+        f.surf.mark_dirty()
 
     def _rain_on_glass(self, f, t, par, k):
         """Drops beading on the pane and a few running down (catching the outside light)."""
@@ -908,20 +1138,19 @@ class HerRoom:
         x0, y0, x1, y1 = self.glass
         gw, gh = x1 - x0, y1 - y0
         with f.light(par=par, blur=1.2) as A:
-            n = 90
+            n = 110
             for j in range(n):
                 u, v = hash01(77, j, 1), hash01(77, j, 2)
                 x = x0 + u * gw
                 y = y0 + v * gh
                 r = (1.6 + 3.8 * hash01(77, j, 3) ** 2) * s
-                # stick-slip runners: a few drops slide down in bursts
                 if j % 9 == 0:
+                    # stick-slip runners: a few drops slide down in bursts, leaving a trail
                     per = 3.0 + 3.0 * hash01(77, j, 4)
                     ph = (t / per + hash01(77, j, 5)) % 1.0
                     run = (ph ** 3) * gh * 0.8
                     y = y0 + ((v * gh + run) % gh)
                     r *= 1.6
-                    # its trail
                     draw.capsule(A, (x, max(y0, y - run * 0.6)), (x + 2 * s, y), 0.8 * s, r * 0.5)
                     draw.fill(A, PAL.fog_at(1.0), 0.18 * k)
                 draw.circle(A, (x, y), r)
@@ -930,30 +1159,138 @@ class HerRoom:
                 draw.fill(A, mix(PAL.rain, HOT, 0.4), 0.55 * k)
 
 
-def her_room_interior(lamp=1.0, man=None, curtain=True):
-    """Interior callback for her window seen from across the street (S08):
-    Facade(variant='hers').draw(..., lit={HER_WINDOW: level}, interiors={HER_WINDOW: her_room_interior(man=fn)}).
-    Draws her floor lamp (shade glowing), the armchair facing the window, then man(ctx, win)."""
+class NineWindow(HerRoom):
+    """Window 9 seen from inside apartment 9 (S07 end, S08 over her shoulder): the same
+    window wall as HerRoom but bare: stained plaster, no curtain, plant or chair, the
+    sheet's wire strung across above it. room_light = the show lamp glowing behind her.
+
+    NineWindow(origin, scale).draw(f, t, layer=None, rain=1.0, room_light=0.6, ...)"""
+
+    def draw(self, f, t, layer=None, rain=1.0, room_light=0.6, radiator=True, outside_light=1.0, condensation=0.6,
+             **kw):
+        HerRoom.draw(self, f, t, layer=layer, rain=rain, radiator=radiator, outside_light=outside_light,
+                     condensation=condensation, room_light=room_light, dressing="bare", **kw)
+
+
+class HerEntry:
+    """Her front door from inside (S06 opens here): the door with a transom over it, a row
+    of coat hooks with her RED coat, a hat and an umbrella, the light switch; the hallway
+    light leaks round the door; cold window light slants across the wall.
+
+    HerEntry(origin=(540, 1800), scale=1.0)    origin = floor point at the door's centre
+      .coat_hook   world point where the coat hangs (she takes it from here)
+      .switch      world point of the light switch     .door  the Door prop
+    draw(f, t, layer=None, coat=True, coat_sway=0.0, door_open=0.0, hall=0.6, window=1.0)"""
+
+    def __init__(self, origin=(540.0, 1800.0), scale=1.0):
+        self.o = (float(origin[0]), float(origin[1]))
+        self.s = s = float(scale)
+        ox, oy = self.o
+        self.door = Door((ox - 155 * s, oy), width=310 * s, height=727 * s, swing=1)
+        self.coat_hook = (ox - 420 * s, oy - 600 * s)
+        self.switch = (ox + 250 * s, oy - 420 * s)
+        self.transom = (ox - 155 * s, oy - 727 * s - 150 * s, ox + 155 * s, oy - 727 * s - 40 * s)
+
+    def draw(self, f, t, layer=None, coat=True, coat_sway=0.0, door_open=0.0, hall=0.6, window=1.0):
+        spec = layer_spec(layer)
+        par = spec["par"]
+        s = self.s
+        ox, oy = self.o
+        tx0, ty0, tx1, ty1 = self.transom
+        with opened(f, spec) as L:
+            L.rectangle(ox - 3000 * s, oy - 3000 * s, 6000 * s, 3000 * s)
+            draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.07))
+            L.rectangle(ox - 3000 * s, oy, 6000 * s, 1200 * s)
+            draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.03))
+            draw.rect(L, ox - 3000 * s, oy - 30 * s, ox + 3000 * s, oy)                 # skirting
+            draw.fill(L, INK)
+            # transom: hallway light through it
+            draw.rect(L, tx0, ty0, tx1, ty1)
+            draw.fill(L, mix(INK, mul(AMBER, 0.75), clamp(hall)))
+            for k in range(1, 3):
+                xx = lerp(tx0, tx1, k / 3)
+                draw.rect(L, xx - 3 * s, ty0, xx + 3 * s, ty1)
+            draw.rect(L, tx0 - 30 * s, ty0 - 30 * s, tx1 + 30 * s, ty0)
+            draw.rect(L, tx0 - 30 * s, ty1, tx1 + 30 * s, ty1 + 14 * s)
+            draw.fill(L, INK)
+            self.door.draw(f, t, L, open=door_open, hall=hall, locked=0.0)
+            # chain lock and peephole
+            dx1 = ox + 155 * s
+            draw.capsule(L, (dx1 - 30 * s, oy - 470 * s), (dx1 + 34 * s, oy - 452 * s), 2.2 * s, 2.2 * s)
+            draw.rect(L, dx1 + 22 * s, oy - 476 * s, dx1 + 40 * s, oy - 440 * s)
+            draw.fill(L, INK)
+            # coat rack: a board with three hooks
+            hx, hy = self.coat_hook
+            draw.rect(L, hx - 170 * s, hy - 70 * s, hx + 170 * s, hy - 40 * s)
+            draw.fill(L, INK)
+            for dxh in (-120, 0, 120):
+                coat_hook(L, (hx + dxh * s, hy), s)
+            # hat on the left hook, umbrella leaning below the rack
+            hp = (hx - 120 * s, hy)
+            draw.ellipse(L, (hp[0] + 8 * s, hp[1] + 4 * s), 48 * s, 9 * s)
+            draw.smooth(L, [(hp[0] - 26 * s, hp[1] + 2 * s), (hp[0] - 20 * s, hp[1] - 40 * s), (hp[0] + 36 * s, hp[1] - 40 * s),
+                            (hp[0] + 42 * s, hp[1] + 2 * s)], close=True, tension=0.3)
+            draw.fill(L, INK)
+            ub = (hx + 150 * s, oy)
+            draw.poly(L, [(ub[0] - 6 * s, ub[1]), (ub[0] + 6 * s, ub[1]), (ub[0] + 46 * s, ub[1] - 560 * s),
+                          (ub[0] + 26 * s, ub[1] - 600 * s), (ub[0] + 6 * s, ub[1] - 560 * s)])
+            draw.capsule(L, (ub[0] + 26 * s, ub[1] - 600 * s), (ub[0] + 27 * s, ub[1] - 660 * s), 3 * s, 2 * s)
+            L.new_sub_path()
+            L.arc(ub[0] + 12 * s, ub[1] - 660 * s, 15 * s, math.pi, 2 * math.pi)
+            L.arc_negative(ub[0] + 12 * s, ub[1] - 660 * s, 9 * s, 2 * math.pi, math.pi)
+            L.close_path()
+            draw.fill(L, INK)
+            if coat:
+                red_coat(L, (hx, hy), s, sway=coat_sway, t=t, hook_too=False)
+            # light switch plate
+            sx, sy = self.switch
+            rrect(L, sx - 22 * s, sy - 36 * s, sx + 22 * s, sy + 36 * s, 5 * s)
+            draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.32))
+            draw.rect(L, sx - 4 * s, sy - 12 * s, sx + 4 * s, sy + 12 * s)
+            draw.fill(L, INK)
+        self.door.light(f, t, open=door_open, hall=hall, par=par)
+        with f.light(par=par, blur=10.0) as A:
+            if hall > 0.01:
+                glow(A, ((tx0 + tx1) / 2, (ty0 + ty1) / 2), 380 * s, AMBER, 0.20 * hall)
+                glow(A, ((tx0 + tx1) / 2, ty1 + 200 * s), 1100 * s, AMBER, 0.07 * hall)
+            if window > 0.01:
+                # her window (off to the left) throws a cold slanting pane on the wall
+                for (a0, a1) in ((0.0, 0.47), (0.53, 1.0)):
+                    xa, xb = ox - 1100 * s + 380 * s * a0, ox - 1100 * s + 380 * s * a1
+                    draw.poly(A, [(xa, oy - 1250 * s), (xb, oy - 1250 * s), (xb + 520 * s, oy - 260 * s),
+                                  (xa + 520 * s, oy - 260 * s)])
+                draw.fill(A, PAL.fog_at(1.0), 0.30 * window)
+        with f.emit(par=par) as G:
+            if hall > 0.01:
+                G.rectangle(tx0, ty0, tx1 - tx0, ty1 - ty0)
+                draw.fill(G, AMBER, 0.35 * hall)
+
+
+def her_room_interior(lamp=1.0, man=None, chair=True):
+    """Interior callback for HER window seen from across the street (S08):
+        hers = Facade(..., variant='hers')
+        hers.draw(f, t, lit={HER_WINDOW: level}, interiors={HER_WINDOW: her_room_interior(man=fn)})
+    Draws her floor lamp (shade glowing; left of the window from out here), the armchair
+    facing the glass, then man(ctx, win) (the director's figure, in win.person_h scale)."""
     def fn(ctx, win):
         x0, y0, x1, y1 = win.rect
         w, h = x1 - x0, y1 - y0
-        k = win.person_h / 600.0
+        k = win.person_h / 1.75                   # world px per metre in that window
         fy = win.floor_y
         if win.mode == "direct":
-            # floor lamp at the right (mirror of the inside view), shade lit
-            lx = x0 + w * 0.80
-            draw.rect(ctx, lx - 3 * k, fy - 980 * k, lx + 3 * k, fy)
-            shade = [(lx - 92 * k, fy - 960 * k), (lx + 92 * k, fy - 960 * k), (lx + 70 * k, fy - 1110 * k),
-                     (lx - 70 * k, fy - 1110 * k)]
+            lx = x0 + w * 0.18
+            draw.rect(ctx, lx - 0.015 * k, fy - 1.37 * k, lx + 0.015 * k, fy)
             draw.fill(ctx, INK)
+            shade = [(lx - 0.26 * k, fy - 1.35 * k), (lx + 0.26 * k, fy - 1.35 * k), (lx + 0.19 * k, fy - 1.6 * k),
+                     (lx - 0.19 * k, fy - 1.6 * k)]
             draw.poly(ctx, shade)
-            draw.fill(ctx, mix(INK, HOT, 0.85 * clamp(win.level)))
-        # armchair facing us at the left
-        cx = x0 + w * 0.3
-        chair = [(cx - 150 * k, fy), (cx - 168 * k, fy - 200 * k), (cx - 190 * k, fy - 420 * k), (cx - 120 * k, fy - 520 * k),
-                 (cx + 120 * k, fy - 520 * k), (cx + 190 * k, fy - 420 * k), (cx + 168 * k, fy - 200 * k), (cx + 150 * k, fy)]
-        draw.smooth(ctx, chair, close=True, tension=0.28)
-        draw.fill(ctx, mix(INK, AMBER, 0.12 * clamp(win.level)))
+            draw.fill(ctx, mix(INK, HOT, 0.85 * clamp(win.level * lamp)))
+        if chair:
+            cx = x0 + w * 0.72
+            ch = [(cx - 0.44 * k, fy), (cx - 0.48 * k, fy - 0.45 * k), (cx - 0.54 * k, fy - 0.8 * k), (cx - 0.34 * k, fy - 1.05 * k),
+                  (cx + 0.34 * k, fy - 1.05 * k), (cx + 0.54 * k, fy - 0.8 * k), (cx + 0.48 * k, fy - 0.45 * k), (cx + 0.44 * k, fy)]
+            draw.smooth(ctx, ch, close=True, tension=0.28)
+            draw.fill(ctx, mix(INK, AMBER, 0.10 * clamp(win.level)))
         if man is not None:
             man(ctx, win)
     return fn
@@ -961,166 +1298,208 @@ def her_room_interior(lamp=1.0, man=None, curtain=True):
 
 # =========================================================================== killer's room
 class KillerRoom:
-    """His room (S11): a 5 x 8 board of paper dolls, one for every window, pinned in rows,
-    each hanging on a short string; a desk with a gooseneck lamp, scissors and paper; a
-    window with venetian blinds (police light can stripe through it).
+    """His room (S11): forty paper dolls pinned to the wallpaper in a 5 x 8 grid, one for
+    every window, laid out exactly on the facade lock (the s01 rhyme); a desk with scissors,
+    paper and half-cut dolls below; venetian blinds at the right. Dark: a cop's torch beam
+    finds the dolls (everything outside the beam stays black).
 
-    KillerRoom(origin=(540, 1750), scale=1.0)   origin = floor point under the board centre
-      .board               world rect of the board
-      .anchor(i)           world pin point of doll i (1..40, row-major like the windows)
-      .doll_h              suggested doll height (world px)
-      .lamp_bulb           world point of the desk lamp's bulb
-    draw(f, t, layer=None, dolls=None, lamp=1.0, police=0.0, sway=1.0, shadows=True)
-      dolls = fn(ctx, i, anchor, doll_h, t) draws doll i hanging from `anchor`."""
+    KillerRoom(origin=(540, 965), scale=1.0)   origin = centre of the doll grid. With
+      origin (540, 965), scale 1 and Camera(540, 960) (= camera_lock()) every doll centre
+      sits on the bible's lock positions (230..850 x 440..1490).
+      .center(i)        world centre of doll i's cell (1..40, row-major like the windows)
+      .pin(i)           world point of the pin through doll i's head
+      .doll_size        (w, h) world px of a doll (the director draws them)
+      .camera_lock(par) the lock camera
+    draw(f, t, layer=None, dolls=None, beam=None, ambient=0.04, flash=0.0, police=0.0,
+         shadows=True, desk=True, blinds=True)
+      dolls   fn(ctx, i, center, size, t) draws doll i (PAPER colour; their shadows on the
+              wall come for free)
+      beam    dict(target=(x, y) world, radius=px, level=1, origin=(x, y) world of the torch,
+              cone=True): the pool of torch light that reveals the wall
+      flash   0..1 the whole grid lights at once ("On [window] the grid flashes")"""
 
     COLS, ROWS = 5, 8
+    _LOCK_X = (230.0, 385.0, 540.0, 695.0, 850.0)
+    _LOCK_Y = (440.0, 590.0, 740.0, 890.0, 1040.0, 1190.0, 1340.0, 1490.0)
 
-    def __init__(self, origin=(540.0, 1750.0), scale=1.0):
+    def __init__(self, origin=(540.0, 965.0), scale=1.0):
         self.o = (float(origin[0]), float(origin[1]))
         self.s = s = float(scale)
+        self.doll_size = (88.0 * s, 116.0 * s)
         ox, oy = self.o
-        self.board = (ox - 300 * s, oy - 1420 * s, ox + 300 * s, oy - 330 * s)
-        bx0, by0, bx1, by1 = self.board
-        self.cell = ((bx1 - bx0 - 60 * s) / self.COLS, (by1 - by0 - 60 * s) / self.ROWS)
-        self.doll_h = self.cell[1] * 0.78
-        self.lamp_bulb = (ox + 250 * s, oy - 420 * s)
-        self.desk_y = oy - 262 * s
+        self.desk_y = oy + 640 * s
+        self.blinds = (ox + 470 * s, oy - 900 * s, ox + 900 * s, oy - 100 * s)
 
-    def anchor(self, i):
+    def center(self, i):
         r, c = (i - 1) // self.COLS, (i - 1) % self.COLS
-        bx0, by0, bx1, by1 = self.board
-        cw, ch = self.cell
-        return (bx0 + 30 * self.s + (c + 0.5) * cw, by0 + 30 * self.s + r * ch + 8 * self.s)
+        return (self.o[0] + (self._LOCK_X[c] - 540.0) * self.s, self.o[1] + (self._LOCK_Y[r] - 965.0) * self.s)
 
-    def string_end(self, i, t=0.0, sway=1.0):
-        """Where the doll hangs: below the pin on its short string (swaying a little)."""
-        ax, ay = self.anchor(i)
-        L = 16 * self.s
-        a = math.radians(4.0 * sway * fbm1(t * 0.5 + i * 0.37, 7))
-        return (ax + L * math.sin(a), ay + L * math.cos(a))
+    def pin(self, i):
+        cx, cy = self.center(i)
+        return (cx, cy - self.doll_size[1] * 0.43)
 
-    def draw(self, f, t, layer=None, dolls=None, lamp=1.0, police=0.0, sway=1.0, shadows=True, blinds=True):
+    def camera_lock(self, par=1.0):
+        return camera_for((self.o[0], self.o[1] - 5.0 * self.s), 1.0 / self.s, par)
+
+    def draw(self, f, t, layer=None, dolls=None, beam=None, ambient=0.04, flash=0.0, police=0.0, shadows=True,
+             desk=True, blinds=True):
         spec = layer_spec(layer)
         par = spec["par"]
         s = self.s
         ox, oy = self.o
-        bx0, by0, bx1, by1 = self.board
+        wall_box = (ox - 3000 * s, oy - 3000 * s, ox + 3000 * s, self.desk_y)
         with opened(f, spec) as L:
-            # room: dark wall, floor line
-            L.rectangle(ox - 4000 * s, oy - 4000 * s, 8000 * s, 6000 * s)
-            draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.10))
-            L.rectangle(ox - 4000 * s, oy, 8000 * s, 2000 * s)
-            draw.fill(L, INK)
-            # the board (cork): lit by the desk lamp from below right
-            lb = self.lamp_bulb
-            draw.radial(L, (lb[0] - 40 * s, lb[1] - 60 * s), 0, (by1 - by0) * 1.25,
-                        [(0, mix(mul(AMBER, 0.75), HOT, 0.3 * lamp), 1), (0.45, mul(AMBER, 0.42), 1),
-                         (1, mix(INK, mul(AMBER, 0.12), 1.0), 1)])
-            L.rectangle(bx0, by0, bx1 - bx0, by1 - by0)
-            L.fill()
-            if lamp < 1.0:
-                L.rectangle(bx0, by0, bx1 - bx0, by1 - by0)
-                draw.fill(L, INK, 1.0 - lamp)
-            # the dolls' shadows on the board (thrown up and left by the low lamp)
-            if dolls is not None and shadows and lamp > 0.02:
-                def casters(c):
-                    for i in range(1, 41):
-                        dolls(c, i, self.string_end(i, t, sway), self.doll_h, t)
-                shadow_screen(L, casters, region=lambda c: c.rectangle(bx0, by0, bx1 - bx0, by1 - by0),
-                              bbox=self.board, soft=5 * s, density=0.55 * lamp, mag=1.06, center=(lb[0], lb[1] + 300 * s))
-            # frame
-            L.new_path()
-            L.rectangle(bx0 - 18 * s, by0 - 18 * s, bx1 - bx0 + 36 * s, by1 - by0 + 36 * s)
-            L.rectangle(bx0, by0, bx1 - bx0, by1 - by0)
-            L.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
-            draw.fill(L, INK)
-            L.set_fill_rule(cairo.FILL_RULE_WINDING)
-            # pins and strings
-            for i in range(1, 41):
-                a = self.anchor(i)
-                e = self.string_end(i, t, sway)
-                draw.capsule(L, a, e, 0.9 * s, 0.9 * s)
-                draw.fill(L, mix(INK, AMBER, 0.35))
-                draw.circle(L, a, 4.5 * s)
-                draw.fill(L, INK)
-            # the dolls
-            if dolls is not None:
-                for i in range(1, 41):
-                    dolls(L, i, self.string_end(i, t, sway), self.doll_h, t)
-            # desk, lamp, scissors, paper
-            self._desk(L, t, lamp)
+            # wallpaper: faded vertical stripes (tone only), damp stains
+            L.rectangle(wall_box[0], wall_box[1], wall_box[2] - wall_box[0], wall_box[3] - wall_box[1])
+            draw.fill(L, mix(mul(PAPER, 0.42), PAL.fog_at(1.0), 0.35))
+            x = wall_box[0]
+            while x < wall_box[2]:
+                L.rectangle(x, wall_box[1], 34 * s, wall_box[3] - wall_box[1])
+                x += 96 * s
+            draw.fill(L, INK, 0.12)
+            tex = texture_surface("killer_wall", 160, 280, 7.0, 13, (0, 0, 0), 0.0, 0.30, streak=2.5)
+            pat = cairo.SurfacePattern(tex)
+            pat.set_filter(cairo.FILTER_BILINEAR)
+            pat.set_extend(cairo.EXTEND_REPEAT)
+            pat.set_matrix(cairo.Matrix(xx=160.0 / (1200 * s), yy=280.0 / (2100 * s), x0=-ox * 160.0 / (1200 * s)))
+            L.save()
+            L.rectangle(wall_box[0], wall_box[1], wall_box[2] - wall_box[0], wall_box[3] - wall_box[1])
+            L.clip()
+            L.set_source(pat)
+            L.paint()
+            L.restore()
             if blinds:
                 self._blinds(L)
-        with f.light(par=par, blur=5.0) as A:
-            if lamp > 0.01:
-                lb = self.lamp_bulb
-                glow(A, lb, 60 * s, HOT, 0.8 * lamp)
-                glow_ellipse(A, (lb[0] - 80 * s, self.desk_y), 360 * s, 40 * s, AMBER, 0.35 * lamp)
+            # the dolls' shadows (the torch is close: a soft offset copy on the paper)
+            if dolls is not None and shadows:
+                src = (beam or {}).get("origin") or (ox - 900 * s, oy + 1400 * s)
+
+                def casters(c):
+                    for i in range(1, 41):
+                        dolls(c, i, self.center(i), self.doll_size, t)
+                shadow_screen(L, casters, region=lambda c: c.rectangle(wall_box[0], wall_box[1], wall_box[2] - wall_box[0],
+                                                                       wall_box[3] - wall_box[1]),
+                              bbox=(ox - 420 * s, oy - 640 * s, ox + 420 * s, oy + 640 * s), soft=3.5 * s, density=0.75,
+                              mag=1.025, center=src)
+            # pins, then the dolls
+            for i in range(1, 41):
+                p = self.pin(i)
+                draw.circle(L, (p[0] + 1.5 * s, p[1] + 2 * s), 4.0 * s)
+                draw.fill(L, INK, 0.5)
+            if dolls is not None:
+                for i in range(1, 41):
+                    dolls(L, i, self.center(i), self.doll_size, t)
+            for i in range(1, 41):
+                p = self.pin(i)
+                draw.circle(L, p, 4.2 * s)
+                draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.5))
+                draw.circle(L, (p[0] - 1.2 * s, p[1] - 1.2 * s), 1.4 * s)
+                draw.fill(L, PAPER, 0.8)
+            if desk:
+                self._desk(L, t)
+        # darkness: everything outside the torch's pool (and any flash) falls to black
+        self._light_mask(f, beam, ambient, flash, par)
+        with f.light(par=par, blur=6.0) as A:
+            if beam:
+                tg = beam["target"]
+                glow(A, tg, beam.get("radius", 260.0) * 0.6, mix(HOT, (1, 1, 1), 0.2), 0.12 * beam.get("level", 1.0))
             if police > 0:
                 self._police_stripes(A, t, police)
-        if lamp > 0.01:
-            with f.emit(par=par) as G:
-                draw.circle(G, self.lamp_bulb, 14 * s)
-                draw.fill(G, HOT, lamp)
+        if beam and beam.get("cone", True) and beam.get("origin"):
+            o, tg = beam["origin"], beam["target"]
+            ang = math.degrees(math.atan2(tg[1] - o[1], tg[0] - o[0]))
+            length = math.hypot(tg[0] - o[0], tg[1] - o[1])
+            spread = math.degrees(math.atan2(beam.get("radius", 260.0), max(length, 1.0)))
+            flashlight_beam(f, o, ang, length=length, spread=spread, level=0.55 * beam.get("level", 1.0), par=par,
+                            hit=False, t=t, dust=0.6, scale=s)
 
-    def _desk(self, L, t, lamp):
+    def _light_mask(self, f, beam, ambient, flash, par):
+        """MULTIPLY the frame by the light: ambient + the beam's pool (+ flash)."""
+        cam = f.lcam(par)
+        ds = 4
+        w, h = max(1, f.pw // ds), max(1, f.ph // ds)
+        surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
+        c = cairo.Context(surf)
+        base = clamp(ambient + flash)
+        c.set_source_rgb(base, base, base)
+        c.paint()
+        c.set_matrix(cam.matrix(f.scale * w / f.pw))
+        if beam:
+            tg = beam["target"]
+            r = beam.get("radius", 260.0)
+            lv = beam.get("level", 1.0)
+            o = beam.get("origin")
+            ang, el = 0.0, 1.0
+            if o:
+                ang = math.degrees(math.atan2(tg[1] - o[1], tg[0] - o[0]))
+                d = math.hypot(tg[0] - o[0], tg[1] - o[1])
+                el = 1.0 + 0.35 * clamp(d / (6 * r))           # oblique torch: a stretched pool
+            c.set_operator(cairo.OPERATOR_ADD)
+            c.save()
+            c.translate(tg[0], tg[1])
+            c.rotate(math.radians(ang))
+            c.scale(el, 1.0)
+            k = clamp(lv)
+            draw.radial(c, (0, 0), 0, r, [(0, (k, k * 0.97, k * 0.9), 1), (0.55, (0.8 * k, 0.77 * k, 0.7 * k), 1),
+                                          (0.8, (0.35 * k, 0.33 * k, 0.3 * k), 1), (1, (0, 0, 0), 1)])
+            c.arc(0, 0, r, 0, 2 * math.pi)
+            c.fill()
+            c.restore()
+        with f.screen() as S:
+            S.set_operator(cairo.OPERATOR_MULTIPLY)
+            pat = cairo.SurfacePattern(surf)
+            pat.set_filter(cairo.FILTER_BILINEAR)
+            pat.set_matrix(cairo.Matrix(xx=w / float(W), yy=h / float(H)))
+            S.set_source(pat)
+            S.paint()
+
+    def _desk(self, L, t):
         s = self.s
         ox, oy = self.o
         y = self.desk_y
-        draw.rect(L, ox - 520 * s, y, ox + 520 * s, y + 26 * s)
-        for lx in (ox - 500 * s, ox + 480 * s):
-            draw.rect(L, lx, y + 26 * s, lx + 22 * s, oy)
-        draw.rect(L, ox + 200 * s, y + 26 * s, ox + 480 * s, y + 140 * s)
-        # gooseneck lamp
-        lb = self.lamp_bulb
-        bx = ox + 330 * s
-        draw.ellipse(L, (bx, y - 6 * s), 46 * s, 10 * s)
-        draw.chain(L, [(bx, y - 8 * s), (bx + 4 * s, y - 70 * s), (bx - 20 * s, y - 130 * s), (lb[0] + 30 * s, lb[1] - 30 * s)],
-                   [4 * s, 4 * s, 4 * s, 4 * s])
-        draw.poly(L, [(lb[0] + 44 * s, lb[1] - 50 * s), (lb[0] + 10 * s, lb[1] - 64 * s), (lb[0] - 34 * s, lb[1] + 4 * s),
-                      (lb[0] + 22 * s, lb[1] + 18 * s)])
-        # scissors (open blades) and a stack of paper with cut-outs
-        sx, sy = ox - 220 * s, y
-        for a in (-12, 14):
+        draw.rect(L, ox - 3000 * s, y, ox + 3000 * s, y + 900 * s)
+        draw.fill(L, INK)
+        # the desk top's edge catches a little light; paper, scissors, half-cut dolls
+        draw.rect(L, ox - 3000 * s, y, ox + 3000 * s, y + 6 * s)
+        draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.25))
+        draw.poly(L, [(ox - 330 * s, y + 4 * s), (ox - 110 * s, y - 2 * s), (ox - 90 * s, y + 20 * s), (ox - 320 * s, y + 26 * s)])
+        draw.fill(L, mul(PAPER, 0.8))
+        sx, sy = ox + 150 * s, y + 10 * s
+        for a in (-9, 11):
             ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
-            blade = [(0, -3), (130, -1), (130, 2), (0, 4)]
-            draw.poly(L, [(sx + (u * ca - v * sa) * s, sy - 10 * s + (u * sa + v * ca) * s * 0.3) for u, v in blade])
-        for dxs in (-24, -4):
-            draw.circle(L, (sx + dxs * s, sy - 10 * s), 12 * s)
-        draw.fill(L, INK)
-        draw.rect(L, ox - 80 * s, y - 22 * s, ox + 60 * s, y)
-        draw.fill(L, mix(INK, AMBER, 0.25 * lamp))
-        draw.fill(L, INK)
+            blade = [(0, -3), (150, -1), (150, 2), (0, 4)]
+            draw.poly(L, [(sx + (u * ca - v * sa) * s, sy + (u * sa + v * ca) * s * 0.35) for u, v in blade])
+        for dxs in (-26, -6):
+            L.new_sub_path()
+            L.arc(sx + dxs * s, sy, 13 * s, 0, 2 * math.pi)
+            L.new_sub_path()
+            L.arc_negative(sx + dxs * s, sy, 7 * s, 2 * math.pi, 0)
+        draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.45))
 
     def _blinds(self, L):
         s = self.s
-        ox, oy = self.o
-        x0, x1 = ox - 820 * s, ox - 420 * s
-        y0, y1 = oy - 1500 * s, oy - 700 * s
-        draw.rect(L, x0 - 20 * s, y0 - 20 * s, x1 + 20 * s, y1 + 20 * s)
+        x0, y0, x1, y1 = self.blinds
+        draw.rect(L, x0 - 24 * s, y0 - 24 * s, x1 + 24 * s, y1 + 30 * s)
         draw.fill(L, INK)
         y = y0
         while y < y1:
-            draw.rect(L, x0, y + 9 * s, x1, y + 14 * s)
-            draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.5))
-            y += 16 * s
-
-    def blinds_rect(self):
-        s = self.s
-        ox, oy = self.o
-        return (ox - 820 * s, oy - 1500 * s, ox - 420 * s, oy - 700 * s)
+            draw.rect(L, x0, y + 10 * s, x1, y + 15 * s)
+            y += 17 * s
+        draw.fill(L, mix(INK, PAL.fog_at(1.0), 0.45))
 
     def _police_stripes(self, A, t, k):
-        """Strobe light falling through the blinds onto the wall and the board in stripes."""
+        """Strobe light through the blinds: slatted stripes thrown across the wall."""
         b, r = siren(t, rate=1.6)
         s = self.s
-        x0, y0, x1, y1 = self.blinds_rect()
+        x0, y0, x1, y1 = self.blinds
         for col, v in ((BLUE, b), (RED, r)):
             if v <= 0.01:
                 continue
             y = y0
             while y < y1:
-                q = [(x1, y + 9 * s), (x1, y + 14 * s), (x1 + 1100 * s, y + 160 * s + 22 * s), (x1 + 1100 * s, y + 160 * s)]
+                q = [(x0, y + 10 * s), (x0, y + 15 * s), (x0 - 1300 * s, y + 340 * s + 20 * s), (x0 - 1300 * s, y + 340 * s)]
                 draw.poly(A, q)
-                y += 16 * s
-            draw.fill(A, col, 0.22 * v * k)
+                y += 17 * s
+            draw.fill(A, col, 0.20 * v * k)
+            A.rectangle(x0, y0, x1 - x0, y1 - y0)
+            draw.fill(A, col, 0.35 * v * k)
