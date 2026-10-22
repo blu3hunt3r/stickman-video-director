@@ -520,6 +520,15 @@ def render(f, t, T):
                     current=18.0, height=2600.0, alpha=0.7, lit=cone, lit_gain=1.2)
     atmos.marine_snow(f, density=0.45, t=t, seed=11, sink=4.0, current=(10.0, 0.0), alpha=0.55, lit=cone,
                       lit_gain=2.2)
+    u = _rise_u(t)
+    if u > 0.0:
+        # faint moonlight hanging from a surface still far above; the snow smears as we rise
+        top = cam.y - (H / 2) / cam.zoom
+        atmos.underwater_rays(f, surface_y=top - 250.0, t=t, spacing=170.0, angle=93.0, fan=10.0,
+                              length=1900.0 / max(cam.zoom, 0.3), width=(14.0, 60.0), intensity=0.22 * ss(0.5, 1.0, u),
+                              color=mix(PAL.moon, PAL.surface, 0.4), density=0.6, seed=11, blur=14.0)
+        vy = (camera(t + 0.02).y - camera(t - 0.02).y) / 0.04
+        LIB.streaks(f, t, (0.0, vy), n=110, seed=13, alpha=0.45 * ss(0.05, 0.3, u), size=1.3)
     WORLD.draw_front(f, t, view)
 
 

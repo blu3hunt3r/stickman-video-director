@@ -282,8 +282,9 @@ def _post(f, t):
         return
     e = L.k01(t, FLAT + 0.1, 0.45, "inout")
     P = f.post
-    P["bloom"] = lerp(P["bloom"], 0.0, L.k01(t, FLAT + 0.1, 0.25, "inout"))
-    P["glow"] = lerp(P["glow"], 0.0, L.k01(t, FLAT + 0.18, 0.2, "inout"))
+    # glow and bloom are gone before the print: halos on the line would posterize to paper
+    P["bloom"] = lerp(P["bloom"], 0.0, L.k01(t, FLAT + 0.05, 0.14, "inout"))
+    P["glow"] = lerp(P["glow"], 0.0, L.k01(t, FLAT + 0.08, 0.12, "inout"))
     P["paper"] = 0.75 * e
     P["vignette"] = lerp(P["vignette"], 0.14, e)
     P["flicker"] = lerp(P["flicker"], 0.006, e)

@@ -355,7 +355,7 @@ def streaks(f, t, vel, n=90, seed=3, color=None, alpha=0.5, size=1.6, depth=(0.3
             sx = (px - cam.x * k) % span_x - box_pad
             sy = (py - cam.y * k) % span_y - box_pad
             dx, dy = -vel[0] * k * exposure, -vel[1] * k * exposure
-            r = size * (0.6 + 1.4 * hash01(seed, i, 4) ** 3) * par * f.scale ** 0
+            r = size * (0.6 + 1.4 * hash01(seed, i, 4) ** 3) * par
             a = alpha * (0.35 + 0.65 * hash01(seed, i, 7)) * min(1.0, 1.2 / (0.4 + abs(par - 1.0) * 1.5))
             L = math.hypot(dx, dy)
             A.set_line_width(max(r * 2.0, 0.8))

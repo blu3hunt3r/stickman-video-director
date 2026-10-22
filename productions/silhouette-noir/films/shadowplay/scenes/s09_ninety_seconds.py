@@ -205,7 +205,17 @@ class Her:
             c0 = self.t_clamp - 0.42
             Zd = lerp(Z, DECOY[2], L.k_(t, c0 - 0.28, 0.28 + 0.30))
         kk = ROOM.ppm(Zd)
-        st = L.doll_stage_at((hx, hy - ROD_GRIP * k), 0.45 * kk, "woman", mirror=False)
+        pel = (hx, hy - ROD_GRIP * k)
+        S_ = 0.45 * kk
+        # the last moment: she settles it into the clamp
+        u = L.k_(t, self.t_clamp - 0.30, 0.30, "inout")
+        if u > 0.0:
+            X0, Y0, Z0 = DECOY
+            pd = ROOM.P(X0, Y0, Z0)
+            pel = (lerp(pel[0], pd[0], u), lerp(pel[1], pd[1], u))
+            S_ = lerp(S_, 0.45 * ROOM.ppm(Z0), u)
+            Zd = lerp(Zd, Z0, u)
+        st = L.doll_stage_at(pel, S_, "woman", mirror=False)
         return "hand", st, Zd
 
 
@@ -242,9 +252,9 @@ def _door_state(t):
 
 # ----------------------------------------------------------------------------- camera
 CAM = [  # (t, x, y, zoom)
-    (-0.5, 540.0, 960.0, 1.60),
-    (0.62, 540.0, 960.0, 1.60),
-    (1.80, 610.0, 1000.0, 1.55),
+    (-0.5, 548.0, 945.0, 1.78),
+    (0.62, 548.0, 945.0, 1.78),
+    (1.80, 610.0, 1000.0, 1.58),
     (2.70, 585.0, 990.0, 1.60),
     (3.60, 540.0, 985.0, 1.60),
     (4.50, 455.0, 975.0, 1.62),
@@ -255,7 +265,8 @@ CAM = [  # (t, x, y, zoom)
     (9.20, 500.0, 882.0, 2.10),
     (10.20, 345.0, 955.0, 1.55),
     (11.30, 250.0, 1000.0, 1.45),
-    (14.20, 222.0, 1010.0, 1.64),
+    (12.30, 232.0, 1004.0, 1.50),
+    (14.10, 70.0, 1010.0, 2.25),
 ]
 
 
