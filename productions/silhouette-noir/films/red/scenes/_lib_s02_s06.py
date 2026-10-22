@@ -430,11 +430,31 @@ def snow_puff(c, x0, x1, y, t, t0, seed, col, n=16, alpha=0.9, sc=1.0, up=(110.0
 
 
 # ----------------------------------------------------------------------------- the girl, any posture
+def _cloak_raw(sk, look):
+    """costume._cloak's outline, with its profile -> front/back morph fixed for a figure facing
+    left: the engine morphs the (mirrored) profile points into the un-mirrored front shape, so
+    the points cross and the cloak collapses to a sliver in three-quarter views (yaw ~190-235,
+    ~125-170). Here they morph into the mirrored front shape (the same trapezoid)."""
+    import copy as _copy
+    kind = look.cape or "cloak"
+    w = sk.side_w
+    if sk.facing > 0 or w <= 0.0 or w >= 1.0:
+        return costume._cloak(sk, look, kind)[0]
+    a = _copy.copy(sk)
+    a.side_w = 0.0
+    b = _copy.copy(sk)
+    b.side_w = 1.0
+    P = costume._cloak(a, look, kind)[0]
+    Q = costume._cloak(b, look, kind)[0]
+    nx = sk.j["neck"][0]
+    return [(lerp(px, 2.0 * nx - qx, w), lerp(py, qy, w)) for (px, py), (qx, qy) in zip(P, Q)]
+
+
 def cloak_pts(sk, look):
     """Outline of her red cloak: costume's cloak (it always hangs straight down from the neck),
     swung round with her trunk when she leans far over (a fall, a crawl, lying in the snow)
     and laid flat over her back, so it never hangs below her chest like a curtain."""
-    pts = costume._cloak(sk, look, look.cape or "cloak")[0]
+    pts = _cloak_raw(sk, look)
     nx, ny = sk.j["neck"]
     px, py = sk.j["pelvis"]
     ax, ay = nx - px, ny - py

@@ -55,7 +55,7 @@ DOOR_FEET = (110.0, 215.0)                # his feet under the door (door px fro
 
 H_START = (-2.30, 1.73)                   # outside, at the handle (feet = DOOR_FEET)
 H_DOOR = (-1.62, 1.80)                    # one long step: in the doorway
-H_STAB = (-0.86, 3.24)                    # at the sheet, left of her shadow
+H_STAB = (-1.10, 3.22)                    # at the sheet, left of her shadow (the bulb clear of his head)
 H_HIT = (-1.50, 1.98)                     # at the slammed door
 
 # ----------------------------------------------------------------------------- the beats
@@ -64,15 +64,17 @@ T_BURST = 1.00
 T_B = 1.22                                # cut: the room, wide
 T_STAB = (2.02, 2.42)                     # the knife punches through the sheet
 T_RIP = (2.82, 3.00)                      # the long downward rip
-T_FALL = (3.02, 3.62)                     # the pins pop, the sheet slumps
-T_TURN = 4.52                             # he hears her: whips round
-T_C = 4.25                                # cut: her escape
-T_GRAB = 4.60                             # her hand on the leaf's outer handle
+T_FALL = (3.00, 3.42)                     # the torn piece drops off the wire
+T_CURL = (3.00, 3.55)                     # the rest of the sheet swings back from the tear
+RIP_X = (-0.57, -0.49)                    # the tear line: room X at the wire and at the hem
+T_TURN = 5.00                             # the slam: he whips round
+T_C = 4.15                                # cut: her escape
+T_GRAB = 4.58                             # her hand on the leaf's outer handle
 T_SLAM = 5.00
 T_D = 5.08                                # cut: the lock
 T_KEY = (5.14, 5.34)                      # the key turns, the bolt shoots
 T_E = 5.55                                # cut: the hallway
-BLOWS = (5.12, 5.40, 5.64, 5.84, 6.02, 6.18, 6.33, 6.47)   # his fists on the door
+BLOWS = (5.38, 5.60, 5.80, 5.98, 6.15, 6.30, 6.45)          # his weight, then his fists, on the door
 T_CRASH = 6.62
 T_DARK = 7.25
 T_POLICE = 7.60
@@ -139,10 +141,10 @@ class Him:
         self.t_run = w.cursor
         w.go(H_STAB[0], H_STAB[1], 0.62, gait="run")                       # at her
         self.t_arrive = w.cursor
-        w.turn(-80.0, dur=0.14, via=-90.0)
+        w.turn(-50.0, dur=0.14, via=-60.0)
         w.stand(T_TURN, idle=0.15)
         w.turn(160.0, dur=0.18, via=180.0)                                 # whips round
-        w.go(H_HIT[0], H_HIT[1], T_SLAM + 0.10 - w.cursor, gait="run")
+        w.go(H_HIT[0], H_HIT[1], BLOWS[0] - 0.02 - w.cursor, gait="run")
         w.stand(30.0, idle=0.3)
         self.w = w
         # the knife arm: one reach driven by wrist_world(t)
@@ -161,14 +163,14 @@ class Him:
             return k
         s1, s2 = T_STAB
         r0, r1 = T_RIP
-        up = (-0.70, 2.30, 3.18)                     # raised above his right shoulder
-        wind = (-0.75, 2.42, 3.10)
+        up = (-0.98, 2.38, 3.12)                     # raised above his right shoulder
+        wind = (-1.04, 2.50, 3.02)
         k = [
-            (s1 - 0.20, up), (s1 - 0.07, wind), (s1, (-0.58, 1.84, 3.42)), (s1 + 0.08, (-0.58, 1.82, 3.44)),
-            (s2 - 0.20, up), (s2 - 0.07, wind), (s2, (-0.55, 2.02, 3.42)), (s2 + 0.08, (-0.55, 2.00, 3.44)),
-            (r0 - 0.22, up), (r0 - 0.06, (-0.74, 2.46, 3.10)), (r0, (-0.60, 2.10, 3.42)),
-            (r1, (-0.47, 1.22, 3.42)), (T_FALL[1], (-0.55, 1.10, 3.38)), (T_FALL[1] + 0.5, (-0.66, 1.00, 3.30)),
-            (T_TURN, (-0.70, 0.92, 3.28)),
+            (s1 - 0.22, up), (s1 - 0.08, wind), (s1, (-0.70, 1.92, 3.44)), (s1 + 0.09, (-0.70, 1.89, 3.45)),
+            (s2 - 0.20, up), (s2 - 0.08, wind), (s2, (-0.68, 2.10, 3.44)), (s2 + 0.09, (-0.68, 2.07, 3.45)),
+            (r0 - 0.24, up), (r0 - 0.07, (-1.00, 2.54, 3.05)), (r0, (-0.66, 2.36, 3.44)),
+            (r1, (-0.60, 1.05, 3.44)), (T_FALL[1], (-0.70, 0.98, 3.40)), (T_FALL[1] + 0.6, (-0.86, 0.95, 3.32)),
+            (T_TURN, (-0.90, 0.92, 3.30)),
         ]
         self._k = k
         return k
@@ -207,7 +209,7 @@ class Him:
         v = 150.0
         for ts in T_STAB + (T_RIP[0],):
             v = lerp(v, 70.0, L.env(t, ts - 0.06, ts, ts + 0.08, ts + 0.20))
-        v = lerp(v, 60.0, L.env(t, T_RIP[0], T_RIP[1], T_FALL[1], T_FALL[1] + 0.3))
+        v = lerp(v, 25.0, L.env(t, T_RIP[0], T_RIP[1], T_TURN, T_TURN + 0.2))
         return v
 
     def blade(self, t):
@@ -255,10 +257,10 @@ class Her:
     def __init__(self):
         w = L.Walker(cast.HER, ROOM, WALL[0], WALL[1], 0.0, seed=91, t0=-2.0)
         a = w.a
-        w.stand(T_C, idle=0.30)
-        w.go(-0.86, 2.47, 0.30, gait="run", yaw=0.0)                 # out from behind the leaf
+        w.stand(T_C + 0.03, idle=0.30)
+        w.go(-0.86, 2.46, 0.34, gait="brisk", yaw=0.0)               # out from behind the leaf
         self.t_edge = w.cursor
-        w.go(-1.14, 1.95, 0.22, gait="run")                         # round its edge
+        w.go(-1.10, 2.02, 0.22, gait="brisk")                       # round its edge
         w.go(-2.28, 1.70, T_SLAM - 0.02 - w.cursor, gait="run")      # out, pulling the door after her
         w.stand(30.0, idle=0.4)
         self.w = w
@@ -295,62 +297,206 @@ def _her():
 # ----------------------------------------------------------------------------- the sheet
 SLASHES = [
     # (t0, dur, (X0, Y0), (X1, Y1), width m, seed): cuts in the sheet (room X, Y on SHEET_Z)
-    (T_STAB[0] - 0.01, 0.07, (-0.60, 1.86), (-0.44, 1.62), 0.040, 3),
-    (T_STAB[1] - 0.01, 0.07, (-0.58, 2.06), (-0.38, 1.90), 0.036, 5),
-    (T_RIP[0], T_RIP[1] - T_RIP[0], (-0.62, 2.16), (-0.40, 1.08), 0.050, 8),
+    (T_STAB[0] - 0.02, 0.06, (-0.64, 1.97), (-0.42, 1.66), 0.075, 3),
+    (T_STAB[1] - 0.02, 0.06, (-0.62, 2.15), (-0.38, 1.98), 0.065, 5),
+    (T_RIP[0] - 0.01, T_RIP[1] - T_RIP[0] + 0.01, (-0.57, 2.40), (-0.50, 0.98), 0.085, 8),
 ]
 
 
 def sheet_fall(t):
+    """The torn left piece dropping off the wire (0..1)."""
     return ease("in", (t - T_FALL[0]) / (T_FALL[1] - T_FALL[0]))
 
 
+def sheet_curl(t):
+    return ease("out", (t - T_CURL[0]) / (T_CURL[1] - T_CURL[0]))
+
+
 def sheet_hit(t):
+    if t >= T_FALL[0]:
+        return None
     hit = None
-    for ts, (X, Y) in ((T_STAB[0], (-0.52, 1.74)), (T_STAB[1], (-0.48, 1.98)), (T_RIP[0], (-0.52, 1.6))):
+    for ts, (X, Y) in ((T_STAB[0], (-0.53, 1.80)), (T_STAB[1], (-0.50, 2.06)), (T_RIP[0], (-0.53, 1.7))):
         if t >= ts - 0.01:
             p = ROOM.P(X, Y, L.SHEET_Z)
             hit = (ts, p[0], p[1], 1.6)
     return hit
 
 
+class TornSheet(L.Sheet):
+    """The pulled sheet once the rip has run to the wire: the piece left of the tear drops off
+    and piles on the floor; the right piece hangs on, its torn edge swinging back.
+    outline() (shadows, light, clips) is the right piece; the left piece is drawn by draw()."""
+
+    def __init__(self, base, drop, curl):
+        L.Sheet.__init__(self, base.a, base.b, base.h, pins=base.pins, seed=base.seed)
+        self.drop = drop
+        self.curl = curl
+        self.k = ROOM.ppm(L.SHEET_Z)
+        self.rip = (ROOM.P(RIP_X[0], 1.5, L.SHEET_Z)[0], ROOM.P(RIP_X[1], 1.5, L.SHEET_Z)[0])
+        self.floor = ROOM.P(0.0, 0.0, L.SHEET_Z)[1]
+
+    def _edge(self, curl=True):
+        """The torn edge, top -> bottom (world), cut-paper jagged."""
+        xt, xb = self.rip
+        y0, y1 = self.a[1], self.a[1] + self.h
+        n = 18
+        pts = []
+        for i in range(n + 1):
+            v = i / n
+            x = lerp(xt, xb, v)
+            if 0 < i < n:
+                x += 0.018 * self.k * (1 if i % 2 else -1) * (0.5 + 0.9 * hash01(77, i))
+            if curl:
+                x += self.curl * (0.07 + 0.30 * v ** 1.4) * self.k
+            pts.append((x, lerp(y0, y1, v) + (0.012 * self.k * hash01(78, i) if 0 < i < n else 0.0)))
+        return pts
+
+    def pin_points(self, fall=0.0):
+        xt = self.rip[0] + self.curl * 0.07 * self.k
+        return [p for p in L.Sheet.pin_points(self) if p[0] > xt + 8.0]
+
+    def outline(self, t, sway=1.0, hit=None, fall=0.0, n_side=8, n_hem=12):
+        a, b = self.a, self.b
+        Wd = b[0] - a[0]
+        sd = self.seed
+        brz = sway * (0.010 * Wd * fbm1(t * 0.45, sd) + 0.004 * Wd * math.sin(t * 1.7 + sd))
+        edge = self._edge()
+        pts = [edge[0]]
+        prev = edge[0]
+        for p in self.pin_points():
+            pts.append(((prev[0] + p[0]) / 2, (prev[1] + p[1]) / 2 + 0.035 * Wd / max(self.pins - 1, 1) * 1.6))
+            pts.append(p)
+            prev = p
+        yt = b[1]
+        for k in range(1, n_side + 1):
+            u = k / n_side
+            x = b[0] + brz * u * u + 0.006 * Wd * math.sin(u * 3 + t * 0.8 + sd)
+            pts.append((x, lerp(yt, yt + self.h, u)))
+        xe = edge[-1][0]
+        for k in range(1, n_hem):
+            u = k / n_hem
+            pts.append((lerp(b[0], xe, u) + brz, b[1] + self.h + 0.012 * Wd * math.sin(u * 9.0 + t * 1.1 + sd)))
+        return pts + edge[::-1]
+
+    def left_piece(self):
+        a = self.a
+        return [a] + self._edge(curl=False) + [(a[0], a[1] + self.h)]
+
+    def xf(self, pts):
+        """The falling left piece's motion: it tips, drops and piles up on the floor."""
+        d = self.drop
+        dy = d * self.h * 1.25
+        ang = math.radians(7.0 * d)
+        ca, sa = math.cos(ang), math.sin(ang)
+        cx, cy = self.rip[0], self.a[1]
+        out = []
+        for (x, y) in pts:
+            rx = cx + (x - cx) * ca - (y - cy) * sa
+            ry = cy + (x - cx) * sa + (y - cy) * ca + dy
+            if ry > self.floor:
+                ry = self.floor - 2.0 - (ry - self.floor) * 0.06
+            out.append((rx, ry))
+        return out
+
+    def draw(self, f, t, ctx, light=None, level=1.0, back=True, base=None, sway=1.0, hit=None, fall=0.0,
+             tears=(), folds=1.0, wire=True, pins=True):
+        L.Sheet.draw(self, f, t, ctx, light=light, level=level, back=back, base=base, sway=sway, hit=None,
+                     fall=0.0, tears=(), folds=folds, wire=wire, pins=pins)
+        if self.drop >= 0.999:
+            lp = self.xf(self.left_piece())
+            draw.poly(ctx, lp)
+            draw.fill(ctx, mix(INK, PAL.fog_at(1.0), 0.30))
+            return
+        lp = self.xf(self.left_piece())
+        unlit = base or mix(INK, PAL.fog_at(1.0), 0.55)
+        lk = clamp(level) * (1.0 - 0.7 * self.drop)
+        hot = mix(unlit, HOT, lk)
+        mid = mix(unlit, mix(AMBER, HOT, 0.45), lk)
+        far = mix(unlit, mul(AMBER, 0.42), lk)
+        lpnt = light or lp[0]
+        Wd = self.b[0] - self.a[0]
+        ctx.save()
+        draw.poly(ctx, lp)
+        ctx.clip_preserve()
+        draw.radial(ctx, lpnt, 0, math.hypot(Wd, self.h) * 0.62, [(0, hot, 1), (0.28, mid, 1), (1, far, 1)])
+        ctx.fill()
+        # it folds as it falls
+        draw.linear(ctx, (lp[0][0], 0), (lp[len(lp) // 2][0], 0),
+                    [(0, INK, 0.15 + 0.4 * self.drop), (0.5, INK, 0.05), (1, INK, 0.3 * self.drop)])
+        ctx.paint()
+        ctx.restore()
+
+    def shadow(self, ctx, t, casters, lamp=None, mag=1.0, soft=5.0, density=0.9, sway=1.0, hit=None, fall=0.0):
+        """The shadow stays where the light throws it; the cloth falls out from under it."""
+        L.Sheet.shadow(self, ctx, t, casters, lamp=lamp, mag=mag, soft=soft, density=density, sway=sway)
+        if self.drop >= 0.999:
+            return
+        lp = self.xf(self.left_piece())
+        xs = [p[0] for p in lp]
+        ys = [p[1] for p in lp]
+        L.shadow_screen(ctx, casters, region=lambda c: draw.poly(c, lp), bbox=(min(xs), min(ys), max(xs), max(ys)),
+                        soft=soft, density=density, mag=mag, center=lamp)
+
+
+def mul(c, k):
+    return (c[0] * k, c[1] * k, c[2] * k)
+
+
 def draw_slashes(f, t, ctx, sh):
-    """Cut-paper slashes: lens-shaped slits through the lit sheet, light pouring through."""
-    fall = sheet_fall(t)
-    vis = 1.0 - clamp(fall * 2.2)
-    if vis <= 0.01:
-        return
+    """Cut-paper slashes: lens-shaped slits through the lit sheet, light pouring through.
+    On the torn sheet each slash is cut on both pieces (the left one falls away with its half)."""
+    torn = isinstance(sh, TornSheet)
     k = ROOM.ppm(L.SHEET_Z)
     live = []
     for (t0, dur, a, b, wm, seed) in SLASHES:
         if t < t0:
             continue
+        rip = seed == 8
+        if rip and torn and sh.drop > 0.25:
+            continue                         # the rip is the gap now
         u = ease("out", (t - t0) / dur)
-        gape = 1.0 + 0.9 * L.k_(t, t0 + dur, 0.5, "out")
+        gape = 1.0 + 0.8 * L.k_(t, t0 + dur, 0.45, "out")
         p0 = ROOM.P(a[0], a[1], L.SHEET_Z)
         p1 = ROOM.P(b[0], b[1], L.SHEET_Z)
         pts = bass.slash_pts(p0, p1, wm * k * gape, u=u, tail=0.0, belly=0.42, seed=seed)
         if pts:
-            live.append(pts)
+            live.append((pts, 1.0 - (clamp(sh.drop * 4.0) if (rip and torn) else 0.0)))
     if not live:
         return
-    ctx.save()
-    sh.path(ctx, t, hit=sheet_hit(t), fall=fall)
-    ctx.clip()
-    for pts in live:
-        draw.poly(ctx, pts)
-        draw.fill(ctx, mix(HOT, (1.0, 1.0, 1.0), 0.25), vis)
-    ctx.restore()
-    with f.light(blur=6.0) as A:
-        for pts in live:
-            c = (sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))
-            draw.poly(A, pts)
-            draw.fill(A, HOT, 0.6 * vis)
-            glow(A, c, 26.0, HOT, 0.35 * vis)
+    regions = [(None, lambda c: sh.path(c, t, hit=sheet_hit(t)))]
+    if torn:
+        lp = sh.xf(sh.left_piece())
+        regions.append((sh.xf, lambda c: draw.poly(c, lp)))
+    core = mix(HOT, (1.0, 1.0, 1.0), 0.3)
+    drawn = []
+    for (xf, region) in regions:
+        vis = (1.0 - 0.8 * sh.drop) if xf is not None else (1.0 - 0.6 * (sh.curl if torn else 0.0))
+        ctx.save()
+        ctx.new_path()
+        region(ctx)
+        ctx.clip()
+        for pts, a_ in live:
+            q = xf(pts) if xf is not None else pts
+            draw.poly(ctx, q)
+            draw.fill(ctx, core, a_ * vis)
+            drawn.append((q, a_ * vis, region))
+        ctx.restore()
+    with f.light(blur=5.0) as A:
+        for q, a_, region in drawn:
+            A.save()
+            A.new_path()
+            region(A)
+            A.clip()
+            draw.poly(A, q)
+            draw.fill(A, HOT, 0.5 * a_)
+            A.restore()
+            c = (sum(p[0] for p in q) / len(q), sum(p[1] for p in q) / len(q))
+            glow(A, c, 30.0, HOT, 0.30 * a_)
     with f.emit() as G:
-        for pts in live:
-            draw.poly(G, pts)
-            draw.fill(G, HOT, 0.9 * vis)
+        for q, a_, region in drawn:
+            draw.poly(G, q)
+            draw.fill(G, HOT, 0.9 * a_)
 
 
 # ----------------------------------------------------------------------------- drawing people
@@ -406,7 +552,8 @@ def room_scene(f, t):
     hw, sw = him.w, her.w
     dop = door_open(t)
     fall = sheet_fall(t)
-    lamp = dict(X=LAMP_SET[0], Z=LAMP_SET[1], on=1.0, lift=0.0, tilt=0.0)
+    lamp = dict(X=LAMP_SET[0], Z=LAMP_SET[1], on=1.0, lift=0.0, tilt=0.0, glow=lerp(1.0, 0.7, clamp(fall)),
+                pool=lerp(1.0, 0.55, clamp(fall)))
     b3 = R9.bulb3d(lamp)
     bulb_w = ROOM.P(*b3)
     hall_src = ROOM.P(-ROOM.hw - 1.1, 2.75, APT.DOOR_Z[0] - 0.7)
@@ -494,7 +641,9 @@ def room_scene(f, t):
     door = dict(open=dop, hall=1.0, feet=feet, lever=lever(t), lever_rim=0.85 * (1.0 - L.k_(t, T_BURST, 0.2)),
                 lever_rim_col=mix(AMBER, HOT, 0.3), lit=0.6 + 2.2 * clamp(dop * 1.5), mask=him.mask(t),
                 hall_fn=hall_fn, spill=0.30)
-    st = dict(lamp=lamp, cover=1.0, hit=sheet_hit(t), fall=fall, slashes=draw_slashes,
+    sheet_obj = TornSheet(R9.sheet_obj(1.0), fall, sheet_curl(t)) if t >= T_FALL[0] else None
+    st = dict(lamp=lamp, cover=1.0, hit=sheet_hit(t), fall=fall, slashes=draw_slashes, sheet_obj=sheet_obj,
+              caster_density=0.94 * (1.0 - 0.92 * sheet_curl(t)),
               rig=dict(woman=False, doll_col=mix(INK, mix(PAPER, AMBER, 0.35), 0.1)),
               casters=[(DECOY[2], doll_shape)], wall_casters=[], items=items, door=door, street=0.30,
               door_z=2.25 if dop > 0.12 else 99.0)
@@ -518,9 +667,10 @@ def _spline(t, keys):
     return lerp(k0[1], k1[1], u), lerp(k0[2], k1[2], u), math.exp(lerp(math.log(k0[3]), math.log(k1[3]), u))
 
 
-CAM_A = [(0.0, 52.0, 965.0, 3.30), (T_BURST, 40.0, 975.0, 3.55), (T_B, 30.0, 960.0, 3.05)]
-CAM_B = [(T_B, 300.0, 960.0, 1.42), (1.62, 335.0, 930.0, 1.58), (2.00, 395.0, 880.0, 1.95), (3.00, 405.0, 870.0, 2.12),
-         (3.70, 418.0, 856.0, 2.70), (T_C, 420.0, 852.0, 3.00)]
+CAM_A = [(0.0, 52.0, 1045.0, 3.25), (T_BURST, 42.0, 1052.0, 3.45), (T_BURST + 0.16, 20.0, 985.0, 2.85),
+         (T_B, 18.0, 980.0, 2.80)]
+CAM_B = [(T_B, 300.0, 960.0, 1.42), (1.62, 318.0, 930.0, 1.58), (2.00, 368.0, 885.0, 1.95), (3.00, 376.0, 872.0, 2.10),
+         (3.45, 410.0, 858.0, 2.95), (T_C, 424.0, 852.0, 3.45)]
 CAM_C = [(T_C, 215.0, 985.0, 1.62), (4.70, 175.0, 995.0, 1.70), (T_D, 120.0, 1000.0, 1.80)]
 
 
@@ -757,6 +907,10 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
+    return 1
+
+
+def _motion_blur_unused(t, T):
     # the burst, the stabs and the slam (never across a cut)
     if T_BURST - 0.01 < t < T_BURST + 0.14:
         return 2
@@ -781,13 +935,13 @@ def cues(T):
         Cue(T_FALL[0], "clothes pins pop off the wire one after another; the sheet slumps down", gain_db=-8,
             pan=-0.1),
         Cue(T_FALL[1], "the bare bulb's hum, nothing else", gain_db=-16, pan=0.0),
-        Cue(4.30, "her quick soft footsteps behind him", gain_db=-14, pan=-0.5),
+        Cue(T_C + 0.05, "her quick soft footsteps behind him", gain_db=-14, pan=-0.5),
         Cue(T_TURN, "he whips round: coat swish", gain_db=-12, pan=-0.2),
         Cue(T_SLAM, "the door SLAMS", gain_db=-2, pan=-0.6),
-        Cue(5.12, "his body hits the door from inside", gain_db=-6, pan=-0.3),
+        Cue(BLOWS[0], "his body slams into the door from inside", gain_db=-4, pan=0.0),
         Cue(T_KEY[0], "the key turns in the lock", gain_db=-8, pan=0.0),
         Cue(T_KEY[1], "the deadbolt shoots home: a hard metal clack", gain_db=-5, pan=0.0),
-        Cue(5.40, "fists hammering on the door, the handle rattling (eight blows to 6.5)", gain_db=-4, pan=0.0),
+        Cue(BLOWS[1], "fists hammering on the door, the handle rattling (six blows to 6.45)", gain_db=-4, pan=0.0),
         Cue(T_CRASH, "the lamp CRASHES inside: the bulb bursts, the stand clatters", gain_db=-3, pan=0.0),
         Cue(T_CRASH + 0.08, "an electric fizz and stutter", gain_db=-12, pan=0.0),
         Cue(T_DARK, "the fuse goes: a click, then total silence", gain_db=-10, pan=0.1),

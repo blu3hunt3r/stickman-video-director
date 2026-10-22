@@ -19,12 +19,11 @@ IN   -0.5-13.0 her binocular view, inside bass.binoculars(ctx, (540, 960), 300, 
           on them, the frame closing to dark.
 OUT 17.0  (hard cut) her eyes glow at (540, 900) in a dark frame.
 """
-import math
 
 import cairo
 
 from engine import bass, draw
-from engine.core import W, H, clamp, lerp, smoothstep
+from engine.core import W, H, lerp, smoothstep
 from engine.frame import GLOW_DS
 from engine.timing import Cue, SceneTiming
 from films.shadowplay import sets

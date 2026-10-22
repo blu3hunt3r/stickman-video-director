@@ -13,11 +13,11 @@ IN   -0.5-0.6  the live facade at exactly the FACADE LOCK (s01's flat end resolv
 9.85-10.95 push over her head, through the pane, out into the rain and tilt down to the
          street far below; three umbrellas pass and break in the puddles. Nobody looks up.
 [up]     tilt back up (11.95-12.85) and push in as her binocular view; SHADOW / PLAY slide in
-         along the facade's grid lines (rows 3 and 5), hold ~1.4 s, slide off (14.75-15.3).
+         along the facade's grid lines (rows 3 and 5) from TITLE_IN 12.45 (in by 13.25), hold,
+         slide off from TITLE_OUT 14.4 (gone by 15.13).
 OUT 14.35-15.5  window 9 dark, centred, 200 px wide (zoom 0.78), 3 px handheld drift:
          _lib.END_RIG + bino_shake - s03 renders the same world at t + 15.
 """
-import math
 
 from engine.core import smoothstep
 from engine.timing import Cue
@@ -120,8 +120,7 @@ def cues(T):
         Cue(10.4, "push through the pane: rain roar opens, wind", gain_db=-8),
         Cue(10.9, "street far below: footsteps on wet pavement, rain on umbrellas", gain_db=-14, dur=1.2),
         Cue(w["up"], "whip tilt up: whoosh", gain_db=-10),
-        Cue(12.8, "title SHADOW slides in: paper swish (left)", gain_db=-9, pan=-0.4),
-        Cue(12.9, "title PLAY slides in: paper swish (right)", gain_db=-9, pan=0.4),
-        Cue(14.4, "binocular focus ring click", gain_db=-13),
-        Cue(14.75, "title slides off: paper swish", gain_db=-11),
+        Cue(TITLE_IN, "title SHADOW slides in: paper swish (left)", gain_db=-9, pan=-0.4),
+        Cue(TITLE_IN + 0.08, "title PLAY slides in: paper swish (right)", gain_db=-9, pan=0.4),
+        Cue(TITLE_OUT, "binocular focus ring click; the title slides off: paper swish", gain_db=-11),
     ]

@@ -87,6 +87,10 @@ Saul Bass moments must look like real cut paper (Vertigo, Anatomy of a Murder, T
   - Full-res only for spot checks.
 - **Determinism.** Everything is a pure function of `t` and integer seeds (`engine.core.hash01/noise1`). No unseeded random and no state between frames: frames are rendered out of order in many processes.
 - **No git commands that change state.** The director commits.
+- **Units trap:** `Actor.walk(speed=...)` (and path legs' speed) is in body heights per second,
+  not px/s. Passing px/s makes an actor teleport.
+- **Shared `_lib_` files:** edit with targeted replacements only, never a whole-file write from a
+  copy in memory; that has already deleted another scene's exports once.
 
 ## Final report (your last message; the director reads only this; under ~800 words)
 

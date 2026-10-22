@@ -21,12 +21,12 @@ import cairo
 
 from engine import atmos, bass, draw
 from engine import figure as FIG
-from engine.core import W, H, clamp, lerp, ease, smoothstep, hash01, noise1, fbm1, pulse
+from engine.core import clamp, lerp, ease, smoothstep, hash01, fbm1, pulse
 from engine import creatures as CR
 from engine.creatures import Cat
 from engine.frame import Camera
 from engine.motion import Actor
-from engine.palette import SHADOWPLAY as PAL, RED, PAPER
+from engine.palette import SHADOWPLAY as PAL, PAPER
 from films.shadowplay import cast, sets
 
 INK = PAL.ink
@@ -1249,7 +1249,6 @@ def draw_her_closeup(f, t, rig, lower_t=14.75, frozen=15.15, room=1.0, wall=1.0,
     hinge, ang = bino_hinge(t, lower_t)
     body = cast.HER
     Hh = body.height
-    L1, L2 = body.upper_arm * Hh * 0.82, body.forearm * Hh * 0.80
     ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
 
     def rot(dx, dy):

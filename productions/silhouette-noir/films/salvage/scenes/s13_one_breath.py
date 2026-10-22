@@ -1,6 +1,43 @@
 """s13 · ONE BREATH: at depth by the wreck, the hose cut, one minute of air (11.0 s).
 
-(docstring finalised after QA: see the bottom of the planning notes in the report)
+IN  (scroll 'up' = descent from s12, window -0.5..0.5; s12's bottom edge meets s13's top
+    edge): the slack red hose comes in at the top edge at screen x ~531-536 (held there
+    through the window), swings down in one loose bend to the back of his helmet and lies in
+    a coil round his legs. The diver stands on the silt by the wreck's quarter, lamp-lit, his
+    head tipped back, the beam running up the dead hose; no bubbles (the breath stopped at
+    the cut). -0.5: pelvis (512, 1731), helmet (452, 1484), zoom 1.12; 0.5: pelvis
+    (515, 1423), helmet (451, 1153), zoom 1.22.
+
+Beats (scene-local s; L18 A 1.5 ... calm 6.515-7.305; L19 My 8.2 ... that 9.372-9.848):
+  -0.5-1.05        the camera settles onto him; he looks up the hose (a blink 0.92-1.14)
+  1.05-2.45        his eyes come down off it, the beam swings level to frame right, and the
+                   camera pushes in to the helmet port (it lands on [helmet@2.336])
+  2.45-7.05        close on the port (held at screen ~(590, 980)); the push advances a notch
+                   on each heartbeat (97 settling to 60 bpm), a small thump on each lub-dub;
+                   his eyes dart (2.62-3.25), then
+  [one@3.59]       squeeze shut (3.57-3.75), the push going on in the dark of the port
+  [calm@6.515]     they open, slowly (6.515-6.965)
+  7.05-7.95        pull back; he turns to profile and looks down at his chest weights; both
+                   gloves come up to the front weight's hook
+  [My@8.2]         two pulls on the hooks (8.02, 8.17); 8.37 the weights fall
+  8.37-8.93        the camera goes down with the lead and opens out to hold all of him; the
+                   one big bubble release climbs out of the top of frame;
+  [taught@8.931]   WEIGHTS DROP: they hit the silt at 8.927 / 8.937 (silt y ~1494), puffs
+                   in the lamp pool
+  8.55             lighter: his heels leave the silt (a slow rise that quickens)
+  9.06, 9.29       he kicks off the lead boots: one lands on [me@9.222] (9.265), the other
+                   just after [that@9.372] (9.573)
+  9.42-10.05       his head and the beam swing up; from 9.55 the camera catches him up and
+                   pulls out (zoom 1.66 -> 1.25 by 10.5); the silt and the coils fall away
+                   below, snow streaks down
+OUT (scroll 'down' = ascent, window 10.5-11.5; s13's top edge meets s14's bottom edge): he
+    rises through screen centre, beam straight up, bubbles above, the hose trailing straight
+    down out of frame. 10.5: helmet (480, 825), pelvis (567, 1095), zoom 1.25; 11.0: helmet
+    (474, 772), pelvis (566, 1029); 11.5: helmet (473, 705), lamp (450, 653), pelvis
+    (565, 945), zoom 1.14.
+
+Sound: silence and a heartbeat; two clicks; ONE big bubble release; the WEIGHTS DROP (the key
+sync hit); two boots; the water rush.
 """
 import functools
 import math
@@ -32,7 +69,7 @@ T_CALM = 6.515                  # [calm]: they open
 T_PULL0, T_PULL1 = 7.05, 7.95   # pull back; he turns to profile, looks down at his weights
 T_BUCKLE = 7.88                 # both gloves on the front weight's hook
 T_TUG_A, T_TUG_B = 8.02, 8.17   # two pulls on the hooks
-T_DROP = 8.28                   # [My]...: the weights fall (they hit the silt on [taught])
+T_DROP = 8.37                   # [My]...: the weights fall (they hit the silt on [taught])
 T_LIFT = 8.55                   # lighter: his heels leave the silt
 T_KICK = {"R": 9.06, "L": 9.29}  # the lead boots kicked off (land on [me], [that])
 T_OUT = 11.5
@@ -101,33 +138,37 @@ def _diver():
 
 # ----------------------------------------------------------------------------- his hands
 def _buckle_targets(t, sk0):
-    """Both gloves on the front weight's hook; two pulls, then they let go and part."""
+    """Both gloves on the front weight's hook, just proud of the breastplate (so they read in
+    profile); two pulls, then they spring open as it goes."""
     lug = _weights_attached(sk0)[1][0]
     jerk = LIB.bump(t, T_TUG_A - 0.04, T_TUG_A, T_TUG_A + 0.02, T_TUG_A + 0.1) + \
         LIB.bump(t, T_TUG_B - 0.04, T_TUG_B, T_TUG_B + 0.02, T_TUG_B + 0.1)
     fall = ss(T_DROP - 0.02, T_DROP + 0.3, t)
-    r = (lug[0] - 6.0 + 26.0 * fall, lug[1] - 8.0 + 9.0 * jerk + 70.0 * fall)
-    l = (lug[0] - 22.0 - 30.0 * fall, lug[1] + 6.0 + 7.0 * jerk + 60.0 * fall)
+    r = (lug[0] + 20.0 + 6.0 * jerk + 40.0 * fall, lug[1] + 10.0 + 8.0 * jerk + 40.0 * fall)
+    l = (lug[0] + 6.0 + 4.0 * jerk - 50.0 * fall, lug[1] + 26.0 + 6.0 * jerk + 70.0 * fall)
     return r, l
 
 
 @functools.lru_cache(maxsize=96)
 def _solved(t):
+    """The pose with his gloves driven to the weight hooks: the TARGET travels (on an arc up
+    the front of the suit) from where the hand hangs, so the hand moves, not the angles."""
     A = _diver()
     p = A.pose(t)
-    w = LIB.bump(t, 7.35, T_BUCKLE, T_DROP + 0.15, T_DROP + 0.55)
+    w = LIB.bump(t, 7.35, T_BUCKLE, T_DROP + 0.12, T_DROP + 0.6)
     if w > 0.0:
         sk0 = F.solve(p, DIVER)
         tr, tl = _buckle_targets(t, sk0)
-        q = p.copy()
-        q.arms["R"].update(sh=40.0, abd=12.0, elbow=95.0)
-        q.arms["L"].update(sh=40.0, abd=12.0, elbow=95.0)
-        LIB.solve_arm(q, "R", tr, DIVER)
-        LIB.solve_arm(q, "L", tl, DIVER)
-        for s in ("R", "L"):
-            for k in ("sh", "abd", "elbow"):
-                p.arms[s][k] = lerp(p.arms[s][k], q.arms[s][k], w)
-            p.arms[s]["grip"] = lerp(p.arms[s].get("grip", 0.3), 0.85, w)
+        we = ease("inout", w)
+        for side, tg in (("R", tr), ("L", tl)):
+            w0 = sk0.j["wrist_" + side]
+            tgt = (lerp(w0[0], tg[0], we), lerp(w0[1], tg[1], we) - 30.0 * math.sin(math.pi * we))
+            arm = p.arms[side]
+            arm["sh"] = lerp(arm["sh"], 55.0, we)
+            arm["elbow"] = lerp(arm["elbow"], 115.0, we)
+            arm["abd"] = lerp(arm.get("abd", 5.0), 10.0, we)
+            LIB.solve_arm(p, side, tgt, DIVER)
+            arm["grip"] = lerp(arm.get("grip", 0.3), 0.85, we * (1.0 - ss(T_DROP, T_DROP + 0.15, t)))
     return F.solve(p, DIVER), p
 
 
@@ -212,6 +253,11 @@ _SEA_X = np.linspace(-2000.0, 600.0, 521)
 _SEA_Y = np.array([S.seabed_y(x) for x in _SEA_X])
 
 
+def ss_v(a, b, x):
+    u = np.clip((x - a) / (b - a), 0.0, 1.0)
+    return u * u * (3.0 - 2.0 * u)
+
+
 def _sea(x):
     return float(np.interp(x, _SEA_X, _SEA_Y))
 
@@ -226,7 +272,7 @@ def _far(t):
     else:
         y = lerp(7120.0, 7300.0, ss(0.6, 2.4, t))
     u = ss(2.4, 6.0, t)
-    return lerp(X0 - 40.0, X0 - 1300.0, u), lerp(y, _sea(X0 - 1300.0) - 6.0, u)
+    return lerp(X0 + 25.0, X0 - 1300.0, u), lerp(y, _sea(X0 - 1300.0) - 6.0, u)
 
 
 HOSE_N = 80
@@ -242,7 +288,7 @@ def _hose_rope():
         nrm = np.array([-d[1], d[0]])
         u = np.linspace(0.0, 1.0, HOSE_N)
         base = a[None] * (1 - u[:, None]) + b[None] * u[:, None]
-        env = np.sin(math.pi * np.clip(u * 1.1, 0.0, 1.0)) ** 0.5
+        env = np.sin(math.pi * np.clip(u * 1.1, 0.0, 1.0)) ** 0.5 * (1.0 - 0.86 * ss_v(0.28, 0.5, u))
         ph = 2.0 * math.pi * (3.2 * u + 0.12 * np.sin(u * 6.0)) + 0.9
         shape = np.sin(ph) * env * (0.75 + 0.45 * np.sin(u * 4.1 + 1.0) ** 2)
 
@@ -299,7 +345,7 @@ def _steps(t):
     bs = [b for b in BEATS if T_PUSH1 - 0.2 <= b <= T_PULL0 - 0.2]
     if not bs:
         return 0.0
-    return sum(ss(b, b + 0.16, t) for b in bs) / len(bs)
+    return sum(ease("out", clamp((t - b) / 0.45)) for b in bs) / len(bs)
 
 
 # ----------------------------------------------------------------------------- camera
@@ -318,34 +364,54 @@ Z_CU0, Z_CU1 = 3.0, 4.6
 CU_SCREEN = (590.0, 980.0)      # where the port sits on screen through the close-up
 
 
+@functools.lru_cache(maxsize=1)
+def _helm_lift():
+    c, R = costume.helmet_frame(_diver().skeleton(T_LIFT))[:2]
+    return c[1], R
+
+
+def _fit(t):
+    """(zoom, y) holding the whole man and the silt as the lead goes: his helmet top at y~260
+    and the silt line easing from y 1500 (the weights land) to 1650 (the boots land)."""
+    hy, R = _helm_lift()
+    top = hy - _rise(t) - R
+    yb = lerp(1500.0, 1650.0, ss(8.95, 9.6, t))
+    z = (yb - 260.0) / (SEA0 - top)
+    return z, SEA0 - (yb - H / 2) / z
+
+
 def camera(t):
     m = _marks()
     hc, port = m["hc"], m["port"]
-    tl = min(t, T_LIFT + 0.8)
+    tl = min(t, T_DROP)
     z = LIB.track([(-1.0, 1.0), (0.6, 1.22, "out"), (T_PUSH0, 1.25, "inout"), (T_PUSH1, Z_CU0, "inout"),
-                   (T_PULL0, Z_CU0), (T_PULL1, 2.4, "inout"), (T_DROP, 2.36), (8.95, 2.0, "inout"),
-                   (12.0, 2.0)], tl)
+                   (T_PULL0, Z_CU0), (T_PULL1, 2.4, "inout"), (T_DROP, 2.36)], tl)
     if T_PUSH1 - 0.3 < tl < T_PULL1:
         # the heartbeat push: a notch in on each beat, a small thump on each lub-dub
         k = ss(T_PUSH1 - 0.3, T_PUSH1, tl) * (1.0 - ss(T_PULL0, T_PULL0 + 0.35, tl))
-        z *= (Z_CU1 / Z_CU0) ** (_steps(tl) * (1.0 - ss(T_PULL0, T_PULL1, tl))) * (1.0 + 0.018 * k * _pulse(tl))
+        z *= (Z_CU1 / Z_CU0) ** (_steps(tl) * (1.0 - ss(T_PULL0, T_PULL1, tl))) * (1.0 + 0.012 * k * _pulse(tl))
     xc0 = port[0] - (CU_SCREEN[0] - W / 2) / Z_CU0
     yc0 = port[1] - (CU_SCREEN[1] - H / 2) / Z_CU0
     x = LIB.track([(-1.0, X0 + 30.0), (0.6, X0 + 20.0, "out"), (T_PUSH0, X0 + 18.0), (T_PUSH1, xc0, "inout"),
                    (T_PULL0, xc0), (T_PULL1, X0 + 62.0, "inout"), (T_DROP, X0 + 64.0),
-                   (8.95, X0 + 66.0, "inout"), (12.0, X0 + 66.0)], tl)
+                   (8.95, X0 + 66.0, "inout"), (12.0, X0 + 66.0)], min(t, 9.0))
     y = LIB.track([(-1.0, hc[1] - 820.0), (0.6, hc[1] - 156.0, "out"), (T_PUSH0, hc[1] - 150.0, "inout"),
-                   (T_PUSH1, yc0, "inout"), (T_PULL0, yc0), (T_PULL1, 8640.0, "inout"), (T_DROP, 8650.0),
-                   (8.95, SEA0 - 260.0, "inout"), (12.0, SEA0 - 260.0)], tl)
+                   (T_PUSH1, yc0, "inout"), (T_PULL0, yc0), (T_PULL1, 8640.0, "inout"), (T_DROP, 8650.0)], tl)
     # through the close-up the port stays put on screen while the zoom breathes in
     w = ss(T_PUSH1 - 0.5, T_PUSH1, tl) * (1.0 - ss(T_PULL0, T_PULL0 + 0.45, tl))
     if w > 0.0:
         x = lerp(x, port[0] - (CU_SCREEN[0] - W / 2) / z, w)
         y = lerp(y, port[1] - (CU_SCREEN[1] - H / 2) / z, w)
-    if t > 9.3:
+    if t > T_DROP:
+        # down with the lead to the silt, opening out as he lifts off it (helmet never cut)
+        fz, fy = _fit(t)
+        v = ease("inout", clamp((t - T_DROP) / 0.5))
+        z = lerp(z, fz, v)
+        y = lerp(y, fy, v)
+    if t > 9.55:
         # rise with him: catch up, pull out, then let him drift up through the centre
         rx, ry = _diver().root(t)
-        u = ease("inout", clamp((t - 9.3) / 1.3))
+        u = ease("inout", clamp((t - 9.55) / 0.95))
         drift = 150.0 * ss(10.4, 11.9, t)
         x = lerp(x, rx - 22.0, u)
         y = lerp(y, ry - 110.0 + drift, u)
@@ -446,7 +512,8 @@ def render(f, t, T):
     _backdrop(f, t, cam, sk)
     view = S.View(f, murk=MURK)
     cu = ss(1.4, 2.8, cam.zoom)               # close: a shallow focus, the wreck goes soft
-    WORLD.draw(f, t, view=view, wreck_kw=dict(bell=True),
+    # no rigging lines: a pale line beside the red hose would read as the lifting line
+    WORLD.draw(f, t, view=view, wreck_kw=dict(bell=True, lines=False),
                bins=((9000.0, 7.0 + 16.0 * cu), (3200.0, 4.5 + 15.0 * cu), (900.0, 1.4 + 12.0 * cu),
                      (-1e9, 9.0 * cu)))
     _shadow(f, t, cam)
@@ -510,6 +577,6 @@ def cues(T):
         out.append(Cue(lt, "WEIGHTS DROP: lead thuds into the silt, a soft puff", gain_db=-5))
     for s in ("R", "L"):
         o, a, sc, fl, landed, att = _boots(T_KICK[s] + 1.5, None)[s]
-        out.append(Cue(landed, "lead boot drops into the silt", gain_db=-8))
+        out.append(Cue(landed, "lead boot drops into the silt", gain_db=-8, pan=0.3))   # they land frame right
     out.append(Cue(9.5, "rising: water rush building", gain_db=-12, dur=2.0))
     return out

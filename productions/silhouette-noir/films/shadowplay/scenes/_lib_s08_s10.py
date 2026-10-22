@@ -656,7 +656,7 @@ class Room9:
     a lever handle that turns.
 
     draw(f, t, st): st keys (all optional)
-      lamp      dict(X, Z, on, tilt=0, lift=0, broken=False, stand=True)
+      lamp      dict(X, Z, on, tilt=0, lift=0, broken=False, stand=True, glow=1 (halo), pool=1 (on the wall))
       cover     sheet 0 (bunched at the left) .. 1 (straight);  sheet=False: no sheet
       hit, fall, tears   the stabbed sheet (Sheet); slashes: fn(f, t, ctx, sheet) drawn on it
       rig       dict(woman=True, dolls=True) or None (no table)
@@ -665,6 +665,7 @@ class Room9:
       casters   [(z, fn(c))] shapes behind the sheet (as the camera sees them) -> its shadows
       wall_casters [(z, fn(c))] shapes in front of the back wall (lamp in front) -> its shadows
       items     [(z, fn(f, t))] people / things, drawn far -> near around the room's props
+      sheet_obj a Sheet-like object to use instead of the pulled sheet (s10: torn)
       door_z    items nearer than this depth are drawn after the door (in front of its open
                 leaf); default: the door is drawn over every item
       after     fn(f, t) drawn last"""
@@ -804,19 +805,27 @@ class Room9:
 
     def lever(self, c, open_=0.0, turn=0.0, scale=1.0, color=None, rim_col=None, rim_a=0.0):
         """A lever door handle on the room side of the leaf, through the door's projection: it
-        dips as it turns (turn 0..1 = 0..40 deg). rim: a thin highlight on its top edge."""
+        dips as it turns (turn 0..1 = 0..40 deg). A dark metal rose and bar (a shade lighter than
+        the leaf, so the shape reads), rim: a thin highlight on the bar's top edge."""
         Q, u0, v0, th, Lv = self.lever_points(open_, turn, scale)
-        rose = [Q(u0 - 14, v0 - 14, 2), Q(u0 + 14, v0 - 14, 2), Q(u0 + 14, v0 + 14, 2), Q(u0 - 14, v0 + 14, 2)]
+        metal = color or mix(INK, PAL.fog_at(1.0), 0.36)
+        rose = [Q(u0 + 15 * math.cos(a), v0 + 15 * math.sin(a), 2)
+                for a in [2 * math.pi * i / 14 for i in range(14)]]
         draw.poly(c, rose)
+        draw.fill(c, mix(INK, metal, 0.7))
         n = 24.0
         top = [Q(u0 + 3, v0 + 6, n), Q(u0 - Lv * math.cos(th), v0 + 6 - Lv * math.sin(th), n)]
         bot = [Q(u0 - Lv * math.cos(th) - 2, v0 - 5 - Lv * math.sin(th), n), Q(u0 + 3, v0 - 6, n)]
         draw.poly(c, top + bot)
         draw.poly(c, [Q(u0 - 5, v0 - 6, 2), Q(u0 + 5, v0 - 6, 2), Q(u0 + 5, v0 + 6, n), Q(u0 - 5, v0 + 6, n)])
-        draw.fill(c, color or INK)
+        draw.fill(c, metal)
         if rim_a > 0.01:
-            draw.capsule(c, top[0], top[1], 2.4, 1.8)
+            draw.capsule(c, top[0], top[1], 1.7, 1.2)
             draw.fill(c, rim_col or AMBER, clamp(rim_a))
+            draw.poly(c, rose[1:7], close=False)
+            c.set_line_width(1.0)
+            draw.rgba(c, rim_col or AMBER, 0.5 * clamp(rim_a))
+            c.stroke()
         return top[1]
 
     def door_leaks(self, f, t, hall=0.0, open_=0.0, lit=0.0, lit_col=None):
@@ -863,7 +872,7 @@ class Room9:
                 pat = G.pop_group()
                 G.save()
                 G.set_operator(cairo.OPERATOR_DEST_OUT)
-                G.set_source_rgba(0, 0, 0, 0.92)
+                G.set_source_rgba(0, 0, 0, 0.92 * clamp(st.get("caster_density", 0.94) / 0.94))
                 G.mask(pat)
                 G.restore()
             G.restore()
@@ -921,7 +930,8 @@ class Room9:
                 A.save()
                 wall_region(A)
                 A.clip()
-                glow(A, p, self.ppm(r.zb) * (0.5 + 2.2 * dz), sets_mix(AMBER, HOT, 0.45), 0.55 * lv * (0.9 - dz))
+                glow(A, p, self.ppm(r.zb) * (0.5 + 2.2 * dz), sets_mix(AMBER, HOT, 0.45),
+                     0.55 * lv * (0.9 - dz) * lamp.get("pool", 1.0))
                 A.restore()
         # 1b) shadows on the back wall from a lamp in front of the casters
         if lv > 0.02:
@@ -952,7 +962,8 @@ class Room9:
                 vis = 1.0 - hide
                 with f_.layer() as L:
                     lo.draw(f_, t_, L, on=lv * vis if vis > 0.5 else 0.0, tilt=lamp.get("tilt", 0.0),
-                            broken=broken, cord_to=(sock[0], self.P(lamp["X"], 0, lamp["Z"])[1]))
+                            broken=broken, cord_to=(sock[0], self.P(lamp["X"], 0, lamp["Z"])[1]),
+                            glow_k=lamp.get("glow", 1.0))
                 if hide > 0.5 and lv > 0:
                     lamp_light(f_, lo.bulb(lamp.get("tilt", 0.0)), lv * 0.35, scale=kk)
             items.append((lamp["Z"], lamp_fn))
@@ -963,7 +974,7 @@ class Room9:
             fn(f, t)
         # the sheet
         if has_sheet:
-            sh = self.sheet_obj(cover)
+            sh = st.get("sheet_obj") or self.sheet_obj(cover)
             hot = self.P(*b3) if behind else self.P(b3[0], b3[1], SHEET_Z)
             with f.layer() as L:
                 sh.draw(f, t, L, light=hot, level=lv * (1.0 if behind else 0.55), back=behind,
@@ -975,7 +986,8 @@ class Room9:
                             center, mag, soft = apt.shadow_map(z, b3)
                             mag = min(mag, 14.0)
                             sh.shadow(L, t, fn, lamp=center, mag=mag, soft=max(1.0, soft),
-                                      density=0.94 * min(1.0, lv), hit=st.get("hit"), fall=fall)
+                                      density=st.get("caster_density", 0.94) * min(1.0, lv), hit=st.get("hit"),
+                                      fall=fall)
                 slashes = st.get("slashes")
                 if slashes:
                     slashes(f, t, L, sh)
@@ -1001,7 +1013,7 @@ class Room9:
                              rim_a=door.get("lever_rim", 0.0))
         if door.get("lever_rim", 0.0) > 0.01:
             with f.light(blur=2.0) as A:
-                glow(A, tip, 9.0, HOT, 0.55 * door.get("lever_rim", 0.0))
+                glow(A, tip, 6.0, HOT, 0.25 * door.get("lever_rim", 0.0))
         self.door.light(f, t, open=dop, hall=hall, spill=door.get("spill", 0.0), feet=door.get("feet", ()))
         self.door_leaks(f, t, hall=hall, open_=dop, lit=door.get("lit", 0.0))
         for z, fn in front:
