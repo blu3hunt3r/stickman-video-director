@@ -198,7 +198,7 @@ def _m_target(side):
     def at_shoulder(t):
         s = sk(t)
         x, y = s.j["shoulder_L"]
-        return (x - 20.0 + off[0], y + 22.0 + off[1])
+        return (x - 44.0 + off[0], y + 14.0 + off[1])
 
     def at_nape(t):
         x, y = _rim(sk(t), 0.0)
@@ -261,6 +261,8 @@ def mother():
                     (W["basket"] - 0.1, 22.0), (L.S02_TAKE + 0.3, 17.0), (8.15, 14.0)], fade=0.3)
     m.look_at(-1.0, 8.2, target=lambda t: girl_ref().skeleton(t).j["head"], fade=0.3)
     m.reach("R", -1.0, 8.15, target=_m_target("R"), fade=0.35, grip=0.85)
+    m.arm("R", -1.0, W["tied"] - 0.3, fade=0.25, wrist=-58.0)          # her hand draped on the girl's shoulder
+    m.arm("R", L.S02_TAKE + 0.45, 8.15, fade=0.3, wrist=-58.0)
     m.reach("L", -1.0, W["and_"], target=_m_target("L"), fade=0.3, grip=0.8)
     # she rises, turns her face away; her eyes close on "grandmother"
     m.key("head_yaw", [(8.80, 0.0), (9.25, 74.0), (12.30, 74.0), (12.85, 0.0)], fade=0.15)

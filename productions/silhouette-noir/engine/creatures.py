@@ -2959,14 +2959,15 @@ class _SThreat(_SpiderClip):
     fangs open."""
     kind = "threat"
 
-    def __init__(self, A, t0, state, dur=1.5, fade=0.25, base=None, **kw):
+    def __init__(self, A, t0, state, dur=1.5, fade=0.25, base=None, settle=True, **kw):
         _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        self.settle = settle
         self.end_state = dict(state, posture="stand")
 
     def pose(self, t):
         A, S, LL = self.A, self.A.S, self.A.LL
         u = clamp((t - self.t0) / 0.5)
-        dn = _ss(self.dur - 0.45, self.dur, t - self.t0)
+        dn = _ss(self.dur - 0.45, self.dur, t - self.t0) if self.settle else 0.0
         e = u * (1.0 - dn)
         P = self._base(self.start["x"], t, y=self.start.get("y"))
         P["pitch"] += 18.0 * e
@@ -3177,9 +3178,10 @@ class Spider(_Actor):
             return self.overlay("stab", t0, 1.0, leg=leg, target=target, hold=hold)
         return self._add("stab", leg=leg, target=target, hold=hold)
 
-    def threat(self, dur=1.5):
-        """Rear up, front legs high and spread, fangs open."""
-        return self._add("threat", dur=dur)
+    def threat(self, dur=1.5, settle=True):
+        """Rear up, front legs high and spread, fangs open. settle=False stays reared to the
+        end (the next action takes over from the raised pose)."""
+        return self._add("threat", dur=dur, settle=settle)
 
     def recoil(self, dur=1.2, dist=None, burn=0.0):
         """Flinch from fire: legs snap up, skitter back dist px; burn > 0: embers + twitching."""

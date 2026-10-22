@@ -642,7 +642,7 @@ def render(f, t, T):
         with f.layer() as L:
             mid = ((top[0] + he[0]) / 2 + 2.0, (top[1] + he[1]) / 2)
             LIB.draw_pale(L, [top, mid, he], 4.5, mix(LIB.LINE_C, INK, 0.12))
-            S.draw_hook(L, he[0], he[1], angle=_hook_angle(t), s=1.3)
+            LIB.draw_hook_rim(L, he[0], he[1], angle=_hook_angle(t), s=1.3, rim_a=0.42)
     # --- the helmet lamp: a small warm glare; its spill on the book and the gloves
     lp = costume.helmet_lamp(sk)[0]
     with f.emit() as G:

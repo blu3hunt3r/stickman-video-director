@@ -111,6 +111,16 @@ def draw_pale(ctx, pts, width=LINE_W, color=LINE_C, alpha=1.0):
     stroke(ctx, pts, width, color, alpha)
 
 
+def draw_hook_rim(ctx, x, y, angle=0.0, s=1.0, rim=None, rim_a=0.55, off=(-1.3, -1.1)):
+    """The cargo hook (eye at x, y) in INK with a thin glint on the edges facing the light:
+    a pale copy offset toward the light, the black hook over it."""
+    from films.salvage import sets as S
+    if rim_a > 0.0:
+        rc = rim or LINE_C
+        S.draw_hook(ctx, x + off[0], y + off[1], angle=angle, s=s, color=(rc[0], rc[1], rc[2], rim_a))
+    S.draw_hook(ctx, x, y, angle=angle, s=s)
+
+
 def polyline_len(pts):
     return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:]))
 
