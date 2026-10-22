@@ -47,11 +47,12 @@ INK = S.INK
 POSTER3 = 10.72                 # the live view flattens: 3 inks ...
 POSTER2 = 10.86                 # ... 2 inks
 BARS = (10.96, 0.32)            # paper bars wipe the ink away (alternate sides)
-RISE = (11.18, 0.44)            # the specks rise into the top row (staggered over 0.16 s)
-LEDGER = 11.66                  # the first copied row starts down
+RISE = (11.27, 0.44)            # the specks rise into the top row (staggered over 0.16 s)
+LEDGER = 11.73                  # the first copied row starts down
 ROW_DUR = 0.14                  # each row's slide
-DRIFT = (13.28, 0.70)           # into s07's hoods (staggered over 0.16 s)
-INK_BARS = (13.50, 0.62)        # s07's forest assembles (cut-paper bars)
+WAVE = 4200.0                   # px/s: the pulse (and the release) spreading from her slot
+DRIFT = 0.60                    # each triangle's drift into s07's hoods
+INK_BARS = (13.46, 0.62)        # s07's forest assembles (cut-paper bars)
 WIDE_T = 10.80                  # the camera lands on "wide"
 
 COLS = 14
@@ -115,9 +116,9 @@ def _girl():
     a.arm("R", -3.0, 16.0, fade=0.0, sh=6.0, abd=10.0, elbow=14.0, wrist=-4.0, grip=0.9)
     a.arm("L", -3.0, 16.0, fade=0.0, sh=-4.0, abd=7.0, elbow=10.0)
     # she looks down into the valley, then a small recoil when she sees how many
-    a.pose_keys(-3.0, 16.0, head=[(-3.0, 0.0, "inout"), (0.7, 0.0, "inout"), (2.4, 9.0, "inout"),
-                                  (10.15, 9.0, "inout"), (10.55, -4.0, "out3"), (11.2, 2.0, "inout")],
-                pitch=[(-3.0, 0.0, "inout"), (10.1, 0.0, "inout"), (10.4, -4.5, "out3"), (11.1, -2.0, "inout")])
+    a.key("head", [(-3.0, 0.0), (0.7, 0.0), (2.4, 9.0), (10.15, 9.0), (10.55, -4.0, "out3"), (11.2, 2.0)],
+          mode="add")
+    a.key("pitch", [(-3.0, 0.0), (10.1, 0.0), (10.4, -4.5, "out3"), (11.1, -2.0)], mode="add")
     return a
 
 
@@ -181,11 +182,13 @@ def _layout():
     t = LEDGER
     for r in range(1, rows):
         starts.append(t)
-        t += max(0.042, 0.125 * 0.83 ** (r - 1))
+        t += max(0.04, 0.10 * 0.84 ** (r - 1))
     her_slot = n - 1
-    t_her = starts[-1] + ROW_DUR + 0.06
+    t_her = starts[-1] + ROW_DUR + 0.04
+    jit = [((1.5 * (hash01(i, 11) - 0.5), 1.5 * (hash01(i, 12) - 0.5)), 3.0 * (hash01(i, 13) - 0.5))
+           for i in range(n)]
     return dict(slots=slots, rows=rows, col_of=col_of, starts=starts, her=her_slot, t_her=t_her,
-                t_land=t_her + 0.30, t_pulse=t_her + 0.34)
+                t_land=t_her + 0.28, t_pulse=t_her + 0.30, jit=jit)
 
 
 @lru_cache(maxsize=None)
@@ -244,24 +247,25 @@ def _grid_state(t):
     sp = _specks()
     slots, starts = L["slots"], L["starts"]
     out = []
-    # the specks (until they have all risen)
-    if t < RISE[0] + RISE[1] + 0.2:
+    # the specks (until they have all risen): each column's specks converge on its top slot
+    if t < RISE[0] + RISE[1] + 0.02:
         for i, (x, y, s) in enumerate(sp):
             c = L["col_of"][i]
             st = RISE[0] + 0.16 * (hash01(i, 3) * 0.6 + 0.4 * c / (COLS - 1.0))
             u = _k(t, st, RISE[1] - 0.16, "inout3")
             us = _k(t, st, RISE[1] - 0.16, "in3")
-            tx, ty = slots[c]
+            (jx, jy), jr = L["jit"][c]
+            tx, ty = slots[c][0] + jx, slots[c][1] + jy
             h = lerp(max(s * 1.1, 7.0), TRI_H, us)
             arc = -60.0 * math.sin(math.pi * u) * (0.5 + hash01(i, 5))
             out.append(((lerp(x, tx, u) + arc * 0.15 * (hash01(i, 6) - 0.5), lerp(y, ty, u) + arc),
-                        h, lerp(HOOD_R, TRI_R, us), (1.0 - u) * 8.0 * (hash01(i, 7) - 0.5)))
+                        h, lerp(HOOD_R, TRI_R, us), lerp(8.0 * (hash01(i, 7) - 0.5), jr, u), c))
     tri = []
     n = len(slots) - 1
     for i in range(n):
         r, c = divmod(i, COLS)
         if r == 0:
-            if t < RISE[0] + RISE[1] + 0.2:
+            if t < RISE[0] + RISE[1] + 0.02:
                 continue                                     # still specks
             pos = slots[i]
         else:
@@ -273,8 +277,8 @@ def _grid_state(t):
         tri.append((i, pos))
     out_tri = []
     for i, pos in tri:
-        out_tri.append(((pos[0] + 1.5 * (hash01(i, 11) - 0.5), pos[1] + 1.5 * (hash01(i, 12) - 0.5)), TRI_H, TRI_R,
-                        3.0 * (hash01(i, 13) - 0.5), i))
+        (jx, jy), jr = L["jit"][i]
+        out_tri.append(((pos[0] + jx, pos[1] + jy), TRI_H, TRI_R, jr, i))
     return out, out_tri
 
 
@@ -289,60 +293,73 @@ def _her_state(t, cam_wide):
     return c, lerp(h0, TRI_H, us), lerp(0.62, TRI_R, us)
 
 
-def _pulse(t, c):
-    """The single pulse: a wave out from her slot (scale factor)."""
+def _wave_t(c):
+    """When the pulse wave (out from her slot) reaches screen point c."""
     L = _layout()
     her = L["slots"][L["her"]]
-    d = math.hypot(c[0] - her[0], c[1] - her[1])
-    tt = t - L["t_pulse"] - d / 2600.0
-    if tt <= 0 or tt > 0.4:
+    return L["t_pulse"] + math.hypot(c[0] - her[0], c[1] - her[1]) / WAVE
+
+
+def _pulse(t, c):
+    """The single pulse: each triangle swells and settles as the wave passes (scale)."""
+    tt = t - _wave_t(c)
+    if tt <= 0.0 or tt > 0.5:
         return 1.0
-    return 1.0 + 0.24 * math.sin(math.pi * min(1.0, tt / 0.07)) ** 2 * (1.0 if tt < 0.07 else 0.0) + \
-        (0.24 * math.exp(-(tt - 0.07) / 0.06) if tt >= 0.07 else 0.0)
+    if tt < 0.06:
+        return 1.0 + 0.26 * math.sin(0.5 * math.pi * tt / 0.06) ** 2
+    return 1.0 + 0.26 * math.exp(-(tt - 0.06) / 0.07)
 
 
-def _drift(i, n):
-    """Start time of triangle i's drift into s07 (top rows first, a little random)."""
-    return DRIFT[0] + 0.16 * (0.55 * hash01(i, 21) + 0.45 * (i / max(1.0, n - 1.0)))
+def _drift(i, c):
+    """Start time of triangle i's drift into s07: released by the wave, a little random."""
+    return _wave_t(c) + 0.17 + 0.06 * hash01(i, 21)
 
 
-def _bass(f, t, w, alpha_bars):
-    """Everything red on paper (and s07's ink forest arriving at the end)."""
+def _bass(f, t, w, clip=None):
+    """Everything red on paper (and s07's ink forest arriving at the end). clip: polygons the
+    red is limited to (the paper bars while they sweep in)."""
     L = _layout()
     girl, hoods, assign = _targets()
-    cam_wide = V.camera("wide")
     specks, tris = _grid_state(t)
     polys = []
-    n = len(L["slots"]) - 1
     if t >= INK_BARS[0]:
         _ink_bars(f, t)
     with f.screen() as c:
-        for k, (pc, h, ratio, rot) in enumerate(specks):
-            polys.append(_tri(pc, h, 300 + k, ratio, rot))
+        for (pc, h, ratio, rot, col) in specks:
+            polys.append(_tri(pc, h, col, ratio, rot))
         for (pc, h, ratio, rot, i) in tris:
             s = _pulse(t, pc)
-            if t > DRIFT[0]:
+            td = _drift(i, pc)
+            if t > td:
                 hd = hoods[assign[i]] if hoods else girl
-                td = _drift(i, n)
-                u = _k(t, td, DRIFT[1], "inout3")
-                ug = _k(t, td + DRIFT[1] * 0.55, DRIFT[1] * 0.45, "out3")
+                u = _k(t, td, DRIFT, "inout3")
+                ug = _k(t, td + DRIFT * 0.5, DRIFT * 0.5, "out3")
                 pc = (lerp(pc[0], hd["x"], u), lerp(pc[1], hd["y"], u))
                 h = lerp(h, hd["h"], ug)
                 ratio = lerp(ratio, HOOD_R, ug)
                 rot = rot * (1.0 - u)
             polys.append(_tri(pc, h * s, i, ratio, rot))
-        # hers
-        if t >= BARS[0] + 0.12:
-            hc, hh, hr = _her_state(t, cam_wide)
-            s = _pulse(t, hc) if t >= L["t_land"] else 1.0
-            if t > DRIFT[0]:
-                u = _k(t, DRIFT[0] + 0.12, DRIFT[1] + 0.1, "inout3")
+        # hers: the last one counted; then the girl standing in the clearing (s07)
+        hc, hh, hr = _her_state(t, V.camera("wide"))
+        if t >= L["t_land"]:
+            s = _pulse(t, hc)
+            td = _drift(len(L["slots"]), hc) + 0.05
+            if t > td:
+                u = _k(t, td, DRIFT + 0.1, "inout3")
                 hc = (lerp(hc[0], girl["x"], u), lerp(hc[1], girl["y"], u))
                 hh = lerp(hh, girl["h"], u)
                 hr = lerp(hr, 0.6, u)
-            polys.append(_tri(hc, hh * s, 999, hr, 0.0))
-        if polys:
-            bass.fill_polys(c, [bass.orient(p, True) for p in polys], RED, alpha_bars)
+            hh *= s
+        polys.append(_tri(hc, hh, 999, hr, 0.0))
+        if clip:
+            c.save()
+            c.new_path()
+            for q in clip:
+                draw.poly(c, q)
+            c.clip()
+        bass.fill_polys(c, [bass.orient(p, True) for p in polys], RED)
+        if clip:
+            c.restore()
 
 
 # ----------------------------------------------------------------------------- s07's forest
@@ -416,11 +433,11 @@ def _ink_bars(f, t):
 
 # ----------------------------------------------------------------------------- paper bars
 def _paper_bars(f, t):
-    """Bass bars of PAPER sweep in over the posterized view (alternate sides)."""
-    n = 8
-    k_all = 0.0
+    """Bass bars of PAPER sweep in over the posterized view (alternate sides). Returns the
+    bars' polygons (screen px) where they are now."""
+    out = []
     with f.screen() as c:
-        rects = bass.bar_rects((0.0, 0.0, 1080.0, 1920.0), n, "h", None, 0.0, 5, irregular=0.35)
+        rects = bass.bar_rects((0.0, 0.0, 1080.0, 1920.0), 8, "h", None, 0.0, 5, irregular=0.35)
         for i, (x0, y0, x1, y1) in enumerate(rects):
             st = BARS[0] + (BARS[1] - 0.2) * hash01(i, 77)
             u = _k(t, st, 0.2, "out3")
@@ -428,10 +445,10 @@ def _paper_bars(f, t):
                 continue
             side = -1.0 if i % 2 == 0 else 1.0
             dx = side * 1160.0 * (1.0 - u)
-            bass.fill_polys(c, [bass.cut_rect(-40.0 + dx, y0 - 2.0, 1120.0 + dx, y1 + 2.0, seed=60 + i, amp=1.6)],
-                            PAPER)
-            k_all += u / n
-    return k_all
+            poly = bass.cut_rect(-40.0 + dx, y0 - 2.0, 1120.0 + dx, y1 + 2.0, seed=60 + i, amp=1.6)
+            bass.fill_polys(c, [poly], PAPER)
+            out.append(poly)
+    return out
 
 
 # ----------------------------------------------------------------------------- render
@@ -444,16 +461,14 @@ def render(f, t, T):
         f.fill(PAPER)
     # the flatten: posterize, then paper bars, then pure Bass
     if POSTER3 <= t < BARS[0] + BARS[1] + 0.02:
-        thr = (0.16, 0.42)
-        f.post["poster"] = bass.poster(f.pal, 1.0, tones=3 if t < POSTER2 else 2, thr=thr)
+        f.post["poster"] = bass.poster(f.pal, 1.0, tones=3 if t < POSTER2 else 2, thr=(0.16, 0.42))
     if t >= BARS[0]:
-        k = _paper_bars(f, t) if live else 1.0
+        clip = _paper_bars(f, t) if live else None
         g = _k(t, BARS[0], BARS[1], "inout")
         f.post["vignette"] = lerp(f.pal.vignette, 0.16, g)
         f.post["paper"] = 0.75 * g
-        f.post["bloom"] = lerp(f.post.get("bloom", 0.0), 0.0, g)
-        _bass(f, t, w, 1.0)
-        del k
+        f.post["bloom"] = f.post.get("bloom", 0.0) * (1.0 - g)
+        _bass(f, t, w, clip)
 
 
 def motion_blur(t, T):
@@ -480,6 +495,6 @@ def cues(T):
         Cue(LEDGER, "counting winters: a soft paper tick per row, accelerating", -8, dur=L["starts"][-1] - LEDGER + 0.1),
         Cue(L["t_land"], "her triangle lands in the last slot: one clear wooden knock", -6),
         Cue(L["t_pulse"], "the grid pulses once: a single low heartbeat drum", -4),
-        Cue(DRIFT[0], "the triangles drift into the trees: a held breath of strings", -14, dur=0.9),
+        Cue(L["t_pulse"] + 0.17, "the triangles drift into the trees: a held breath of strings", -14, dur=0.9),
         Cue(INK_BARS[0], "the forest slides in: heavy paper bars", -12, dur=0.6),
     ]

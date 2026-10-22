@@ -18,7 +18,7 @@ import cairo
 import numpy as np
 
 from engine import bass, costume, draw
-from engine.core import H, W, clamp, hash01, lerp, noise1, smoothstep
+from engine.core import H, W, clamp, ease, hash01, lerp, noise1, smoothstep
 from engine.palette import PAPER, RED, SALVAGE
 from engine.physics import Rope
 
@@ -275,6 +275,11 @@ def ss(a, b, x):
 
 def wobble(t, seed, amp=1.0, rate=0.3):
     return amp * noise1(t * rate, seed)
+
+
+def bump(t, t0, t1, t2, t3):
+    """0 before t0, smooth rise to 1 at t1, hold, smooth fall to 0 at t3 (t2 = fall start)."""
+    return smoothstep(t0, t1, t) * (1.0 - smoothstep(t2, t3, t))
 
 
 # ============================================================================= s14 / s15: the stern at night

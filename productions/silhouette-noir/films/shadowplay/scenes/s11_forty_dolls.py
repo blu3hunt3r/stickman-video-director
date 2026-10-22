@@ -2,7 +2,9 @@
 
 His wall: 40 PAPER dolls pinned in the 5 x 8 grid at the facade lock (sets_rooms.KillerRoom,
 lock camera, the s01 rhyme), every doll a different cut-paper silhouette (_lib_s11_s12).
-Dark room; a cop's torch from below-left does the looking.
+Dark room; a cop's torch from below-left does the looking. Foreground (par 1.6, blur 14):
+the cop's arm and torch entering bottom-left, the press photographer at the right (his
+flashgun dish at ~(930, 1418)), both ink, read against the lit wall.
 
   < 0.32   (tear IN from s10) black wall, the police light bar strobing blue/red through
            the venetian blinds at the top right throws slatted stripes over the top rows.
@@ -15,10 +17,11 @@ Dark room; a cop's torch from below-left does the looking.
            real wall, every doll at once, decaying to dark in ~0.6 s. The one red doll shows.
   4.4-6.0  the beam searches back down and left, then swings onto doll 9.
   6.00     L26 "One of them was holding binoculars." The beam lands on doll 9 (her: RED paper
-           trench coat, ink binoculars) and the camera pushes in (6.0-8.1, log zoom 1 -> 3.6)
+           trench coat with RED sleeves, paper hands holding ink binoculars at her eyes, as
+           cast.her(coat=True)) and the camera pushes in (6.0-8.1, log zoom 1 -> 3.6)
            to her, then creeps on (zoom 3.9 at 10.625). She trembles on her pin.
   OUT      dissolve 1.25 s to s12 (t 9.375-10.625): doll 9's pin (head centre) sits at screen
-           (540, 905), the doll ~420 px tall (crown y ~878, heels y ~1300), arms up in a W.
+           (540, 905), the doll ~411 px tall (crown y ~878, heels y ~1289), arms up in a W.
 """
 import math
 

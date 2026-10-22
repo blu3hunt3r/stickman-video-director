@@ -14,14 +14,16 @@ facade across the street (20.5 m), the far skyline, and 3D rain in between.
   2.9-4.2  she stands in front of the closed curtain; her head drops. The camera creeps in.
   4.2-4.9  L28 "Mostly." She turns into profile, her fingers part the curtain (4.25-4.55): a
            slit of cold light, one eye glints in it (4.55). [4.72] across the street a new
-           window (14, her floor, one to the right) lights up warm, framed in the slit.
+           window (14, her floor, one to the right) lights up warm, framed in the slit; the
+           eye warms to it. A slow blink at 5.86.
   7.2-9.8  L29 "Be honest... would you have crossed the street?" The camera slips past her
            face, through the crack and the wet glass (7.95), out into the rain over the
            street, and settles on the facade lock (9.45, s01's grid). [street] 9.26: in dark
            window 9 the glint of binoculars looks straight at us.
   10.0-    the lights go out one by one, closing in on window 9 (Bass stagger, crisp):
-           street lamp, diner, lobby, the neighbours, then 37 30 26 23 19 12 14 2 7 4; the
-           glint last (11.50). Black from 11.70, held to 12.0.
+           street lamp, diner, lobby, the neighbours (10.0-10.24), then 37 30 26 23 19 12 14
+           2 7 4 (10.30-11.12); the glint last (11.50). Black from 11.70, held to 12.0.
+At home she is cast.her() (no coat); no coat hook is in this set.
 """
 import math
 

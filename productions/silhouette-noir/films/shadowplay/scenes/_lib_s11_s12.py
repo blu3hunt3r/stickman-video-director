@@ -1015,8 +1015,9 @@ _SPECS = {1: _s1, 2: _s2, 3: _s3, 4: _s4, 5: _s5, 6: _s6, 7: _s7, 8: _s8, 10: _s
 
 # ============================================================================ doll 9: her
 def _her_doll(c):
-    """HER as a paper doll: front view, bob, RED trench (collar up), INK binoculars at the eyes,
-    elbows out. Draws class colours on c; returns the head centre."""
+    """HER as a paper doll: front view, bob, RED trench (collar up) with RED sleeves down to the
+    wrists (one red shape, as cast.her(coat=True)), her paper hands holding INK binoculars at
+    the eyes, elbows out. Draws class colours on c; returns the skeleton."""
     body = Body.adult_f(590, upper_arm=0.002, forearm=0.002, hand=0.002, hand_scale=0.02)
     lk = Look(hair="bob", coat="trench", shoes="heel", colors={"coat": CRED}, opts={"collar": True})
     p = _pose(90, L=dict(sh=0, abd=4, elbow=0), R=dict(sh=0, abd=4, elbow=0),
