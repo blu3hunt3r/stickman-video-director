@@ -190,7 +190,7 @@ def _look_target(t):
     return (p[0], p[1])
 
 
-DIVER.look_at(-2.5, 15.0, _look_target, fade=0.0)
+DIVER.look_at(-3.0, 15.0, _look_target, fade=0.05)
 
 _LAMP = LIB.Sampled(lambda t: costume.helmet_lamp(DIVER.skeleton(t))[0], -2.5, 14.5, 60)
 _INLET = LIB.Sampled(lambda t: costume.helmet_inlet(DIVER.skeleton(t)), -2.5, 14.5, 120)
