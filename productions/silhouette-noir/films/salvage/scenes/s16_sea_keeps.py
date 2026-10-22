@@ -1,36 +1,39 @@
 """s16 · THE SEA KEEPS: the severed red hose and the client's fedora sink through moonlit
 water to the wreck; the hat settles in the silt under the empty bell bracket, the hose lays
-itself out straight along the seabed, and the frame flattens back into the Bass red line on
-black, which slides out of frame left (16.0 s; the end of the film).
+itself out straight along the seabed, the camera tilts down onto it and the frame flattens back
+into the Bass red line on black, which slides out of frame left (16.0 s; the end of the film).
 
 IN  (dip from black, 2.0 s centred on the cut; visible from ~0.12, full at 1.0): night water,
-    moonlit rays from the top; the fedora (black, turning slowly) at screen ~(640, 700), the
-    hose's heavy cut end sinking at the left with the hose snaking up and out of frame.
+    moonlit rays from the top; the fedora (black, turning slowly, ~135 px wide) at screen
+    (620, 780); the hose's brass coupling end at ~(330, 315), the hose snaking up and out of
+    the top of the frame.
 
 Beats (scene-local s):
-  0-8        the camera sinks with them (~330 px/s); the hat glides like a falling leaf,
-             rocking and turning; the hose snakes
-  [everything@2.87]  the moonlit rays thin out (gone by ~4.6)
-  [back@6.11]  the wreck looms out of the murk below and to the right (fades in 6.1-7.6)
-  8.0-11.0   the camera settles at the bottom, eye level with the silt; the hat sinks into
-             the frame past the EMPTY bell bracket and lands in the silt on [revenge@10.98]
-             (a soft puff of silt)
-  10.3-13.3  the hose's end touches down left of the hat and is dragged along the silt by
-             the current until the hose lies straight
-  12.6-13.84 the camera tilts down and pushes in onto the hose (zoom 1.4: 14 px thick, at
-             screen y 960); 13.2-13.7 the frame posterizes 3 -> 2 -> 1 inks (keep red) and the
-             hose straightens into the s01 red line on black paper
+  0-5.5      tracking them down (zoom 1.0 -> 0.84): the hat glides like a falling leaf, rocking
+             and turning, air bubbling out of its crown (to 3.4); the hose snakes beside it
+  [everything@2.87]  the moonlit rays thin out (to ~30 %; they still reach down)
+  5.5-8.4    the camera cranes down and back (zoom 0.55): looking down on the wreck, which
+             looms out of the murk below on [back@6.11] (fades in 6.1-7.6); the horizon sinks
+             to the silt as we arrive at eye level
+  8.4-12.6   the bottom: a slow push (0.55 -> 0.85); a pale pool of moonlight in the water
+             behind the landing spot; the hat (moonlit rim) sinks past the EMPTY bell bracket
+             (upper right) and lands in the silt on [revenge@10.98] at screen (700, 1440), with
+             a puff of silt
+  10.25      the hose's coupling touches down at the left (puff) and is drawn off left along
+             the silt; the hose lies down and straightens, its free end curling by the hat
+  12.6-13.84 the camera tilts down onto the hose (the horizon rises out of the top of the
+             frame) and pushes in to zoom 1.4: the hose 14 px thick at screen y 960;
+             13.25-13.7 it straightens into the s01 band; 13.3-13.7 the frame posterizes
+             3 -> 2 -> 1 inks (keep red): the red line on black paper
   [me@13.84] the line slides out of frame left (in3, 0.86 s): the mirror of s01's draw-on
-  14.7-16.0  black paper, the paper fading to pure black by 15.2 (black held 0.8 s)
+  14.7-16.0  black paper, fading to pure ink by 15.2 (black held the final 0.8 s)
 """
-import bisect
 import math
 
-import cairo
 import numpy as np
 
 from engine import atmos, draw
-from engine.core import H, W, clamp, ease, hash01, lerp, noise1, smoothstep
+from engine.core import H, W, ease, hash01, lerp, noise1, smoothstep
 from engine.frame import Camera
 from engine.palette import RED
 from engine.timing import Cue
@@ -155,7 +158,7 @@ T_BOT = 8.4
 T_TILT0, T_TILT1 = 12.6, 13.84
 LAND_S = (700.0, 1440.0)        # the hat's landing spot on screen in the bottom framing
 X_HOSE_C = -800.0               # the hose's straight run, framed at the end
-VP_HIGH, VP_EYE, VP_END = 250.0, 1600.0, -700.0     # the horizon: looking down / eye level / tilted down
+VP_HIGH, VP_EYE, VP_END = 250.0, 1600.0, -3000.0    # the horizon: looking down / eye level / tilted down
 
 
 def _logz(a, b, u):
@@ -227,7 +230,9 @@ def _world_a(t, b):
 
 def _view(f, t):
     eye = smoothstep(6.0, T_BOT, t)
-    return S.View(f, murk=lerp(0.35, 0.5, eye), down_fog=lerp(1.6, 0.9, eye), vp=(W / 2, _vp_y(t)))
+    # no down-fog while the horizon races up in the tilt (it would brighten the near silt band by band)
+    down = lerp(1.6, 0.9, eye) * (1.0 - smoothstep(12.5, 13.0, t))
+    return S.View(f, murk=lerp(0.35, 0.5, eye), down_fog=down, vp=(W / 2, _vp_y(t)))
 
 
 def _backdrop(f, t, b):
@@ -246,9 +251,10 @@ def _moonlight(f, t, b):
     cam = f.cam
     top = cam.y - H / 2 / cam.zoom
     atmos.underwater_rays(f, surface_y=top - 400.0, t=t, spacing=210.0, angle=94.0, fan=9.0,
-                          length=3600.0, intensity=0.5 * _rays(t, b), color=S.mix(PAL.moon, PAL.surface, 0.4),
+                          length=3600.0, intensity=0.5 * _rays(t, b) * (1.0 - smoothstep(12.5, 13.1, t)),
+                          color=S.mix(PAL.moon, PAL.surface, 0.4),
                           density=0.6, seed=12, blur=18)
-    a = smoothstep(7.0, 9.5, t) * (1.0 - _tilt_k(t))
+    a = smoothstep(7.0, 9.5, t) * (1.0 - smoothstep(12.5, 13.1, t))
     if a > 0.0:
         col = S.mix(PAL.moon, PAL.surface, 0.55)
         with f.light(blur=40) as A:
@@ -274,7 +280,7 @@ def _puff(f, t, x, y, t0, scale, seed):
     tau = t - t0
     if tau < 0.0 or tau > 3.2:
         return
-    a = smoothstep(0.0, 0.15, tau) * (1.0 - smoothstep(0.6, 3.2, tau))
+    a = smoothstep(0.0, 0.15, tau) * (1.0 - smoothstep(0.6, 3.2, tau)) * (1.0 - smoothstep(12.3, 12.9, t))
     col = S.mix(PAL.surface, PAL.fog_at(0.5), 0.5)
     with f.light(blur=14) as A:
         for i in range(7):
@@ -345,11 +351,11 @@ def _band(f, t, b):
 
 def _poster(f, t):
     """Stepped Bass flatten: 3 inks, 2 inks, then ink only (reds always survive)."""
-    if t < 13.2:
+    if t < 13.3:
         return
     mid = S.mix(INK, PAL.surface, 0.22)
-    if t < 13.45:
-        lv = [(0.045, INK), (0.16, mid), (99.0, S.mix(PAL.surface, (1, 1, 1), 0.3))]
+    if t < 13.5:
+        lv = [(0.045, INK), (0.16, mid), (99.0, S.mix(INK, PAL.surface, 0.5))]
     elif t < 13.7:
         lv = [(0.07, INK), (99.0, mid)]
     else:
@@ -390,7 +396,7 @@ def render(f, t, T):
             _band(f, t, b)
     _poster(f, t)
     # Bass paper toward the end, then pure black for the last 0.8 s
-    LIB.post_blend(f, smoothstep(13.2, 13.84, t))
+    LIB.post_blend(f, smoothstep(13.3, 13.84, t))
     if t > 14.6:
         f.post["paper"] = lerp(f.post["paper"], 0.0, smoothstep(14.6, 15.2, t))
         f.post["grain"] = lerp(f.post["grain"], 0.0, smoothstep(14.6, 15.2, t))
@@ -414,7 +420,7 @@ def cues(T):
         Cue(T_TD, "the hose's brass coupling touches the silt; the hose drags along the seabed", gain_db=-14,
             pan=-0.3, dur=2.6),
         Cue(T_HAT, "the fedora settles in the silt: a soft thud and a hiss of sediment", gain_db=-9, pan=0.1),
-        Cue(13.2, "the world goes dry: the water drops out to paper-room silence", gain_db=-12, dur=0.6),
+        Cue(13.3, "the world goes dry: the water drops out to paper-room silence", gain_db=-12, dur=0.6),
         Cue(b["me"], "paper strip slides out to the left (the mirror of the opening)", gain_db=-8, pan=-0.5,
             dur=0.86),
         Cue(b["me"] + 0.9, "silence; the last low note decays on black", gain_db=-14, dur=1.3),

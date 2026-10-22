@@ -2016,6 +2016,22 @@ def _ray_shimmer(dur, p, rng):
     return fade(out * env[:, None] * 0.1, 0.05, min(0.5, dur / 3.0))
 
 
+@_sfx("low_pulses", space=0.6, hit=True, trim=-2.0, muffle=False)
+def _low_pulses(dur, p, rng):
+    """Low pulses in the tonic, felt more than heard ('thoom ... thoom'): soft sub thumps gliding
+    onto D1 with an octave of body. params: count (2), gap s (0.45)."""
+    c = max(1, int(p.get("count", 2)))
+    gap = float(p.get("gap", 0.45))
+    n = _N(gap * (c - 1) + 1.4)
+    out = np.zeros(n)
+    for k in range(c):
+        th = _thump(_N(1.2), 58.0, 36.708, 0.06, 0.45, attack=0.012)
+        th += 0.25 * _thump(_N(1.2), 116.0, 73.416, 0.05, 0.3, attack=0.01)
+        _place(out, th, k * gap, 1.0 - 0.1 * k)
+    out += 0.12 * sos(saturate(out * 2.5, 2.0), "bandpass", (90.0, 300.0), 2)
+    return fade(out, 0.0, 0.3)
+
+
 def render_raw(name, params, rng):
     """A catalog sound's raw (un-normalised) mono render, using the caller's rng - for composites."""
     res = _REG[name]["fn"](_REG[name]["default_dur"], dict(params), rng)
@@ -2155,6 +2171,9 @@ ALIASES = (
     (("slash|sever",), "hose_cut", {}),
     (("cut", "hose|rubber"), "hose_cut", {}),
     (("hiss|escap|jet", "air|hose|valve|pressur|pump|pipe"), "air_escape", {}),
+    (("hook",), "hook_clank", {}),
+    (("winch|line|rope", "distant|through the hull|paying out|creak|groan"), "rope_creak", {}),
+    (("pulse|pulses",), "low_pulses", {}),
     (("tug|jerk|yank",), "rope_tug", {}),
     (("tie|ties|tied|knot|hitch",), "rope_tie", {}),
     (("taut|tight|tension|strain",), "winch_strain", {}),
@@ -2260,6 +2279,8 @@ def resolve(text, scene=None, dur=None):
     if name is None:
         name, params = _match(ALIASES, s)
     if name is None:
+        if any(_has(s, w) for w in ("drone", "sting", "score", "music", "chord", "the sound")):
+            return "_score_note", {}          # the score's / the mix's business, not a sound effect
         return None, {}
     fast = any(_has(s, w) for w in ("fast", "quick", "rapid"))
     if name in ("paper_pops", "paper_ticks") and "count" not in params:
@@ -2287,6 +2308,9 @@ def resolve(text, scene=None, dur=None):
         params["sides"] = 2
     if name in ("uw_whoosh",) and any(w in s for w in ("deep", "big", "huge", "heavy")):
         params["size"] = 0.9
+    if name == "low_pulses":
+        params["count"] = _count(s) or 2
+        params["gap"] = float(dur) / params["count"] if dur else 0.45
     if name == "paper_slice" and any(_has(s, w) for w in ("slides out", "out of frame", "reverse", "mirror", "pulled out")):
         params["reverse"] = 1
     if dur and name in LENGTH_PARAM:

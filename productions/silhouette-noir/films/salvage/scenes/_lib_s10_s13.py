@@ -165,10 +165,11 @@ def port_center(sk):
 
 
 def port_eyes(f, ctx, sk, look=(0.0, 0.0), open_=1.0, glow=1.0, color=(1.0, 1.0, 0.97), size=1.0,
-              halo=1.0, clip=True):
+              halo=1.0, clip=True, halo_r=5.5):
     """Limbo eyes in the helmet port that can look in any direction: look = (x, y) in
     -1..1 (+y = down) shifts both dots inside the glass. Draw after the figure (called
-    with eyes=False). open_ 0..1 squashes them shut; glow dims them."""
+    with eyes=False). open_ 0..1 squashes them shut; glow dims them; halo_r = halo radius
+    in eye radii (smaller for close-ups, where the halo would fill the port)."""
     e1, e2, r, w, front = F.eye_points(sk)
     if front < -0.35 or open_ <= 0.02 or glow <= 0.01:
         return
@@ -190,7 +191,7 @@ def port_eyes(f, ctx, sk, look=(0.0, 0.0), open_=1.0, glow=1.0, color=(1.0, 1.0,
     if f is not None and halo > 0:
         with f.emit() as G:
             for e in pts:
-                draw.glow_disc(G, e, r * 5.5, color, 0.5 * g * clamp(open_) * halo)
+                draw.glow_disc(G, e, r * halo_r, color, 0.5 * g * clamp(open_) * halo)
 
 
 # ----------------------------------------------------------------------------- arm solver

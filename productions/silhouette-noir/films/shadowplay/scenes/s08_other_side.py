@@ -6,13 +6,13 @@ One continuous shot. Camera(540, 960, 1) at t = 0, so world = screen on every la
 0.0-0.8   IN (hard cut from s07): over her shoulder (three-quarter back, dim RED collar, a
           cold rim off the glass, a warm one from the show lamp behind her) through window
           9's lower right pane: her building across the rainy street, her window LIT.
-0.8-6.3   L18 slow push (log zoom 1 -> 3.2) past her shoulder, through the wet glass, onto
+0.8-6.3   L18 slow push (log zoom 1 -> 3.6) past her shoulder, through the wet glass, onto
           her window; window 9's sash and her head slide out of frame by ~3 s.
 4.3-5.9   a man in a bowler walks into her lit window from the left, behind her lamp, and
           stops in the right half of the window (clear of the muntin).
 5.85-6.3  he turns to face us; 6.05-6.4 her binoculars come up to his eyes.
 [standing] 6.52 the lenses glint, cold, once.
-7.4-7.9   lowers them.   8.0-9.95 raises his free arm and WAVES, slowly (two sweeps).
+7.4-7.9   lowers them.   8.0-10.1 raises his free hand and WAVES, slowly (two sweeps).
 9.95-11.9 L20 stands there; tilts his head at "windows".
 11.95-13.3 L21 looks at her lamp, steps to it, reaches for its pull chain...
 [watch]   13.31 pulls: click, her window goes black.
@@ -21,6 +21,8 @@ OUT       dip to black 0.75 s centred on 14.5: the dark window, rain, camera sti
 """
 import math
 from functools import lru_cache
+
+import cairo
 
 from engine import atmos, draw
 from engine.core import H, clamp, ease, fbm1, lerp
@@ -53,10 +55,10 @@ WCX = (WR[0] + WR[2]) / 2
 FLOOR = HERS.floor_y(HER_W)
 KM = HERS.person_h / 600.0 * 1.15            # canonical -> world for him (close to the glass)
 KROOM = HERS.person_h / 1.75                 # world px per metre in her room
-OTHERS = {9: 0.42, 17: 0.34, 2: 0.26, 24: 0.30}   # a few other lit windows on her building
+OTHERS = {9: 0.36, 17: 0.28, 2: 0.22, 24: 0.25}   # a few other lit windows on her building
 FOG = 0.08                                   # facade layer fog (matched by the overlay)
 
-Z_END = 3.2
+Z_END = 3.6
 T_PUSH = (0.8, 6.3)
 
 
@@ -85,8 +87,8 @@ def camera(t):
 
 
 # ----------------------------------------------------------------------------- her (OTS)
-HER_K = 3.3
-HER_HEAD = (205.0, 1236.0)
+HER_K = 3.7
+HER_HEAD = (168.0, 1205.0)
 
 
 @lru_cache(maxsize=1)
@@ -113,14 +115,29 @@ def _draw_her(f, t):
         return
     sk = _her_actor().skeleton(t)
     M = _her_M()
-    lk = L.her_look(0.40)
+    lk = L.her_look(0.34)
     plain = L.plain_look(lk)
+    # the window light only reaches her head and the top of her shoulders: below that she is
+    # ink (and so is most of the red coat: only its collar and shoulder catch the light)
+    ysh = M.transform_point(*sk.j["shoulder_R"])[1]
     L.occlude_figure(f, P_HER, sk, plain, M)
     with f.layer(par=P_HER, blur=4.0) as c:
+        L.draw_skeleton(c, sk, plain, M, color=INK)
+        c.push_group()
         L.draw_skeleton(c, sk, lk, M, color=INK)
+        pat = c.pop_group()
+        g = cairo.LinearGradient(0, ysh - 50.0, 0, ysh + 150.0)
+        g.add_color_stop_rgba(0.0, 0, 0, 0, 1.0)
+        g.add_color_stop_rgba(1.0, 0, 0, 0, 0.0)
+        c.set_source(pat)
+        c.mask(g)
     with f.light(par=P_HER, blur=3.5) as A:
-        L.rim(A, sk, plain, M, COLD, 0.50, (-9.0, 6.0))       # the glass, up and right of her
-        L.rim(A, sk, plain, M, AMBER, 0.16, (10.0, 3.0))      # the show lamp behind her, left
+        A.save()
+        A.rectangle(-2000, -2000, 6000, ysh + 2160.0)
+        A.clip()
+        L.rim(A, sk, plain, M, COLD, 0.55, (-9.0, 7.0))       # the glass, up and right of her
+        L.rim(A, sk, plain, M, AMBER, 0.14, (10.0, 3.0))      # the show lamp behind her, left
+        A.restore()
 
 
 # ----------------------------------------------------------------------------- the man
@@ -159,15 +176,17 @@ def _him_actor(watch=13.31):
     a.key("arm.L.elbow", [(-2.0, 96.0), (6.05, 96.0), (6.40, 130.0, "out3"), (7.40, 130.0), (7.90, 64.0, "inout"),
                           (30.0, 64.0)])
     a.key("arm.L.grip", [(-2.0, 0.9), (30.0, 0.9)])
+    # the wave (front view): upper arm forward, forearm up, the whole arm swaying sideways
     a.key("arm.R.sh", [(-2.0, 34.0), (6.05, 34.0), (6.40, 80.0, "out3"), (7.40, 80.0), (7.90, 8.0, "inout"),
-                       (8.0, 8.0), (8.55, 20.0, "inout"), (9.40, 20.0), (9.95, 4.0, "inout"), (12.25, 4.0)],
+                       (8.0, 8.0), (8.50, 90.0, "inout"), (9.62, 90.0), (10.10, 4.0, "inout"), (12.0, 4.0)],
           fade_out=0.3)
     a.key("arm.R.abd", [(-2.0, 6.0), (6.05, 6.0), (6.40, 44.0, "out3"), (7.40, 44.0), (7.90, 8.0, "inout"),
-                        (8.0, 8.0), (8.55, 132.0, "inout"), (8.95, 112.0, "inout"), (9.40, 134.0, "inout"),
-                        (9.95, 8.0, "inout"), (12.25, 8.0)], fade_out=0.3)
+                        (8.0, 8.0), (8.50, 45.0, "inout"), (8.78, 27.0, "inout"), (9.08, 57.0, "inout"),
+                        (9.38, 27.0, "inout"), (9.62, 45.0, "inout"), (10.10, 8.0, "inout"), (12.0, 8.0)], fade_out=0.3)
     a.key("arm.R.elbow", [(-2.0, 100.0), (6.05, 100.0), (6.40, 130.0, "out3"), (7.40, 130.0), (7.90, 14.0, "inout"),
-                          (8.55, 22.0), (9.40, 22.0), (9.95, 12.0, "inout"), (12.25, 12.0)], fade_out=0.3)
-    a.key("arm.R.grip", [(-2.0, 0.9), (7.4, 0.9), (7.9, 0.15), (9.95, 0.15), (10.3, 0.4)])
+                          (8.0, 14.0), (8.50, 96.0, "inout"), (9.62, 96.0), (10.10, 12.0, "inout"), (12.0, 12.0)],
+          fade_out=0.3)
+    a.key("arm.R.grip", [(-2.0, 0.9), (7.4, 0.9), (7.9, 0.1), (9.95, 0.1), (10.3, 0.4)])
     # a slow head tilt on "windows"; he looks at her lamp before he goes to it
     a.key("head_roll", [(9.9, 0.0), (10.5, -10.0, "inout"), (11.4, -10.0), (11.9, 0.0, "inout")])
     a.key("head_yaw", [(11.85, 0.0), (12.2, -42.0, "inout"), (12.4, -42.0), (12.6, 0.0, "inout")], fade=0.2)
@@ -198,7 +217,7 @@ def _lens_points(sk):
 
 
 def _her_light(t, W_):
-    return sets.switch(t, t_on=-30.0, t_off=W_["watch"], kind="bulb", seed=13)
+    return sets.switch(t, t_on=-30.0, t_off=W_["watch"], kind="bulb", seed=13, level=1.12)
 
 
 def _glint(t, t0):
@@ -222,7 +241,7 @@ def _lamp(c, lev, t, W_, chain=True):
     shade = [(lx - 0.26 * k, FLOOR - 1.35 * k), (lx + 0.26 * k, FLOOR - 1.35 * k), (lx + 0.19 * k, FLOOR - 1.6 * k),
              (lx - 0.19 * k, FLOOR - 1.6 * k)]
     draw.poly(c, shade)
-    draw.fill(c, _fogged(sets.mix(INK, HOT, 0.88 * clamp(lev))))
+    draw.fill(c, _fogged(sets.mix(INK, sets.mix(AMBER, HOT, 0.45), 0.82 * clamp(lev))))
     if chain:
         (tx, ty), (bx, by) = _chain(t, W_)
         c.new_path()
@@ -327,7 +346,7 @@ def _overlay(f, t, W_):
         lx = WR[0] + (WR[2] - WR[0]) * 0.18
         with f.emit(par=1.0) as G:
             draw.ellipse(G, (lx, FLOOR - 1.47 * KROOM), 0.22 * KROOM, 0.12 * KROOM)
-            draw.fill(G, HOT, 0.55 * lev)
+            draw.fill(G, AMBER, 0.28 * lev)
 
 
 def _dark_eyes(f, t, a, W_):
@@ -354,7 +373,7 @@ def _outside(f, t, W_):
     sets.night_sky(f, t, glow_y=HERS.top_y + 40.0, spread=300.0, par=0.25, clouds=0.8)
     SKY.draw(f, t, layer=dict(par=0.45, blur=4.0, fog=0.72))
     f.haze(PAL.fog_at(0.9), 0.24, y0=HERS.top_y - 260, y1=HERS.top_y + 900, feather=500, par=0.6)
-    sets.draw_blocks(f, t, BLOCKS, layer=dict(par=1.0, fog=0.30, blur=1.0))
+    sets.draw_blocks(f, t, BLOCKS, layer=dict(par=1.0, fog=0.42, blur=1.0), light=0.55)
     HERS.draw(f, t, layer=dict(par=1.0, fog=FOG, blur=0.0), lit=lit, interiors={HER_W: _interior},
               emit=0.5, halo=0.9)
     _overlay(f, t, W_)
@@ -390,7 +409,7 @@ def _sheet(c, t):
 
 
 def _window9(f, t):
-    NINE.draw(f, t, layer=dict(par=P9, blur=2.0), rain=1.0, room_light=0.55, condensation=0.0, outside_light=1.0)
+    NINE.draw(f, t, layer=dict(par=P9, blur=2.0), rain=0.55, room_light=0.55, condensation=0.0, outside_light=1.0)
     with f.layer(par=P9, blur=2.0) as c:
         _sheet(c, t)
         draw.fill(c, sets.mix(INK, sets.mix(PAPER, AMBER, 0.4), 0.13))

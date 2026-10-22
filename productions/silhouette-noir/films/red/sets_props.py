@@ -423,8 +423,10 @@ class Doorway:
     def threshold(self):
         return (self.x, float(self.T.ground_y(self.x)) - 10 * self.size)
 
-    def draw_back(self, f, ctx, mood=None, open_=1.0, light=1.0, t=0.0):
-        """The wall and the lit opening (behind the mother)."""
+    def draw_back(self, f, ctx, mood=None, open_=1.0, light=1.0, t=0.0, inside=None):
+        """The wall and the lit opening (behind the mother). inside: optional callable(ctx)
+        drawn in the lit opening before the door leaf, so a closing door hides it (someone
+        standing in the doorway)."""
         mood = get_mood(mood)
         s = self.size
         x, gy = self.x, float(self.T.ground_y(self.x))
@@ -450,6 +452,8 @@ class Doorway:
             draw.rect(ctx, x - dw / 2, gy - dh, x + dw / 2, gy + 1)
             draw.fill(ctx, mood.ink)
         ctx.set_fill_rule(cairo.FILL_RULE_WINDING)
+        if inside is not None:
+            inside(ctx)
         # door leaf swung open into the room (seen as a dark slab inside the opening)
         if open_ > 0.01:
             lw = dw * (1 - 0.82 * open_)

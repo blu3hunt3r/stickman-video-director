@@ -47,6 +47,8 @@ USE
     plus 'S' (stage unit, world px) for camera targets, red lines and sound pans.
   * Overrides: p = show.pose(u); p['arm'] = (sh, el, blade) degrees (screen angles in the
     outside view: 0 = +x, 90 = down); show.casters(..., pose=p) / anchors(..., pose=p).
+    Optional extra keys: p['crank'] = stage point the arm wire runs to (default CRANK),
+    p['pin'] = size factor of the elbow pin and its ring of light (default 1; s05's close-up).
     show.arm_angles(u) is the knife arm alone; keys REST, RAISED, CONTACT, DONE.
 
 box = (x0, y0, x1, y1), the world rect the show is staged in (the window glass, the sheet).
@@ -398,7 +400,7 @@ def _draw_knife_arm(ctx, st, p, A, cuts):
         return [(at[0] + x * S * math.cos(ang) - y * S * math.sin(ang),
                  at[1] + x * S * math.sin(ang) + y * S * math.cos(ang)) for x, y in pts]
     # the crank wire first (it hooks under the forearm)
-    cw = st.P(*CRANK)
+    cw = st.P(*p.get("crank", CRANK))
     hook = A["wire_hook"]
     dx, dy = cw[0] - hook[0], cw[1] - hook[1]
     n = math.hypot(dx, dy) or 1.0
@@ -416,17 +418,18 @@ def _draw_knife_arm(ctx, st, p, A, cuts):
     if not cuts:
         return
     # pin joints: a slotted pin in a ring of light (the slot turns with the forearm)
+    pk = p.get("pin", 1.0)
     for c, ang in ((el, a_el),):
         def ring(cx, c=c):
             cx.new_sub_path()
-            cx.arc(c[0], c[1], R_HOLE * S, 0, 2 * math.pi)
+            cx.arc(c[0], c[1], R_HOLE * pk * S, 0, 2 * math.pi)
             cx.new_sub_path()
-            cx.arc_negative(c[0], c[1], R_PIN * S, 2 * math.pi, 0)
+            cx.arc_negative(c[0], c[1], R_PIN * pk * S, 2 * math.pi, 0)
         _clear(ctx, ring)
 
         def slot(cx, c=c, ang=ang):
             ca, sa = math.cos(ang), math.sin(ang)
-            hl, hw = R_PIN * 0.82 * S, 0.0022 * S
+            hl, hw = R_PIN * pk * 0.82 * S, 0.0022 * pk * S
             draw.poly(cx, [(c[0] - ca * hl + sa * hw, c[1] - sa * hl - ca * hw),
                            (c[0] + ca * hl + sa * hw, c[1] + sa * hl - ca * hw),
                            (c[0] + ca * hl - sa * hw, c[1] + sa * hl + ca * hw),

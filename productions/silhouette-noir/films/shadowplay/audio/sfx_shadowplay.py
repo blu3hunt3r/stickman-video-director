@@ -1315,6 +1315,60 @@ def _paper_slide(dur, p, rng):
     return _pan_sweep(x, float(p.get("pan0", -0.6)), float(p.get("pan1", 0.3)), u)
 
 
+@_sfx("paper_splash", space=0.4)
+def _paper_splash(dur, p, rng):
+    """The red cut-paper splash bursting onto the sheet on the last stab (outback, 0.13 s): a
+    card flap snapping open, a spray of paper flecks settling, a soft low pat under it."""
+    n = _N(0.5)
+    t = t_axis(n)
+    out = np.zeros(n)
+    _place(out, _burst(_N(0.16), rng, 300, 4500, t60=0.08, attack=0.002), 0.0, 1.0)
+    flecks = bandpass(crackle(n, 1400, rng, amp_spread=1.0), 2000, 8000, 2) * np.exp(-t / 0.09) * np.clip((t - 0.008) / 0.004, 0, 1)
+    out += 1.6 * flecks
+    _place(out, _thump(_N(0.12), 150, 85, 0.004, 0.05), 0.012, 0.7)
+    for k in range(3):
+        _place(out, _hit(rng, [rng.uniform(2500, 5000)], [0.01], click=0.6, n=_N(0.02)), 0.11 + 0.05 * k + rng.uniform(0, 0.02), 0.12)
+    return out
+
+
+@_sfx("body_fold", space=0.5)
+def _body_fold(dur, p, rng):
+    """The paper body folding at the waist and dropping out of sight: the card creasing (a dry
+    stick-slip crackle that quickens), the air of the drop, a soft flat thud as it lands.
+    land: s from the cue to the landing."""
+    land = float(p.get("land", 0.62))
+    n = _N(land + 0.45)
+    t = t_axis(n)
+    u = np.clip(t / 0.3, 0, 1)
+    env = u ** 1.5 * np.clip((0.32 - t) / 0.03, 0, 1)
+    crease = friction(n, 40 + 160 * u, rng, jitter=0.35, body=[(900, 5, 1.0), (1800, 7, 0.6), (3500, 9, 0.3)]) * env
+    v = np.clip((t - 0.1) / max(land - 0.1, 1e-3), 0, 1)
+    air = sos(pink(n, rng), "lowpass", 900, 2) * np.sin(np.pi * v) ** 2 * (t < land) * 0.25
+    out = 1.2 * crease + air
+    _place(out, _sum(_thump(_N(0.2), 120, 60, 0.006, 0.07), 0.5 * _burst(_N(0.05), rng, 200, 1800, t60=0.02, attack=0.001)), land, 0.9)
+    return out
+
+
+@_sfx("rewind", space=0.3)
+def _rewind(dur, p, rng):
+    """The show's projector restarting: a mechanical clack, the film scrubbing back - sprocket
+    chatter racing in a band of noise that falls in pitch and rate - and a second clack as it
+    catches. length s (the scrub)."""
+    L = float(p.get("length", 0.3))
+    n = _N(L + 0.25)
+    t = t_axis(n)
+    out = np.zeros(n)
+    clack = _sum(_hit(rng, [1700, 3100, 4700], [0.03, 0.02, 0.012], click=0.7), 0.5 * _thump(_N(0.06), 300, 180, 0.002, 0.02))
+    _place(out, sos(clack, "lowpass", 8000, 2), 0.0, 1.0)
+    u = np.clip((t - 0.03) / L, 0, 1)
+    ph = np.cumsum(70.0 - 45.0 * u) / SR
+    chatter = (0.5 + 0.5 * np.sin(TWO_PI * ph)) ** 3
+    band = tv_bandpass(white(n, rng), 3200.0 - 2200.0 * u, q=1.2, block=64)
+    out += 0.9 * band * chatter * np.sin(np.pi * u) ** 0.6 * (t > 0.03)
+    _place(out, sos(_hit(rng, [1500, 2900], [0.025, 0.015], click=0.5), "lowpass", 7000, 2), 0.03 + L, 0.6)
+    return out
+
+
 @_sfx("count_ticks", space=0.5)
 def _count_ticks(dur, p, rng):
     """The counting glint running over the forty windows: one tiny glassy tick per row of

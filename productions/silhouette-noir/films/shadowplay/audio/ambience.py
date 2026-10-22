@@ -262,6 +262,10 @@ def bed_map(S, total):
     B["rain_glass"].level((19.2, 0), (19.9, -5), (21.2, -5), (21.9, 0), (S["s03_light_on"], 0), (S["s03_light_on"] + 0.5, -2),
                           (S["s03_light_out"], -2), (S["s03_light_out"] + 0.6, -3), (40.0, -1), (52.5, -1))
     B["tone_her"].on(16.6, 41.0, fi=1.2, fo=0.03).on(52.5, 70.3, fi=1.0, fo=0.15).on(141.5, pull + 1.0, fi=1.25, fo=2.0)
+    # s05's silent scream: every sound drops out on [scream] for 1.6 s, then the room returns
+    sc5 = S["s05_scream"]
+    for nm, base in (("rain_glass", -1.0), ("tone_her", 0.0), ("gutter_int", 0.0), ("traffic_int", -2.0)):
+        B[nm].level((sc5 - 0.03, base), (sc5, -45.0), (sc5 + 1.6, -45.0), (sc5 + 2.2, base))
     # the open street: s01 rain streaks -> s02; the tilt down; s04 outside; s06 out of the door -> crane; s12 pull-out
     B["rain_street"].on(S["s01_rain"], 16.6, fi=1.8, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0)
     B["rain_street"].on(S["s04_street"], 52.5, fi=0.3, fo=1.0)
@@ -335,7 +339,7 @@ def render_beds(S, N, seed=0):
 
     # her radiator ticking (her room only, between the words where possible)
     rr = dsp.rng_for("sp_radiator", seed)
-    for k, tt in enumerate((26.9, 33.0, 38.6, 55.6, 62.4, 68.1, 144.9, 147.2)):
+    for k, tt in enumerate((26.9, 33.0, 38.6, 55.6, 68.1, 144.9, 147.2)):
         x = SP.render("radiator_tick", seed=900 + k).astype(np.float64)
         x = SP.reverb(x, "her_room", wet_db=-8.0)
         x = dsp.pan_stereo(_cal(x, -41.0 - rr.uniform(0, 3), "max"), 0.55)

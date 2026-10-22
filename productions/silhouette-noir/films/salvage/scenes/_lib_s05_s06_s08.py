@@ -473,3 +473,100 @@ def far_rays(f, t, intensity, par=0.35, length=1400.0, seed=8, spacing=170.0):
     sy = y0 - 150.0 / cam.zoom
     atmos.underwater_rays(f, surface_y=sy, t=t, spacing=spacing, angle=97.0, fan=9.0, length=length / cam.zoom,
                           intensity=intensity, density=0.55, seed=seed, par=par, blur=18)
+
+
+# ----------------------------------------------------------------------------- the gloved arm (inserts)
+def ik2(S, Wt, L1, L2, bend=1.0):
+    """2-bone IK in the picture plane: elbow for shoulder S and wrist target Wt (clamped to
+    reach). bend = +1 / -1 picks the side the elbow bows to. Returns (elbow, wrist)."""
+    dx, dy = Wt[0] - S[0], Wt[1] - S[1]
+    d = math.hypot(dx, dy) or 1e-6
+    dd = clamp(d, abs(L1 - L2) + 1e-3, (L1 + L2) * 0.999)
+    ux, uy = dx / d, dy / d
+    a = (L1 * L1 + dd * dd - L2 * L2) / (2 * dd)
+    h = math.sqrt(max(L1 * L1 - a * a, 0.0))
+    E = (S[0] + ux * a - uy * h * bend, S[1] + uy * a + ux * h * bend)
+    Wr = (S[0] + ux * dd, S[1] + uy * dd)
+    return E, Wr
+
+
+def _sleeve(a, b, ra, rb, seed, folds=3, amp=0.10):
+    """Outline of a canvas sleeve segment a -> b (radii ra -> rb) with lumpy folds."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / L, dy / L
+    px, py = -uy, ux
+    left, right = [], []
+    n = 12
+    for i in range(n + 1):
+        u = i / n
+        r = lerp(ra, rb, u)
+        f1 = 1.0 + amp * math.sin(math.pi * folds * u + 6.28 * hash01(seed, 1)) * (0.6 + 0.4 * hash01(seed, i, 2))
+        f2 = 1.0 + amp * math.sin(math.pi * folds * u + 6.28 * hash01(seed, 3) + 1.3) * (0.6 + 0.4 * hash01(seed, i, 4))
+        cx, cy = a[0] + dx * u, a[1] + dy * u
+        left.append((cx + px * r * f1, cy + py * r * f1))
+        right.append((cx - px * r * f2, cy - py * r * f2))
+    return left + right[::-1]
+
+
+GLOVE = dict(palm=(0.0, 0.0, 1.0, 0.46),          # local units: x along the hand, y across
+             index=[(0.88, -0.30), (1.62, -0.24), (1.70, -0.15), (1.66, -0.07), (0.92, -0.06)],
+             mitt=[(0.90, -0.04), (1.42, 0.00), (1.52, 0.12), (1.50, 0.28), (1.38, 0.40), (0.86, 0.44)],
+             thumb=[(0.30, -0.38), (0.62, -0.62), (0.80, -0.70), (0.86, -0.62), (0.64, -0.40), (0.48, -0.28)])
+
+
+def glove_arm(ctx, S, Wt, L1, L2, r=(90.0, 76.0, 58.0), hand=150.0, hand_ang=None, bend=1.0, curl=0.0,
+              seed=3, color=None):
+    """A diver's suited arm from shoulder S (usually off frame) reaching so the tip of the
+    gloved INDEX finger lands on Wt: canvas sleeve with folds (radii r = shoulder, elbow,
+    wrist), a banded cuff and a three-finger diving glove (index finger free, the other
+    fingers in a mitt, a thumb). hand = glove length (world px); hand_ang: direction of the
+    hand (deg; default along the forearm, bent a little); curl 0..1 bends the finger.
+    Appends the outline to ctx and fills it. Returns dict(tip, wrist, elbow, outline)."""
+    col = color or INK
+    # aim the wrist so that the index tip lands on the target
+    ang0 = None
+    E, Wr = ik2(S, Wt, L1, L2, bend)
+    for _ in range(3):
+        fa = math.degrees(math.atan2(Wr[1] - E[1], Wr[0] - E[0]))
+        ha = (fa + 12.0 * bend) if hand_ang is None else hand_ang
+        a = math.radians(ha)
+        reach = hand * (1.66 / 1.70)
+        tgt = (Wt[0] - math.cos(a) * reach, Wt[1] - math.sin(a) * reach)
+        E, Wr = ik2(S, tgt, L1, L2, bend)
+        ang0 = ha
+    a = math.radians(ang0)
+    ca, sa = math.cos(a), math.sin(a)
+    sgn = -bend                                  # the thumb side
+
+    def H(px, py):
+        return (Wr[0] + (px * ca - py * sgn * sa) * hand * 0.98, Wr[1] + (px * sa + py * sgn * ca) * hand * 0.98)
+
+    polys = [_sleeve(S, E, r[0], r[1], seed), _sleeve(E, Wr, r[1], r[2], seed + 1, folds=2)]
+    ctx.set_source_rgb(*col[:3])
+    for P in polys:                      # each piece filled on its own (no winding holes)
+        ctx.new_path()
+        draw.smooth(ctx, P, close=True, tension=0.35)
+        ctx.fill()
+    ctx.new_path()
+    draw.circle(ctx, E, r[1] * 1.04)
+    ctx.fill()
+    # cuff band: slightly wider, short
+    fx, fy = Wr[0] - E[0], Wr[1] - E[1]
+    fl = math.hypot(fx, fy) or 1.0
+    ux, uy = fx / fl, fy / fl
+    c0 = (Wr[0] - ux * r[2] * 0.9, Wr[1] - uy * r[2] * 0.9)
+    c1 = (Wr[0] + ux * r[2] * 0.15, Wr[1] + uy * r[2] * 0.15)
+    ctx.new_path()
+    draw.capsule(ctx, c0, c1, r[2] * 1.12, r[2] * 1.12)
+    ctx.fill()
+    # glove
+    palm = [H(-0.05, -0.36), H(0.45, -0.40), H(0.95, -0.32), H(1.0, 0.0), H(0.95, 0.42), H(0.45, 0.48), H(-0.05, 0.40)]
+    k = curl
+    idx = [(x, y + k * 0.25 * max(0.0, x - 0.9) ** 1.5) for x, y in GLOVE["index"]]
+    for pts in (palm, [H(*p) for p in idx], [H(*p) for p in GLOVE["mitt"]], [H(*p) for p in GLOVE["thumb"]]):
+        ctx.new_path()
+        draw.smooth(ctx, pts, close=True, tension=0.4)
+        ctx.fill()
+    tip = H(1.69, -0.15)
+    return dict(tip=tip, wrist=Wr, elbow=E, polys=polys, palm=palm, angle=ang0)

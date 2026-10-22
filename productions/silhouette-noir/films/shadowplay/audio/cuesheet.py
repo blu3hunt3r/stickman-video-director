@@ -32,6 +32,7 @@ RETIME_WINDOW = 1.0
 KEYWORDS = [
     (r"\bcar door", "car_door", "car_door_close", {}),
     (r"\bcar\b.*(away|pull|leav|driv)|engine", "car", "car_away", {}),
+    (r"rewind|projector", "rewind", "rewind", {}),
     (r"lamp\s*switch|socket", "lamp_switch", "lamp_switch", {}),
     (r"lamp.*(crash|fall|knock)|crash", "crash", "lamp_crash", {}),
     (r"light.*(out|off)|snaps? out|goes dark", "light_out", "light_out", {}),
@@ -44,12 +45,15 @@ KEYWORDS = [
     (r"paper.*tear|tear", "tear", "tear_big", {}),
     (r"slash", "slash", "slash_whoosh", {}),
     (r"stab|knife", "stab", "knife_whoosh", {}),
+    (r"splash|splat", "splash", "paper_splash", {}),
+    (r"fold|thud", "fold", "body_fold", {}),
+    (r"rod creak|arm (rises|cocks)", "creak", "pin_creak", dict(length=0.5)),
     (r"pin|joint", "pin", "pin_creak", {}),
     (r"doll|puppet|rod", "doll", "doll_flutter", {}),
     (r"handle|knob", "handle", "handle_turn", {}),
     (r"burst|bursts open|kick", "burst", "door_burst", {}),
     (r"slam", "slam", "door_slam", {}),
-    (r"key|lock", "key", "key_lock", {}),
+    (r"key|lock|bolt", "key", "key_lock", {}),
     (r"hammer|pound|bang|fist", "hammer", "door_hammer", {}),
     (r"radio", "radio", "police_radio", {}),
     (r"whoop", "whoop", "siren_whoop", {}),
@@ -61,16 +65,18 @@ KEYWORDS = [
     (r"\brain\b", "rain", "rain_street", {}),                      # the beds own the rain
     (r"whisk|strip", "whisk", "paper_slide", dict(length=0.2, tap=0, shape="out")),
     (r"card|rail", "card", "paper_slide", dict(length=0.24, tap=0, shape="in")),
+    (r"slide", "slide", "paper_slide", dict(length=0.45)),
     (r"count", "count", "count_ticks", {}),
     (r"match", "match", "match_strike", {}),
     (r"flame|blow", "flame", "flame_out", {}),
-    (r"curtain|ring", "curtain", "curtain_rings", {}),
+    (r"curtain|\brings?\b", "curtain", "curtain_rings", {}),
     (r"glint|lens", "glint", "glint", {}),
     (r"scream", "scream", "scream_pull", {}),
-    (r"red line|line", "red_line", "red_line", {}),
+    (r"string|swell|\bnotes?\b|chord|music|pizz", "score", "__score__", {}),   # the score's cues
+    (r"pencil|red line|line", "red_line", "red_line", {}),
     (r"grid|snap", "grid", "grid_snap", {}),
     (r"pop|land", "pop", "paper_pop", {}),
-    (r"tap|typewriter", "pop", "paper_pop", {}),
+    (r"\btaps?\b|typewriter", "pop", "paper_pop", {}),
     (r"flip", "flip", "paper_flip", {}),
     (r"heart|pulse", "heart", "heart_pulse", {}),
     (r"door", "door", "door_open", {}),
@@ -150,11 +156,12 @@ def default_sync():
     put("s02_iris", trans_window("s02")[0], "iris")
     # s03 window nine
     put("s03_light_on", word("s03", "light"), "switch", "bulb")
-    put("s03_arm", g("s03", 9.4))
+    put("s03_arm", g("s03", 9.4), "creak")
     put("s03_stab1", g("s03", 10.337), "stab")
     put("s03_stab2", g("s03", 10.887), "stab")
     put("s03_stab3", g("s03", 11.437), "stab")
-    put("s03_fall", g("s03", 11.9))
+    put("s03_splash", g("s03", 11.437), "splash")
+    put("s03_fall", g("s03", 11.637), "fold")              # _lib_shadow_show: FALL_T = SPLASH_T + 0.2
     put("s03_light_out", g("s03", 12.3), "light_out")
     put("s03_bino_down", g("s03", 13.6), "binoculars")
     put("s03_every", word("s03", "Every"))
@@ -169,16 +176,33 @@ def default_sync():
     put("s04_car_away", g("s04", 9.4), "car")
     put("s04_bars", trans_window("s04")[0], "bars")
     # s05 again
-    put("s05_light_on", word("s05", "Wednesday"), "switch", "bulb")
+    # (the replayed show runs on _lib_shadow_show's clock: show time 0 = [again] - 2.65)
+    u0 = word("s05", "again") - 2.65
+    put("s05_light_tue", word("s05", "On"), "switch", "bulb")       # Tuesday, the top panel
+    put("s05_light_on", word("s05", "Wednesday"), "switch", "bulb")  # Wednesday, the bottom
     put("s05_eleven", word("s05", "eleven"))
-    put("s05_again", word("s05", "again"), "stab")
+    put("s05_turn", u0 + 0.45, "doll")
+    put("s05_raise", u0 + 1.00, "creak")
+    put("s05_stab1", u0 + 1.85, "stab")
+    put("s05_stab2", u0 + 2.25, "stab")
+    put("s05_again", u0 + 2.65, "stab")                             # the third stab lands on [again]
+    put("s05_splash", u0 + 2.65, "splash")
+    put("s05_fall", u0 + 2.85, "fold")
+    put("s05_light_out", u0 + 4.30, "light_out")
+    put("s05_rewind", word("s05", "Same"), "rewind")
     put("s05_second", word("s05", "second"), "red_line")
+    put("s05_captions", word("s05", "arm") - 0.34, "whisk")
     put("s05_arm", word("s05", "arm"), "slide")
+    put("s05_slowmo", word("s05", "scream") - 0.31, "stab", "score")
     put("s05_scream", word("s05", "scream"), "scream")
-    put("s05_pin1", g("s05", 11.8), "pin")
-    put("s05_pin2", g("s05", 12.8), "pin")
-    put("s05_last_stab", g("s05", 13.65), "stab")
-    put("s05_slash", trans_window("s05")[0], "slash")
+    put("s05_people", word("s05", "People"), "score")
+    put("s05_pin1", word("s05", "die"), "pin")
+    put("s05_pin2", word("s05", "same", 3), "pin")
+    put("s05_pin3", word("s05", "way"), "pin")
+    put("s05_pin4", word("s05", "twice"), "pin")
+    put("s05_cock", g("s05", 12.80), "creak")
+    put("s05_last_stab", g("s05", 13.60), "slash", "stab")
+    put("s05_slash", trans_window("s05")[0])
     # s06 crossing
     put("s06_coat", g("s06", 0.5), "coat")                      # the flare (peak of the swing)
     put("s06_collar", g("s06", 1.4), "cloth")
@@ -199,7 +223,8 @@ def default_sync():
     # s08 the other side
     put("s08_someone", word("s08", "Someone"))
     put("s08_glint", g("s08", 7.4), "glint", "binoculars")
-    put("s08_wave", g("s08", 7.6))
+    put("s08_steps", g("s08", 4.35), "steps")
+    put("s08_wave", g("s08", 7.6), "rain")                       # the rain on the glass swells with it
     put("s08_light_off", word("s08", "watch"), "switch", "light_out")
     # s09 ninety seconds
     put("s09_ninety", word("s09", "ninety"))
@@ -251,7 +276,7 @@ def covered_spans(S):
             ("steps", S["s04_burst"]["t"], S["s04_burst"]["t"] + 1.6), ("hammer", S["s10_hammer"]["t"] - 0.1, S["s10_sirens"]["t"] + 0.6),
             ("pop", 0.0, 1.6), ("siren", S["s10_sirens"]["t"] - 0.3, S["s11_dissolve"]["t"]),
             ("siren", S["s04_burst"]["t"], S["s04_bars"]["t"]), ("umbrella", S["s02_down"]["t"], S["s02_up"]["t"]),
-            ("flame", S["s07_match"]["t"], S["s07_flame_out"]["t"] + 0.5), ("rain", 0.0, 1e9)]
+            ("flame", S["s07_match"]["t"], S["s07_flame_out"]["t"] + 0.5), ("rain", 0.0, 1e9), ("score", 0.0, 1e9)]
 
 
 def sync_points(scene_cues=None):
@@ -378,7 +403,8 @@ def build_cues(sync, extras=()):
     c(S["s03_light_on"] - 0.05, "switch_click", 6.0, pan=0.05, dist=0.3, bus="hit")
     c(S["s03_light_on"], "bulb_on", 2.0, pan=0.05, dist=0.3, bus="hit")
     c(S["s03_light_on"] + 0.2, "bulb_hum", -30.0, dur=S["s03_light_out"] - S["s03_light_on"] - 0.2, persp="through_window")
-    c(S["s03_stab3"] + 0.01, "paper_pop", -10.0, pitch=0.55)       # the red cut-paper splash
+    c(S["s03_splash"], "paper_splash", -10.0)                     # the red cut-paper splash
+    c(S["s03_fall"], "body_fold", -14.0)                          # she folds and drops out of sight
     c(S["s03_light_out"], "light_out", 7.0, pan=0.05, dist=0.3, bus="hit")
     c(S["s03_bino_down"], "binocular_lift", -9.0, pan=0.1, lower=1)
 
@@ -400,17 +426,28 @@ def build_cues(sync, extras=()):
     c(S["s04_bars"] + 0.15, "bars_wipe", -8.0)
 
     # ---------------------------------------------------------------- s05 again (split screen)
-    for k, (dt, pan) in enumerate(((0.0, -0.35), (0.012, 0.35))):
-        c(S["s05_light_on"] - 0.05 + dt, "switch_click", -3.0, pan=pan, dist=0.45, seed=531 + k)
-        c(S["s05_light_on"] + dt, "bulb_on", -6.0, pan=pan, dist=0.45, seed=541 + k)
-    c(S["s05_light_on"] + 0.2, "bulb_hum", -32.0, dur=S["s05_slash"] - S["s05_light_on"], persp="through_window")
-    for k, pan in enumerate((-0.35, 0.35)):
-        c(S["s05_again"] - 0.13 + 0.008 * k, "knife_whoosh", -13.0, pan=pan, seed=551 + k)
+    # Tuesday's window (top panel), then Wednesday's (bottom): the same old filament - the same
+    # seed, so the two flickers are sample-identical
+    for k, nm in enumerate(("s05_light_tue", "s05_light_on")):
+        c(S[nm] - 0.05, "switch_click", -3.0, pan=(-0.08, 0.08)[k], dist=0.45, seed=531)
+        c(S[nm], "bulb_on", -6.0, pan=(-0.08, 0.08)[k], dist=0.45, seed=541)
+    # the replayed murder (the stabs themselves are the score's Psycho strings, as in s03)
+    c(S["s05_turn"], "doll_flutter", -16.0, length=0.4)
+    c(S["s05_raise"], "pin_creak", -14.0, length=0.55, seed=61)
+    c(S["s05_splash"], "paper_splash", -9.0)
+    c(S["s05_fall"], "body_fold", -12.0)
+    c(S["s05_light_out"], "light_out", 2.0, dist=0.45)
+    c(S["s05_rewind"], "rewind", -8.0, length=0.3)                  # the projector restarts
+    for a, b in ((S["s05_light_on"] + 0.2, S["s05_light_out"]), (S["s05_rewind"] + 0.35, S["s05_scream"]),
+                 (63.0, S["s05_slash"])):
+        c(a, "bulb_hum", -32.0, dur=b - a, persp="through_window")
     c(S["s05_second"], "red_line", -8.0)
+    c(S["s05_captions"], "paper_slide", -15.0, length=0.3, tap=0, shape="out", pan0=0.0, pan1=-0.7)
     c(S["s05_arm"], "paper_slide", -6.0, length=0.42, pan0=0.0, pan1=0.0)
-    c(S["s05_scream"] + 0.21 - 0.95, "scream_pull", -2.0, length=0.95)      # cut dead 0.21 s after [scream]
-    c(S["s05_pin1"], "pin_creak", -7.0, length=0.6)
-    c(S["s05_pin2"], "pin_creak", -2.0, length=0.9, seed=77)
+    c(S["s05_scream"] - 0.95, "scream_pull", -2.0, length=0.95)     # cut dead on [scream]: the silent scream
+    for k in range(4):                                               # the pin turns one tick on each word
+        c(S[f"s05_pin{k + 1}"], "pin_creak", -9.0 + 1.5 * k, length=0.22 + 0.04 * k, seed=71 + k)
+    c(S["s05_cock"], "pin_creak", -3.0, length=0.5, seed=77)         # the arm cocks back
     c(S["s05_last_stab"] - 0.13, "knife_whoosh", -7.0)
     c(S["s05_slash"], "slash_whoosh", -2.0)
 
@@ -437,6 +474,9 @@ def build_cues(sync, extras=()):
     c(S["s07_flame_out"] + 0.5, "steps_seq", -13.0, dur=1.2, kind="floor", who="her", weight=0.5, rate=2.0, pan0=0.0, pan1=0.35)
 
     # ---------------------------------------------------------------- s08 the other side
+    # across the street, barely: a floorboard as he walks into her window
+    c(S["s08_steps"], "wood_step", -20.0, pan=0.25, who="him", weight=0.6, creak=1.0, stair=0, persp="through_window")
+    c(S["s08_steps"] + 0.55, "wood_step", -25.0, pan=0.3, who="him", weight=0.5, creak=0.4, stair=0, persp="through_window")
     c(S["s08_glint"], "glint", -9.0, pan=0.1)
     c(S["s08_light_off"] - 0.006, "switch_click", 6.0, pan=0.1, dist=1.0, bus="hit")
 

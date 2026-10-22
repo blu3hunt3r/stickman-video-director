@@ -221,7 +221,11 @@ def girl_base(dt=0.0, dx=0.0, look=None, ground=None):
     return a
 
 
-def carry(a, t0, t1, side="L", fade=0.35):
+BASKET_SIDE = "R"                       # her right hand: the near hand while she walks right
+S02_TAKE = 5.70                         # s02 time the basket is hers (carry from here on)
+
+
+def carry(a, t0, t1, side=BASKET_SIDE, fade=0.35):
     """Basket carry: the arm bent at the elbow, forearm forward, a firm grip."""
     a.arm(side, t0, t1, fade=fade, sh=18.0, elbow=62.0, abd=9.0, wrist=-8.0, grip=0.9)
     return a
@@ -248,10 +252,10 @@ def walk_x(t):
 def basket_pendulum(dt=0.0, dx=0.0):
     """Basket swing for the s02/s03 walk (pivot: the carrying hand)."""
     a = girl_base(dt, dx)
-    carry(a, 5.6 - dt, 60.0 - dt, fade=0.0)
+    carry(a, S02_TAKE - dt, 60.0 - dt, fade=0.0)
 
     def pivot(t):
-        return basket_hand(a.skeleton(t), "L")
+        return basket_hand(a.skeleton(t), BASKET_SIDE)
     return Pendulum(pivot, length=60.0, t0=S02_GO - dt - 0.5, t1=S02_GO - dt + 26.0, damping=2.2, gravity=900.0)
 
 

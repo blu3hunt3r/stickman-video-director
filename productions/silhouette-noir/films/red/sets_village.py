@@ -380,14 +380,20 @@ class Village:
                     draw.fill(S, col, a)
 
     # ------------------------------------------------------------ public draw
-    def draw_back(self, f, mood=NIGHT, smoke=True, mist=True, doors=None, door_light=None, t=None):
+    def draw_back(self, f, mood=NIGHT, smoke=True, mist=True, doors=None, door_light=None, t=None,
+                  door_figures=None):
         """Sky, the far hill with the church, mid and near rows of houses (lit windows glow
         through the fog), chimney smoke and mist between the rows.
 
         doors: how far the front doors of the rows across the street stand open (the village
         watching, S02/S10): None/0 = all shut, a float = all, {id: amount}, or a callable
         (id, t) -> amount (see door_schedule). door_light: interior light of an open door
-        (default 1 at night, 0.6 by day). doorways() lists ids and where villagers stand."""
+        (default 1 at night, 0.6 by day). doorways() lists ids and where villagers stand.
+        door_figures: optional callable(ctx, door, open_amount, t, mood) that draws whoever
+        stands in a doorway, in that row's layer coords (door = dict(id, row, x, y, par, sc,
+        depth); mood is pre-fogged for the row: draw in mood.ink). It is called for every
+        door in view, after the lit interior and before the door leaf, so a door that
+        closes hides them."""
         mood = get_mood(mood)
         t = f.t if t is None else t
         backdrop(f, mood, glow=(540.0, 1250.0), glow_r=1300.0, glow_a=0.22)
@@ -402,13 +408,14 @@ class Village:
                 with plane(f, par) as c:
                     self._ground(f, c, L, mood, tint=L["depth"])
                     self._paint_houses(f, c, vis, mood, L["depth"], par)
-                    lit_doors = self._row_doors(c, L, vis, mood, doors, door_light, t)
+                    lit_doors = self._row_doors(c, L, vis, mood, doors, door_light, t, figures=door_figures)
                     self._fence_row(f, c, L, mood, tint=L["depth"])
             else:
                 with depth_layer(f, mood, par, L["depth"], blur=L["blur"]) as c:
                     self._ground(f, c, L, mood)
                     self._paint_houses(f, c, vis, mood, 0.0, par)
-                    lit_doors = self._row_doors(c, L, vis, mood, doors, door_light, t, tint=0.0)
+                    lit_doors = self._row_doors(c, L, vis, mood, doors, door_light, t, tint=0.0,
+                                                figures=door_figures)
                     if mist:
                         xs = np.linspace(vx0 + 900, vx1 - 900, 14)
                         mist_band(c, xs, np.asarray(L["g"](xs), dtype=float), mood.mist, 0.5, up=380.0, down=120.0)
@@ -432,9 +439,10 @@ class Village:
             return clamp(float(doors.get(i, 0.0)))
         return clamp(float(doors))
 
-    def _row_doors(self, c, L, vis, mood, doors, light, t, tint=None):
+    def _row_doors(self, c, L, vis, mood, doors, light, t, tint=None, figures=None):
         """Front doors of a row's houses (porch, frame, step); open ones show the lit room.
-        Returns [(x, y, w, h, light)] of the open, lit ones (for their glow and wedge)."""
+        Returns [(x, y, w, h, light)] of the open, lit ones (for their glow and wedge).
+        figures: draw_back's door_figures hook (people standing in the doorways)."""
         tm = tinted(mood, L["depth"] if tint is None else tint)
         G = _LayerGround(L["g"])
         light = (1.0 if mood.night > 0.3 else 0.6) if light is None else light
@@ -444,8 +452,13 @@ class Village:
                 continue
             o = self._door_amount(doors, h["door_id"], t)
             size = DOOR_SIZE * L["sc"]
+            inside = None
+            if figures is not None:
+                d = dict(id=h["door_id"], row=L["name"], x=h["door_x"], y=float(L["g"](h["door_x"])),
+                         par=L["par"], sc=L["sc"], depth=L["depth"])
+                inside = (lambda ctx, d=d, o=o: figures(ctx, d, o, t, tm))
             Doorway(h["door_x"], G, size=size, wall_on=False, seed=self.seed + 31 + len(h["door_id"])).draw_back(
-                None, c, tm, open_=o, light=light * smoothstep(0.0, 0.35, o), t=t)
+                None, c, tm, open_=o, light=light * smoothstep(0.0, 0.35, o), t=t, inside=inside)
             a = light * smoothstep(0.0, 0.35, o)
             if a > 0.01:
                 out.append((h["door_x"], float(L["g"](h["door_x"])), 150 * size, 420 * size, a))

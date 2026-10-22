@@ -118,7 +118,7 @@ def _camera(t, w):
     if t < a + 0.45:
         return Camera(WC[0], WC[1], Z0)
     if t < w["people"]:
-        k = _k(t, a + 0.45, 0.75, "inout3")
+        k = _k(t, a + 0.45, 0.6, "inout")
         return Camera(WC[0], WC[1], Z0 * (Z1 / Z0) ** k)
     pin = _pin(t, w)
     k = _k(t, w["people"], 2.2, "inout3")
@@ -154,7 +154,7 @@ def _viewports(t, w):
         if rest[3] > rest[1]:
             out.append((bot, rest, 1.0, "bot"))
         return out, (0.0, 955.0 + dy, 1080.0, 965.0 + dy)
-    k = _k(t, a + 0.45, 0.75, "inout3")
+    k = _k(t, a + 0.45, 0.6, "inout")
     full = (0.0, 0.0, 1080.0, lerp(955.0, 1920.0, k))
     return [(full, full, 1.0, "bot")], None
 
@@ -233,13 +233,12 @@ def _labels(f, t, w, vps):
             c.restore()
 
 
-def _tie(f, t, w, vps, u, p):
+def _tie(f, t, w, vps, u, p, cam):
     """The red line on 'second': rings round both knife tips, a line between them; the
     overlay closes it to one ring, which then goes."""
     s = w["second"]
     if t < s - 0.02 or t > w["arm"] + 0.9:
         return
-    cam = Camera(WC[0], WC[1], Z0)
     tip = show.anchors(u, WIN, pose=p)["knife_tip"]
     sx, sy = cam.to_screen(tip)
     pts, seen = [], set()
@@ -284,8 +283,8 @@ def render(f, t, T):
         with f.screen() as c:
             c.rectangle(bar[0], bar[1], bar[2] - bar[0], bar[3] - bar[1])
             draw.fill(c, INK)
+    _tie(f, t, w, vps, u, p, cam)
     _labels(f, t, w, vps)
-    _tie(f, t, w, vps, u, p)
 
 
 def motion_blur(t, T):

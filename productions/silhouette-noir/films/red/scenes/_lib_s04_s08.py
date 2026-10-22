@@ -209,6 +209,150 @@ class Steps:
         return self.track[s][i][1]
 
 
+def pchip(xs, ys):
+    """Monotone cubic through (xs, ys), at rest at both ends; holds outside."""
+    n = len(xs)
+    if n == 1:
+        return lambda x: ys[0]
+    h = [max(xs[i + 1] - xs[i], 1e-9) for i in range(n - 1)]
+    dl = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+    m = [0.0] * n
+    for i in range(1, n - 1):
+        if dl[i - 1] * dl[i] > 0:
+            w1, w2 = 2 * h[i] + h[i - 1], h[i] + 2 * h[i - 1]
+            m[i] = (w1 + w2) / (w1 / dl[i - 1] + w2 / dl[i])
+
+    def f(x):
+        if x <= xs[0]:
+            return ys[0]
+        if x >= xs[-1]:
+            return ys[-1]
+        i = min(bisect.bisect_right(xs, x) - 1, n - 2)
+        u = (x - xs[i]) / h[i]
+        u2, u3 = u * u, u * u * u
+        return ((2 * u3 - 3 * u2 + 1) * ys[i] + (u3 - 2 * u2 + u) * h[i] * m[i]
+                + (-2 * u3 + 3 * u2) * ys[i + 1] + (u3 - u2) * h[i] * m[i + 1])
+    return f
+
+
+def _smax(a, b, k):
+    return 0.5 * (a + b + math.sqrt((a - b) ** 2 + k * k))
+
+
+def reach_y(body, H, x, y, ankles, k=None):
+    """Lower the pelvis y (world, y down) so every planted ankle [(ax, ay)] stays in reach."""
+    Lmax = (body.thigh + body.shin) * H * 0.985
+    for (ax, ay) in ankles:
+        dx = ax - x
+        if abs(dx) < Lmax:
+            y = _smax(y, ay - math.sqrt(Lmax * Lmax - dx * dx), 0.012 * H if k is None else k)
+    return y
+
+
+class Retreat:
+    """A free-segment performance (Actor.free(dur, path=R.path, pose=R.pose)): backing away
+    on hand-planted steps while facing `d`, a fall onto the bottom, then sitting and scooting
+    back on the heels. All times absolute.
+
+        steps     [(t_land, side, x[, swing])] backward steps from feet0 {L: x, R: x}
+        fall      (tf0, tf1, x_sit): the fall starts at tf0, the bottom lands at tf1 at x_sit
+        sit       [(t_land, side, x)]: the sitting feet's plants (the first two at tf1 put the
+                  feet out in front), later ones are the heel pushes of the scoot
+        scoot     [(t, x)] pelvis keys while sitting (start with (tf1, x_sit))
+        lean      [(t, pitch)] trunk pitch keys (+ forward); crouch while stepping"""
+
+    SIT_H = 0.075
+
+    def __init__(self, A, t0, x0, feet0, d, steps, fall, sit, scoot, lean, crouch=0.03):
+        self.A, self.d = A, float(d)
+        self.body, self.H, self.g = A.body, A.H, A.g
+        self.t0, self.x0 = t0, x0
+        self.steps = Steps(A.g, A.H, feet0, steps, facing=d)
+        self.tf0, self.tf1, self.x_sit = fall
+        self.sitst = Steps(A.g, A.H, dict(L=sit[0][2], R=sit[1][2]), sit[2:], swing=0.28, lift=0.03, facing=d)
+        self.sx = pchip([q[0] for q in scoot], [q[1] for q in scoot])
+        self.lean = lean
+        self.crouch = crouch
+        # stepping pelvis x: from the start through the support centre after each landing
+        tx, xx = [t0], [x0]
+        fx = dict(feet0)
+        for st in steps:
+            fx[st[1]] = st[2]
+            tx.append(st[0] + 0.10)
+            xx.append(0.5 * (fx["L"] + fx["R"]) - self.d * 0.03 * self.H)
+        self.feet_end = fx
+        self.px = pchip(tx, xx)
+
+    # ---------------------------------------------------------------- pieces
+    def _step_state(self, t):
+        H = self.H
+        x = self.px(t)
+        feet = {s: self.steps.foot(s, t) for s in ("L", "R")}
+        y = self.g(x) - (self.body.hip - 0.006 - self.crouch) * H
+        ph = sum(1 for st in self.steps.track["L"][1:] + self.steps.track["R"][1:] if st[0] <= t)
+        y = reach_y(self.body, H, x, y, [feet[s][0] for s in feet if feet[s][3]])
+        return x, y, feet
+
+    def _sit_feet(self, t):
+        out = {}
+        for s in ("L", "R"):
+            (a, p, toe, planted) = self.sitst.foot(s, t)
+            out[s] = (a, 22.0, 0.0, planted)            # heels down, toes up
+        return out
+
+    def path(self, t):
+        H = self.H
+        if t < self.tf0:
+            x, y, _ = self._step_state(t)
+            return x, y
+        xa, ya, _ = self._step_state(self.tf0)
+        xs = self.x_sit
+        yb = self.g(xs) - self.SIT_H * H
+        if t < self.tf1:
+            u = (t - self.tf0) / (self.tf1 - self.tf0)
+            x = lerp(xa, xs, ease("out", u))
+            y = lerp(ya, yb, u * u)
+            return x, y
+        k_ = t - self.tf1
+        x = self.sx(t)
+        bounce = -0.035 * H * math.sin(math.pi * clamp(k_ / 0.22)) * (1.0 if k_ < 0.22 else 0.0)
+        # a scoot lifts the bottom a little while it slides
+        v = (self.sx(t + 0.05) - self.sx(t - 0.05)) / 0.1
+        lift = -0.018 * H * clamp(abs(v) / 120.0)
+        return x, self.g(x) - self.SIT_H * H + bounce + lift
+
+    def pose(self, t, u):
+        H, d = self.H, self.d
+        x, y = self.path(t)
+        p = F.Pose(x, y, 0.0 if d > 0 else 180.0)
+        p.scale = self.A.scale
+        if t < self.tf0:
+            _, _, feet = self._step_state(t)
+            legs = {s: (feet[s][0], feet[s][1], feet[s][2]) for s in feet}
+        else:
+            sf = self._sit_feet(max(t, self.tf1))
+            if t < self.tf1:
+                _, _, f0 = self._step_state(self.tf0)
+                w = clamp((t - self.tf0) / (self.tf1 - self.tf0))
+                e = ease("inout", w)
+                legs = {}
+                for i, s in enumerate(("L", "R")):
+                    a0, a1 = f0[s][0], sf[s][0]
+                    kick = 0.10 * H * math.sin(math.pi * clamp(w * 1.15 - 0.1 * i))
+                    legs[s] = ((lerp(a0[0], a1[0], e), lerp(a0[1], a1[1], e) - kick),
+                               lerp(f0[s][1], sf[s][1], e), 0.0)
+            else:
+                legs = {s: (sf[s][0], sf[s][1], sf[s][2]) for s in sf}
+        for s, (a, pitch, toe) in legs.items():
+            p.legs[s] = {"ik": a, "pitch": pitch, "toe": toe, "abd": 3.0}
+        p.pitch = keys(t, self.lean)
+        br = math.sin(2 * math.pi * t / 1.6)              # fast frightened breathing
+        p.spine = [0.8 * br, 0.0, -1.2 * br]
+        for s in ("L", "R"):
+            p.arms[s].update(sh=4.0, abd=6.0, elbow=20.0, wrist=4.0, grip=0.4)
+        return p
+
+
 def snow(f, mood, density=1.0, wind=22.0, gust=10.0, t=None, seed=0, lit=None, alpha=1.0, size=1.0):
     """Falling snow in the mood's light (three depth bands, near flakes blurred)."""
     if density <= 0.003:

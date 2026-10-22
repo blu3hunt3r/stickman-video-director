@@ -2731,44 +2731,67 @@ class _SDescend(_SpiderClip):
     kind = "descend"
 
     def __init__(self, A, t0, state, dur=3.0, fade=0.0, base=None, top=None, frm=None,
-                 eyes_at=0.9, **kw):
+                 eyes_at=0.9, pitch0=-84.0, hang=None, low=None, touch=None, unfold=None,
+                 reach_down=0.0, settle=0.72, **kw):
         _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
         x = state["x"]
         gy = A.ground(x)
         self.x = x
         self.top = gy - 2600.0 if top is None else float(top)
         self.y0 = self.top + 0.5 * A.S if frm is None else float(frm)
-        self.y_end = gy - A.H
-        self.y_touch = gy - min(1.6 * A.H, 0.62 * A.LL)
+        self.y_end = gy - (A.H if low is None else float(low))
+        self.y_touch = gy - (min(1.6 * A.H, 0.62 * A.LL) if hang is None else float(hang))
         self.eyes_at = eyes_at
+        self.pitch0 = float(pitch0)
+        self.settle = clamp(float(settle), 0.05, 0.98)
+        self.reach_down = float(reach_down)
         self.final = A._stand_feet(x, state["yaw"])
         order = sorted(range(8), key=lambda i: (i % 4, hash01(A.seed, i, 31)))
+        tu0, tu1 = (0.52, 0.905) if touch is None else (float(touch[0]), float(touch[1]))
         self.touch = {}
+        self.unf = {}
         for n, i in enumerate(order):
-            self.touch[i] = 0.52 + 0.055 * n + 0.02 * hash01(A.seed, i, 32)
-        self.end_state = dict(state, feet=[list(v) for v in self.final], y=None,
+            self.touch[i] = tu0 + (tu1 - tu0) * n / 7.0 + 0.02 * hash01(A.seed, i, 32)
+            if unfold is None:
+                self.unf[i] = (0.15 + 0.03 * (i % 4), 0.55 + 0.03 * (i % 4))
+            else:           # one leg after another
+                a, b = float(unfold[0]), float(unfold[1])
+                s0 = a + 0.62 * (b - a) * n / 7.0
+                self.unf[i] = (s0, s0 + 0.38 * (b - a))
+        self.end_state = dict(state, feet=[list(v) for v in self.final], y=None if low is None else self.y_end,
                               thread=(x, self.top), posture="stand")
 
     def pose(self, t):
         A, S, LL = self.A, self.A.S, self.A.LL
         u = clamp((t - self.t0) / max(self.dur, 1e-6))
         # height: a long ease down to touching height, then settle between the planted legs
-        if u < 0.72:
-            y = self.y0 + (self.y_touch - self.y0) * _s01(u / 0.72) ** 0.9
+        st = self.settle
+        if u < st:
+            y = self.y0 + (self.y_touch - self.y0) * _s01(u / st) ** 0.9
         else:
-            y = self.y_touch + (self.y_end - self.y_touch) * _s01((u - 0.72) / 0.28)
+            y = self.y_touch + (self.y_end - self.y_touch) * _s01((u - st) / (1.0 - st))
         P = self._base(self.x, t, y=y, feet=self.final)
         P["thread"] = (self.x, self.top)
-        P["pitch"] = -84.0 + 84.0 * _ss(0.42, 0.97, u)
+        P["pitch"] = self.pitch0 * (1.0 - _ss(0.42, 0.97, u))
         sway = (1.0 - _ss(0.4, 0.8, u))
         P["yaw"] += 14.0 * sway * math.sin(2 * math.pi * 0.21 * (t - self.t0) + 1.0)
         P["eyes"] = _ss(self.eyes_at, min(1.0, self.eyes_at + 0.08), u)
         A._idle(P, t)
         feet = []
+        rd = self.reach_down
         for i in range(8):
-            unf = _ss(0.15 + 0.03 * (i % 4), 0.55 + 0.03 * (i % 4), u)
+            ua, ub = self.unf[i]
+            unf = _ss(ua, ub, u)
             tb = A._leg_body_foot(i, unf)
             fw = A._body_to_world(P, tb)
+            if rd > 0.0:
+                # legs first: the unfolding tip swings down below the hip, reaching for the
+                # ground ahead of the body
+                hp = A._hip_world(P, i)
+                out = 0.22 * LL * (1.0 if (fw[0] - hp[0]) >= 0 else -1.0)
+                dn = (hp[0] + out * unf, hp[1] + 0.9 * LL * unf, hp[2] + 0.3 * (fw[2] - hp[2]))
+                k_ = rd * math.sin(math.pi * 0.5 * unf)
+                fw = [fw[q] + (dn[q] - fw[q]) * k_ for q in range(3)]
             c = self.touch[i]
             w = _ss(c - 0.12, c, u)
             if w >= 1.0:
@@ -2779,6 +2802,43 @@ class _SDescend(_SpiderClip):
                       fw[2] + (fi[2] - fw[2]) * w]
                 feet.append([pt[0], pt[1], pt[2], 0.0, None])
         P["feet"] = feet
+        return P
+
+
+class _SDrop(_SpiderClip):
+    """Drop from a high hanging stance onto the planted legs (gravity), absorb, bob back up.
+    The thread is let go as it falls."""
+    kind = "drop"
+
+    def __init__(self, A, t0, state, dur=0.7, fade=0.0, base=None, to=None, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        x = state["x"]
+        gy = A.ground(x)
+        self.x = x
+        self.y0 = state.get("y") or (gy - A.H)
+        self.y1 = gy - (A.H if to is None else float(to))
+        g = 5200.0 * A.S / 500.0
+        self.g = g
+        self.tl = math.sqrt(2.0 * max(self.y1 - self.y0, 0.0) / g)
+        self.end_state = dict(state, y=None if to is None else self.y1, thread=None, posture="stand")
+
+    def pose(self, t):
+        A, S = self.A, self.A.S
+        tau = max(0.0, t - self.t0)
+        tl = self.tl
+        if tau < tl:
+            y = self.y0 + 0.5 * self.g * tau * tau
+            k = 0.0
+        else:
+            k = tau - tl
+            y = self.y1 + 0.16 * S * (1.0 - math.exp(-k / 0.04)) * math.exp(-k / 0.2)
+        P = self._base(self.x, t, y=y)
+        P["thread"] = self.start.get("thread") if tau < tl else None
+        imp = (1.0 - math.exp(-k / 0.04)) * math.exp(-k / 0.25) if tau >= tl else 0.0
+        P["pitch"] += -6.0 * imp + 3.0 * _ss(0.0, tl + 1e-3, tau) * (1.0 - _ss(tl, tl + 0.1, tau))
+        P["abd"] = 6.0 * imp
+        P["mand"] = max(P["mand"], 0.6 * _ss(0.0, 0.2, tau))
+        A._idle(P, t)
         return P
 
 
@@ -3090,10 +3150,24 @@ class Spider(_Actor):
         """Fast low rush, fangs open: a mass of legs."""
         return self._add("charge", to=float(to), speed=speed, dur=dur)
 
-    def descend(self, dur=3.0, top=None, frm=None, eyes_at=0.9):
+    def descend(self, dur=3.0, top=None, frm=None, eyes_at=0.9, **opt):
         """Come down a silk thread anchored at (x, top) head first, legs unfolding, tips
-        touching down one by one around x; frm = starting body y (default just under top)."""
-        return self._add("descend", dur=dur, top=top, frm=frm, eyes_at=eyes_at)
+        touching down one by one around x; frm = starting body y (default just under top).
+        Optional staging (u = fraction of dur):
+            pitch0      starting pitch (default -84: head straight down; -20 hangs level)
+            hang        body height above the ground when the tips touch (default 1.6 x height)
+            low         body height above the ground at the end (default: standing height);
+                        a following stand() holds it, drop() brings it down
+            touch       (u0, u1) window of the eight touchdowns (default (0.52, 0.905))
+            unfold      (u0, u1): the legs unfold one after another over this window
+            reach_down  0..1: unfolding legs swing down below the body first (legs first)
+            settle      u at which the body reaches the hang height (default 0.72)"""
+        return self._add("descend", dur=dur, top=top, frm=frm, eyes_at=eyes_at, **opt)
+
+    def drop(self, dur=0.7, to=None):
+        """Let go of the thread and drop to standing height (or `to` px above the ground):
+        a heavy fall onto the planted legs, which flex and absorb it."""
+        return self._add("drop", dur=dur, to=to)
 
     def stab(self, leg=0, target=(0.0, 0.0), t0=None, hold=0.5):
         """Stab leg (0-3 left L1-L4, 4-7 right R1-R4; 0/4 = front) into target (x, y) or a
@@ -3216,17 +3290,27 @@ class Spider(_Actor):
         R = solve_spider(self, P)
         return [(L[3][0], L[3][1], P["feet"][i][3]) for i, L in enumerate(R["legs"])]
 
+    def eye_pos(self, t):
+        """World (x, y) of the eye cluster's centre at time t (and how open it is, 0..1)."""
+        P = self.state(t)
+        S = self.S
+        a = P["pitch"] * D2R
+        f_, u_ = 0.37 * S, 0.09 * S
+        f2, u2 = f_ * math.cos(a) - u_ * math.sin(a), f_ * math.sin(a) + u_ * math.cos(a)
+        return (P["x"] + f2 * math.cos(P["yaw"] * D2R), P["y"] - u2), clamp(P.get("eyes", 1.0))
+
     def draw(self, f, t, ctx=None, color=None, eyes=True, thread=True, far_shade=0.18,
-             thread_color=None):
+             thread_color=None, eye_scale=1.0):
         """Draw at time t. far_shade lifts the far-side legs toward the fog (depth);
-        thread_color defaults to a pale silk."""
+        thread_color defaults to a pale silk; eye_scale enlarges the eyes and their glow
+        (for wide shots)."""
         P = self.state(t)
         return draw_spider(f, P, self, ctx, color=color, eyes=eyes, thread=thread,
-                           far_shade=far_shade, thread_color=thread_color)
+                           far_shade=far_shade, thread_color=thread_color, eye_scale=eye_scale)
 
 
 Spider.CLIPS = {"stand": _SStand, "descend": _SDescend, "recoil": _SRecoil, "die": _SDie,
-                "threat": _SThreat, "stab": _SStab, "eyes": _SEyes}
+                "threat": _SThreat, "stab": _SStab, "eyes": _SEyes, "drop": _SDrop}
 
 
 def _sp_leg_ik(hip, tip, LL, ndir, tdir=None):
@@ -3288,7 +3372,7 @@ _SP_EYES = [(0.380, 0.072, 0.016), (0.372, 0.100, 0.013), (0.352, 0.118, 0.010),
 
 
 def draw_spider(f, P, A, ctx=None, color=None, eyes=True, thread=True, far_shade=0.18,
-                thread_color=None):
+                thread_color=None, eye_scale=1.0):
     """Draw a spider pose P (from Spider.state) on ctx. Returns the solved rig."""
     ctx = ctx if ctx is not None else f.ctx
     pal = f.pal if f is not None else None
@@ -3399,15 +3483,18 @@ def draw_spider(f, P, A, ctx=None, color=None, eyes=True, thread=True, far_shade
     if eyes and eo > 0.01 and sy > -0.6:
         col = (0.92, 0.96, 1.0)
         pts = []
+        es = max(0.2, float(eye_scale))
+        c0 = bw((0.37, 0.09))
         for k, (ex, ey_, er) in enumerate(_SP_EYES):
             p = bw((ex, ey_))
-            pts.append((p, er * S))
-            draw.circle(ctx, p, er * S * (0.35 + 0.65 * eo))
+            if es != 1.0:
+                p = (c0[0] + (p[0] - c0[0]) * es, c0[1] + (p[1] - c0[1]) * es)
+            pts.append((p, er * S * es))
+            draw.circle(ctx, p, er * S * es * (0.35 + 0.65 * eo))
         draw.fill(ctx, col, eo * clamp(P.get("glow", 1.0)))
         if f is not None:
             with f.emit() as G:
-                c0 = bw((0.37, 0.09))
-                draw.glow_disc(G, c0, 0.13 * S, col, 0.35 * eo)
+                draw.glow_disc(G, c0, 0.13 * S * es, col, 0.35 * eo)
                 for p, r in pts[:4]:
                     draw.glow_disc(G, p, r * 4.0, col, 0.5 * eo)
     # embers when burning -----------------------------------------------------------------

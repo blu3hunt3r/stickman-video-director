@@ -451,30 +451,43 @@ class Plan:
         self.st(dre + 0.6, S["s04_bars"] + 1.0 - dre - 0.6, E7B9, 0.3, attack=1.2, release=0.6)
 
         # ============================================================ s05 again
-        l5 = S["s05_light_on"]
+        l5 = S["s05_light_tue"]
         self.st(l5, eleven5 - l5 + 0.3, AMM7, 0.33, attack=0.5, release=0.8)
         self.ev(eleven5, lambda r: np.asarray(hour_bell(1), dtype=np.float64), "hits", send=0.35)
         self.mark(eleven5, "hour strike [eleven] (rhyme)")
-        again = S["s05_again"]
-        b0 = eleven5 + 0.6
-        self.st(b0, again - b0, "A3 E4 A4", 0.48, attack=again - b0, release=0.02, trem=(13.0, 0.5),
-                bend=lambda tt, d=again - b0: 2 ** (2.0 * np.clip(tt / d, 0, 1) ** 1.4 / 12))
-        self.br(b0, again - b0, "A2 Bb2 E3", 0.48, "main", swell=(again - b0, 2.0), attack=0.3, release=0.02)
-        self.stab(again, 1, size=0.85, pan=-0.35, gain=0.8, label="stab [again] (top)")
-        self.stab(again + 0.011, 1, size=0.85, pan=0.35, gain=0.8, label="stab [again] (bottom)")
-        self.silence(again + 0.2, S["s05_second"] - 0.45, fo=0.25, fi=0.3, layers=("main",))
+        # the replay rhymes with s03 note for note: the arm build, three Psycho stabs (the third on
+        # [again], both panels as one), brass + timpani on the third, the fall, the light-out silence
+        again, st1 = S["s05_again"], S["s05_stab1"]
+        b0 = S["s05_raise"]
+        self.st(b0, st1 - b0, "A3 E4 A4", 0.48, attack=st1 - b0, release=0.02, trem=(13.0, 0.5),
+                bend=lambda tt, d=st1 - b0: 2 ** (2.0 * np.clip(tt / d, 0, 1) ** 1.4 / 12))
+        self.br(b0, st1 - b0, "A2 Bb2 E3", 0.48, "main", swell=(st1 - b0, 2.0), attack=0.3, release=0.02)
+        for k, nm in enumerate(("s05_stab1", "s05_stab2", "s05_again")):         # a memory: a touch under s03
+            self.stab(S[nm], k, size=0.6 + 0.15 * k, gain=0.85, label=f"stab {k + 1}" + (" [again]" if k == 2 else ""))
+        self.br(again, 0.45, "A3 Bb3 E4 G#4", 0.85, "hits", sfz=True, attack=0.01, release=0.35)
+        self.ev(again, lambda r: timpani(55.0, r, 0.85), "hits", send=0.3)
+        fall5 = again + 0.12
+        dfall5 = S["s05_light_out"] - fall5
+        self.st(fall5, dfall5, "A3", 0.45, attack=0.05, release=0.1, voices=4, detune=6,
+                bend=lambda tt, d=dfall5: 2 ** (-12.0 * np.clip(tt / d, 0, 1) ** 1.3 / 12))
+        self.silence(S["s05_light_out"], S["s05_second"] - 0.02, fo=0.01, fi=0.02)
+        self.mark(S["s05_light_out"], "light out: silence (rewind)", "main")
         sec = S["s05_second"]
-        self.ticks(sec, 65.3, vel=0.45)                                            # T3: same second
+        self.ticks(sec, S["s05_cock"], vel=0.45)                                   # T3: same second
         self.mark(sec, "tick T3 [second]", "main")
         self.nt(sec, "harp", "E6", 0.5, pan=0.0)
         self.nt(S["s05_arm"], "pizz", "A3 A4", 0.75, "hits")
         self.mark(S["s05_arm"], "unison pizz [arm]")
-        cut = S["s05_scream"] + 0.21
+        cut = S["s05_scream"]                                                     # the silent scream
         self.st(S["s05_arm"] + 0.45, cut - S["s05_arm"] - 0.45, "A4 Bb4 B4 C5", 0.42, attack=cut - S["s05_arm"] - 0.45, release=0.01,
                 trem=(15.0, 0.45))
-        self.silence(cut, 63.0, fo=0.006, fi=0.6, layers=("main",))
-        self.mark(cut, "scream cut", "main")
-        self.st(63.0, 66.0 - 63.0, "D2 A2 F3", 0.3, attack=1.0, release=0.4)
+        slo = S["s05_slowmo"]                                                      # slow-motion stab: a low swell
+        self.st(slo, cut - slo, "A1 E2 Bb2", 0.55, attack=cut - slo, release=0.01, voices=6, detune=7)
+        self.mark(slo, "slow-mo low swell", "main")
+        self.silence(cut, cut + 1.6, fo=0.006, fi=0.5)                             # every sound drops out
+        self.mark(cut, "silent scream: cut", "main")
+        peo = S["s05_people"]                                                      # the push in: one held note
+        self.st(peo, S["s05_last_stab"] - peo, "E5", 0.36, attack=1.2, release=0.05, voices=6, detune=5)
         self.stab(S["s05_last_stab"], 3, size=1.0, label="last stab -> slash")
 
         # ============================================================ s06 crossing

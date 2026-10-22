@@ -436,6 +436,26 @@ def onsets(x, a, b, rise_db=9.0, floor_db=-50.0):
     return cnt
 
 
+def annotate_clicks(clicks, rows, vo_info):
+    """Name the likely source of each detected transient: the cue sounding there (nearest onset),
+    else the narration, else the score / beds. Designed transients (pawls, pops, strikes) are
+    expected; an unexplained one is worth a listen."""
+    edits = (vo_info or {}).get("edits", [])
+    out = []
+    for c in clicks:
+        t = c["t"]
+        near = [r for r in rows if r["t"] - r["anchor"] - 0.03 <= t <= r["t"] - r["anchor"] + r["seconds"]]
+        near.sort(key=lambda r: abs(r["t"] - r["anchor"] - t))
+        if near:
+            src = f"{near[0]['name']} @{near[0]['t']}"
+        elif any(e["film_in"] <= t <= e["film_out"] for e in edits):
+            src = "narration"
+        else:
+            src = "score/beds"
+        out.append(dict(c, source=src))
+    return out
+
+
 def measure(C, master, stems, act, cue_rows, sinfo):
     rep = {}
     tm, lm = dsp.loudness_curve(master, win=0.4, hop=0.05)
@@ -621,6 +641,8 @@ def main(argv=None):
     p_master = os.path.join(out_dir, f"audio_master{sfx_}.wav")
     dsp.write_wav(p_master, master, bits=24)
     for k, x in stems.items():
+        if k == "vo" and a.no_vo:
+            continue                      # an M&E pass has no narration stem
         dsp.write_wav(os.path.join(stem_dir, f"{k}.wav"), x, bits=32)
     log(f"wrote {os.path.relpath(p_master, ROOT)} + {os.path.relpath(stem_dir, ROOT)}/")
 
@@ -629,6 +651,7 @@ def main(argv=None):
     report["master"] = chk
     report["stems_lufs"] = {k: _r(_lufs(x)) for k, x in stems.items()}
     report["stems_true_peak"] = {k: _r(dsp.true_peak_db(x)) for k, x in stems.items()}
+    chk["clicks"] = annotate_clicks(chk["clicks"], rows, report.get("vo"))
     report.update(measure(C, master, stems, act, rows, sinfo))
     hits = [dict(t=r["t"], what=r["label"], sound=r["name"]) for r in rows if r["kind"] == "story"]
     hits += [dict(t=round(t, 3), what=lb, sound="score") for t, lb in sinfo["marks"]]

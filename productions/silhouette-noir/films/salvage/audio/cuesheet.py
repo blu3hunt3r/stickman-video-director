@@ -478,6 +478,18 @@ def scene_cues(C, log):
     return out, have
 
 
+def layer_active(C, name, t, bgain=None, pad=1.0):
+    """Is the continuous layer that a scene cue names actually playing at t (else the cue is
+    rendered as a sound of its own)?"""
+    L = layers(C)
+    spans = dict(winch_crank=L["winch"], pump_run=L["pump"], helmet_hiss=L["hiss"], bubble_stream=L["bubbles"]).get(name)
+    if name == "helmet_breath":
+        return breath_gain_at(bgain if bgain is not None else breath_events(C)[1], t) > -45.0
+    if spans is None:
+        return True                       # ambience / swell: the beds cover every place but paper
+    return any(sp["t0"] - pad <= t <= sp["t1"] + pad for sp in spans)
+
+
 def merge(C, mine, theirs, have, log, breath_sync=None, heart=None):
     """Designed cues + scene cues -> final cue list (see module doc). Scene bubble bursts while
     the breathing layer plays become breath sync points; scene heartbeats in s13 replace the
@@ -499,10 +511,11 @@ def merge(C, mine, theirs, have, log, breath_sync=None, heart=None):
         if sc["name"] is None:
             log.append(dict(scene=sc["scene"], event="unresolved", t=sc["t"], text=sc["text"]))
             continue
-        if sc["name"] == "_silence":
-            log.append(dict(scene=sc["scene"], event="instruction", t=sc["t"], text=sc["text"]))
+        if sc["name"] in ("_silence", "_score_note"):
+            log.append(dict(scene=sc["scene"], event="instruction" if sc["name"] == "_silence" else "score_note",
+                            t=sc["t"], text=sc["text"]))
             continue
-        if sc["name"] in LAYER_SOUNDS:
+        if sc["name"] in LAYER_SOUNDS and layer_active(C, sc["name"], sc["t"], bgain):
             log.append(dict(scene=sc["scene"], event="covered_by_layer", t=sc["t"], text=sc["text"], name=sc["name"]))
             continue
         if sc["name"] == "exhaust_bubbles" and breath_sync is not None and breath_gain_at(bgain, sc["t"]) > -45.0:
