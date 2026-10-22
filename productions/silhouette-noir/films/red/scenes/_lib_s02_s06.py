@@ -15,7 +15,7 @@ import numpy as np
 
 from engine import atmos, costume, draw
 from engine import figure as F
-from engine.core import clamp, ease, lerp, smoothstep
+from engine.core import clamp, ease, hash01, lerp, smoothstep
 from engine.frame import Camera
 from engine.motion import Actor, GAITS
 from films.red import cast
@@ -341,6 +341,106 @@ def snow(f, mood, density=1.0, wind=22.0, gust=10.0, t=None, seed=0, lit=None, a
     col = S.mix(mood.snow, S.SNOW, 0.55) if mood.night > 0.5 else S.mix(mood.snow, S.SNOW, 0.85)
     return atmos.snow(f, density=density, wind=wind, gust=gust, t=t, seed=seed, color=col, alpha=alpha,
                       lit=lit, lit_color=mood.lamp, size=size)
+
+
+# ----------------------------------------------------------------------------- snow kicked up
+def snow_puff(c, x0, x1, y, t, t0, seed, col, n=16, alpha=0.9, sc=1.0, up=(110.0, 410.0), spread=260.0,
+              life=(0.6, 1.3), grav=620.0, size=(6.0, 17.0), drift=0.0):
+    """A burst of snow lumps thrown up from [x0, x1] at surface y at time t0, drawn on c (any
+    plane's coords; sc scales speeds and sizes). A pure function of t and seed."""
+    dt0 = t - t0
+    if dt0 < 0.0 or dt0 > life[1] + 0.1:
+        return
+    for i in range(n):
+        h = [hash01(seed, i, j) for j in range(7)]
+        dt = dt0 - 0.08 * h[5]
+        lf = lerp(life[0], life[1], h[4])
+        if dt <= 0.0 or dt > lf:
+            continue
+        vx = ((h[2] - 0.5) * spread + drift) * sc
+        vy = -lerp(up[0], up[1], h[3]) * sc
+        px = lerp(x0, x1, h[1]) + vx * dt * (1.0 - 0.3 * dt)
+        py = min(y + vy * dt + 0.5 * grav * sc * dt * dt, y + 4.0 * sc)
+        r = lerp(size[0], size[1], h[6]) * sc * (0.55 + 0.9 * dt / lf)
+        a = alpha * (1.0 - dt / lf) ** 1.4
+        c.new_path()
+        c.arc(px, py, r, 0.0, 2.0 * math.pi)
+        c.set_source_rgba(col[0], col[1], col[2], a)
+        c.fill()
+
+
+# ----------------------------------------------------------------------------- the girl, any posture
+def cloak_pts(sk, look):
+    """Outline of her red cloak: costume's cloak (it always hangs straight down from the neck),
+    swung round with her trunk when she leans far over (a fall, a crawl, lying in the snow)
+    and laid flat over her back, so it never hangs below her chest like a curtain."""
+    pts = costume._cloak(sk, look, look.cape or "cloak")[0]
+    nx, ny = sk.j["neck"]
+    px, py = sk.j["pelvis"]
+    ax, ay = nx - px, ny - py
+    tilt = math.atan2(ax, -ay)                       # trunk from vertical, + = neck right of pelvis
+    k = smoothstep(0.30, 0.75, abs(tilt))
+    if k <= 0.0:
+        return pts
+    r = tilt * k
+    cr, sr = math.cos(r), math.sin(r)
+    la = math.hypot(ax, ay) or 1.0
+    ux, uy = ax / la, ay / la
+    nux, nuy = uy, -ux                               # a normal to the trunk ...
+    if nuy > 0:                                      # ... pointing up the screen
+        nux, nuy = -nux, -nuy
+    lie = smoothstep(0.6, 1.2, abs(tilt))
+    cap = 0.05 * sk.H
+    out = []
+    for (x, y) in pts:
+        dx, dy = x - nx, y - ny
+        rx, ry = dx * cr - dy * sr, dx * sr + dy * cr
+        h = rx * nux + ry * nuy                      # height above the trunk line
+        if lie > 0.0 and h > cap:
+            d = (cap + 0.35 * (h - cap)) - h
+            rx, ry = rx + lie * d * nux, ry + lie * d * nuy
+        out.append((nx + rx, ny + ry))
+    return out
+
+
+def draw_girl(f, ctx, sk, look, ink=None):
+    """Draw the girl like figure.draw_figure, but with cloak_pts() for her cloak (correct in
+    any posture), keeping the costume's paint order (profile: over the legs and torso, under
+    the head and near arm; back view: over everything; facing us: behind her)."""
+    if not look.cape:
+        F.draw_figure(f, sk, look, ctx)
+        return
+    import copy as _copy
+    ink = ink or look.ink or f.pal.ink
+    bare = _copy.copy(look)
+    bare.cape = None
+    bare.extras = []
+    red = look.colors.get("cape", RED)
+    pts = cloak_pts(sk, look)
+
+    def cloak():
+        draw.smooth(ctx, pts, close=True, tension=0.35)
+        draw.fill(ctx, red)
+    if sk.side_w >= 0.5 and sk.front > 0:
+        cloak()
+        F.draw_figure(f, sk, bare, ctx, eyes=False)
+    elif sk.side_w >= 0.5:
+        F.draw_figure(f, sk, bare, ctx, eyes=False)
+        cloak()
+    else:
+        F.draw_figure(f, sk, bare, ctx, eyes=False)
+        cloak()
+        draw.smooth(ctx, F.head_outline(sk), close=True, tension=0.5)
+        draw.fill(ctx, ink)
+        for fn, col, eo in costume.pieces(sk, bare)["head"]:
+            ctx.new_path()
+            fn(ctx)
+            draw.fill(ctx, col or ink)
+        draw_arm(ctx, sk, near_side(sk), look, ink)
+    for ex in look.extras:
+        ex(ctx, sk, f, look)
+    if look.eyes:
+        F.draw_eyes(f, sk, look, ctx)
 
 
 # ----------------------------------------------------------------------------- figure pieces

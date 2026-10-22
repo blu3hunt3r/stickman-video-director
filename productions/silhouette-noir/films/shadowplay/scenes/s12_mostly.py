@@ -203,7 +203,8 @@ def _her_pose(t):
     p = Pose(0.0, 0.0, 0.0)
     p.yaw = _track([(1.7, -90.0), (1.95, -82.0, "inout"), (2.6, -106.0, "in"), (3.05, -94.0, "out"), (3.5, -90.0),
                     (T_TURN, -90.0), (T_TURN + 0.38, 0.0, "inout")], t)
-    p.pitch = _track([(1.1, 0.0), (1.42, 15.0, "inout"), (1.7, 2.0, "inout"), (4.3, 0.0), (4.62, 7.0, "inout")], t)
+    p.pitch = _track([(1.1, 0.0), (1.42, 15.0, "inout"), (1.7, 2.0, "inout"), (4.3, 0.0), (4.62, 7.0, "inout"),
+                      (7.0, 10.0, "inout")], t)
     p.spine = [0.0, 0.0, _track([(4.3, 0.0), (4.62, 6.0, "inout")], t)]
     p.head = _track([(0.3, 2.0), (0.9, 9.0, "inout"), (1.6, 12.0), (1.9, -3.0, "inout"), (2.9, 2.0, "inout"),
                      (3.6, 13.0, "inout"), (T_TURN, 13.0), (T_TURN + 0.42, -4.0, "inout"), (4.62, -2.0)], t)
@@ -217,7 +218,7 @@ def _her_pose(t):
         p.legs["L"].update(hip=lerp(0, 6, u), knee=lerp(2, 4, u))
         p.legs["R"].update(hip=lerp(0, -5, u), knee=lerp(2, 6, u))
     p.eyes = dict(open=0.0, glow=0.0, look=0.0)
-    p.x = HX + _track([(T_TURN, 0.0), (T_TURN + 0.38, -10.0, "inout")], t)
+    p.x = HX + _track([(T_TURN, 0.0), (T_TURN + 0.38, -10.0, "inout"), (5.0, -10.0), (7.0, 2.0, "inout")], t)
     return p
 
 
@@ -234,6 +235,9 @@ def her_skeleton(t):
 def _ik(sh, tgt, prefer, ua=UA, fa=FA_H):
     dx, dy = tgt[0] - sh[0], tgt[1] - sh[1]
     d = math.hypot(dx, dy)
+    # an out-of-reach target stretches the arm a little (unnoticeable) before it gives up
+    st = clamp(d / ((ua + fa) * 0.995), 1.0, 1.15)
+    ua, fa = ua * st, fa * st
     d2 = clamp(d, abs(ua - fa) + 1e-3, (ua + fa) * 0.995)
     a = math.atan2(dy, dx)
     b = math.acos(clamp((ua * ua + d2 * d2 - fa * fa) / (2 * ua * d2), -1.0, 1.0))
@@ -426,8 +430,12 @@ class _Blk(Block):
     t_off = None
 
     def lit_windows(self, t=0.0):
-        k = 1.0 if self.t_off is None else switch(t, None, self.t_off)
-        return [(w, l * k) for (w, l) in Block.lit_windows(self, t) if l * k > 0.01]
+        out = []
+        for j, (w, l) in enumerate(Block.lit_windows(self, t)):
+            k = 1.0 if self.t_off is None else switch(t, None, self.t_off + 0.16 * hash01(self.seed, j, 5))
+            if l * k > 0.01:
+                out.append((w, l * k))
+        return out
 
 
 def _blocks():

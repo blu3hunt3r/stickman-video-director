@@ -470,5 +470,4 @@ def cues(T):
         Cue(w + 0.25, "spent flashbulb ejected, tinkles on the floorboards", -12.0, 0.6),
         Cue(5.9, "the beam finds her: paper flutter, one pin creaks", -12.0, 0.1),
         Cue(6.0, "score: low strings swell under the push in", -6.0, 0.0, dur=3.6),
-        Cue(9.3, "rain on glass fades up (s12 dissolve)", -12.0, 0.0, dur=1.3),
     ]

@@ -299,7 +299,7 @@ SW_HALF = 1.15                    # half period of the swing on the davit
 # (tau, strength): s14 9.75 (outboard), s14 10.90 (inboard, its echo carries the cut),
 # s15 6.80 (inboard, the loudest)
 TOLLS = ((T_STOP, 1.0), (T_STOP + SW_HALF, 0.8), (T_STOP + 7 * SW_HALF, 1.4))
-_AMP = ((6.5, 8.2), (8.3, 8.2), (9.75, 24.0), (10.9, 22.0), (12.05, 18.5), (13.2, 16.0), (14.35, 14.5),
+_AMP = ((6.5, 0.0), (9.0, 0.0), (9.75, 24.0), (10.9, 22.0), (12.05, 18.5), (13.2, 16.0), (14.35, 14.5),
         (15.5, 15.0), (16.65, 19.5), (17.8, 26.0), (18.95, 22.0), (20.1, 19.0), (21.25, 16.5), (24.0, 13.0))
 
 
@@ -357,7 +357,7 @@ def _line_len(tau):
 
 
 def _theta_uw(tau, ell):
-    xo = lerp(-70.0, -130.0, smoothstep(730.0, 2900.0, ell))
+    xo = lerp(40.0, 100.0, smoothstep(730.0, 2900.0, ell))      # the current leans it outboard
     return math.degrees(math.asin(clamp(xo / ell, -0.9, 0.9))) + 0.6 * math.sin(0.7 * tau + 0.4)
 
 
@@ -369,7 +369,7 @@ def bell_break():
     global _BREAK
     if _BREAK is None:
         boat = S.Boat()
-        tb = 5.0
+        tb = 8.3
         for k in range(2400):
             tt = 5.0 + k / 240.0
             st = bell_state(tt, boat, _probe=True)
@@ -392,8 +392,7 @@ def bell_state(tau, boat, _probe=False):
     left the water, < 0 before), under (0..1 how far it is below the surface), line_len)."""
     P = boat.sheave(tau)
     ell = _line_len(tau)
-    tb = 8.29 if _probe else bell_break()
-    w = smoothstep(tb - 0.3, tb + 0.3, tau)
+    w = smoothstep(8.7, 9.25, tau)
     th = lerp(_theta_uw(tau, ell), _theta_sw(tau), w)
     r = math.radians(th)
     top = (P[0] + ell * math.sin(r), P[1] + ell * math.cos(r))

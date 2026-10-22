@@ -30,7 +30,7 @@ _CAM = L.CamPath([
     (0.0, 1050.0, 990.0, 0.95),
     (2.3, 1060.0, 1000.0, 0.95),
     (3.2, 990.0, 1395.0, 2.15),
-    (8.5, 975.0, 1400.0, 2.25),
+    (8.5, 965.0, 1430.0, 2.6),
     (9.5, 930.0, 1150.0, 1.25),
     (10.6, 980.0, 1120.0, 1.15),
     (12.66, 1560.0, 1010.0, 0.82),
@@ -60,6 +60,11 @@ def burn():
     return C.ignite(D + T_SMASH)
 
 
+def low_mist(t):
+    """Alpha of the low mist behind the basket (the close-up, 3.2-8.5)."""
+    return 0.55 * L.ss(2.5, 3.2, t) * (1.0 - L.ss(8.6, 9.6, t))
+
+
 def render(f, t, T):
     t7 = t + D
     f.set_camera(cam(t))
@@ -75,6 +80,12 @@ def render(f, t, T):
            scroll=(12.0, -2.0), seed=5)
     f.haze(MOOD.mist, 0.3, y1=1480.0, feather=160.0, x0=1905.0, x1=2075.0, tex=0.6, tex_scale=0.8,
            scroll=(12.0, -2.0), seed=6)
+    lo = low_mist(t)
+    if lo > 0.0:
+        # low on the snow: mist pooled at the foot of the cottage, so the basket, the bread, the
+        # bottle and her legs read as ink against it
+        f.haze(MOOD.mist, lo, y0=1330.0, y1=1556.0, feather=110.0, x0=560.0, x1=1260.0, tex=0.5,
+               tex_scale=1.2, scroll=(16.0, -1.0), seed=9)
     sp, g, w = L.cl_spider(), L.cl_girl(), L.cl_wolf()
     bk = L.basket_state(t)
     with f.layer() as c:

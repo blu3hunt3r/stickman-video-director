@@ -22,7 +22,9 @@ DOLL_WOMAN = Body.adult_f(580)
 def her(coat=False, hair="bob"):
     """At home: bare silhouette, bob hair. coat=True: the red coat (s06 onward)."""
     if coat:
-        return Look(hair=hair, coat="trench", shoes="heel", colors={"coat": RED}, opts={"collar": True})
+        # red sleeves too: the coat reads as one red shape (s06 onward, every animator)
+        return Look(hair=hair, coat="trench", shoes="heel", colors={"coat": RED, "arm": RED},
+                    opts={"collar": True})
     return Look(hair=hair, shoes="heel")
 
 
