@@ -14,10 +14,11 @@ Beats (scene-local s; L9 0.60-3.12, L10 4.00-6.69, L11 7.60-10.69):
     [winter@10.00]  pull back to the whole valley, every hood; she is small at the bottom
     10.72-11.28     Bass flatten: the view posterizes (3 inks, 2 inks) and paper bars wipe
                     the ink away; only the red is left: specks of hoods, her own triangle
-    11.18-12.75     the specks rise into a row of 14 red triangles at the top; the row is
-                    copied down, row after row, faster and faster: counting winters
-    ~12.8           the last slot is hers: her triangle flies up into it (the next winter)
-    ~13.1           the grid pulses once (a wave out from her slot)
+    11.27-12.64     the specks rise into a row of 14 red triangles at the top (11.27-11.71);
+                    the row is copied down, row after row, faster and faster (16 rows from
+                    11.73): counting winters
+    12.68-12.96     the last slot is hers: her triangle flies up into it (the next winter)
+    12.98           the grid pulses once (a wave out from her slot, ~0.25 s across)
     13.17-14.06     the triangles drift and snap onto s07's hoods (s07_hood_targets) while
                     s07's forest assembles round them as cut-paper ink bars (13.46-14.08)
 OUT (flatten, 1.0 s, 14.0-15.0): from 14.08 the frame is s07's opening (t = 0) flattened to
@@ -546,7 +547,8 @@ def cues(T):
         Cue(POSTER3, "the view flattens: a dry paper snap", -9),
         Cue(BARS[0], "paper bars slide in (scissor-cut swishes)", -12, dur=0.32),
         Cue(RISE[0], "the hoods lift: a pizzicato flutter rising", -12, dur=0.45),
-        Cue(LEDGER, "counting winters: a soft paper tick per row, accelerating", -8, dur=L["starts"][-1] - LEDGER + 0.1),
+        Cue(LEDGER, "counting winters: a soft paper tick per row, accelerating", -8,
+            dur=round(L["starts"][-1] - LEDGER + 0.1, 3)),
         Cue(L["t_land"], "her triangle lands in the last slot: one clear wooden knock", -6),
         Cue(L["t_pulse"], "the grid pulses once: a single low heartbeat drum", -4),
         Cue(L["t_pulse"] + 0.17, "the triangles drift into the trees: a held breath of strings", -14, dur=0.9),
