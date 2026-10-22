@@ -433,6 +433,7 @@ def _draw_her(f, t, st):
             col = sets.mix(AMBER, HOT, 0.4)
             A.set_source_rgba(col[0], col[1], col[2], clamp(0.22 * lv * near))
             A.mask(mask)
+    _smoke(f, t, st)
     # the match itself (hidden while her body is between it and us: the far hand)
     if ml > 0.01:
         s = 0.62 * R.ppm(Z) / 343.0
@@ -440,7 +441,8 @@ def _draw_her(f, t, st):
         vis = min(1.0, ml) * (1.0 - occ)
         ang = math.degrees(math.atan2(tip[1] - fing[1], tip[0] - fing[0]))
         if vis > 0.01:
-            sets.match_flame(f, t, tip, level=vis, scale=s, seed=7, stick_angle=ang, stick=False)
+            sets.match_flame(f, t, tip, level=min(1.5, ml) * (1.0 - occ), scale=s, seed=7, stick_angle=ang,
+                             stick=False)
             with f.layer() as c:
                 c.push_group()
                 draw.capsule(c, fing, tip, 1.2 * s + 0.6, 1.5 * s + 0.6)
@@ -451,6 +453,35 @@ def _draw_her(f, t, st):
             # its light still spills round her edges
             with f.light(blur=4.0) as A:
                 sets.glow(A, tip, 300.0 * s, AMBER, 0.16 * min(1.0, ml) * occ)
+
+
+def _smoke(f, t, st):
+    """A thread of smoke from the dead match, curling up through the hall light (7.2 - 8.2)."""
+    u = (t - T_OUT) / 1.0
+    if u <= 0.0 or u >= 1.0:
+        return
+    a = st["a"]
+    sk0 = a.skeleton(T_OUT)
+    foot, k, xc = _map(a, T_OUT)
+    M0 = L.place_matrix(foot, k, xc, 0.0)
+    _, tip0, _ = _hand(T_OUT, sk0, M0)
+    s = R.ppm(_z(T_OUT)) / 343.0
+    pts = []
+    n = 14
+    for i in range(n):
+        v = i / (n - 1)
+        h = (40.0 + 260.0 * u) * v * s
+        x = tip0[0] + (14.0 * math.sin(v * 5.0 + t * 1.7) + 26.0 * v * v * math.sin(t * 0.9 + 1.0)) * s * (0.3 + u)
+        pts.append((x, tip0[1] - h))
+    with f.light(blur=3.0 * s + 1.0) as A:
+        A.new_path()
+        A.move_to(*pts[0])
+        for p in pts[1:]:
+            A.line_to(*p)
+        A.set_line_width(2.2 * s + 0.6)
+        g = 0.10 * (1.0 - u) * min(1.0, u * 6.0)
+        A.set_source_rgba(0.75, 0.72, 0.68, g)
+        A.stroke()
 
 
 def _covered(sk, M, plain, p, r):
@@ -483,12 +514,18 @@ HER_FOOT = (440.0, 1830.0)
 
 @lru_cache(maxsize=1)
 def _her_win():
-    a = Actor(cast.HER, None, x=0.0, ground=0.0, facing=-52.0, seed=81)
-    a.stand(until=30.0, at=-2.0, idle=0.5)
-    a.key("head", [(-2.0, 6.0), (30.0, 6.0)])
-    a.key("head_yaw", [(-2.0, 12.0), (30.0, 12.0)])
-    a.arm("R", -2.0, 30.0, sh=10.0, abd=8.0, elbow=32.0)
-    a.arm("L", -2.0, 30.0, sh=6.0, abd=8.0, elbow=20.0)
+    """She walks in from the left (the cut lands mid-stride, her screen direction kept from
+    the room), stops at the glass and lifts her eyes to her own window: at 12.5 she holds
+    s08's pose (yaw -50, head -5, head_yaw 10, the same arms)."""
+    a = Actor(cast.HER, None, x=-230.0, ground=0.0, facing=-38.0, seed=81)
+    a.stand(until=T_WIN - 0.30, at=-2.0, idle=0.3)
+    a.walk(to=0.0, gait="walk", yaw=-38.0, at=T_WIN - 0.30, turn=0)
+    a.turn(-50.0, dur=0.35, at=a.cursor, via=-90.0)
+    a.stand(until=30.0, idle=0.4)
+    a.key("head", [(-2.0, 4.0), (T_WIN + 0.55, 8.0), (12.30, -5.0, "inout"), (30.0, -5.0)])
+    a.key("head_yaw", [(-2.0, 18.0), (T_WIN + 0.55, 18.0), (12.30, 10.0, "inout"), (30.0, 10.0)])
+    a.arm("R", T_WIN + 0.55, 30.0, fade=0.45, sh=10.0, abd=8.0, elbow=34.0)
+    a.arm("L", T_WIN + 0.55, 30.0, fade=0.45, sh=6.0, abd=8.0, elbow=20.0)
     return a
 
 
