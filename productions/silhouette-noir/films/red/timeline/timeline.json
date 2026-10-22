@@ -583,14 +583,17 @@
    "frames": 348,
    "prev": "s04",
    "next": "s06",
-   "trans_out": null,
+   "trans_out": {
+    "kind": "dissolve",
+    "dur": 0.75
+   },
    "trans_in": {
     "kind": "whip",
     "dur": 0.5,
     "direction": "left"
    },
    "handle_in": 0.25,
-   "handle_out": 0.0,
+   "handle_out": 0.375,
    "lines": [
     {
      "n": 8,
@@ -729,8 +732,11 @@
     "dur": 1.0,
     "pal": "red"
    },
-   "trans_in": null,
-   "handle_in": 0.0,
+   "trans_in": {
+    "kind": "dissolve",
+    "dur": 0.75
+   },
+   "handle_in": 0.375,
    "handle_out": 0.5,
    "lines": [
     {

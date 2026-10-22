@@ -700,21 +700,12 @@ def room_camera(t):
 
 
 # ----------------------------------------------------------------------------- D: the lock
-LOCK_C = (470.0, 1010.0)                  # the lock's centre in the insert (world px, camera fixed)
+LOCK_C = (470.0, 1010.0)                  # the lock's centre in the insert (world px)
 LOCK_S = 2.4
-# her pinch on the key's bow, in the key's own frame (x along the key from the keyhole, y across
-# it; units of lock_closeup's scale; the bow spans x 40..170, |y| < 60): the thumb lies over the
-# bow's face, the index finger curls round its end, the palm and the curled fingers sit beside it
-PALM = [(28, -96), (70, -104), (124, -112), (150, -136), (140, -178), (96, -206), (40, -204), (6, -170), (4, -124)]
-FINGERS = [((108, -96), (190, -66), (204, 0), 17, 14),          # index: round the bow's end
-           ((128, -128), (176, -116), (172, -84), 15, 13),      # middle, curled
-           ((112, -160), (150, -160), (146, -134), 14, 12)]     # ring, curled
-THUMB = ((54, -98), (104, -50), (128, -14), 18, 15)
-WRIST = (40, -170)
-ELBOW_W = (-420.0, 1980.0)                # the forearm leaves the frame here (world px)
 
 
 def _key_frame(u):
+    """The key's own frame (lock_closeup's geometry): x along the bow from the keyhole."""
     a = math.radians(-90.0 + 90.0 * clamp(u))
     ca, sa = math.cos(a), math.sin(a)
     cx, cy = LOCK_C
@@ -725,58 +716,24 @@ def _key_frame(u):
     return K
 
 
-def _hand_polys(u):
-    """Her right hand pinching the key (palm, curled fingers, thumb over the bow) and the
-    forearm reaching in from below left, as polygons in world px."""
+def _key_path(ctx, u):
+    """lock_closeup's key (shaft + bow), traced again so it can be drawn in brass."""
     K = _key_frame(u)
     s = LOCK_S
-    polys = [[K(x, y) for x, y in PALM]]
-    for (a, m, b, ra, rb) in FINGERS + [THUMB]:
-        pa, pm, pb = K(*a), K(*m), K(*b)
-        polys.append(_capsule_poly(pa, pm, ra * s, (ra + rb) * 0.5 * s))
-        polys.append(_capsule_poly(pm, pb, (ra + rb) * 0.5 * s, rb * s))
-    w = K(*WRIST)
-    polys.append(_capsule_poly(w, ELBOW_W, 58.0, 150.0))
-    return polys
-
-
-def _capsule_poly(a, b, ra, rb, n=10):
-    dx, dy = b[0] - a[0], b[1] - a[1]
-    Ln = math.hypot(dx, dy) or 1.0
-    ang = math.atan2(dy, dx)
-    pts = []
-    for i in range(n + 1):
-        th = ang + math.pi / 2 + math.pi * i / n
-        pts.append((a[0] + ra * math.cos(th), a[1] + ra * math.sin(th)))
-    for i in range(n + 1):
-        th = ang - math.pi / 2 + math.pi * i / n
-        pts.append((b[0] + rb * math.cos(th), b[1] + rb * math.sin(th)))
-    return pts
-
-
-def _sleeve_poly(u):
-    """The red cuff over the forearm's lower half."""
-    w = _key_frame(u)(*WRIST)
-    b = ELBOW_W
-    dx, dy = b[0] - w[0], b[1] - w[1]
-    Ln = math.hypot(dx, dy)
-    nx, ny = -dy / Ln, dx / Ln
-
-    def at(k, r):
-        return (w[0] + dx * k + nx * r, w[1] + dy * k + ny * r)
-    k0 = 0.36
-    r0 = lerp(58.0, 150.0, k0) + 14.0
-    return [at(k0 + 0.02, r0), at(k0, 0.0), at(k0 + 0.02, -r0), at(1.05, -170.0), at(1.05, 170.0)]
+    draw.capsule(ctx, K(0, 0), K(60, 0), 14 * s, 14 * s)
+    bow = [K(40, -46), K(150, -60), K(170, 0), K(150, 60), K(40, 46)]
+    draw.smooth(ctx, bow, close=True, tension=0.4)
 
 
 def insert_scene(f, t):
     u = L.k_(t, T_KEY[0], T_KEY[1] - T_KEY[0], "inout")
     bolt = L.k_(t, T_KEY[1] - 0.08, 0.06, "in")
-    x, y = 540.0, 960.0
+    x, y = 625.0, 985.0
     for tb in BLOWS:
         x += kick(t, tb, 14.0, decay=16.0, freq=40.0)
         y += kick(t, tb, 6.0, decay=16.0, freq=33.0)
-    f.set_camera(Camera(x, y, 1.0).shaken(t, amp=1.5, rot_amp=0.05, freq=0.5, seed=1004))
+    z = lerp(1.22, 1.30, L.k_(t, T_D, T_E - T_D, "out"))
+    f.set_camera(Camera(x, y, z).shaken(t, amp=1.5, rot_amp=0.05, freq=0.5, seed=1004))
     f.fill(INK)
     lit = 1.0
     for tb in BLOWS:
@@ -799,15 +756,25 @@ def insert_scene(f, t):
         with f.light(blur=2.0) as A:
             A.rectangle(gap_x - 20 * s, cy - 22 * s, 20 * s + bl, 3.0 * s)
             draw.fill(A, HOT, 0.45 * clamp(lit))
-    # her hand turning the key; the red cuff of the coat
-    polys = _hand_polys(u)
+    # the key in brass, lit from the hall bulb behind her; its bow's hole shows the dark
+    K = _key_frame(u)
     with f.layer() as Lc:
-        L.fill_polys(Lc, polys, INK)
-        draw.poly(Lc, _sleeve_poly(u))
-        draw.fill(Lc, mix(INK, RED, 0.62))
-    with f.light(blur=1.5) as A:
-        L.polys_rim(A, polys, HOT, 0.55 * clamp(lit), (-7.0, 3.0))            # the gap light, right
-        L.polys_rim(A, [_sleeve_poly(u)], AMBER, 0.35, (6.0, 6.0))             # the bulb, above left
+        _key_path(Lc, u)
+        draw.fill(Lc, mix(INK, AMBER, 0.40 * clamp(lit, 0.4, 1.0)))
+        draw.circle(Lc, K(125, 0), 18 * s)
+        draw.fill(Lc, INK)
+    with f.light(blur=2.0) as A:
+        A.push_group()
+        _key_path(A, u)
+        draw.fill(A, HOT)
+        A.set_operator(cairo.OPERATOR_DEST_OUT)
+        A.save()
+        A.translate(9.0, 9.0)
+        _key_path(A, u)
+        draw.fill(A, (0, 0, 0))
+        A.restore()
+        A.pop_group_to_source()
+        A.paint_with_alpha(0.55 * clamp(lit))
     with f.emit() as G:
         draw.circle(G, (gap_x + 5.0, cy), 6.0)
         draw.fill(G, HOT, 0.5 * clamp(lit) * (1.0 - bolt))
@@ -835,6 +802,41 @@ def hall_shake(t):
     return s * (math.sin(t * 61.0) * 0.6 + noise1(t * 23.0, 4) * 0.4) * 3.0
 
 
+SIT = dict(yaw=30.0, hip=130.0, knee=91.0, ankle=-25.0, pitch=-15.0)   # on the floor, knees up
+
+
+def _slide_pose(k):
+    """Standing flat against the door (k 0) .. sitting on the floor against it, knees drawn up
+    (k 1): the body turns from three-quarter to near profile as it folds."""
+    p = FG.Pose(0, 0, lerp(HALL_YAW, SIT["yaw"], ease("inout", clamp(k * 1.25))))
+    for s_, ph in (("L", 0.0), ("R", 0.06)):
+        kk = clamp(k * (1.0 + ph) - ph)
+        p.legs[s_] = dict(hip=lerp(3.0, SIT["hip"], kk), abd=lerp(3.0, 4.0, kk), knee=lerp(4.0, SIT["knee"], kk),
+                          ankle=lerp(0.0, SIT["ankle"], kk), toe=0.0)
+    p.pitch = lerp(-3.0, SIT["pitch"], k)
+    p.spine = [0.0, lerp(0.0, 6.0, k), lerp(0.0, 4.0, k)]
+    p.head = lerp(-5.0, 2.0, k)
+    for s_ in ("L", "R"):
+        p.arms[s_] = dict(sh=-20.0, abd=14.0, elbow=20.0, wrist=0.0, grip=0.3)
+    return p
+
+
+_SEAT_LOOK = None
+
+
+def _floor_y(p, body):
+    """Root y that rests the lowest of feet and seat on the floor (y = 0)."""
+    global _SEAT_LOOK
+    if _SEAT_LOOK is None:
+        _SEAT_LOOK = L.her_look(0.3)
+    q = p.copy()
+    q.x, q.y = 0.0, 0.0
+    sk = FG.solve(q, body)
+    low = max(sk.j[n][1] for n in ("heel_L", "heel_R", "ball_L", "ball_R"))
+    low = max(low, max(pt[1] for pt in FG._torso_outline(sk, _SEAT_LOOK, pad=0.012)))
+    return -low
+
+
 class HerHall:
     """Her in the hallway (a 2-D Actor: feet on y = 0, 1 m = PX_M px)."""
 
@@ -842,47 +844,40 @@ class HerHall:
         a = Actor(cast.HER, None, x=0.0, ground=0.0, facing=HALL_YAW, t0=T_E - 1.0, seed=93)
         a.stand(until=T_SLIDE[0], idle=0.5)
         H = a.H
-        hip0 = (cast.HER.hip - 0.006) * H
-        sit_y = -0.115 * H
+        body = cast.HER
+        dx = -0.10 * H                                   # the seat slides a little toward the hinge
+
+        def kk(t):
+            u = clamp((t - T_SLIDE[0]) / (T_SLIDE[1] - T_SLIDE[0]))
+            k = ease("inout", u)
+            return clamp(k + 0.05 * math.sin(k * math.pi * 2.0))   # a catch half way down
 
         def path(t):
-            u = ease("inout", (t - T_SLIDE[0]) / (T_SLIDE[1] - T_SLIDE[0]))
-            # she slides straight down the door (a small catch half way)
-            u2 = clamp(u + 0.05 * math.sin(clamp(u) * math.pi * 2.0))
-            return (lerp(0.0, -0.035 * H, u), lerp(-hip0, sit_y, u2))
+            k = kk(t)
+            return (lerp(0.0, dx, k), _floor_y(_slide_pose(k), body))
 
         def pose(t, u):
-            p = FG.Pose(0, 0, HALL_YAW)
-            k = ease("inout", u)
-            for s, ph in (("L", 0.0), ("R", 0.08)):
-                kk = clamp(k * (1.0 + ph) - ph)
-                p.legs[s] = dict(hip=lerp(3.0, 92.0 - 10 * ph, kk), abd=lerp(3.0, 7.0, kk),
-                                 knee=lerp(4.0, 132.0, kk), ankle=lerp(0.0, -22.0, kk), toe=0.0)
-            p.pitch = lerp(-3.0, -8.0, k)
-            p.spine = [0.0, lerp(0.0, 6.0, k), lerp(0.0, 4.0, k)]
-            p.head = lerp(-5.0, 2.0, k)
-            for s in ("L", "R"):
-                p.arms[s] = dict(sh=-20.0, abd=14.0, elbow=20.0, wrist=0.0, grip=0.3)
-            return p
-        a.free(T_SLIDE[1] - T_SLIDE[0], path, pose, at=T_SLIDE[0], end_x=0.0, blend=0.25)
-        hold = pose(T_SLIDE[1], 1.0)
-        end = path(T_SLIDE[1])
+            return _slide_pose(kk(t))
+        a.free(T_SLIDE[1] - T_SLIDE[0], path, pose, at=T_SLIDE[0], end_x=dx, blend=0.25)
+        seat_y = _floor_y(_slide_pose(1.0), body)
 
         def sat(t, u):
-            p = pose(t, 1.0)
+            p = _slide_pose(1.0)
             br = math.sin(t * 5.2) * 1.2
             p.spine = [0.0, 6.0 + br, 4.0]
             return p
-        a.free(T_END + 1.0 - T_SLIDE[1], lambda t: (end[0], end[1] + 0.003 * H * math.sin(t * 5.2)), sat,
-               at=T_SLIDE[1], end_x=end[0], blend=0.05)
-        # arms: palms flat on the door behind her while it jumps; the key fist to her chest after
+        a.free(T_END + 1.0 - T_SLIDE[1], lambda t: (dx, seat_y), sat, at=T_SLIDE[1], end_x=dx, blend=0.05)
+        # arms: palms flat on the door behind her while it jumps; the key fist to her chest
+        # after the crash; the other arm round her knees once she is down
         a.arm("L", T_E - 1.0, T_SLIDE[0] + 0.3, fade=0.2, sh=-30.0, abd=34.0, elbow=26.0, grip=0.1)
         a.arm("R", T_E - 1.0, T_CRASH + 0.25, fade=0.2, sh=-34.0, abd=30.0, elbow=30.0, grip=1.0)
         a.arm("R", T_CRASH + 0.35, T_END + 1.0, fade=0.35, sh=34.0, abd=10.0, elbow=128.0, grip=1.0)
-        a.arm("L", T_SLIDE[0] + 0.5, T_END + 1.0, fade=0.5, sh=52.0, abd=8.0, elbow=70.0, grip=0.6)
-        # head: to the lever when it rattles, back to us (and the dark) after
+        a.arm("L", T_SLIDE[0] + 0.6, T_END + 1.0, fade=0.6, sh=40.0, abd=-10.0, elbow=60.0, grip=0.6)
+        # head: to the lever when it rattles, back to us after the crash; as the body turns
+        # away on the way down the head stays on us (eyes wide)
         a.key("head_yaw", [(T_E - 1.0, -10.0), (5.75, -10.0), (5.95, -34.0), (T_CRASH, -34.0),
-                           (T_CRASH + 0.12, -6.0), (T_END + 1.0, -2.0)], fade=0.2)
+                           (T_CRASH + 0.12, -6.0), (T_SLIDE[0], -6.0), (T_SLIDE[1], 48.0), (T_END + 1.0, 50.0)],
+              fade=0.2)
         a.key("head", [(T_E - 1.0, -4.0), (T_CRASH, -4.0), (T_CRASH + 0.08, 6.0), (T_CRASH + 0.5, 0.0)], fade=0.15)
         # each blow jolts her off the door
         a.channel("x", lambda t: 3.2 * hall_blows(t) * math.sin((t - 5.0) * 70.0), T_E - 1.0, T_CRASH + 0.3,
@@ -904,14 +899,14 @@ def hall_lever(ctx, t, turn, shake):
     """The lever on the hall side of door 9 (Hallway draws a round knob there)."""
     kx, ky = HALL.knob
     kx += shake
-    th = math.radians(36.0 * clamp(turn))
-    Lv = 74.0
+    th = math.radians(40.0 * clamp(turn))
+    Lv = 96.0
     ca, sa = math.cos(th), math.sin(th)
     tip = (kx - Lv * ca, ky + Lv * sa)
-    draw.circle(ctx, (kx, ky), 14.0)
-    draw.fill(ctx, mix(INK, PAL.fog_at(1.0), 0.40))
-    draw.capsule(ctx, (kx + 4 * ca, ky - 4 * sa), tip, 6.0, 5.0)
-    draw.fill(ctx, mix(INK, PAL.fog_at(1.0), 0.45))
+    draw.ellipse(ctx, (kx, ky + 8.0), 15.0, 30.0)
+    draw.fill(ctx, mix(INK, PAL.fog_at(1.0), 0.42))
+    draw.capsule(ctx, (kx + 5 * ca, ky - 5 * sa), tip, 8.0, 7.0)
+    draw.fill(ctx, mix(INK, PAL.fog_at(1.0), 0.52))
     return tip
 
 
@@ -923,12 +918,32 @@ def lever_hall(t):
     return clamp(v * 1.1) * (0.6 + 0.4 * noise1(t * 6.0, 21))
 
 
+def hall_feet(t):
+    """His feet against the inside of the door: two shadows in the light under it, jumping
+    with his blows; he steps away (6.50, 6.56) just before the lamp goes over."""
+    if t < BLOWS[0] or t > 6.56:
+        return ()
+    j = 7.0 * hall_blows(t) * math.sin(t * 50.0)
+    out = []
+    if t < 6.50:
+        out.append(-116.0 + j)
+    out.append(-46.0 + j + 30.0 * L.k_(t, 6.50, 0.06))
+    return tuple(out)
+
+
+def police_wash(t):
+    """A slow beacon sweep under the set's double-flash strobe: the hall is never quite black
+    once the cars are below (blue, red 0..1)."""
+    ph = 2.0 * math.pi * 0.55 * (t - T_POLICE)
+    return (0.5 + 0.5 * math.sin(ph)) ** 1.5, (0.5 - 0.5 * math.sin(ph)) ** 1.5
+
+
 def hall_scene(f, t):
     hh = _herhall()
     a = hh.a
-    # camera: on the door and her, pushing in as she sinks
-    keys = [(T_E, 395.0, 1235.0, 1.20), (T_POLICE, 380.0, 1255.0, 1.24), (T_SLIDE[1], 450.0, 1410.0, 1.52),
-            (T_END, 470.0, 1460.0, 1.86)]
+    # camera: the landing (window edge, door 9, her), pushing in on her as she sinks
+    keys = [(T_E, 430.0, 1215.0, 1.22), (T_CRASH, 468.0, 1240.0, 1.38), (T_POLICE, 472.0, 1258.0, 1.44),
+            (T_SLIDE[1], 515.0, 1435.0, 1.78), (T_END, 528.0, 1458.0, 1.95)]
     x, y, z = _spline(t, keys)
     for tb in BLOWS:
         x += kick(t, tb, 4.0, decay=14.0, freq=37.0)
@@ -942,27 +957,33 @@ def hall_scene(f, t):
         bulb *= 0.75 + 0.25 * (1.0 if noise1(t * 30.0, 8) > -0.2 else 0.0)
     police = L.k_(t, T_POLICE, 0.4, "out")
     shake = hall_blows(t)
-    HALL.draw(f, t, room=room, room_flicker=flick, bulb=bulb, police=police, door_shake=shake, feet=())
+    HALL.draw(f, t, room=room, room_flicker=flick, bulb=bulb, police=police, door_shake=shake, feet=hall_feet(t))
     sh_x = hall_shake(t)
     with f.layer() as Lc:
         tip = hall_lever(Lc, t, lever_hall(t), sh_x)
-    if bulb > 0.05:
-        with f.light(blur=2.0) as A:
-            kx, ky = HALL.knob
-            draw.capsule(A, (kx + sh_x, ky - 5.0), tip, 1.6, 1.4)
-            draw.fill(A, AMBER, 0.35 * bulb)
+    kx, ky = HALL.knob
+    b, r = siren(t, rate=1.6)
+    wb, wr = police_wash(t)
+    pol_b = police * max(b, 0.45 * wb)
+    pol_r = police * max(r, 0.40 * wr)
+    win = ((HALL.window_rect[0] + HALL.window_rect[2]) / 2, (HALL.window_rect[1] + HALL.window_rect[3]) / 2)
+    with f.light(blur=2.0) as A:
+        draw.capsule(A, (kx + sh_x, ky - 6.0), tip, 2.2, 1.8)
+        draw.fill(A, AMBER, 0.45 * bulb)
+        draw.capsule(A, (kx + sh_x, ky + 6.0), tip, 2.0, 1.6)
+        draw.fill(A, mix(BLUE, (1, 1, 1), 0.3), 0.5 * pol_b)
+    if police > 0.0:
+        with f.light(blur=40.0) as A:                 # the beacon sweeping the landing
+            glow(A, (win[0] + 260.0, win[1] + 260.0), 1100.0, BLUE, 0.10 * police * wb)
+            glow(A, (win[0] + 260.0, win[1] + 260.0), 1100.0, RED, 0.08 * police * wr)
     # her
     sk = a.skeleton(t)
     M = hh.matrix(t)
-    b, r = siren(t, rate=1.6)
-    pol_b = police * b
-    pol_r = police * r
-    look = L.her_look(clamp(0.16 + 0.30 * bulb + 0.35 * pol_r, 0.0, 0.6))
+    look = L.her_look(clamp(0.10 + 0.22 * bulb + 0.30 * pol_r, 0.0, 0.5))
     with f.layer() as Lc:
         L.draw_skeleton(Lc, sk, look, M)
     L.occlude_figure(f, 1.0, sk, look, M)
     cen = M.transform_point(*sk.j["chest"])
-    win = ((HALL.window_rect[0] + HALL.window_rect[2]) / 2, (HALL.window_rect[1] + HALL.window_rect[3]) / 2)
     with f.light() as A:
         L.rim(A, sk, look, M, AMBER, 0.30 * bulb, L.rim_offset(cen, HALL.bulb_p, 3.0))
         L.rim(A, sk, look, M, mix(BLUE, (1, 1, 1), 0.2), 0.85 * pol_b, L.rim_offset(cen, win, 3.5))

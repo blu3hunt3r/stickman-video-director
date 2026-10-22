@@ -343,45 +343,60 @@ def layer_x(t, sx, par=PAR):
 # ----------------------------------------------------------------------------- the wolf in the thicket
 BW_OFF = 4.0                            # its clock: tau = t + BW_OFF (its actions start at t = -4)
 BW_SIZE = 360.0                         # (on its plane: about her size on the screen)
-# where its body (root) is on the screen, relative to her: (t, dx)
-BW_KEYS = [(1.0, -700.0), (2.0, -680.0), (2.62, -650.0),            # pacing her, eyes open on [wolf]
-           (4.5, -600.0), (5.5, -520.0), (6.3, -470.0),              # the glimpses
-           (7.3, -600.0), (8.6, -560.0), (9.7, -540.0), (10.45, -520.0),   # the run
-           (11.25, 1100.0)]                                          # it surges past her
-BW_STOP = (2.62, 3.55)                  # it stops when she stops
+# where its body (root) is on the screen, relative to her: (t, dx). Its head is ~340 px ahead
+# of the root, so the eyes are ~dx + 340 from her.
+BW_KEYS = [(-1.0, -710.0), (1.0, -700.0), (2.0, -680.0), (2.80, -650.0),     # pacing her ([wolf])
+           (3.70, -650.0), (4.6, -600.0), (5.5, -540.0), (6.3, -500.0),        # the glimpses
+           (7.2, -590.0), (8.6, -560.0), (9.7, -545.0), (10.25, -540.0),       # the run
+           (11.35, 980.0)]                                                     # it surges past her
+BW_STOP = (2.80, 3.70)                  # it stops (and sinks into the brambles) when she stops
 
 
-def _bw_target(t, dx):
-    return layer_x(t, her_sx(t) + dx)
+@lru_cache(maxsize=None)
+def _bw_dx():
+    return L.CamPath([(t_, dx, 0.0, 1.0) for t_, dx in BW_KEYS])
+
+
+def bw_target(t):
+    """Layer x of the thicket wolf's root at t (its screen offset from her, BW_KEYS)."""
+    return layer_x(t, her_sx(t) + _bw_dx().x(t))
 
 
 @lru_cache(maxsize=None)
 def bw():
-    w = Wolf(x=_bw_target(-1.0, BW_KEYS[0][1]) - 900.0, ground=TH.thicket_ground, facing=1, size=BW_SIZE, seed=3)
+    w = Wolf(x=bw_target(-1.0) - 0.9 * BW_SIZE * 3.0, ground=TH.thicket_ground, facing=1, size=BW_SIZE, seed=3)
     G = {k_: dict(v) for k_, v in w.GAIT.items()}
     # a prowl: the walk on the stalk's low frame (hidden in the brambles, the eyes in them)
-    G["stalk"] = dict(G["walk"], k=1.0, acc=1.4, dec=1.6,
-                      pose=dict(hf=0.72, hh=0.75, neck=2.0, head=-14.0, tail=-30.0, ears=0.8, ruff=0.3, arch=0.03))
-    G["walk"] = dict(G["walk"], acc=1.8, dec=1.8)
-    G["trot"] = dict(G["trot"], acc=3.2, dec=3.0)
-    G["gallop"] = dict(G["gallop"], acc=6.0)
+    G["stalk"] = dict(G["walk"], k=1.0, acc=2.0, dec=2.0,
+                      pose=dict(hf=0.70, hh=0.73, neck=0.0, head=-12.0, tail=-34.0, ears=0.8, ruff=0.3, arch=0.03))
+    # walking in the glimpses: hackles up, tail raised, head down in the brambles
+    G["walk"] = dict(G["walk"], acc=2.4, dec=2.4,
+                     pose=dict(hf=0.86, hh=0.84, neck=2.0, head=-24.0, tail=-14.0, ears=0.6, ruff=0.9))
+    G["trot"] = dict(G["trot"], acc=4.0, dec=3.0,
+                     pose=dict(hf=0.83, hh=0.82, neck=4.0, head=-16.0, tail=-20.0, ears=0.4, ruff=0.6))
+    G["gallop"] = dict(G["gallop"], acc=7.0, v=6.0)
     w.GAIT = G
     o = BW_OFF
-    prev = -4.0
-    for tk, dx in BW_KEYS[:3]:
-        w.stalk(to=_bw_target(tk, dx), dur=tk - prev)
-        prev = tk
-    w.stand(dur=BW_STOP[1] - BW_STOP[0] - 0.05, low=0.9, head=-16.0, ears=0.9)
+
+    def leg(t0, t1, kind=None, dt=0.45):
+        n = max(1, int(round((t1 - t0) / dt)))
+        for j in range(1, n + 1):
+            ta, tb = t0 + (t1 - t0) * (j - 1) / n, t0 + (t1 - t0) * j / n
+            xa, xb = bw_target(ta), bw_target(tb)
+            v = abs(xb - xa) / (tb - ta) / BW_SIZE
+            k_ = kind or ("walk" if v < 1.4 else "trot" if v < 3.2 else "gallop")
+            getattr(w, k_)(to=xb, dur=tb - ta)
+
+    w.stalk(to=bw_target(-1.0), dur=3.0)          # (already pacing her in s03's last seconds)
+    leg(-1.0, BW_STOP[0], "stalk")
+    w.crouch(dur=BW_STOP[1] - BW_STOP[0] - 0.35)
     w.at(BW_STOP[1] + o)
-    prev = BW_STOP[1]
-    kinds = {3: "walk", 4: "walk", 5: "walk", 6: "trot", 7: "trot", 8: "trot", 9: "trot", 10: "gallop"}
-    for i in range(3, len(BW_KEYS)):
-        tk, dx = BW_KEYS[i]
-        getattr(w, kinds[i])(to=_bw_target(tk, dx), dur=tk - prev)
-        prev = tk
-    # its head turned to us (both eyes on her) while it paces her; turned away in the glimpses
-    w.overlay("look", 1.2 + o, dur=1.3, turn=42.0)
-    w.overlay("look", 6.0 + o, dur=4.4, turn=38.0, head=-6.0)
+    leg(BW_STOP[1], 6.3, "walk")
+    leg(6.3, 10.25)
+    leg(10.25, 11.35, "gallop", dt=0.55)
+    # its head turned to us (both eyes on her) while it paces her
+    w.overlay("look", 1.2 + o, dur=1.4, turn=42.0)
+    w.overlay("look", 6.0 + o, dur=4.2, turn=38.0)
     return w
 
 

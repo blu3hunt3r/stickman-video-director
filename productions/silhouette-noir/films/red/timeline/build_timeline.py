@@ -17,7 +17,7 @@ SCENES = [
     ("s02", "the_hood",     15.0, dict(kind="dissolve", dur=1.5)),
     ("s03", "the_path",     14.0, dict(kind="dissolve", dur=1.0)),
     ("s04", "the_wolf",     14.0, dict(kind="whip", dur=0.5, direction="left")),
-    ("s05", "deep_snow",    14.5, None),
+    ("s05", "deep_snow",    14.5, dict(kind="dissolve", dur=0.75)),
     ("s06", "red_hoods",    14.5, dict(kind="flatten", dur=1.0, pal="red")),
     ("s07", "grandmother",  13.0, None),
     ("s08", "fire",         17.0, dict(kind="flash", dur=1.0, color=(1.0, 0.93, 0.85))),
