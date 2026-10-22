@@ -22,12 +22,17 @@ INK = sets.INK
 FAC = sets.Facade()
 WIN = FAC.window_rect(9)
 WC = ((WIN[0] + WIN[2]) / 2.0, (WIN[1] + WIN[3]) / 2.0)
-Z0, Z1, Z2 = 1.8, 3.35, 8.0           # panel, single view, pin close-up
+Z0, Z1, Z2 = 1.8, 3.35, 10.0          # panel, single view, pin close-up
 TOP = (0.0, 0.0, 1080.0, 955.0)
 BOT = (0.0, 965.0, 1080.0, 1920.0)
 U_FREEZE = 1.71                      # the replay freezes here: knife raised, before the strike
-PUSH_ARM = (250.0, 258.0, 112.0)     # the arm the camera pushes into (elbow clear of the muntin)
-TICK = 5.5                           # degrees the pin turns per tick
+PUSH_ARM = (250.0, 296.0, 190.0)     # the arm the camera pushes into: knife up and clear of the muntin
+TICK = 7.0                           # degrees the pin turns per tick (the forearm winds back)
+COCK = (250.0, 340.0, 250.0)         # the arm raised for the last stab
+STRIKE = (250.0, 122.0, 122.0)       # the last stab: forearm and blade on the slash line (-58 deg)
+STAB_T = (13.43, 13.61)              # the last stab (lands as the slash cut starts at 13.625)
+CRANK = (0.95, 0.62)                 # s05 runs the arm wire out to the right: a visible rod line
+PIN = 1.2                            # pin-joint size for the close-up
 LABEL_Y = 880.0                      # caption centre under the window, in panel coords
 LEVEL = 0.85                         # the lamp behind the sheet (keeps the sheet amber)
 
@@ -54,6 +59,13 @@ def _u0(w):
 
 def _state(t, w):
     """Show time u and the (possibly edited) show pose at scene time t."""
+    u, p = _state_raw(t, w)
+    p["crank"] = CRANK
+    p["pin"] = PIN
+    return u, p
+
+
+def _state_raw(t, w):
     U0 = _u0(w)
     rw0 = w["same"]
     if t < rw0:                                        # real time, both nights in sync
@@ -76,24 +88,20 @@ def _state(t, w):
 
 
 def _arm_after(t, w, contact):
-    """The knife arm after the scream: it lifts off her, the pin ticks round on the words,
-    the arm cocks back, and the last stab swings through the slash line."""
-    lift0 = w["people"] - 0.6
-    sh, el, bl = contact
-    k = _k(t, lift0, 0.6, "inout")
-    sh, el, bl = lerp(sh, PUSH_ARM[0], k), lerp(el, PUSH_ARM[1], k), lerp(bl, PUSH_ARM[2], k)
+    """The knife arm after the scream: it lifts off her, the pin ticks round on the words
+    (the forearm winding back), the arm cocks, and the last stab lands on the slash line."""
+    k = _k(t, w["people"] - 0.6, 0.6, "inout")
+    sh, el, bl = (lerp(a, b, k) for a, b in zip(contact, PUSH_ARM))
     for tk in w["ticks"]:
         d = TICK * _k(t, tk - 0.02, 0.13, "outback")
-        el -= d
-        bl -= d
-    cock = _k(t, 12.80, 0.50, "out3")
-    el = lerp(el, 300.0, cock)
-    bl = lerp(bl, 154.0, cock)
-    st = _k(t, 13.45, 0.18, "in3")
-    el = lerp(el, 122.0, st)
-    bl = lerp(bl, 122.0, st)
-    ft = _k(t, 13.63, 0.12, "out3")
-    return (sh, el - 12.0 * ft, bl - 12.0 * ft)
+        el += d
+        bl += d
+    c = _k(t, 12.80, 0.50, "out3")
+    sh, el, bl = lerp(sh, COCK[0], c), lerp(el, COCK[1], c), lerp(bl, COCK[2], c)
+    st = _k(t, STAB_T[0], STAB_T[1] - STAB_T[0], "in3")
+    sh, el, bl = lerp(sh, STRIKE[0], st), lerp(el, STRIKE[1], st), lerp(bl, STRIKE[2], st)
+    ft = 4.0 * _k(t, STAB_T[1], 0.10, "out3")
+    return (sh, el - ft, bl - ft)
 
 
 def _lamp(t, t_on, w):
@@ -127,11 +135,11 @@ def _camera(t, w):
     cx = pin[0] - s0[0] * (1 - k) / z
     cy = pin[1] - s0[1] * (1 - k) / z
     z *= 1.0 + 0.06 * _k(t, 12.8, 0.8, "inout")
-    cam = Camera(cx, cy, z)
-    if t > 13.6:
-        j = math.exp(-(t - 13.63) / 0.12) if t > 13.63 else (t - 13.6) / 0.03
-        cam = Camera(cx + 7.0 / z * j * math.sin(t * 91.0), cy + 5.0 / z * j * math.cos(t * 77.0), z)
-    return cam
+    hit = STAB_T[1]
+    if t > hit:                                        # the impact jolts the frame
+        j = math.exp(-(t - hit) / 0.10)
+        return Camera(cx + 9.0 / z * j * math.sin((t - hit) * 95.0), cy + 6.0 / z * j * math.cos((t - hit) * 81.0), z)
+    return Camera(cx, cy, z)
 
 
 def _viewports(t, w):
@@ -291,7 +299,7 @@ def motion_blur(t, T):
     w = _words(T)
     if w["same"] < t < w["same"] + 0.32:          # the rewind
         return 3
-    if 13.48 < t < 13.72:                          # the last stab
+    if STAB_T[0] + 0.03 < t < STAB_T[1] + 0.06:   # the last stab
         return 4
     U0 = _u0(w)
     for ts in show.STAB_TIMES:                     # the three stabs, both nights
@@ -327,6 +335,6 @@ def cues(T):
         out.append(Cue(tk, "pin-joint creak: the pin turns one tick", -9))
     out += [
         Cue(12.80, "rod creak: the arm cocks back", -10, dur=0.5),
-        Cue(13.60, "shrill string stab into the slash", -2),
+        Cue(STAB_T[1], "shrill string stab into the slash", -2),
     ]
     return out

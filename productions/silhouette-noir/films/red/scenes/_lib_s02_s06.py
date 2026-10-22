@@ -18,7 +18,6 @@ from engine import figure as F
 from engine.core import clamp, ease, lerp, smoothstep
 from engine.frame import Camera
 from engine.motion import Actor, GAITS
-from engine.physics import Pendulum
 from films.red import cast
 from films.red import sets as S
 
@@ -248,15 +247,49 @@ def walk_x(t):
     return c + v * t
 
 
+class HandSwing:
+    """A pendulum hanging from pivot(t) (a hand): the pivot is sampled at `rate` Hz (one
+    skeleton solve per sample), splined for its acceleration and integrated at 240 Hz. Much
+    cheaper than physics.Pendulum on a skeleton (which solves 3x per 1/240 s step).
+    angle(t): radians from straight down, + swings toward +x (draw a basket at
+    -degrees(angle)). Holds 0 before t0 and the last value after t1."""
+
+    def __init__(self, pivot, length, t0, t1, damping=2.2, gravity=900.0, rate=60.0):
+        from scipy.interpolate import CubicSpline
+        n = int(math.ceil((t1 - t0) * rate)) + 1
+        ts = t0 + np.arange(n) / rate
+        P = np.array([pivot(float(t)) for t in ts], float)
+        sx, sy = CubicSpline(ts, P[:, 0]), CubicSpline(ts, P[:, 1])
+        self.dt = 1.0 / 240.0
+        m = int(math.ceil((t1 - t0) / self.dt)) + 2
+        tt = t0 + np.arange(m) * self.dt
+        ax, ay = sx(np.minimum(tt, ts[-1]), 2), sy(np.minimum(tt, ts[-1]), 2)
+        th, om = 0.0, 0.0
+        out = np.empty(m)
+        for i in range(m):
+            al = -(gravity * math.sin(th) + ax[i] * math.cos(th) - ay[i] * math.sin(th)) / length - damping * om
+            om += al * self.dt
+            th += om * self.dt
+            out[i] = th
+        self.t0, self.t1, self._th = t0, t1, out
+
+    def angle(self, t):
+        f = (min(max(t, self.t0), self.t1) - self.t0) / self.dt
+        i = min(max(int(f), 0), len(self._th) - 2)
+        u = f - i
+        return float(self._th[i] * (1 - u) + self._th[i + 1] * u)
+
+
 @lru_cache(maxsize=None)
 def basket_pendulum(dt=0.0, dx=0.0):
-    """Basket swing for the s02/s03 walk (pivot: the carrying hand)."""
+    """Basket swing for the s02/s03 walk (pivot: the carrying hand), from the turn to the
+    street (s02 9.42) for 26 s. angle(t) in radians (+ toward +x)."""
     a = girl_base(dt, dx)
     carry(a, S02_TAKE - dt, 60.0 - dt, fade=0.0)
 
     def pivot(t):
         return basket_hand(a.skeleton(t), BASKET_SIDE)
-    return Pendulum(pivot, length=60.0, t0=S02_GO - dt - 0.5, t1=S02_GO - dt + 26.0, damping=2.2, gravity=900.0)
+    return HandSwing(pivot, length=60.0, t0=S02_GO - dt - 0.5, t1=S02_GO - dt + 26.0, damping=2.2, gravity=900.0)
 
 
 # ----------------------------------------------------------------------------- weather

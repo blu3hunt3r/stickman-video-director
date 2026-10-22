@@ -270,7 +270,6 @@ def _draw_book(ctx, t, power=1.0):
         _ink_lines(ctx, _script("L", "log"), 0.75, 0.58)
         _ink_lines(ctx, _script("R", "log"), 0.75, 0.62)
     else:
-        _ink_lines(ctx, _script("L", "log"), 0.75, 0.50)
         _ink_lines(ctx, _script("R", "orders"), 1.35, 0.90)
         ctx.new_path()
         draw.smooth(ctx, _signature(), close=False, tension=0.5)
@@ -294,8 +293,8 @@ def _draw_book(ctx, t, power=1.0):
             ctx.save()
             ctx.translate(0.0, -lift * 0.6)
             ctx.scale(c, 1.0)
-            polys = _script("R", "log") if p < 0.5 else [[(-x, y) for x, y in P] for P in _script("L", "log")]
-            _ink_lines(ctx, polys, 0.75 / max(abs(c), 0.3), 0.55 * abs(c))
+            if p < 0.5:
+                _ink_lines(ctx, _script("R", "log"), 0.75 / max(abs(c), 0.3), 0.55 * abs(c))
             ctx.restore()
     ctx.restore()
 
@@ -584,11 +583,17 @@ def render(f, t, T):
     # --- the diver, the photo, the book, his gloves
     wR = sk.j["wrist_R"]
     ph = _photo_state(t, wR)
-    arm_R_front = LIB.bump(t, T_FATHER + 0.25, T_FATHER + 0.4, T_TUCK1 + 0.3, T_TUCK1 + 0.5) > 0.0 or t > 8.9
     with f.layer() as L:
         F.draw_figure(f, sk, LOOK, L, eyes=False)
-        if ph is not None and t < T_FATHER + 0.3:          # still sliding out from the pages
-            draw_photo(L, ph[0], ph[1], ph[2], 0.62)
+        # the photo is held between his chest and the book (his forearm is behind the book)
+        if ph is not None:
+            hide = (lambda c, sk=sk: _corselet_path(sk)(c)) if ph[3] else None
+            draw_photo(L, ph[0], ph[1], ph[2], 0.62 if t < T_FATHER + 0.3 else 0.84, hide=hide)
+            if t > T_CATCH:                                  # his thumb over the photo's edge
+                a = (wR[0] + 6.0, wR[1] - 26.0)
+                draw.capsule(L, a, (a[0] + 12.0, a[1] - 13.0), 6.0, 5.0)
+                L.set_source_rgb(*INK)
+                L.fill()
         if t < 9.75:
             _draw_book(L, t, 1.0)
             gR = 1.0 - LIB.bump(t, T_FATHER + 0.3, T_FATHER + 0.45, T_TUCK1 + 0.3, T_TUCK1 + 0.5)
@@ -596,21 +601,13 @@ def render(f, t, T):
             gL = 1.0 - LIB.bump(t, T_TURN0 - 0.3, T_TURN0 - 0.15, T_TURN1 + 0.2, T_TURN1 + 0.4)
             gL *= 1.0 - LIB.bump(t, SIG0, SIG0 + 0.05, SIG1 - 0.05, SIG1)
             _thumbs(L, t, (("R", gR), ("L", gL)))
-        if arm_R_front:                                      # the busy arm comes in front of the book
+        if t > 8.9:                                          # the arm goes up for the hook
             F._arm_path(L, sk, "R", LOOK)
             F._hand(L, sk, "R", LOOK, p.arms["R"]["grip"])
             L.set_source_rgb(*INK)
             L.fill()
         if SIG0 < t < SIG1:                                  # his left thumb runs down to the name
             _sig_thumb(L, t)
-        if ph is not None and t >= T_FATHER + 0.3:
-            hide = (lambda c, sk=sk: _corselet_path(sk)(c)) if ph[3] else None
-            draw_photo(L, ph[0], ph[1], ph[2], 0.84, hide=hide)
-            if t > T_CATCH:                                  # his thumb over the photo's edge
-                a = (wR[0] + 6.0, wR[1] - 26.0)
-                draw.capsule(L, a, (a[0] + 12.0, a[1] - 13.0), 6.0, 5.0)
-                L.set_source_rgb(*INK)
-                L.fill()
     # --- his eyes in the port
     look_x = LIB.track([(-1, -0.05), (1.2, -0.05), (1.8, -0.55, "inout"), (2.4, -0.30, "inout"), (3.8, -0.30),
                         (4.4, 0.10, "inout"), (5.1, 0.35, "inout"), (6.0, 0.30), (6.8, 0.22, "inout"),
