@@ -166,7 +166,7 @@ def fedora_pts(c, size, yaw=0.0, tilt=0.0):
     ca, sa = math.cos(tilt * D2R), math.sin(tilt * D2R)
     out = []
     for (px, py), (qx, qy) in zip(_FED_PROF, _FED_FRONT):
-        x = lerp(px * fac, qx, w) - _FED_PIVOT[0]
+        x = lerp(px * fac, qx * fac, w) - _FED_PIVOT[0]       # mirror both, or the blend collapses
         y = -(lerp(py, qy, w) - _FED_PIVOT[1])          # head units, y down
         out.append((c[0] + (x * ca - y * sa) * size, c[1] + (x * sa + y * ca) * size))
     return out

@@ -64,11 +64,11 @@ def silt(x):
 
 
 # ============================================================================= the fedora
-HAT_SIZE = 86.0                 # the client's head height (px at zoom 1)
+HAT_SIZE = 100.0                # head-height units (the client's is ~86 at zoom 1: a touch larger reads better)
 X_LAND = -170.0                 # lands in the silt under the empty bell bracket (0, 7925)
 T_HAT = 10.98                   # ... on 'revenge'
 V_HAT = 300.0                   # sink speed (px/s)
-Y_LAND = silt(X_LAND) - 3.0
+Y_LAND = silt(X_LAND) - 0.06 * HAT_SIZE      # the brim's underside on the silt
 
 
 def hat(t):
@@ -87,7 +87,7 @@ def hat(t):
     tilt0 = 4.0 * noise1(T_HAT * 0.5, 3)
     tilt = tilt_end + (tilt0 - tilt_end) * math.exp(-5.0 * tau) * math.cos(9.0 * tau)
     yaw = 25.0 + 23.0 * T_HAT + 23.0 * (1.0 - math.exp(-3.0 * tau)) / 3.0
-    sink = 9.0 * (1.0 - math.exp(-4.0 * tau))           # it beds into the silt
+    sink = 2.5 * (1.0 - math.exp(-4.0 * tau))           # it beds into the silt
     return (X_LAND, Y_LAND + sink - 12.0 * math.exp(-6.0 * tau) * math.sin(8.0 * tau)), yaw, tilt
 
 
@@ -100,7 +100,7 @@ def _hat_src(te):
 # ============================================================================= the hose
 HOSE_L = 1500.0
 T_TD = 10.25                    # its heavy cut end touches down
-X_TD = -1080.0
+X_TD = -900.0
 
 
 def _hose_a(t):
@@ -149,7 +149,7 @@ HOSE = LIB.hose_rope(_hose_a, None, HOSE_L, n=44, t0=-4.0, t1=16.0, current=_hos
 
 # ============================================================================= camera
 Z_TRACK = (1.0, 0.84)           # close on the hat while they sink (0 .. 5.5)
-Z_BOT = (0.5, 0.58)             # the bottom framing: eye level with the silt (T_BOT .. T_TILT0)
+Z_BOT = (0.55, 0.85)            # the bottom framing: eye level with the silt, a slow push (T_BOT .. T_TILT0)
 Z_END = 1.4                     # on the hose at the end: 14 px thick
 T_BOT = 8.4
 T_TILT0, T_TILT1 = 12.6, 13.84
@@ -231,18 +231,29 @@ def _view(f, t):
 
 
 def _backdrop(f, t, b):
-    rays = 1.0 - 0.72 * smoothstep(b["every"], b["every"] + 1.7, t)        # thinned, never quite gone
+    rays = _rays(t, b)
+    S.deep_backdrop(f, t, glow=[(560.0, 160.0, 1250.0, 0.55 + 0.45 * rays), (520.0, 900.0, 700.0, 0.25)],
+                    murk=0.42 + 0.2 * smoothstep(4.0, 9.0, t))
+
+
+def _rays(t, b):
+    return 1.0 - 0.72 * smoothstep(b["every"], b["every"] + 1.7, t)        # thinned, never quite gone
+
+
+def _moonlight(f, t, b):
+    """The moonlit rays reaching down (over the wreck: light in the water in front of it), and
+    a pale pool of it behind the hat's landing spot, so the black hat reads on the seabed."""
     cam = f.cam
-    bot = smoothstep(6.4, T_BOT, t) * (1.0 - _tilt_k(t))
-    land = ((X_LAND - cam.x) * cam.zoom + W / 2, (Y_LAND - cam.y) * cam.zoom + H / 2)
-    glows = [(560.0, 160.0, 1250.0, 0.55 + 0.45 * rays), (520.0, 900.0, 700.0, 0.25 * (1.0 - bot))]
-    if bot > 0.0:       # moonlight reaching down: the haze behind the landing spot (backlight)
-        glows.append((land[0] - 30.0, land[1] - 240.0, 820.0, 0.8 * bot))
-    S.deep_backdrop(f, t, glow=glows, murk=0.42 + 0.2 * smoothstep(4.0, 9.0, t))
     top = cam.y - H / 2 / cam.zoom
     atmos.underwater_rays(f, surface_y=top - 400.0, t=t, spacing=210.0, angle=94.0, fan=9.0,
-                          length=3600.0, intensity=0.5 * rays, color=S.mix(PAL.moon, PAL.surface, 0.4),
+                          length=3600.0, intensity=0.5 * _rays(t, b), color=S.mix(PAL.moon, PAL.surface, 0.4),
                           density=0.6, seed=12, blur=18)
+    a = smoothstep(7.0, 9.5, t) * (1.0 - _tilt_k(t))
+    if a > 0.0:
+        col = S.mix(PAL.moon, PAL.surface, 0.55)
+        with f.light(blur=40) as A:
+            draw.glow_disc(A, (X_LAND + 10.0, Y_LAND - 230.0), 520.0, col, 0.16 * a)
+            draw.glow_disc(A, (X_LAND + 10.0, Y_LAND - 120.0), 260.0, col, 0.12 * a)
 
 
 def _world(f, t, b):
@@ -355,9 +366,14 @@ def render(f, t, T):
     if t < 13.7:
         _backdrop(f, t, b)
         view = _world(f, t, b)
+        _moonlight(f, t, b)
         # the hat and its first bubbles, the snow, the hose
         (hx, hy), yaw, tilt = hat(t)
         with f.layer() as L:
+            rim = (0.3 + 0.4 * smoothstep(7.0, 9.5, t)) * (1.0 - _tilt_k(t))
+            if rim > 0.0:       # moonlight catching the crown and the brim from above
+                LIB.draw_fedora(L, (hx, hy - 2.6 / cam.zoom), HAT_SIZE, yaw, tilt,
+                                color=S.mix(PAL.moon, PAL.surface, 0.5), alpha=rim)
             LIB.draw_fedora(L, (hx, hy), HAT_SIZE, yaw, tilt, color=INK)
         atmos.bubbles(f, _hat_src, rate=2.2, t=t, seed=21, rise=(160.0, 260.0), size=(1.4, 5.0), spread=10.0,
                       current=20.0, height=2200.0, alpha=0.8, t_end=3.4)

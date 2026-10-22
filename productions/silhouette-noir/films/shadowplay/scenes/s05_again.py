@@ -135,18 +135,28 @@ def _camera(t, w):
 
 
 def _viewports(t, w):
-    """[(rect, sub-frame centre offset y, alpha, which)] in draw order, plus the bar rect."""
+    """[(panel rect, clip rect, alpha, which)] in draw order, plus the ink bar rect (or None).
+    While the Wednesday panel slides up over Tuesday it is translucent only where it lies
+    over the Tuesday panel (the double exposure); the rest of it stays solid."""
     a = w["arm"]
     if t < a:
-        return [(TOP, 0.0, 1.0, "top"), (BOT, 0.0, 1.0, "bot")], (0.0, 955.0, 1080.0, 965.0)
+        return [(TOP, TOP, 1.0, "top"), (BOT, BOT, 1.0, "bot")], (0.0, 955.0, 1080.0, 965.0)
     if t < a + 0.45:
         k = _k(t, a, 0.45, "inout3")
         dy = -965.0 * k
         bot = (BOT[0], BOT[1] + dy, BOT[2], BOT[3] + dy)
-        alpha = 0.58 if k < 0.999 else 1.0
-        return [(TOP, 0.0, 1.0, "top"), (bot, 0.0, alpha, "bot")], (0.0, 955.0 + dy, 1080.0, 965.0 + dy)
+        alpha = 0.55 if k < 0.999 else 1.0
+        over = (bot[0], bot[1], bot[2], min(bot[3], TOP[3]))
+        rest = (bot[0], max(bot[1], TOP[3]), bot[2], bot[3])
+        out = [(TOP, TOP, 1.0, "top")]
+        if over[3] > over[1]:
+            out.append((bot, over, alpha, "bot"))
+        if rest[3] > rest[1]:
+            out.append((bot, rest, 1.0, "bot"))
+        return out, (0.0, 955.0 + dy, 1080.0, 965.0 + dy)
     k = _k(t, a + 0.45, 0.75, "inout3")
-    return [((0.0, 0.0, 1080.0, lerp(955.0, 1920.0, k)), 0.0, 1.0, "bot")], None
+    full = (0.0, 0.0, 1080.0, lerp(955.0, 1920.0, k))
+    return [(full, full, 1.0, "bot")], None
 
 
 # ----------------------------------------------------------------------------- drawing
@@ -168,12 +178,14 @@ def _render_panel(f, t, lv, u, p, cam):
     return sub.surf
 
 
-def _blit(f, surf, rect, alpha=1.0):
+def _blit(f, surf, rect, clip, alpha=1.0):
+    """Paint a panel's offscreen frame so its centre lands on the middle of `rect`, clipped
+    to `clip` (screen px)."""
     c = f.ctx
     s = f.scale
     c.save()
     c.identity_matrix()
-    c.rectangle(rect[0] * s, rect[1] * s, (rect[2] - rect[0]) * s, (rect[3] - rect[1]) * s)
+    c.rectangle(clip[0] * s, clip[1] * s, (clip[2] - clip[0]) * s, (clip[3] - clip[1]) * s)
     c.clip()
     vc = (rect[1] + rect[3]) / 2.0
     c.set_source_surface(surf, 0.0, (vc - 960.0) * s)
@@ -193,8 +205,12 @@ def _labels(f, t, w, vps):
     out = _k(t, a - 0.34, 0.30, "linear")
     if out >= 1.0:
         return
+    seen = set()
     with f.screen() as c:
         for rect, _, alpha, which in vps:
+            if which in seen:
+                continue
+            seen.add(which)
             text = "TUESDAY" if which == "top" else "WEDNESDAY"
             Tt = _label(text)
             cy = rect[1] + LABEL_Y
@@ -226,8 +242,11 @@ def _tie(f, t, w, vps, u, p):
     cam = Camera(WC[0], WC[1], Z0)
     tip = show.anchors(u, WIN, pose=p)["knife_tip"]
     sx, sy = cam.to_screen(tip)
-    pts = []
+    pts, seen = [], set()
     for rect, _, _, which in vps:
+        if which in seen:
+            continue
+        seen.add(which)
         vc = (rect[1] + rect[3]) / 2.0
         pts.append((sx, sy + vc - 960.0))
     if len(pts) == 1:
@@ -259,8 +278,8 @@ def render(f, t, T):
     same = abs(lv_top - lv_bot) < 1e-4
     surf_bot = _render_panel(f, t, lv_bot, u, p, cam)
     surf_top = surf_bot if same else _render_panel(f, t, lv_top, u, p, cam)
-    for rect, _, alpha, which in vps:
-        _blit(f, surf_top if which == "top" else surf_bot, rect, alpha)
+    for rect, clip, alpha, which in vps:
+        _blit(f, surf_top if which == "top" else surf_bot, rect, clip, alpha)
     if bar is not None:
         with f.screen() as c:
             c.rectangle(bar[0], bar[1], bar[2] - bar[0], bar[3] - bar[1])
