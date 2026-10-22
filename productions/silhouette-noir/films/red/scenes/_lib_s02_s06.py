@@ -276,9 +276,13 @@ class HandSwing:
     skeleton solve per sample), splined for its acceleration and integrated at 240 Hz. Much
     cheaper than physics.Pendulum on a skeleton (which solves 3x per 1/240 s step).
     angle(t): radians from straight down, + swings toward +x (draw a basket at
-    -degrees(angle)). Holds 0 before t0 and the last value after t1."""
+    -degrees(angle)). Holds 0 before t0 and the last value after t1.
+    clip: soft limit (px/s^2, tanh) on the pivot's acceleration; gain(t): a factor on it (e.g.
+    0 while the figure turns, when the hand's sweep across the screen is depth, not swing);
+    limit: soft limit (radians) on the angle: the basket meets the arm and the body."""
 
-    def __init__(self, pivot, length, t0, t1, damping=2.2, gravity=900.0, rate=60.0):
+    def __init__(self, pivot, length, t0, t1, damping=2.2, gravity=900.0, rate=60.0, clip=None, gain=None,
+                 limit=None):
         from scipy.interpolate import CubicSpline
         n = int(math.ceil((t1 - t0) * rate)) + 1
         ts = t0 + np.arange(n) / rate
@@ -288,6 +292,11 @@ class HandSwing:
         m = int(math.ceil((t1 - t0) / self.dt)) + 2
         tt = t0 + np.arange(m) * self.dt
         ax, ay = sx(np.minimum(tt, ts[-1]), 2), sy(np.minimum(tt, ts[-1]), 2)
+        if clip:
+            ax, ay = clip * np.tanh(ax / clip), clip * np.tanh(ay / clip)
+        if gain is not None:
+            gv = np.array([gain(float(t)) for t in tt])
+            ax, ay = ax * gv, ay * gv
         th, om = 0.0, 0.0
         out = np.empty(m)
         for i in range(m):
@@ -295,6 +304,8 @@ class HandSwing:
             om += al * self.dt
             th += om * self.dt
             out[i] = th
+        if limit:
+            out = limit * np.tanh(out / limit)
         self.t0, self.t1, self._th = t0, t1, out
 
     def angle(self, t):
@@ -307,73 +318,19 @@ class HandSwing:
 @lru_cache(maxsize=None)
 def basket_pendulum(dt=0.0, dx=0.0):
     """Basket swing for the s02/s03 walk (pivot: the carrying hand), from the turn to the
-    street (s02 9.42) for 26 s. angle(t) in radians (+ toward +x)."""
+    street (s02 9.42) for 26 s. angle(t) in radians (+ toward +x). Real gravity for her
+    scale (380 px ~ 1.2 m: 3100 px/s^2), damped (zeta ~0.3), the hand's sweep during the turn
+    ignored, the swing soft-limited to ~30 degrees."""
     a = girl_base(dt, dx)
     carry(a, S02_TAKE - dt, 60.0 - dt, fade=0.0)
 
     def pivot(t):
         return basket_hand(a.skeleton(t), BASKET_SIDE)
-    return HandSwing(pivot, length=60.0, t0=S02_GO - dt - 0.5, t1=S02_GO - dt + 26.0, damping=2.2, gravity=900.0)
 
-
-def walk_prints(a, t0=-1e9, t1=1e9, size=40.0, lead=0.05):
-    """sets.Footprints from an Actor's planned footfalls (each _Walk's plants) that land in
-    [t0, t1]: one print per planted foot, a little ahead of the ankle (lead x height)."""
-    fp = S.Footprints(fill_time=40.0)
-    for seg in a.segs:
-        if type(seg).__name__ != "_Walk":
-            continue
-        for side, plants in seg.plants.items():
-            for (x, tl, _lift, _g) in plants[1:]:
-                if t0 <= tl <= t1:
-                    fp.add(x + seg.d * lead * a.H, tl, side=1 if side == BASKET_SIDE else -1, size=size)
-    return fp
-
-
-# ----------------------------------------------------------------------------- s03 THE PATH (and s04's IN)
-# s03 shares s02's walk (girl_base(S03_DT, S03_DX)). These are the s03 -> s04 dissolve exports:
-# s04 reads them for its IN (valid for s03 t in [12, 14.5]; defined for any t).
-S03_Z0 = 0.42                           # s02's tracking zoom (the s02 -> s03 dissolve matches it)
-S03_FEET = (540.0, 1350.0)              # her feet on screen, the whole scene
-S03_PUSH = (8.30, 3.70)                 # push-in 0.42 -> 1.0 ([deeper] 8.78), done by 12.0
-S03_DARK = (8.55, 3.15)                 # DAY -> mix(DAY, DEEP, 0.6), done by 11.7
-S03_HUSH = (10.25, 1.35)                # [quieter] 10.39: snow and light shafts fade out by 11.6
-S03_SNOW = 0.8                          # snowfall density before the hush
-
-
-def s03_girl_x(t):
-    """The girl's mean walking x (trail coords) at s03 time t (s04: t + 14)."""
-    return walk_x(t + S03_DT) + S03_DX
-
-
-def s03_zoom(t):
-    return S03_Z0 * (1.0 / S03_Z0) ** k(t, *S03_PUSH)
-
-
-def s03_cam(t):
-    """s03's camera: tracks her mean x with her feet at screen (540, 1350); zoom 0.42 until
-    8.3, then pushes in to 1.0 (12.0). From 12.0 on it is exactly
-    Camera(x, PATH.ground_y(x) - 390, 1.0) with x = s03_girl_x(t)."""
-    x = s03_girl_x(t)
-    z = s03_zoom(t)
-    return Camera(x, float(S.PATH.ground_y(x)) - (S03_FEET[1] - 960.0) / z, z)
-
-
-def s03_mood(t):
-    """DAY until 8.55, darkening to mood_mix(DAY, DEEP, 0.6) by 11.7; the light shafts
-    (shaft_a) fade to 0 over 10.25-11.6 (the hush). From 11.6 on: mix 0.6, shaft_a 0."""
-    import copy
-    m = S.mood_mix(S.DAY, S.DEEP, 0.6 * k(t, *S03_DARK))
-    s = 1.0 - k(t, *S03_HUSH)
-    if s < 1.0:
-        m = copy.copy(m)
-        m.shaft_a = m.shaft_a * s
-    return m
-
-
-def s03_snow(t):
-    """Snowfall density 0..1 (0.8 until 10.25, none from 11.6 on)."""
-    return S03_SNOW * (1.0 - k(t, *S03_HUSH))
+    def gain(t):
+        return 1.0 - bump(t, S02_TURN - dt, S02_GO - dt, fin=0.1, fout=0.25)
+    return HandSwing(pivot, length=60.0, t0=S02_GO - dt - 0.5, t1=S02_GO - dt + 26.0, damping=4.2,
+                     gravity=3100.0, clip=2600.0, gain=gain, limit=0.52)
 
 
 # ----------------------------------------------------------------------------- weather

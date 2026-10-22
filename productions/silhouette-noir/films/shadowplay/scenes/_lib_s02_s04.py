@@ -865,11 +865,25 @@ def facade_lit(t, extra=None):
 LIFE_CURTAINS = {12: "sheers_open", 9: dict(kind="sheet", soft=2.0, density=0.92)}
 
 
+def nine_curtain(tw):
+    """Window 9's sheet at s02 time tw: as we push in on it (s02 end, s03) its pale ghost
+    shows in the dark window."""
+    return dict(LIFE_CURTAINS[9], ghost=0.75 * smoothstep(12.0, 15.0, tw))
+
+
 def halo_for(zf):
     """Facade halo / emit strength: full at the lock, lower when the windows are big (the
     bloom would wash the silhouettes out)."""
     k = smoothstep(0.42, 0.85, zf)
     return lerp(1.0, 0.45, k), lerp(1.0, 0.40, k)
+
+
+def bino_halo_emit(tw, rig):
+    """Facade (halo, emit) in her binocular view (s02 end, s03 start): the bloom is eased
+    down as the binoculars push in on window 9 (s03 clears it outside the lenses, so less
+    of it means an invisible seam)."""
+    hk, ek = halo_for(rig.zf)
+    return hk, ek * (1.0 - 0.8 * smoothstep(14.4, 15.15, tw))
 
 
 def draw_world(f, t, rig, lit=None, interiors=None, curtains=None, street_depth=560.0, rain_k=1.0,
@@ -887,6 +901,7 @@ def draw_world(f, t, rig, lit=None, interiors=None, curtains=None, street_depth=
     f.set_camera(cam)
     sets.draw_blocks(f, t, BLOCKS, layer=dict(par=1.0, fog=0.28))
     cur = dict(LIFE_CURTAINS)
+    cur[9] = nine_curtain(t)
     cur.update(curtains or {})
     FAC.draw(f, t, lit=lit, interiors=interiors or {}, curtains=cur, shops=SHOPS, halo=halo, emit=emit)
     if flare4 is not None:
@@ -1210,12 +1225,13 @@ def draw_her_closeup(f, t, rig, lower_t=14.75, frozen=15.15, room=1.0, wall=1.0,
     cam_w = rig.plane(WALL_DZ)
     if cam_w is not None and wall > 0.01:
         f.set_camera(cam_w)
-        with f.light(blur=26.0) as A:
-            wx, wy = C_WIN[0] * 1.9 - 40.0, -150.0
-            pw, ph = 514.0 * 2.3, 652.0 * 2.3
-            col = sets.mix(COOL, AMBER, 0.45)
+        with f.light(blur=22.0) as A:
+            wx, wy = 70.0, -70.0
+            pw, ph = 514.0 * 2.2, 652.0 * 2.2
+            col = sets.mix(PAL.rain, AMBER, 0.45)
             A.rectangle(wx - pw / 2, wy - ph / 2, pw, ph)
-            draw.radial(A, (wx - 0.1 * pw, wy + 0.1 * ph), 0, 0.75 * pw, [(0, col, 0.20 * wall), (1, col, 0.06 * wall)])
+            draw.radial(A, (wx - 0.05 * pw, wy + 0.05 * ph), 0, 0.7 * pw,
+                        [(0, col, 0.36 * wall), (0.6, col, 0.22 * wall), (1, col, 0.08 * wall)])
             A.fill()
             # her window's mullion and meeting rail, as shadows in the patch
             A.save()
@@ -1246,15 +1262,16 @@ def draw_her_closeup(f, t, rig, lower_t=14.75, frozen=15.15, room=1.0, wall=1.0,
         for side, sgn in (("R", -1.0), ("L", 1.0)):
             S = sk.j["shoulder_" + side]
             W_ = hands[side]
-            E_ = _ik2(S, W_, L1, L2, (sgn * 0.8, 0.6))
-            draw.capsule(L, S, E_, 0.045 * Hh, 0.036 * Hh)
-            draw.capsule(L, E_, W_, 0.036 * Hh, 0.027 * Hh)
+            # elbows hang below the shoulders, a little out (the upper arms come toward us)
+            E_ = (S[0] + sgn * lerp(15.0, 26.0, k_low), S[1] + lerp(84.0, 76.0, k_low))
+            draw.capsule(L, S, E_, 0.045 * Hh, 0.037 * Hh)
+            draw.capsule(L, E_, W_, 0.037 * Hh, 0.028 * Hh)
             draw.ellipse(L, (W_[0] + sgn * 2.0, W_[1] - 3.0), 0.03 * Hh, 0.036 * Hh, angle=sgn * 20.0)
         sets.binoculars(L, hinge, ang, BINO_SCALE, view="front")
         draw.fill(L, INK)
     with f.layer() as L:
-        rimlit(f, L, shapes, rim=(sets.mix(COOL, AMBER, 0.35), 0.6 * wall), d=2.0)
-        FIG.draw_eyes(f, sk, look, L)
+        rimlit(f, L, shapes, rim=(sets.mix(PAL.rain, AMBER, 0.35), 0.95 * wall), d=2.6)
+        FIG.draw_eyes(f, sk, look, L, alpha=smoothstep(0.35, 0.75, k_low))     # hidden behind the glasses
     # the objective lenses (they look at us; the binoculars are a few cm in front of her)
     lenses = [rot(-21.0 * BINO_SCALE, 0.0), rot(21.0 * BINO_SCALE, 0.0)]
     refl = lens_reflection()
@@ -1282,8 +1299,9 @@ def draw_her_closeup(f, t, rig, lower_t=14.75, frozen=15.15, room=1.0, wall=1.0,
             pts.append((lerp(gx0, gx1, u), C_FROST - 70.0 * corner + 26.0 * (fbm1(u * 7.0, 63) - 0.5)))
         pts += [(gx1, gy1 + 10), (gx0, gy1 + 10)]
         draw.poly(V, pts)
-        draw.linear(V, (0, C_FROST - 40.0), (0, gy1), [(0, COOL, 0.0), (0.2, COOL, 0.30 * glass),
-                                                        (1, COOL, 0.52 * glass)])
+        steam = sets.mix(COOL, (0.62, 0.64, 0.70), 0.45)
+        draw.linear(V, (0, C_FROST - 40.0), (0, gy1), [(0, steam, 0.0), (0.2, steam, 0.30 * glass),
+                                                        (1, steam, 0.55 * glass)])
         V.fill()
         wx, wy, wr = C_WIPE
         V.set_operator(cairo.OPERATOR_DEST_OUT)
@@ -1313,7 +1331,7 @@ def draw_her_closeup(f, t, rig, lower_t=14.75, frozen=15.15, room=1.0, wall=1.0,
                     continue
                 x, y = -60.0 + 900.0 * u, -500.0 + 1100.0 * v
                 A.rectangle(x - 70.0, y - 90.0, 140.0, 180.0)
-                draw.fill(A, AMBER, 0.06 * lvw * glass)
+                draw.fill(A, AMBER, 0.12 * lvw * glass)
             A.restore()
     # rain on the glass: beads catching the facade's light, a few runners
     f.set_camera(camg)

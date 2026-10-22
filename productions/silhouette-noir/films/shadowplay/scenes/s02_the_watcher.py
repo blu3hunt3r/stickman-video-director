@@ -90,8 +90,9 @@ def render(f, t, T):
     title = None
     if TITLE_IN - 0.1 < t < TITLE_OUT + 1.0:
         title = lambda f_, t_: L.draw_title(f_, t_, TITLE_IN, TITLE_OUT, cx=L.TITLE_AIM[0])
+    halo, emit = L.bino_halo_emit(t, rig) if t >= L.BINO_T0 else (None, None)
     L.draw_world(f, t, rig, interiors=inter, flare4=w["four"], street_depth=street_depth(t), people=people,
-                 title=title)
+                 title=title, halo=halo, emit=emit)
     L.draw_room(f, t, rig, watch=w["watch"])
 
 

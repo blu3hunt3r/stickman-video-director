@@ -138,19 +138,31 @@ def occlude(f, par, sk, look, M=None):
         G.restore()
 
 
-def eye_glints(f, sk, look, M, par=1.0, level=1.0, color=(1.0, 0.96, 0.88)):
-    """Her eyes catching the light, drawn where the mapped figure really is (emissive)."""
+def eye_glints(f, sk, look, M, par=1.0, level=1.0, color=None):
+    """Her eyes (the engine's Limbo eyes: two bright dots and a soft halo) drawn where the
+    mapped figure really is: draw_figure's own eyes would land unmapped. Hidden when her
+    back is turned, like figure.draw_eyes."""
     if level <= 0.01:
         return
-    pts = FG.eye_points(sk, look)
-    if not pts:
+    e1, e2, r, w, front = FG.eye_points(sk, look)
+    if front < -0.35:
         return
+    vis = clamp((front + 0.35) / 0.35) if front < 0 else 1.0
+    op = clamp(sk.pose.eyes.get("open", 1.0))
+    g = clamp(level) * vis * sk.pose.eyes.get("glow", 1.0)
+    if op <= 0.02 or g <= 0.01:
+        return
+    col = color or look.eye_color
     k = math.sqrt(abs(M.xx * M.yy)) if M is not None else 1.0
+    pts = [M.transform_point(*e) if M is not None else e for e in (e1, e2)]
+    with f.layer(par=par) as c:
+        for i, q in enumerate(pts):
+            rr = r * k * (1.0 if i == 0 else lerp(0.82, 1.0, w))
+            draw.ellipse(c, q, rr * 0.9, rr * op)
+            draw.fill(c, col, g)
     with f.emit(par=par) as G:
-        for p in pts:
-            q = M.transform_point(*p) if M is not None else p
-            draw.circle(G, q, max(1.2, 2.6 * k))
-            draw.fill(G, color, 0.9 * clamp(level))
+        for q in pts:
+            draw.glow_disc(G, q, r * k * 5.5, col, 0.5 * g * op)
 
 
 # ----------------------------------------------------------------------------- s06: the flying coat

@@ -75,6 +75,12 @@ def kneel(actor, t0, dur, x=None, t_in=1.0, lean=14.0, head=8.0, delay=(0.0, 0.2
     xk = x0 if x is None else float(x)
     feet = dict(st["feet"])
     y_st = g(x0) - (b.hip - 0.006) * Hh
+    if t0 < A.cursor - 1e-6:
+        # cutting into the previous segment (e.g. dropping to the knees out of a run's last
+        # steps): start from the live pelvis and the ankles where they are at t0
+        x0, y_st = A.root(t0)
+        sk = A.skeleton(t0)
+        feet = {s: sk.j["ankle_" + s][0] for s in ("L", "R")}
     y_kn = g(xk) - (b.thigh + 0.028) * Hh
     seed = A.seed
 

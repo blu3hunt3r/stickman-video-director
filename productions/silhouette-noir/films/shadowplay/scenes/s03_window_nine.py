@@ -77,7 +77,7 @@ def draw_pov(f, t, T):
     w = _s02_words()
     inter = L.interiors_for((w["four"], w["alone"]), (w["twelve"], w["talks"], w["cat"]), (w["thirty"], w["cries"]))
     inter[9] = show.interior(lambda tt: tt - OFF - SHOW_START)
-    hk, ek = L.halo_for(rig.zf)
+    hk, ek = L.bino_halo_emit(tw, rig)
     e = smoothstep(5.5, 7.1, t)                 # the facade's bloom eased off before the show
     L.draw_world(f, tw, rig, lit=L.facade_lit(tw, {9: lambda tt: nine_level(tt - OFF, T)}), interiors=inter,
                  flare4=w["four"], street_depth=2800.0, halo=lerp(hk, 0.3, e), emit=lerp(ek, 0.0, e))

@@ -412,6 +412,9 @@ def _draw_her(f, t, st):
         if Z > LAMP3[2] + 0.02 and t >= T_HOOK:
             _lamp_stand(c, lv)
     L.occlude(f, 1.0, sk, plain, M)
+    if X > -1.85 and t < 4.6:
+        # her eyes, wide, in the dark (only while she faces across the room)
+        L.eye_glints(f, sk, cast.her(coat=True), M, level=0.9)
     # light on her: the hall light behind her in the doorway, the match, the lamp
     with f.light(blur=2.0) as A:
         if op > 0.05 and X < -0.6:

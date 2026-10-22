@@ -85,8 +85,9 @@ def _diver():
     # + nods down: the silt ahead, up to the edge, his hands, the tugs, up the line
     A.key("head", [(-1.0, 12.0), (1.3, 12.0), (2.05, -6.0), (2.6, 0.0), (3.5, 2.0), (4.6, 6.0), (5.9, 4.0),
                    (6.5, 4.0), (7.25, -30.0), (12.0, -30.0)], fade=0.0)
-    A.key("spine", [(-1.0, 6.0), (1.6, 6.0), (2.3, -2.0), (3.5, 0.0), (4.6, 4.0), (6.0, 6.0), (7.2, -4.0),
-                    (12.0, -4.0)], fade=0.0)
+    A.key("spine", [(-1.0, 6.0), (1.6, 6.0), (2.3, -2.0), (3.5, 0.0), (4.6, 4.0), (6.0, 6.0),
+                    (6.06, 6.0), (6.12, -3.0, "out"), (6.36, 5.0), (6.45, 5.0), (6.51, -4.0, "out"), (6.8, 3.0),
+                    (7.3, -4.0), (12.0, -4.0)], fade=0.0)
     return A
 
 
@@ -156,11 +157,11 @@ def _bell_shape(ctx, b):
 
 
 # ----------------------------------------------------------------------------- the gloves
-def _carry(t, pel):
-    """Right wrist while walking: the hook carried forward, the arm still out from the swing
-    at the cut and settling."""
-    e = math.exp(-max(t, 0.0) / 0.45)
-    return pel[0] + 66.0 + 48.0 * e + 6.0 * math.sin(3.2 * t), pel[1] - 26.0 - 40.0 * e
+def _carry(t, sh):
+    """Right wrist while walking: the hook carried out in front, the arm still up from the
+    swing at the cut and settling (relative to his right shoulder)."""
+    e = math.exp(-max(t, 0.0) / 0.5)
+    return sh[0] + 128.0 + 34.0 * e + 6.0 * math.sin(3.2 * t), sh[1] + 48.0 - 30.0 * e
 
 
 def _hands_line(t, pel):
@@ -189,7 +190,7 @@ def _hands_line(t, pel):
 def _wrist_targets(t, sk0):
     """World wrist targets (R, L); None keeps the walk's own arm."""
     pel = sk0.j["pelvis"]
-    gR, gL = _carry(t, pel), None
+    gR, gL = _carry(t, sk0.j["shoulder_R"]), None
     th, eye, ang = _tie(min(max(t, T_HOOK - 0.4), T_HITCH1))
     at_eye_r = (eye[0] - 22.0, eye[1] + 12.0)
     at_eye_l = (eye[0] - 34.0, eye[1] - 6.0)
@@ -245,7 +246,7 @@ def _hand(sk, side):
 # ----------------------------------------------------------------------------- the hook
 def _pivot_path(t):
     """Cheap stand-in for the right hand while walking (the IK target), for the swing."""
-    return _carry(t, _diver().skeleton(t).j["pelvis"])
+    return _carry(t, _diver().skeleton(t).j["shoulder_R"])
 
 
 _PIVOT = LIB.Sampled(_pivot_path, -0.2, 2.6, hz=60.0)
@@ -304,7 +305,7 @@ def _line_pts(t, sk, cam):
         y = lerp(upper_from[1], top_y, u)
         x = lerp(upper_from[0], xt, u ** 0.7) + slack * math.sin(math.pi * min(u * 3.0, 1.0)) * (1.0 - u)
         s = u * L
-        off = LIB.pulses_offset(s, t, hits, speed=1700.0, width=60.0, amp=20.0, decay=0.9)
+        off = LIB.pulses_offset(s, t, hits, speed=1600.0, width=75.0, amp=34.0, decay=0.8)
         up.append((x + off, y))
     # lower run: from the eye under the lip to his lower glove (taut after the cinch)
     lo = [hk, (lerp(hk[0], r[0], 0.5), lerp(hk[1], r[1], 0.5) + 6.0 * (1.0 - hold)), r]
@@ -349,21 +350,33 @@ def _hose_top_x():
 
 
 def _hose_pts(t, cam):
-    """The hose: simulated near him, then on up (procedural) past the line to the right."""
+    """The hose: simulated near him, then on up (procedural, tangent to the simulated run)
+    over the line to its right."""
     pts = _hose_rope().points(t)              # anchor -> inlet
     top_y = cam.y - (H / 2 + 260.0) / cam.zoom
-    if top_y < Y_ANCHOR - 20.0:
-        ax, ay = pts[0]
-        ext = []
-        n = 20
-        for i in range(n, 0, -1):
-            u = i / n
-            y = lerp(ay, top_y, u)
-            k = ss(Y_ANCHOR, Y_ANCHOR - 1300.0, y)
-            x = lerp(ax, _hose_top_x(), k) + 16.0 * math.sin(0.0012 * y + 0.5 * t) * k
-            ext.append((x, y))
-        pts = ext + pts
-    return pts
+    if top_y > Y_ANCHOR - 20.0:
+        return pts
+    p0, p1 = pts[0], pts[1]
+    d = (p0[0] - p1[0], p0[1] - p1[1])
+    dl = math.hypot(*d) or 1.0
+    y3 = Y_ANCHOR - 1500.0
+    p3 = (_hose_top_x() + 10.0 * math.sin(0.5 * t), y3)
+    L = p0[1] - y3
+    t0 = (d[0] / dl * L * 0.9, d[1] / dl * L * 0.9)
+    t1 = (0.0, -L * 0.9)
+    ext = []
+    n = 18
+    for i in range(1, n + 1):
+        u = i / n
+        h00, h10, h01, h11 = 2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u, -2 * u ** 3 + 3 * u ** 2, u ** 3 - u ** 2
+        ext.append((h00 * p0[0] + h10 * t0[0] + h01 * p3[0] + h11 * t1[0],
+                    h00 * p0[1] + h10 * t0[1] + h01 * p3[1] + h11 * t1[1]))
+    if top_y < y3:
+        m = 14
+        for i in range(1, m + 1):
+            y = lerp(y3, top_y, i / m)
+            ext.append((p3[0] + 14.0 * math.sin(0.0011 * (y3 - y)) * math.sin(0.4 * t + 1.0), y))
+    return list(reversed(ext)) + pts
 
 
 # ----------------------------------------------------------------------------- light
@@ -374,9 +387,10 @@ def _aim(t, sk, lamp):
     th, eye, ang = _tie(t)
     edge = _bell_pt(_bell(t), -44.0, 104.0)
     hk = (eye[0] - 6.0, eye[1] + 30.0)
-    upl = (lamp[0] + 120.0, lamp[1] - 1400.0)
+    upl = (_line_x_top() + 70.0, lamp[1] - 1400.0)
+    hands = (_line_x_top() + 30.0, lamp[1] - 160.0)
     a = LIB.track([(-1.0, ahead), (1.45, ahead), (T_FIND, edge, "inout"), (2.6, hk, "inout"),
-                   (T_BACK1, hk), (T_LOOK0, hk), (T_LOOK1, upl, "inout")], t)
+                   (T_BACK1, hk), (T_LOOK0, hk), (T_LOOK0 + 0.22, hands, "inout"), (T_LOOK1, upl, "inout")], t)
     return a
 
 

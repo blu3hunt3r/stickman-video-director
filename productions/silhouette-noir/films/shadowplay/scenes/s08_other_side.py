@@ -397,14 +397,14 @@ def _outside(f, t, W_):
 
 # ----------------------------------------------------------------------------- window 9
 def _sheet(c, t):
-    """The show sheet, pulled aside: bunched on the wire right of the glass."""
+    """The show sheet, pulled aside: bunched on the wire LEFT of the glass (as s09 finds it)."""
     s = NINE.s
     y0 = GY0 - 44 * s
-    x0 = GX1 + 30 * s
+    x0 = GX0 - 30 * s
     sway = 3.0 * s * fbm1(t * 0.3, 41)
-    pts = [(x0 - 20 * s, y0), (x0 + 160 * s, y0 - 2 * s), (x0 + 175 * s + sway, y0 + 300 * s),
-           (x0 + 168 * s + sway * 1.5, y0 + 700 * s), (x0 + 185 * s + sway * 2, NINE.floor_y - 30 * s),
-           (x0 + 30 * s + sway * 2, NINE.floor_y - 40 * s), (x0 + 5 * s + sway, y0 + 640 * s), (x0 - 12 * s, y0 + 260 * s)]
+    pts = [(x0 + 20 * s, y0), (x0 - 160 * s, y0 - 2 * s), (x0 - 175 * s + sway, y0 + 300 * s),
+           (x0 - 168 * s + sway * 1.5, y0 + 700 * s), (x0 - 185 * s + sway * 2, NINE.floor_y - 30 * s),
+           (x0 - 30 * s + sway * 2, NINE.floor_y - 40 * s), (x0 - 5 * s + sway, y0 + 640 * s), (x0 + 12 * s, y0 + 260 * s)]
     draw.smooth(c, pts, close=True, tension=0.35)
 
 

@@ -726,7 +726,8 @@ class Facade:
         interiors  {i: fn(ctx, WindowInfo)} silhouettes inside lit windows.
         curtains   {i: kind | dict(kind=..., drop=..., soft=..., density=..., mag=...)}
                    overrides the default dressing. kinds: open, drapes, blind, shade, sheer,
-                   sheers_open, sheet, closed (and 'hers' on her building).
+                   sheers_open, sheet, closed (and 'hers' on her building). A 'sheet' may
+                   also take ghost=0..1: how pale it reads while the window is dark.
         dressing   furniture silhouettes in lit windows without an interior callback.
         rain       brightness of rain glints in window light (0 = none).
         halo/emit  strength of the soft window halos / emissive bloom.
@@ -1221,8 +1222,11 @@ class Facade:
             draw.rect(L, x0, y0, x1, y0 + (y1 - y0) * drop)
             draw.fill(L, (0.045, 0.048, 0.062))
         elif kind == "sheet":
+            # spec 'ghost' 0..1 (default 0): how pale the unlit sheet reads (street light on it)
+            g = clamp(spec.get("ghost", 0.0))
             draw.poly(L, self._sheet_outline(t, i, x0, y0, x1, y1))
-            draw.linear(L, (0, y0), (0, y1), [(0, (0.085, 0.09, 0.115), 1), (1, (0.045, 0.05, 0.068), 1)])
+            draw.linear(L, (0, y0), (0, y1), [(0, mix((0.085, 0.09, 0.115), (0.30, 0.31, 0.345), g), 1),
+                                              (1, mix((0.045, 0.05, 0.068), (0.16, 0.17, 0.20), g), 1)])
             L.fill()
         elif kind == "closed":
             draw.rect(L, x0 + 3, y0, x1 - 3, y1)

@@ -70,6 +70,7 @@ Y_PASS = YF + 1.71
 T_TURN = 4.05
 T_GAP = (4.25, 4.55)
 T_NEW = 4.72                                # window NEW_WIN lights up across the street
+T_BLINK = 5.86
 T_GLINT = 9.26                              # [street]
 T_DARK0 = 10.0
 T_BLACK = 11.70
@@ -78,6 +79,7 @@ HER_BODY = Body.adult_f(590, upper_arm=0.002, forearm=0.002, hand=0.002, hand_sc
 HER_LOOK = Look(hair="bob", shoes="heel", eyes=False)
 UA, FA = 0.186 * 590, 0.146 * 590
 HAND = 0.108 * 0.9 * 590
+FA_H = FA + 0.45 * HAND                     # elbow -> centre of the hand (the IK targets hands)
 R_UA, R_FA = (0.031 * 590, 0.023 * 590), (0.024 * 590, 0.016 * 590)
 
 
@@ -229,7 +231,7 @@ def her_skeleton(t):
     return FG.solve(p, HER_BODY)
 
 
-def _ik(sh, tgt, prefer, ua=UA, fa=FA):
+def _ik(sh, tgt, prefer, ua=UA, fa=FA_H):
     dx, dy = tgt[0] - sh[0], tgt[1] - sh[1]
     d = math.hypot(dx, dy)
     d2 = clamp(d, abs(ua - fa) + 1e-3, (ua + fa) * 0.995)
@@ -258,17 +260,17 @@ def _arm_targets(t, sk, C):
     back = t < T_TURN + 0.2
     eye_y = hc[1] + 6.0
     rp = _room_to_her(C, ROOM.binocular_rest)
-    rest = (rp[0], rp[1] - 15.0)
+    rest = (rp[0], rp[1] - 6.0)
     grab_y = 1292.0
     edge = _room_to_her(C, (curtain_x(t) + 6.0, grab_y))
     # her fingers on the edge of the cloth at shoulder height, her eye at the slit above them
     crack_pt = _room_to_her(C, (CRACK_X - 26.0 * crack(t) - 4.0, 1352.0))
-    sideL = (shL[0] - 16.0, shL[1] + 190.0)          # arms hanging (almost straight)
-    sideR = (shR[0] + 16.0, shR[1] + 190.0)
+    sideL = (shL[0] - 16.0, shL[1] + 214.0)          # arms hanging (almost straight)
+    sideR = (shR[0] + 16.0, shR[1] + 214.0)
     if back:
-        L = _track([(0.45, (hc[0] - 38.0, eye_y + 34.0)), (1.15, (hc[0] - 28.0, shL[1] + 92.0), "inout"),
+        L = _track([(0.45, (hc[0] - 33.0, eye_y + 8.0)), (1.15, (hc[0] - 26.0, shL[1] + 104.0), "inout"),
                     (1.55, sideL, "inout")], t)
-        R = _track([(0.45, (hc[0] + 38.0, eye_y + 34.0)), (1.15, (hc[0] + 28.0, shR[1] + 92.0), "inout")], t)
+        R = _track([(0.45, (hc[0] + 33.0, eye_y + 8.0)), (1.15, (hc[0] + 26.0, shR[1] + 104.0), "inout")], t)
         if t > 1.15:
             R = _track([(1.15, R), (1.58, rest, "inout")], t)
         if t > 1.62:
@@ -310,20 +312,25 @@ def draw_her(f, t, C, color=INK, ctx=None):
     c = ctx if ctx is not None else f.ctx
     FG.draw_figure(f, sk, HER_LOOK, c, color=color, eyes=False)
     arms = _arm_targets(t, sk, C)
-    # binoculars at her eyes: the upper arms point forward, out and down (foreshortened)
-    fs = _k(t, 0.45, 0.8)
-    ua, fa = UA * lerp(0.80, 1.0, fs), FA * lerp(0.92, 1.0, fs)
-    wr, hcen = {}, {}
+    head = sk.j["head"]
+    hcen = {}
     for s in ("L", "R"):
         tgt, pref = arms[s]
         sh = sk.j["shoulder_" + s]
-        e, w = _ik(sh, tgt, pref, ua, fa)
-        wr[s] = w
+        e, h = _ik(sh, tgt, pref)
+        if t < 1.25:
+            # binoculars at her eyes: elbows out and down, forearms up to her face (the
+            # doll's W); it eases into the solved arm as she lowers them
+            sg = -1.0 if s == "L" else 1.0
+            u = _k(t, 0.45, 0.8)
+            e = (lerp(sh[0] + sg * 46.0, e[0], u), lerp(sh[1] + 60.0, e[1], u))
+            h = (lerp(head[0] + sg * 33.0, h[0], u), lerp(head[1] + 14.0, h[1], u))
+        ang = math.atan2(h[1] - e[1], h[0] - e[0])
+        w = (h[0] - math.cos(ang) * 0.45 * HAND, h[1] - math.sin(ang) * 0.45 * HAND)
         draw.capsule(c, sh, e, R_UA[0], R_UA[1])
         draw.capsule(c, e, w, R_FA[0], R_FA[1])
-        ang = math.atan2(w[1] - e[1], w[0] - e[0])
         _hand(c, w, ang)
-        hcen[s] = (w[0] + math.cos(ang) * HAND * 0.45, w[1] + math.sin(ang) * HAND * 0.45)
+        hcen[s] = h
         draw.fill(c, color)
     # the binoculars: at her eyes (barrels just showing past her head), lowered in both
     # hands, then carried in the right hand to the sill
@@ -332,7 +339,7 @@ def draw_her(f, t, C, color=INK, ctx=None):
         draw_binoculars(c, mid, view="front", scale=1.05, color=color)
     elif t < 1.62:
         sc = _bino_scale(t, C)
-        draw_binoculars(c, (wr["R"][0], wr["R"][1] + 15.0 * sc / 1.05), angle=90.0, scale=sc, view="pair",
+        draw_binoculars(c, (hcen["R"][0], hcen["R"][1] + 6.0 * sc / 1.05), angle=90.0, scale=sc, view="pair",
                         color=color)
     return sk
 
@@ -370,15 +377,19 @@ def _eye_glint(f, t, C, sk):
     lv = _k(t, T_GAP[1] - 0.08, 0.12, "out") * (1.0 + 0.6 * math.exp(-max(0.0, t - T_GAP[1] - 0.04) / 0.12))
     lv *= 1.0 + 0.25 * math.exp(-max(0.0, t - T_NEW - 0.05) / 0.2) * (t > T_NEW)
     lv *= 0.92 + 0.08 * math.sin(t * 5.1)
+    # one slow blink while she watches the new window
+    lv *= 1.0 - 0.97 * math.exp(-((t - T_BLINK) / 0.055) ** 2)
     warm = switch(t, T_NEW, kind="bulb")
     col = mix((0.92, 0.95, 1.0), (1.0, 0.92, 0.78), 0.4 * warm)
     p = (e1[0] + 1.0, e1[1])
-    draw.circle(f.ctx, p, r * 0.95)
+    z = max(C["her"].zoom, 1e-3)
+    rd = min(r * 0.95, 7.0 / z)                  # a specular point, however close we get
+    draw.circle(f.ctx, p, rd)
     draw.fill(f.ctx, col, clamp(0.95 * lv))
     with f.emit() as G:
-        draw.glow_disc(G, p, r * 6.0, col, 0.55 * lv)
+        draw.glow_disc(G, p, min(r * 6.0, 46.0 / z), col, 0.55 * lv)
     with f.light(blur=1.5) as A:
-        glow(A, p, r * 3.2, col, 0.35 * lv)
+        glow(A, p, min(r * 3.2, 24.0 / z), col, 0.35 * lv)
 
 
 # ----------------------------------------------------------------------------- outside
@@ -512,10 +523,10 @@ def _glint(f, t, C):
             draw.fill(A, col, 0.35 * min(lv, 1.5))
 
 
-RAIN_N = 2400
+RAIN_N = 3000
 _RAIN_R = np.random.default_rng(1207).random((RAIN_N, 4))
 RAIN_BOX = (24.0, 30.0, 14.0)               # metres around the camera (x, y, z ahead)
-RAIN_V, RAIN_WIND, RAIN_DT = 8.5, 0.9, 0.030
+RAIN_V, RAIN_WIND, RAIN_DT = 8.5, 0.9, 0.045
 
 
 def _rain3d(f, t, c3, level):
@@ -568,7 +579,7 @@ def _rain3d(f, t, c3, level):
                     A.move_to(float(px[j]), float(py[j]))
                     A.line_to(float(sx[j]), float(sy[j]))
                 A.set_line_width(1.0 + 0.55 * wi)
-                draw.rgba(A, col, level * 0.27 * (ai + 0.5) / 6.0)
+                draw.rgba(A, col, level * 0.30 * (ai + 0.5) / 6.0)
                 A.stroke()
 
 

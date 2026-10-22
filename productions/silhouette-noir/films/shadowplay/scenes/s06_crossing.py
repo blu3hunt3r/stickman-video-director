@@ -7,7 +7,7 @@ A  HER DOOR (-0.375 - 3.30)  HerEntry, her flat dark, cold window light on the w
      -0.38-0.30  her hands on the collar; 0.30 lifts it off the hook
      0.45-1.30   turns to us and swings it up over her head: it FLARES (cue 0.62), drops on her
                  shoulders 1.25; arms into the sleeves 1.30-1.55 (L14 "So I did...")
-     1.62-2.25   collar up ("watcher" 1.90)
+     1.62-2.25   tugs the coat closed by its lapels ("watcher" 1.90)
      2.18-2.80   turns and goes to the door; opens it on "never" (2.81): hall light floods in
      3.05-3.30   back to us, into the doorway ("does" 3.17)
 B  STAIRWELL (3.30 - 4.72)   straight down the square spiral: dolly-zoom (cam 3.4 -> 1.15 m)
@@ -88,15 +88,17 @@ def _her_a():
                                    (1.20, 2.0, "inout")], fade=0.12)
         a.key("arm.%s.elbow" % side, [(0.46, 70.0), (0.62, 104.0, "inout"), (0.80, 148.0, "inout"), (1.00, 30.0, "inout"),
                                       (1.20, 14.0, "inout")], fade=0.12)
-    # 3) collar up: both hands to the collar at her neck, flick on "watcher", down
+    # 3) on "watcher" she tugs the coat closed by its lapels: hands to her chest, a sharp pull
+    #    down with a small dip, then her hands drop
     for side in ("L", "R"):
-        a.key("arm.%s.abd" % side, [(1.62, 10.0), (1.80, 20.0, "inout"), (2.02, 22.0), (2.22, 10.0, "inout")],
+        a.key("arm.%s.abd" % side, [(1.62, 10.0), (1.80, 4.0, "inout"), (1.92, 8.0, "out3"), (2.22, 8.0, "inout")],
               fade=0.1)
-        a.key("arm.%s.sh" % side, [(1.62, 2.0), (1.80, 24.0, "inout"), (1.90, 32.0, "out3"), (2.02, 28.0),
-                                   (2.22, 4.0, "inout")], fade=0.1)
-        a.key("arm.%s.elbow" % side, [(1.62, 14.0), (1.80, 138.0, "inout"), (1.90, 146.0, "out3"), (2.02, 142.0),
-                                      (2.22, 16.0, "inout")], fade=0.1)
-    a.key("head", [(1.70, 0.0), (1.92, -10.0, "out3"), (2.20, 4.0, "inout")], fade=0.15)
+        a.key("arm.%s.sh" % side, [(1.62, 2.0), (1.80, 40.0, "inout"), (1.92, 26.0, "out3"), (2.04, 24.0),
+                                   (2.24, 4.0, "inout")], fade=0.1)
+        a.key("arm.%s.elbow" % side, [(1.62, 14.0), (1.80, 132.0, "inout"), (1.92, 108.0, "out3"), (2.04, 104.0),
+                                      (2.24, 16.0, "inout")], fade=0.1)
+    a.key("head", [(1.70, 0.0), (1.92, 9.0, "out3"), (2.20, 2.0, "inout")], fade=0.15)
+    a.key("y", [(1.84, 0.0), (1.93, 5.0, "out3"), (2.12, 0.0, "inout")], mode="add")
     # 4) the knob, then the door swings
     a.reach("R", 2.70, 3.00, KNOB, fade=0.14, grip=0.8)
     return a

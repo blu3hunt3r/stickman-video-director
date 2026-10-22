@@ -50,6 +50,7 @@ ROD_GRIP = 0.30                           # she holds the rod this far below the
 W0 = (0.02, 3.98)                         # at window 9 (between the rig's two dolls, seen from here)
 WALL = (-1.76, 2.52)                      # flat against the wall on the door's hinge side
 DOOR_FEET = (110.0, 215.0)                # door px from the hinge where his feet stop
+LEVER_OUT = 0.45                          # the lever's turn (0..1 of 40 deg) at the cut to s10
 
 
 def _times(T):
@@ -112,7 +113,7 @@ class Her:
         a.reach("R", self.t_lamp_grab - 0.05, self.t_set - 0.02, self._lamp_hand, fade=0.22, grip=0.95)
         # the doll: left hand to the rig's rod, then carried, then to the clamp
         a.reach("L", self.t_doll_grab - 0.18, self.t_doll_grab + 0.12, self._rig_rod, fade=0.2, grip=0.95)
-        a.arm("L", self.t_doll_grab + 0.30, BELIEVE - 0.55, fade=0.25, sh=12.0, abd=10.0, elbow=84.0, grip=0.95)
+        a.arm("L", self.t_doll_grab + 0.30, BELIEVE - 0.80, fade=0.25, sh=12.0, abd=10.0, elbow=84.0, grip=0.95)
         a.reach("L", BELIEVE - 0.42, BELIEVE + 0.02, self._clamp_hand, fade=0.28, grip=0.95)
         # the sheet edge: right hand, trailing
         a.reach("R", self.t_edge, self.t_pull[1] + 0.05, self._edge_hand, fade=0.18, grip=0.9)
@@ -245,8 +246,8 @@ def _door_state(t):
         f1 = lerp(430.0, DOOR_FEET[0], u)
         f2 = lerp(540.0, DOOR_FEET[1], L.k_(t, 12.95, 0.36, "out"))
         feet = (f1, f2)
-    lever = 0.33 * L.k_(t, 13.52, 0.48, "in")
-    return dict(open=0.0, hall=hall, feet=feet, lever=lever, lever_rim=0.55, lever_rim_col=mix(AMBER, HOT, 0.3),
+    lever = LEVER_OUT * L.k_(t, 13.50, 0.50, "in")
+    return dict(open=0.0, hall=hall, feet=feet, lever=lever, lever_rim=0.85, lever_rim_col=mix(AMBER, HOT, 0.3),
                 lit=0.6)
 
 

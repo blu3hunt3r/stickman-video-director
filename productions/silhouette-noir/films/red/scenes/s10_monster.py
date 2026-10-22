@@ -64,7 +64,7 @@ def _cast(T):
     m = Actor(cast.MOTHER, cast.mother(), x=MOTHER_X, ground=G, facing=1, seed=4, name="mother")
     m.stand(until=7.98, at=-1.0)
     m.walk(to=EMBRACE_X - 10.0, gait="run", speed=2.5)
-    t_down = m.end
+    t_down = m.end - 0.42                   # she drops to her knees out of the last steps
     L.kneel(m, t_down, 30.0, x=EMBRACE_X, t_in=0.55, lean=13.0, head=12.0, delay=(0.0, 0.12),
             arms=(60.0, 50.0))
     gx = lambda t: _C["girl"].root(t)[0]

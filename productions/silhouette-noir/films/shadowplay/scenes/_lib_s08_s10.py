@@ -734,7 +734,7 @@ class Room9:
         draw.poly(c, [Q(u0 - 5, v0 - 6, 2), Q(u0 + 5, v0 - 6, 2), Q(u0 + 5, v0 + 6, n), Q(u0 - 5, v0 + 6, n)])
         draw.fill(c, color or INK)
         if rim_a > 0.01:
-            draw.capsule(c, top[0], top[1], 1.6, 1.2)
+            draw.capsule(c, top[0], top[1], 2.4, 1.8)
             draw.fill(c, rim_col or AMBER, clamp(rim_a))
         return top[1]
 
@@ -911,7 +911,11 @@ class Room9:
         with f.layer() as L:
             self.door.draw(f, t, L, open=dop, hall=hall, locked=door.get("locked", 0.0), key=False,
                            feet=door.get("feet", ()), hall_fn=door.get("hall_fn"))
-            self.lever(L, dop, door.get("lever", 0.0), rim_col=door.get("lever_rim_col"), rim_a=door.get("lever_rim", 0.0))
+            tip = self.lever(L, dop, door.get("lever", 0.0), rim_col=door.get("lever_rim_col"),
+                             rim_a=door.get("lever_rim", 0.0))
+        if door.get("lever_rim", 0.0) > 0.01:
+            with f.light(blur=2.0) as A:
+                glow(A, tip, 9.0, HOT, 0.55 * door.get("lever_rim", 0.0))
         self.door.light(f, t, open=dop, hall=hall, spill=door.get("spill", 0.0), feet=door.get("feet", ()))
         self.door_leaks(f, t, hall=hall, open_=dop, lit=door.get("lit", 0.0))
         after = st.get("after")
