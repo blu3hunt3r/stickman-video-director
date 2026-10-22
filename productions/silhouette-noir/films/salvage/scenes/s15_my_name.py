@@ -1,8 +1,43 @@
-"""s15 · MY NAME: night, high moon. The diver comes up the ladder out of the sea, lets the cut
-hose go, climbs onto the deck and takes his helmet off in front of the client. He tells him his
-name. The bell tolls (9.0 s).
+"""s15 · MY NAME (9.0 s; hard cut in from s14, dip to black out to s16). Night, high moon, the
+stern of the salvage boat. The diver comes up the ladder out of the sea, throws the cut hose
+away, climbs aboard and takes his helmet off in front of the client: he tells him his name, and
+the bell tolls the third time. Then the sea takes the client's hat.
 
-(Beats, handoff states and cues: see the report; filled in below once final.)
+IN (hard cut; matches s14's last frame at 10.958): camera (-165, -420) zoom 0.86; the bell
+swinging on the davit (theta -21 deg, crown loop at screen (661, 818)); the client by the winch,
+head at screen (219, 733), knife low; the diver rising beside the ladder, helmet top just under
+the surface, head at screen (632, 1408), L arm raised (s14), lamp lit, red hose trailing.
+
+Beats (scene s):
+  0.27       the helmet's crown breaks the surface by the ladder (foam, spray); water sheets
+             off the dome; the push-in finds the MOON IN HIS PORT (0.8-1.6: a circle in a circle)
+  0.3-1.1    his hands find the rungs (0.62, 0.95), his boots the rungs under water
+  1.3-2.0    L22 "He never asked my name.": he climbs (rungs 11 -> 8 -> 7), then waits low on
+             the ladder while the bell swings in over him (2.2). The client backs away along the
+             rail (steps land 2.42, 2.92, 3.45, 3.95), knife low, watching the helmet: not the eyes
+  2.0-2.54   his far hand unscrews the hose coupling (free at 2.40) and throws it out behind him
+             (2.54); it splashes in at 3.05 (x 155) and sinks, drifting with the current
+  2.55-4.75  up the ladder (the bell swinging behind him), over the stern rail, onto the deck
+             (boots 3.80, 4.10, 4.40, 4.75): he stands facing the client at x ~ -335, clear of
+             the bell's inboard swings (4.5, 6.8)
+  5.0-6.55   L23 "So I told him.": both hands up to the helmet; the quarter-turn 5.30-5.58
+             (clunk 5.55); he lifts it off 5.62-6.0: the bare head, eyes still glowing (clear of
+             the helmet ~5.85); he brings it forward (held out toward the client, 6.24) and down
+             to his hip (6.55). The client's gaze rises from the helmet to his eyes 5.75-6.05
+  6.52-6.80  he steps toward the client and says his name: two small nods, unheard
+  6.80       THE TOLL (LIB.TOLLS[2], the loudest): the bell at its inboard swing beside them;
+             the camera shudders, a breath of light; the client starts, eyes wide, cigar flares;
+             hold
+  7.15       a gust lifts the client's hat: across the moon (7.6), high over the diver, down
+             into the sea by the stern (splash 8.675 at x -106), then sinking
+  8.0-8.88   the dip to black (the toll rings on)
+
+OUT (last visible frame 8.88; within 1-2 px at 9.0): camera (-468, -488) zoom 1.26. The diver
+(head world (-391, -728), screen (637, 659)) bare-headed, eyes lit, the helmet at his hip
+(centre at screen (602, 952)), facing the client (head (-683, -728), screen (269, 659)):
+hatless, eyes wide, knife low. Bell theta -16 deg, swinging in. The fedora in the sea at world
+(-100, 16), screen (1003, 1595), crown up and sinking (world (-66, 138) at t = 10.0). The hose's
+coupling under water at world (763, 397) (off frame, right and below), drifting right, sinking.
 
 The bell, the davit, the boat and the swell run on s14's clock: tau = t + LIB.S15_OFFSET.
 """
@@ -390,10 +425,6 @@ def _helm_now(t):
     if t < T_LIFT[0]:
         return costume.helmet_frame(_dv_skel_body(t))[0], 0.0
     return _helm_xform(t)
-
-
-def _helm_center(t):
-    return _helm_now(t)[0]
 
 
 # ---------------------------------------------------------------- hands

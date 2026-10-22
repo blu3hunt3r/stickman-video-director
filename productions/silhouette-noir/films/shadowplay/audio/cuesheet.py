@@ -549,8 +549,8 @@ def build_cues(sync, extras=()):
     c(S["s02_title_in"], "paper_slide", -9.0, length=0.5, pan0=-0.8, pan1=-0.1)
     c(S["s02_title_in2"], "paper_slide", -10.0, length=0.44, pan0=0.8, pan1=0.1)
     c(S["s02_title_out"] - 0.05, "focus_click", -9.0, pan=0.05)
-    c(S["s02_title_out"] + 0.04, "paper_slide", -12.0, length=0.5, tap=0, shape="out", pan0=-0.1, pan1=-0.8)
-    c(S["s02_title_out"] + 0.08, "paper_slide", -13.0, length=0.48, tap=0, shape="out", pan0=0.1, pan1=0.8)
+    c(S["s02_title_out"] + 0.04, "paper_slide", -12.0, length=0.5, tap=0, shape="out", pan0=-0.1, pan1=0.8)   # SHADOW off right
+    c(S["s02_title_out"] + 0.08, "paper_slide", -13.0, length=0.48, tap=0, shape="out", pan0=0.1, pan1=-0.8)   # PLAY off left
     c(S["s02_iris"] + 0.1, "iris_close", -12.0)
 
     # ---------------------------------------------------------------- s03 window nine
