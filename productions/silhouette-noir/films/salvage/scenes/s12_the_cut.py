@@ -912,6 +912,7 @@ def BOAT_LOCAL_INNER_AT_CUT():
 WATER_N = 170
 G_AIR = 2600.0
 G_WATER = 560.0
+Q_DRAG = 0.0015                     # quadratic drag in the water (1/px)
 _SW = np.array(S.SWELL)
 
 
@@ -932,9 +933,11 @@ def _water_accel(t, P, V):
     # hull) with a shear that folds it into loose S-bends; nothing at depth
     shear = (1.0 - _ssv(1800.0, 2800.0, y))
     cur = (-46.0 + 60.0 * np.sin(y / 330.0 - 0.9 * t) + 26.0 * np.sin(y / 140.0 + 1.7 * t + 1.0)) * w * shear
+    # ...and a quadratic term in the water: the plunge off the side is checked quickly
+    dr = drag + Q_DRAG * w * np.hypot(V[:, 0] - cur, V[:, 1])
     acc = np.empty_like(P)
-    acc[:, 0] = -drag * (V[:, 0] - cur)
-    acc[:, 1] = g - drag * V[:, 1]
+    acc[:, 0] = -dr * (V[:, 0] - cur)
+    acc[:, 1] = g - dr * V[:, 1]
     return acc
 
 
