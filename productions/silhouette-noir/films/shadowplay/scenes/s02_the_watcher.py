@@ -36,17 +36,22 @@ _XY = L.Spline([(-1.0, (0.0, L.LOCK_Y)), (0.6, (0.0, L.LOCK_Y), "hold"), (1.45, 
                 (9.05, (0.10, 20.32), "hold"), (9.85, (0.10, 20.32), "hold"), (10.45, (L.END_X, L.END_Y)),
                 (16.0, (L.END_X, L.END_Y))])
 _AHEAD_END = L.fac_xy(L.END_X, L.END_Y)
-_AIM = L.Spline([(-1.0, (0.0, 0.0)), (10.15, (0.0, 0.0), "hold"),
-                 (10.95, (500.0 - _AHEAD_END[0], 5340.0 - _AHEAD_END[1])),
-                 (11.95, (540.0 - _AHEAD_END[0], 5300.0 - _AHEAD_END[1]), "hold"),
-                 (12.85, (850.0 - _AHEAD_END[0], 1350.0 - _AHEAD_END[1])),
-                 (14.35, (L.W9C[0] - _AHEAD_END[0], L.W9C[1] - _AHEAD_END[1])),
-                 (16.0, (L.W9C[0] - _AHEAD_END[0], L.W9C[1] - _AHEAD_END[1]))])
-_F = L.Spline([(-1.0, 900.0), (10.2, 900.0, "hold"), (10.95, 1600.0), (11.95, 1600.0, "hold"), (12.85, 1650.0),
-               (14.35, L.END_F), (16.0, L.END_F)])
+
+
+def _off(p):
+    return (p[0] - _AHEAD_END[0], p[1] - _AHEAD_END[1])
+
+
+STREET_AIM0, STREET_AIM1 = (960.0, 4640.0), (1010.0, 4590.0)     # down on the diner's sidewalk
+_AIM = L.Spline([(-1.0, (0.0, 0.0)), (10.15, (0.0, 0.0), "hold"), (10.95, _off(STREET_AIM0)),
+                 (11.95, _off(STREET_AIM1), "hold"), (L.BINO_T0, _off(L.TITLE_AIM), "hold")])
+_F = L.Spline([(-1.0, 900.0), (10.2, 900.0, "hold"), (10.95, L.END_F), (11.95, L.END_F, "hold"),
+               (L.BINO_T0, L._zf_F(L.TITLE_ZF), "hold")])
 
 
 def rig_at(t):
+    if t >= L.BINO_T0:
+        return L.bino_rig(t)                   # shared with s03 (t + 15): the seam is exact
     c = _C(t)
     X, Y = _XY(t)
     du, dv = _AIM(t)
@@ -65,8 +70,15 @@ def _words(T):
                 nobody=T.at("Nobody"), up=T.at("up"))
 
 
-WALKERS = (L.Walker(10.6, 120.0, 150.0, -1.0, 1.0, 1), L.Walker(10.6, 900.0, -140.0, -1.0, 0.95, 2),
-           L.Walker(10.6, -60.0, 190.0, 0.97, 1.0, 3))
+WALKERS = (L.Walker(10.6, 865.0, 150.0, -1.0, 1.1, 1),                 # along the diner's window
+           L.Walker(10.6, 1376.0, -90.0, 0.08, 1.1, 2, du=0.05),         # crossing in its light
+           L.Walker(10.6, 835.0, 120.0, 0.42, 1.1, 3))                   # over the reflections
+TITLE_IN, TITLE_OUT = 12.45, 14.4
+
+
+def _people(f, t, st):
+    L.street_pools(f, t, st)
+    L.draw_walkers(f, t, st, WALKERS)
 
 
 def render(f, t, T):
@@ -74,21 +86,19 @@ def render(f, t, T):
     rig = rig_at(t)
     inter = L.interiors_for((w["four"], w["alone"]), (w["twelve"], w["talks"], w["cat"]),
                             (w["thirty"], w["cries"]))
-    people = None
-    if 9.8 < t < 13.2:
-        people = lambda f_, t_, st: L.draw_walkers(f_, t_, st, WALKERS)
+    people = _people if 9.8 < t < 13.2 else None
     title = None
-    if 12.6 < t < 15.6:
-        title = lambda f_, t_: L.draw_title(f_, t_, 12.75, 14.75)
+    if TITLE_IN - 0.1 < t < TITLE_OUT + 1.0:
+        title = lambda f_, t_: L.draw_title(f_, t_, TITLE_IN, TITLE_OUT, cx=L.TITLE_AIM[0])
     L.draw_world(f, t, rig, interiors=inter, flare4=w["four"], street_depth=street_depth(t), people=people,
                  title=title)
     L.draw_room(f, t, rig, watch=w["watch"])
 
 
 def motion_blur(t, T):
-    if 6.9 < t < 8.7 or 9.9 < t < 11.0 or 11.95 < t < 12.95:
+    if 6.9 < t < 8.7 or 9.9 < t < 11.0 or 11.95 < t < 12.6:
         return 3
-    if 2.2 < t < 3.0 or 4.4 < t < 5.2 or 0.7 < t < 1.4:
+    if 2.2 < t < 3.0 or 4.4 < t < 5.2 or 0.7 < t < 1.4 or 14.55 < t < 15.05:
         return 2
     return 1
 

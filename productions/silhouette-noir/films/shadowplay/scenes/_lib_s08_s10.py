@@ -282,13 +282,23 @@ from films.shadowplay.sets_props import Sheet, BareLamp, lamp_light   # noqa: E4
 SHEET_Z = 3.55
 
 
+
+BULB_H = 1.62 * 542.0 / 520.0          # the drawn BareLamp's bulb centre above its base (m)
+
+
+def _wrap(a):
+    return (a + 180.0) % 360.0 - 180.0
+
+
 class Walker:
     """A figure moving through a one-point-perspective room (Room3D coords, metres).
 
-    The engine Actor performs in its own canonical space (feet on y = 0, 1 m = PX_M px);
-    walks are planned there along x by the LATERAL part of each move (so planted feet do not
-    skate sideways) with the yaw of the real 3-D heading, while the room position (X, Z) is
-    interpolated by the canonical root's progress. matrix(t) maps canonical -> world."""
+    The engine Actor performs in its own canonical space (feet on y = 0, 1 m = PX_M px).
+    Walks are planned there along x by max(lateral part, 0.3 x distance) with the yaw of the
+    real 3-D heading (the engine shortens steps the same way when a figure walks in depth),
+    and the room position (X, Z) follows the canonical root's progress, so planted feet stay
+    planted. matrix(t) maps canonical -> world. yaw_at(t) is the body yaw without solving a
+    pose (for props that follow the figure: no recursion through reach targets)."""
 
     def __init__(self, body, room, X, Z, yaw, seed=0, t0=-6.0, look=None):
         self.room = room
@@ -297,21 +307,32 @@ class Walker:
         self.X, self.Z = X, Z
         self.legs = []
         self.places = []                 # (t, X, Z): instant moves (a cut)
+        self.yaws = [(t0, float(yaw))]
 
     @property
     def cursor(self):
         return self.a.cursor
 
+    def _ykey(self, t, y):
+        py = self.yaws[-1][1]
+        self.yaws.append((t, py + _wrap(y - py)))
+
     def stand(self, until, **kw):
-        self.a.stand(until=until, **kw)
+        if until > self.a.cursor + 0.005:
+            self.a.stand(until=until, **kw)
         return self
 
     def turn(self, yaw, dur=0.35, at=None, via=90.0):
-        self.a.turn(yaw, dur=dur, at=at, via=via)
+        t0 = self.a.cursor if at is None else at
+        self.a.turn(yaw, dur=dur, at=t0, via=via)
+        seg = self.a.segs[-1]
+        y0 = self.yaws[-1][1]
+        self.yaws.append((t0, y0))
+        self.yaws.append((t0 + dur, y0 + (seg.b - seg.a)))
         return self
 
-    def go(self, X, Z, dur, at=None, gait="brisk", yaw=None, min_lat=0.3):
-        """Walk to room (X, Z) taking about `dur` seconds. Returns the end time."""
+    def go(self, X, Z, dur, at=None, gait="brisk", yaw=None, min_lat=0.3, blend=0.2):
+        """Walk to room (X, Z) taking `dur` seconds. Returns the end time."""
         t0 = self.a.cursor if at is None else at
         dX, dZ = X - self.X, Z - self.Z
         dist = math.hypot(dX, dZ)
@@ -323,9 +344,25 @@ class Walker:
         x0 = self.a.state["x"]
         x1 = x0 + sgn * D
         sp = (dist * PX_M / self.a.H) / max(dur, 0.05)
-        self.a.walk(to=x1, gait=gait, speed=max(sp, 0.05), at=t0, yaw=yw, turn=0)
-        t1 = self.a.cursor
+        a = self.a
+        n0, st0, c0 = len(a.segs), a.state, a.cursor
+        for _ in range(6):                  # the engine adds a closing step + settle: fit dur
+            a.walk(to=x1, gait=gait, speed=max(sp, 0.05), at=t0, yaw=yw, turn=0, blend=blend)
+            took = a.cursor - t0
+            if abs(took - dur) < 0.03 * dur + 0.01:
+                break
+            del a.segs[n0:]
+            a.state = dict(st0, feet=dict(st0["feet"]))
+            a.cursor = c0
+            sp *= took / max(dur, 0.05)
+        else:
+            a.walk(to=x1, gait=gait, speed=max(sp, 0.05), at=t0, yaw=yw, turn=0, blend=blend)
+        self.last_speed = sp
+        t1 = a.cursor
         self.legs.append((t0, t1, x0, x1, (self.X, self.Z), (X, Z)))
+        self.yaws.append((t0, self.yaws[-1][1]))
+        self._ykey(t0 + blend, yw)
+        self._ykey(t1, yw)
         self.X, self.Z = X, Z
         return t1
 
@@ -333,6 +370,19 @@ class Walker:
         """Jump to (X, Z) at t (between shots)."""
         self.places.append((t, X, Z))
         return self
+
+    def yaw_at(self, t):
+        ks = self.yaws
+        if t <= ks[0][0]:
+            return ks[0][1]
+        for i in range(1, len(ks)):
+            if t <= ks[i][0]:
+                t0, y0 = ks[i - 1]
+                t1, y1 = ks[i]
+                if t1 - t0 < 1e-6:
+                    return y1
+                return lerp(y0, y1, ease("inout", (t - t0) / (t1 - t0)))
+        return ks[-1][1]
 
     def pos(self, t):
         """Room (X, Z) and canonical root x at t."""
@@ -369,13 +419,49 @@ class Walker:
         m.invert()
         return m.transform_point(p[0], p[1])
 
+    def ahead(self, t, fwd, right):
+        """Room (X, Z) of a point `fwd` m ahead of the figure and `right` m to its right."""
+        X, Z, _ = self.pos(t)
+        a = math.radians(self.yaw_at(t))
+        dx, dz = math.cos(a), -math.sin(a)
+        rx, rz = -math.sin(a), -math.cos(a)
+        return X + fwd * dx + right * rx, Z + fwd * dz + right * rz
+
+
+def rim_offset(center, light, px):
+    """Offset for rim(): the crescent lands on the side of the figure facing `light`."""
+    dx, dy = light[0] - center[0], light[1] - center[1]
+    n = math.hypot(dx, dy) or 1.0
+    return (-dx / n * px, -dy / n * px)
+
+
+def draw_walker(f, t, w, look, color=None, rims=(), eyes=0.0, eye_open=None, eye_size=1.0, occlude=True,
+                sk=None, alpha=1.0):
+    """Draw a Walker's figure at t (main layer): ink silhouette with the look's part colours,
+    additive rims [(rgb, alpha, offset px)], Limbo eyes (glow `eyes`), and erase the bloom
+    under it (f.emit glows drawn before it are hidden behind it). Returns (skeleton, M)."""
+    M = w.matrix(t)
+    sk = sk or w.a.skeleton(t)
+    with f.layer() as Lc:
+        draw_skeleton(Lc, sk, look, M, color=color, alpha=alpha)
+    if occlude:
+        occlude_figure(f, 1.0, sk, look, M)
+    live = [r for r in rims if r[1] > 0.005]
+    if live:
+        with f.light() as A:
+            for (col, a, off) in live:
+                rim(A, sk, look, M, col, a, off)
+    if eyes > 0.01:
+        with f.layer() as Lc:
+            draw_eyes(f, sk, look, Lc, M, par=1.0, glow_k=eyes, open_=eye_open, size=eye_size)
+    return sk, M
+
 
 # ============================================================================= paper dolls (the show's)
-def doll_stage(room, X, Y_pelvis, Z, kind="woman", mirror=False, size=0.45):
-    """Show stage (ox, oy, S) placing a show doll's pelvis (its rod top) at room (X, Y, Z).
-    size: the man doll's height in metres (the woman is SHOW.HER_H of it)."""
-    S = size * room.ppm(Z)
-    px, py = room.P(X, Y_pelvis, Z)
+def doll_stage_at(pelvis, S, kind="woman", mirror=False):
+    """Show stage (ox, oy, S) that puts a show doll's pelvis (its rod top) on world `pelvis`;
+    S = the man doll's height in world px (the woman is SHOW.HER_H of it)."""
+    px, py = pelvis
     if SHOW is None:
         return (px, py, S)
     if kind == "woman":
@@ -386,23 +472,43 @@ def doll_stage(room, X, Y_pelvis, Z, kind="woman", mirror=False, size=0.45):
     return (ox, py + hip * S, S)
 
 
-def doll_casters(c, stage, kind="woman", mirror=False, u=-1.0, cuts=True):
+def doll_stage(room, X, Y_pelvis, Z, kind="woman", mirror=False, size=0.45):
+    """Show stage for a doll whose pelvis is at room (X, Y, Z); size = the man doll's height (m)."""
+    return doll_stage_at(room.P(X, Y_pelvis, Z), size * room.ppm(Z), kind, mirror)
+
+
+def _doll_pose(stage, mirror, u, crank_world):
+    if SHOW is None or crank_world is None:
+        return None
+    ox, oy, S = stage
+    p = SHOW.pose(u)
+    wx, wy = crank_world
+    xo = 2 * ox - wx if mirror else wx
+    p["crank"] = ((xo - ox) / S, (wy - oy) / S)
+    return p
+
+
+def doll_casters(c, stage, kind="woman", mirror=False, u=-1.0, cuts=True, crank_world=None):
     """The show's doll (and its rod) as opaque ink: for shadow buffers."""
     if SHOW is not None:
-        SHOW.casters(c, u, (0, 0, 1, 1), mirror=mirror, stage_=stage, cuts=cuts, blood=False,
-                     man=(kind == "man"), woman=(kind == "woman"))
+        SHOW.casters(c, u, (0, 0, 1, 1), mirror=mirror, stage=stage, pose=_doll_pose(stage, mirror, u, crank_world),
+                     cuts=cuts, blood=False, man=(kind == "man"), woman=(kind == "woman"))
         return
     ox, oy, S = stage
     draw_doll(c, (ox, oy), S * 0.95, kind=kind, color=(0, 0, 0))
 
 
-def doll_object(c, stage, color, kind="woman", mirror=False, u=-1.0):
-    """The same doll as a cut-paper object in `color` (pin holes stay holes)."""
+def doll_object(c, stage, color, kind="woman", mirror=False, u=-1.0, clip_y=None, crank_world=None, alpha=1.0):
+    """The same doll as a cut-paper object in `color` (pin holes stay holes). clip_y: hide
+    what is below this world y (the rod going into the table)."""
     c.push_group()
-    doll_casters(c, stage, kind, mirror, u, cuts=True)
+    doll_casters(c, stage, kind, mirror, u, cuts=True, crank_world=crank_world)
     pat = c.pop_group()
     c.save()
-    c.set_source_rgb(*color[:3])
+    if clip_y is not None:
+        c.rectangle(-1e5, -1e5, 2e5, 1e5 + clip_y)
+        c.clip()
+    c.set_source_rgba(color[0], color[1], color[2], alpha)
     c.mask(pat)
     c.restore()
 
@@ -459,24 +565,30 @@ def knife_tip(sh, el, wr, blade_rel=150.0):
 
 
 # ============================================================================= apartment 9 for s09 / s10
+def sets_mix(a, b, k):
+    return (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k)
+
+
 class Room9:
     """Apartment 9 drawn from Apartment9's pieces, with what s09 / s10 need on top: the lamp
-    anywhere (carried, set behind the sheet, crashing), the sheet bunched at the right end of
-    its wire or pulled straight, shadows from several depths at once, the rig without the
-    woman's rod, people and props sorted by depth, a lever handle that turns.
+    anywhere (carried, set behind the sheet, crashing), the sheet bunched at the LEFT end of
+    its wire or pulled straight, shadows from several depths at once (on the sheet and on the
+    back wall), the rig with or without the woman's doll, people and props sorted by depth,
+    a lever handle that turns.
 
     draw(f, t, st): st keys (all optional)
       lamp      dict(X, Z, on, tilt=0, lift=0, broken=False, stand=True)
-      cover     sheet 0 (bunched at the right) .. 1 (straight);  sheet=False: no sheet
-      hit, fall, slashes   the stabbed sheet (s10): slashes [(p0, p1, width, u, open)] room-free
-                world points; fall 0..1
-      rig       dict(woman=True, dolls=True, doll_col=None)
-      door      dict(open, hall, feet, locked, lever (0..1 turned))
+      cover     sheet 0 (bunched at the left) .. 1 (straight);  sheet=False: no sheet
+      hit, fall, tears   the stabbed sheet (Sheet); slashes: fn(f, t, ctx, sheet) drawn on it
+      rig       dict(woman=True, dolls=True) or None (no table)
+      door      dict(open, hall, feet, locked, lever (0..1 turned), spill, mask, hall_fn)
       street, police, extra_lights
-      casters   [(z, fn(c))] shapes behind the sheet (as the camera sees them) -> shadows on it
+      casters   [(z, fn(c))] shapes behind the sheet (as the camera sees them) -> its shadows
       wall_casters [(z, fn(c))] shapes in front of the back wall (lamp in front) -> its shadows
       items     [(z, fn(f, t))] people / things, drawn far -> near around the room's props
-      rim       callable(f, t) drawn last (rim lights etc.)"""
+      after     fn(f, t) drawn last"""
+
+    BUNCH = 0.35
 
     def __init__(self):
         self.apt = SETS.Apartment9((540.0, 880.0), 1.0)
@@ -494,20 +606,18 @@ class Room9:
         return self.r.ppm(Z) / PX_M
 
     def edge_X(self, cover):
-        X0, Yt, X1, Yh = self.apt.SHEET
-        return lerp(0.60, X0, clamp(cover))
+        """Room X of the sheet's free (right) edge."""
+        return lerp(self.apt.SHEET[0] + self.BUNCH, self.apt.SHEET[2], clamp(cover))
 
     def sheet_obj(self, cover):
         X0, Yt, X1, Yh = self.apt.SHEET
-        zs = SHEET_Z
         xe = self.edge_X(cover)
         pins = 2 + int(round(4 * clamp(cover)))
-        return Sheet(self.P(xe, Yt, zs), self.P(X1, Yt, zs), (Yt - Yh) * self.ppm(zs), pins=pins, seed=9)
+        return Sheet(self.P(X0, Yt, SHEET_Z), self.P(xe, Yt, SHEET_Z), (Yt - Yh) * self.ppm(SHEET_Z), pins=pins, seed=9)
 
     def bulb3d(self, lamp):
         a = math.radians(lamp.get("tilt", 0.0))
-        by = self.apt.BULB_Y
-        return (lamp["X"] + math.sin(a) * by, by * math.cos(a) + lamp.get("lift", 0.0), lamp["Z"])
+        return (lamp["X"] + math.sin(a) * BULB_H, lamp.get("lift", 0.0) + BULB_H * math.cos(a), lamp["Z"])
 
     def lamp_obj(self, lamp):
         X, Z = lamp["X"], lamp["Z"]
@@ -515,8 +625,20 @@ class Room9:
         base = self.P(X, lamp.get("lift", 0.0), Z)
         return BareLamp(base, height=520.0, scale=k), k
 
+    def hidden(self, lamp, cover, fall=0.0, sheet=True):
+        """0..1: how much of the bulb the sheet hides from the camera."""
+        if not sheet or lamp["Z"] <= SHEET_Z + 0.02:
+            return 0.0
+        X0 = self.apt.SHEET[0]
+        b = self.P(*self.bulb3d(lamp))
+        e0 = self.P(X0, 1.5, SHEET_Z)[0]
+        e1 = self.P(self.edge_X(cover), 1.5, SHEET_Z)[0]
+        rr = 0.04 * self.ppm(lamp["Z"])
+        h = clamp((e1 - b[0] + rr) / (2 * rr)) * clamp((b[0] - e0 + rr) / (2 * rr))
+        return h * (1.0 - clamp(fall * 1.4))
+
     def wall_path(self, c):
-        """The back wall minus the window (even-odd)."""
+        """The back wall minus the window (use with the even-odd rule)."""
         S = self.r.surfaces()
         draw.poly(c, S["back"])
         X0, Y0, X1, Y1 = self.apt.WINDOW
@@ -525,22 +647,15 @@ class Room9:
 
     # ---------------------------------------------------------------- the rig
     def draw_rig(self, L, woman=True):
+        """Base block, rods (the woman's clamp empty when woman=False), crank wheel, motor."""
         r = self.r
         P = r.P
         X, Z, w, d, h = self.apt.TABLE
         draw.poly(L, [P(X - 0.30, h, Z - 0.08), P(X + 0.34, h, Z - 0.08), P(X + 0.34, h + 0.07, Z - 0.08),
                       P(X - 0.30, h + 0.07, Z - 0.08)])
+        k = r.ppm(Z)
         for who, (rx, ry) in self.apt.RODS.items():
-            if who == "woman" and not woman:
-                c = P(X + rx, h + 0.11, Z)
-                k = r.ppm(Z)
-                draw.rect(L, c[0] - 0.03 * k, c[1] - 0.02 * k, c[0] + 0.03 * k, c[1] + 0.03 * k)   # empty clamp
-                continue
-            a = P(X + rx - 0.008, h + 0.07, Z)
-            b = P(X + rx + 0.008, ry, Z)
-            draw.rect(L, a[0], b[1], b[0], a[1])
             c = P(X + rx, h + 0.11, Z)
-            k = r.ppm(Z)
             draw.rect(L, c[0] - 0.03 * k, c[1] - 0.02 * k, c[0] + 0.03 * k, c[1] + 0.03 * k)
         cx, cy, cz = self.apt._crank_center()
         cc = P(cx, cy, cz)
@@ -564,38 +679,113 @@ class Room9:
         rx, ry = self.apt.RODS[kind]
         return doll_stage(self.r, X + rx, ry, Z, kind=kind, mirror=True)
 
-    def draw_rig_dolls(self, L, woman=True, color=None):
+    def crank_rim(self):
+        return self.apt.crank_point(90.0)
+
+    def draw_rig_dolls(self, L, woman=True, color=None, ink=False):
+        """The two paper dolls on their rods (as the camera sees them). ink=True: opaque black
+        (for shadow buffers)."""
+        X, Z, w, d, h = self.apt.TABLE
+        clip_y = self.P(X, h + 0.07, Z)[1]
+        if ink:
+            L.save()
+            L.rectangle(-1e5, -1e5, 2e5, 1e5 + clip_y)
+            L.clip()
+            doll_casters(L, self.rig_stage("man"), kind="man", mirror=True, crank_world=self.crank_rim())
+            if woman:
+                doll_casters(L, self.rig_stage("woman"), kind="woman", mirror=True)
+            L.restore()
+            return
         col = color or sets_mix(INK, PAPER, 0.5)
-        doll_object(L, self.rig_stage("man"), col, kind="man", mirror=True)
+        doll_object(L, self.rig_stage("man"), col, kind="man", mirror=True, clip_y=clip_y, crank_world=self.crank_rim())
         if woman:
-            doll_object(L, self.rig_stage("woman"), col, kind="woman", mirror=True)
+            doll_object(L, self.rig_stage("woman"), col, kind="woman", mirror=True, clip_y=clip_y)
+
+    def table_casters(self, c, woman=True):
+        """The table, rig and dolls as opaque ink (shadow buffers)."""
+        self.apt.draw_table(c)
+        self.draw_rig(c, woman=woman)
+        self.draw_rig_dolls(c, woman=woman, ink=True)
 
     # ---------------------------------------------------------------- the lever handle
-    def lever(self, c, open_=0.0, turn=0.0, scale=1.0):
-        """A lever door handle on the room side of the leaf (door px through the door's own
-        projection): it dips as it turns (turn 0..1 = 0..38 deg)."""
+    def lever_points(self, open_=0.0, turn=0.0, scale=1.0):
         d = self.door
         ang = math.radians(100 * clamp(open_))
         cu, sn = math.cos(ang), math.sin(ang)
         u0 = d.w - 34.0
         v0 = d.h * 0.46
-        th = math.radians(38.0 * clamp(turn))
-        Lv = 64.0 * scale
+        th = math.radians(40.0 * clamp(turn))
+        Lv = 72.0 * scale
 
         def Q(u, v, n):
-            return d.project(u * cu, u * sn + n, v)
-        # rose plate
-        rose = [Q(u0 - 13, v0 - 13, 2), Q(u0 + 13, v0 - 13, 2), Q(u0 + 13, v0 + 13, 2), Q(u0 - 13, v0 + 13, 2)]
+            return d.project(u * cu - n * sn, u * sn + n * cu, v)
+        return Q, u0, v0, th, Lv
+
+    def lever(self, c, open_=0.0, turn=0.0, scale=1.0, color=None, rim_col=None, rim_a=0.0):
+        """A lever door handle on the room side of the leaf, through the door's projection: it
+        dips as it turns (turn 0..1 = 0..40 deg). rim: a thin highlight on its top edge."""
+        Q, u0, v0, th, Lv = self.lever_points(open_, turn, scale)
+        rose = [Q(u0 - 14, v0 - 14, 2), Q(u0 + 14, v0 - 14, 2), Q(u0 + 14, v0 + 14, 2), Q(u0 - 14, v0 + 14, 2)]
         draw.poly(c, rose)
-        # neck out of the door, then the lever toward the hinge, dipping as it turns
-        pts = []
-        for (du, dv) in ((0.0, 5.0), (-Lv * math.cos(th), 5.0 - Lv * math.sin(th)),
-                         (-Lv * math.cos(th) - 3.0, -4.0 - Lv * math.sin(th)), (0.0, -5.0)):
-            pts.append(Q(u0 + du, v0 + dv, 22.0))
-        draw.poly(c, pts)
-        draw.poly(c, [Q(u0 - 4, v0 - 5, 2), Q(u0 + 4, v0 - 5, 2), Q(u0 + 4, v0 - 5, 22), Q(u0 - 4, v0 - 5, 22),
-                      Q(u0 - 4, v0 + 5, 22), Q(u0 - 4, v0 + 5, 2)])
-        draw.fill(c, INK)
+        n = 24.0
+        top = [Q(u0 + 3, v0 + 6, n), Q(u0 - Lv * math.cos(th), v0 + 6 - Lv * math.sin(th), n)]
+        bot = [Q(u0 - Lv * math.cos(th) - 2, v0 - 5 - Lv * math.sin(th), n), Q(u0 + 3, v0 - 6, n)]
+        draw.poly(c, top + bot)
+        draw.poly(c, [Q(u0 - 5, v0 - 6, 2), Q(u0 + 5, v0 - 6, 2), Q(u0 + 5, v0 + 6, n), Q(u0 - 5, v0 + 6, n)])
+        draw.fill(c, color or INK)
+        if rim_a > 0.01:
+            draw.capsule(c, top[0], top[1], 1.6, 1.2)
+            draw.fill(c, rim_col or AMBER, clamp(rim_a))
+        return top[1]
+
+    def door_leaks(self, f, t, hall=0.0, open_=0.0, lit=0.0, lit_col=None):
+        """Hallway light leaking round a closed door (the latch edge, the top, the keyhole) and
+        a little room light on its leaf (lit 0..1)."""
+        d = self.door
+        P = d.project
+        if lit > 0.01:
+            with f.light(blur=10.0) as A:
+                draw.poly(A, d.leaf_quad(open_))
+                draw.fill(A, lit_col or AMBER, 0.07 * lit)
+        if hall <= 0.01 or open_ > 0.02:
+            return
+        w, h = d.w, d.h
+        with f.light(blur=1.5) as A:
+            draw.poly(A, [P(w - 2.5, 0, 6), P(w + 1.5, 0, 6), P(w + 1.5, 0, h), P(w - 2.5, 0, h)])
+            draw.poly(A, [P(0, 0, h - 1.5), P(w, 0, h - 1.5), P(w, 0, h + 2.0), P(0, 0, h + 2.0)])
+            draw.fill(A, HOT, 0.55 * hall)
+            kh = P(w - 34.0, 0, h * 0.40 - 4.0)
+            glow(A, kh, 7.0, HOT, 0.8 * hall)
+        with f.emit() as G:
+            kh = P(w - 34.0, 0, h * 0.40 - 4.0)
+            draw.circle(G, kh, 2.0)
+            draw.fill(G, HOT, 0.8 * hall)
+
+    def _sheet_emit_shadows(self, f, t, st, sh, lamp, b3, lv, behind):
+        """The sheet's bloom (and the hidden bulb's) is added at finish(), over the shadows:
+        erase it under them so a shadow stays a shadow."""
+        cs = [(z, fn) for (z, fn) in st.get("casters", ()) if SHEET_Z < z < lamp["Z"] - 0.01]
+        if not behind or not cs:
+            return
+        with f.emit() as G:
+            G.save()
+            sh.path(G, t, hit=st.get("hit"), fall=st.get("fall", 0.0))
+            G.clip()
+            for (z, fn) in cs:
+                center, mag, soft = self.apt.shadow_map(z, b3)
+                mag = min(mag, 14.0)
+                G.push_group()
+                G.translate(center[0], center[1])
+                G.scale(mag, mag)
+                G.translate(-center[0], -center[1])
+                fn(G)
+                pat = G.pop_group()
+                G.save()
+                G.set_operator(cairo.OPERATOR_DEST_OUT)
+                G.set_source_rgba(0, 0, 0, 0.92)
+                G.mask(pat)
+                G.restore()
+            G.restore()
 
     # ---------------------------------------------------------------- drawing
     def draw(self, f, t, st):
@@ -603,50 +793,66 @@ class Room9:
         lamp = st.get("lamp") or dict(X=apt.LAMP_FRONT[0], Z=apt.LAMP_FRONT[1], on=0.0)
         stand = lamp.get("stand", True)
         broken = lamp.get("broken", False)
-        lv = 0.0 if (broken or not stand) else clamp(lamp.get("on", 0.0), 0.0, 1.2)
+        lv = 0.0 if (broken or not stand) else clamp(lamp.get("on", 0.0), 0.0, 1.3)
         b3 = self.bulb3d(lamp)
         behind = lamp["Z"] > SHEET_Z
         has_sheet = st.get("sheet", True)
         cover = clamp(st.get("cover", 1.0)) if has_sheet else 0.0
         fall = st.get("fall", 0.0)
-        xe = self.edge_X(cover)
-        # how much of the lamp the sheet hides (it slides across from the right)
-        hide = 0.0
-        if behind and has_sheet:
-            hide = clamp((lamp["X"] + 0.06 - xe) / 0.12) * (1.0 - clamp(fall * 1.4))
+        hide = self.hidden(lamp, cover, fall, has_sheet)
         door = st.get("door") or {}
         dop = door.get("open", 0.0)
         hall = door.get("hall", 0.0)
         street = st.get("street", 0.30)
         police = st.get("police", 0.0)
-        # 1) the box and the window
+        # 1) the box and the window, then light
         with f.layer() as L:
             r.draw_box(L)
             apt.draw_window(f, t, L, street=street, police=police)
-        lights = apt.lights(t, lamp=0.0, sheet=cover > 0.6, street=street, police=police, door_open=dop,
-                            hall=hall, door_mask=door.get("mask"))
+        lights = apt.lights(t, lamp=0.0, sheet=has_sheet and cover > 0.6, street=street, police=police,
+                            door_open=dop, hall=hall, door_mask=door.get("mask"))
+        cov = hide * (cover if has_sheet else 0.0)
         if lv > 0.01:
             lights.append(dict(kind="point", pos=b3, color=sets_mix(AMBER, HOT, 0.5),
-                               power=2.2 * lv * (1.0 - 0.45 * hide), r0=0.3))
-            if behind and hide > 0.01:
-                lights.append(dict(kind="area", pos=(lamp["X"], 1.5, SHEET_Z - 0.05), normal=(0, 0, -1),
-                                   color=AMBER, power=1.0 * lv * hide * cover, r0=0.6))
+                               power=2.2 * lv * (1.0 - 0.72 * cov), r0=0.3))
+            if behind and has_sheet and cover > 0.05:
+                bx = clamp(b3[0], apt.SHEET[0] + 0.2, self.edge_X(cover) - 0.2)
+                lights.append(dict(kind="area", pos=(bx, 1.5, SHEET_Z - 0.05), normal=(0, 0, -1), color=AMBER,
+                                   power=1.15 * lv * lerp(0.3, 1.0, cov) * clamp(cover * 1.5), r0=0.6))
         lights += list(st.get("extra_lights", ()))
         z0, z1 = apt.DOOR_Z
         holes = [("back",) + tuple(apt.WINDOW), ("left", z0, 0.0, z1, apt.DOOR_H)]
-        r.light_map(f, lights, ambient=0.012, holes=holes)
-        # 1b) shadows on the back wall from a lamp in front (her at the window)
-        if lv > 0.02 and not behind:
+        r.light_map(f, lights, ambient=0.007, holes=holes, bounce=0.14,
+                    albedo=dict(ceiling=0.26, floor=0.26, walls=0.42))
+        S = r.surfaces()
+        xs = [p[0] for p in S["back"]]
+        ys = [p[1] for p in S["back"]]
+        wall_bb = (min(xs), min(ys), max(xs), max(ys))
+
+        def wall_region(c):
+            self.wall_path(c)
+            c.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+        # the lamp close to the back wall (behind the sheet): a hot pool on the wall
+        if lv > 0.01 and lamp["Z"] > r.zb - 0.9:
+            dz = max(r.zb - lamp["Z"], 0.08)
+            p = self.P(b3[0], b3[1], r.zb)
+            with f.light(blur=8.0) as A:
+                A.save()
+                wall_region(A)
+                A.clip()
+                glow(A, p, self.ppm(r.zb) * (0.5 + 2.2 * dz), sets_mix(AMBER, HOT, 0.45), 0.55 * lv * (0.9 - dz))
+                A.restore()
+        # 1b) shadows on the back wall from a lamp in front of the casters
+        if lv > 0.02:
             for (z, fn) in st.get("wall_casters", ()):
-                if lamp["Z"] < z < r.zb:
-                    center, mag, soft = apt.shadow_map(z, b3, screen_z=r.zb - 0.01)
-                    S = r.surfaces()
-                    xs = [p[0] for p in S["back"]]
-                    ys = [p[1] for p in S["back"]]
-                    with f.layer() as L:
-                        shadow_screen(L, fn, region=lambda c: (self.wall_path(c), c.set_fill_rule(1)),
-                                      bbox=(min(xs), min(ys), max(xs), max(ys)), soft=max(1.5, soft),
-                                      density=0.55 * min(1.0, lv), mag=mag, center=center)
+                gap = z - lamp["Z"]
+                if gap < 0.12 or z >= r.zb:
+                    continue
+                center, mag, soft = apt.shadow_map(z, b3, screen_z=r.zb - 0.01)
+                dens = 0.62 * min(1.0, lv) * clamp((gap - 0.12) / 0.35)
+                with f.layer() as L:
+                    shadow_screen(L, fn, region=wall_region, bbox=wall_bb, soft=max(1.5, soft), density=dens,
+                                  mag=mag, center=center)
         # items, sorted far -> near; the table + rig and the lamp are items too
         items = list(st.get("items", ()))
         rig = st.get("rig")
@@ -661,11 +867,11 @@ class Room9:
         if stand:
             def lamp_fn(f_, t_):
                 lo, kk = self.lamp_obj(lamp)
-                sock = self.P(-r.hw + 0.02, 0.32, lamp["Z"] + 0.4)
+                sock = self.P(r.hw - 0.02, 0.30, lamp["Z"] + 0.3)
                 vis = 1.0 - hide
                 with f_.layer() as L:
-                    lo.draw(f_, t_, L, on=lv * vis if vis > 0.5 else 0.0, tilt=lamp.get("tilt", 0.0), broken=broken,
-                            cord_to=(sock[0], self.P(lamp["X"], 0, lamp["Z"])[1]))
+                    lo.draw(f_, t_, L, on=lv * vis if vis > 0.5 else 0.0, tilt=lamp.get("tilt", 0.0),
+                            broken=broken, cord_to=(sock[0], self.P(lamp["X"], 0, lamp["Z"])[1]))
                 if hide > 0.5 and lv > 0:
                     lamp_light(f_, lo.bulb(lamp.get("tilt", 0.0)), lv * 0.35, scale=kk)
             items.append((lamp["Z"], lamp_fn))
@@ -677,34 +883,38 @@ class Room9:
         # the sheet
         if has_sheet:
             sh = self.sheet_obj(cover)
-            hot = self.P(b3[0], b3[1], SHEET_Z)
+            hot = self.P(*b3) if behind else self.P(b3[0], b3[1], SHEET_Z)
             with f.layer() as L:
                 sh.draw(f, t, L, light=hot, level=lv * (1.0 if behind else 0.55), back=behind,
                         base=sets_mix(INK, PAL.fog_at(1.0), 0.42), hit=st.get("hit"), fall=fall,
                         folds=lerp(2.4, 1.0, cover), tears=st.get("tears", ()))
                 if lv > 0.02 and behind:
                     for (z, fn) in st.get("casters", ()):
-                        if SHEET_Z < z < lamp["Z"] - 0.005:
+                        if SHEET_Z < z < lamp["Z"] - 0.01:
                             center, mag, soft = apt.shadow_map(z, b3)
+                            mag = min(mag, 14.0)
                             sh.shadow(L, t, fn, lamp=center, mag=mag, soft=max(1.0, soft),
-                                      density=0.9 * min(1.0, lv), hit=st.get("hit"), fall=fall)
+                                      density=0.94 * min(1.0, lv), hit=st.get("hit"), fall=fall)
                 slashes = st.get("slashes")
                 if slashes:
                     slashes(f, t, L, sh)
             if lv > 0.01:
-                sh.light(f, t, hot, level=lv * (1.0 if behind else 0.6) * lerp(0.35, 1.0, cover), back=behind)
+                if behind:
+                    slev = lv * lerp(0.3, 1.0, cover) * lerp(0.5, 1.0, hide)
+                else:
+                    slev = lv * 0.4 * lerp(0.4, 1.0, cover)
+                sh.light(f, t, hot, level=slev, back=behind)
+                self._sheet_emit_shadows(f, t, st, sh, lamp, b3, lv, behind)
         for z, fn in near:
             fn(f, t)
         # the door and its handle
         with f.layer() as L:
             self.door.draw(f, t, L, open=dop, hall=hall, locked=door.get("locked", 0.0), key=False,
                            feet=door.get("feet", ()), hall_fn=door.get("hall_fn"))
-            self.lever(L, dop, door.get("lever", 0.0))
+            self.lever(L, dop, door.get("lever", 0.0), rim_col=door.get("lever_rim_col"), rim_a=door.get("lever_rim", 0.0))
         self.door.light(f, t, open=dop, hall=hall, spill=door.get("spill", 0.0), feet=door.get("feet", ()))
+        self.door_leaks(f, t, hall=hall, open_=dop, lit=door.get("lit", 0.0))
         after = st.get("after")
         if after is not None:
             after(f, t)
-
-
-def sets_mix(a, b, k):
-    return (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k)
+        return dict(hide=hide, bulb=self.P(*b3), b3=b3, lv=lv)

@@ -549,7 +549,11 @@
     "dur": 1.0,
     "n": 2,
     "axis": "h",
-    "color": null
+    "color": null,
+    "sizes": [
+     1,
+     1
+    ]
    },
    "trans_in": null,
    "handle_in": 0.0,
@@ -726,7 +730,11 @@
     "dur": 1.0,
     "n": 2,
     "axis": "h",
-    "color": null
+    "color": null,
+    "sizes": [
+     1,
+     1
+    ]
    },
    "handle_in": 0.5,
    "handle_out": 0.375,

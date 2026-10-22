@@ -306,30 +306,34 @@ def dist3(a, b):
 
 
 # ----------------------------------------------------------------------------- s07: the dolls on the rig
-def rig_stage(apt):
-    """(ox, oy, S) placing the show's puppets on Apartment9's table rig, seen from the room
-    (mirror=True puts the man on the left, as on the rig): the rods land on the rig's two
-    rods and each doll's pelvis on its rod tip. S = the man doll's height in world px."""
+DOLL_SIZE = 0.45          # the man doll's height (m): Apartment9.puppet_scale, as _lib_s08_s10 uses
+
+
+def doll_stages(apt, size=DOLL_SIZE):
+    """{'man': (ox, oy, S), 'woman': (...)}: show stages putting each puppet's pelvis on the
+    top of its own rod on Apartment9's table rig, seen from the room (mirror=True: the man
+    on the left). Same convention as _lib_s08_s10.doll_stage (continuity with s09/s10)."""
     X, Z = apt.TABLE[0], apt.TABLE[1]
-    xm, _ = apt.RODS["man"]
-    xw, _ = apt.RODS["woman"]
-    man_x, woman_x = (SHOW.MAN_X, SHOW.WOMAN_X) if SHOW is not None else (0.205, -0.20)
-    S_m = (xw - xm) / (man_x - woman_x)                 # metres
-    ox_m = xm + man_x * S_m                             # mirror: man at ox - MAN_X * S
-    hip = 0.533
-    floor_Y = apt.RODS["man"][1] - hip * S_m
-    k = apt.room.ppm(Z)
-    o = apt.P(X + ox_m, floor_Y, Z)
-    return (o[0], o[1], S_m * k), floor_Y, S_m
+    S = size * apt.room.ppm(Z)
+    out = {}
+    for kind in ("man", "woman"):
+        rx, ry = apt.RODS[kind]
+        px, py = apt.P(X + rx, ry, Z)
+        if SHOW is not None:
+            sx, hip = (SHOW.WOMAN_X, SHOW._HIP * SHOW.HER_H) if kind == "woman" else (SHOW.MAN_X, SHOW._HIP)
+        else:
+            sx, hip = (-0.20, 0.506) if kind == "woman" else (0.205, 0.533)
+        out[kind] = (px + sx * S, py + hip * S, S)
+    return out
 
 
 def doll_pose(u_end=None):
-    """The puppets as the show left them: his knife arm high, her doll folded over its rod
-    (the drop undone: she still hangs above the table)."""
+    """The puppets as the show left them, standing on their rods: his jagged knife arm
+    raised, her doll folded over its rod (the drop undone)."""
     if SHOW is None:
         return None
     p = SHOW.pose(SHOW.SHOW_LEN if u_end is None else u_end)
-    p["drop"] = 0.12
+    p["drop"] = 0.0
     p["fold"] = 0.85
     p["arm"] = SHOW.RAISED
     p["splash"] = 0.0
@@ -341,60 +345,77 @@ def doll_pose(u_end=None):
     return p
 
 
-def doll_mask(ctx, apt, pose, man=True, woman=True):
+def doll_mask(ctx, apt, pose, man=True, woman=True, crank=0.0):
     """The puppets' silhouette (show.casters) in world coords on ctx: opaque, with the pin
-    gaps cleared. Draw it into a group / buffer only (it uses OPERATOR_CLEAR)."""
-    st, _, _ = rig_stage(apt)
+    gaps cleared. Draw it into a group / buffer only (it uses OPERATOR_CLEAR). The man's arm
+    wire runs down to where the rig's own wire ends (Apartment9.arm_wire_end)."""
+    st = doll_stages(apt)
     if SHOW is not None:
-        SHOW.casters(ctx, 0.0, (0, 0, 1, 1), mirror=True, stage=st, pose=pose, cuts=True, blood=False, man=man,
-                     woman=woman)
+        if woman:
+            SHOW.casters(ctx, 0.0, (0, 0, 1, 1), mirror=True, stage=st["woman"], pose=pose, cuts=True, blood=False,
+                         man=False, woman=True)
+        if man:
+            ox, oy, S = st["man"]
+            w = apt.arm_wire_end(crank)
+            p = dict(pose)
+            p["crank"] = ((ox - w[0]) / S, (w[1] - oy) / S)      # outside-view stage coords (mirrored)
+            SHOW.casters(ctx, 0.0, (0, 0, 1, 1), mirror=True, stage=st["man"], pose=p, cuts=True, blood=False,
+                         man=True, woman=False)
         return
     # fallback: stiff paper dolls on their rods
-    ox, oy, S = st
-    for who, xs, body, lk in (("man", -0.205, cast.DOLL_MAN, cast.doll_man(ink=None)),
-                              ("woman", 0.20, cast.DOLL_WOMAN, cast.doll_woman(ink=None))):
+    for who, body, lk in (("man", cast.DOLL_MAN, cast.doll_man(ink=None)),
+                          ("woman", cast.DOLL_WOMAN, cast.doll_woman(ink=None))):
         if (who == "man" and not man) or (who == "woman" and not woman):
             continue
-        q = FG.Pose(ox + xs * S, oy - 0.533 * S, 180.0 if who == "woman" else 0.0)
+        ox, oy, S = st[who]
+        rx, ry = apt.RODS[who]
+        px, py = apt.P(apt.TABLE[0] + rx, ry, apt.TABLE[1])
+        q = FG.Pose(px, py, 180.0 if who == "woman" else 0.0)
         q.scale = S / body.height
         sk = FG.solve(q, body)
         FG.draw_figure(None, sk, lk, ctx, color=(0.0, 0.0, 0.0), eyes=False)
-        ctx.rectangle(ox + xs * S - 0.0035 * S, sk.j["pelvis"][1], 0.007 * S, 0.6 * S)
+        ctx.rectangle(px - 0.0035 * S, py, 0.007 * S, 0.6 * S)
         ctx.fill()
 
 
-def draw_paper_dolls(ctx, apt, pose, light, warm=1.0, clip_y=None):
+def draw_paper_dolls(ctx, apt, pose, light, warm=1.0, clip_y=None, crank=0.0):
     """The two puppets as pale PAPER objects lit by `light` (0..~1.5: match / lamp at the
-    table), with a darker cut edge so they read as card. clip_y: world y below which nothing
-    is drawn (the table top: hides the show's crank wire where it would cross the table)."""
-    lv = clamp(light, 0.0, 1.6)
-    base = mix(INK, mix(PAPER, mul(AMBER, 1.05), 0.35 * warm), clamp(0.05 + 0.75 * lv))
-    edge = mix(INK, base, 0.55)
+    table; a number, or (man, woman) to light them apart), with a darker cut edge so they
+    read as card. clip_y: world y below which nothing is drawn (hides the show's long rods
+    and wire where they would cross the table and the rig's block)."""
+    lights = light if isinstance(light, (tuple, list)) else (light, light)
     ctx.save()
     if clip_y is not None:
         ctx.rectangle(-5000, -5000, 10000, clip_y + 5000)
         ctx.clip()
-    ctx.push_group()
-    doll_mask(ctx, apt, pose)
-    pat = ctx.pop_group()
-    # a hairline darker rim (the card's cut edge), then the face of the card
-    ctx.save()
-    ctx.translate(1.2, 1.0)
-    ctx.set_source_rgb(*edge)
-    ctx.mask(pat)
-    ctx.restore()
-    ctx.set_source_rgb(*base)
-    ctx.mask(pat)
+    for who, lv in (("woman", lights[1]), ("man", lights[0])):
+        lv = clamp(lv, 0.0, 1.6)
+        base = mix(INK, mix(PAPER, mul(AMBER, 1.05), 0.35 * warm), clamp(0.05 + 0.75 * lv))
+        edge = mix(INK, base, 0.55)
+        ctx.push_group()
+        doll_mask(ctx, apt, pose, man=(who == "man"), woman=(who == "woman"), crank=crank)
+        pat = ctx.pop_group()
+        # a hairline darker rim (the card's cut edge), then the face of the card
+        ctx.save()
+        ctx.translate(1.2, 1.0)
+        ctx.set_source_rgb(*edge)
+        ctx.mask(pat)
+        ctx.restore()
+        ctx.set_source_rgb(*base)
+        ctx.mask(pat)
     ctx.restore()
 
 
-def doll_casters(ctx, apt, pose, M=None):
+def doll_casters(ctx, apt, pose, M=None, crank=0.0):
     """The puppets as shadow casters (opaque) for Sheet.shadow, optionally pre-mapped by M
-    (the caster remap: see remap())."""
+    (the caster remap: see remap()). Isolated in a group (the pin gaps are cleared)."""
     ctx.save()
     if M is not None:
         ctx.transform(M)
-    doll_mask(ctx, apt, pose)
+    ctx.push_group()
+    doll_mask(ctx, apt, pose, crank=crank)
+    ctx.pop_group_to_source()
+    ctx.paint()
     ctx.restore()
 
 
@@ -427,6 +448,6 @@ def red_scraps(ctx, apt, light, grow=1.0):
         k = apt.room.ppm(Z) / PX_M
         ctx.save()
         ctx.translate(p[0], p[1])
-        ctx.scale(1.0, 0.16)
-        sets.paper_blood(ctx, (0.0, 0.0), sc * k, seed=seed, grow=grow, angle=ang, color=col)
+        ctx.scale(1.0, 0.24)
+        sets.paper_blood(ctx, (0.0, 0.0), 1.3 * sc * k, seed=seed, grow=grow, angle=ang, color=col)
         ctx.restore()

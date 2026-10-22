@@ -454,7 +454,7 @@ def render(f, t, T):
 
 def motion_blur(t, T):
     if t > 12.95:
-        return 5
+        return 4
     return 1
 
 

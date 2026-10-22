@@ -303,9 +303,12 @@ class Forest:
         return out
 
     # ------------------------------------------------------------ public draw
-    def draw_back(self, f, mood=None, glow=(560.0, 820.0), shafts=True, mist=True, haze_tex=True):
+    def draw_back(self, f, mood=None, glow=(560.0, 820.0), shafts=True, mist=True, haze_tex=True, hook=None):
         """Everything behind the action plane: backdrop, far->near fogged tree layers with
-        mist between them, light shafts, and the thicket band (if in view)."""
+        mist between them, light shafts, and the thicket band (if in view).
+        hook(f, i, L): called after back layer i (0 ghost, 1 far, 2 mid, 3 near; L its spec
+        dict) and the haze that follows it, before the next layer: to slip props (a title,
+        a figure in the fog) between the fog layers."""
         mood = self._mood(f, mood)
         backdrop(f, mood, glow=glow, glow_r=1100.0, glow_a=0.45 if mood.night < 0.5 else 0.15)
         for i, L in enumerate(self.layers):
@@ -316,6 +319,8 @@ class Forest:
                     self._paint_layer(f, c, L, mood, trees, tint=L["depth"])
                 if mist:
                     ground_mist(f, L["par"], L["g"], mood.mist, 0.45, up=320.0, down=150.0, step=110.0)
+                if hook is not None:
+                    hook(f, i, L)
                 if i == 3 and shafts and mood.shaft_a > 0:
                     self.draw_shafts(f, mood)
                 continue
@@ -330,6 +335,8 @@ class Forest:
             if i == 1 and haze_tex:
                 f.haze(mood.mist, 0.22, y0=None, y1=None, tex=0.85, tex_scale=0.7, scroll=(9.0, -1.5),
                        seed=self.seed, par=0.4)
+            if hook is not None:
+                hook(f, i, L)
             if i == 3 and shafts and mood.shaft_a > 0:
                 self.draw_shafts(f, mood)
         if self.thicket:

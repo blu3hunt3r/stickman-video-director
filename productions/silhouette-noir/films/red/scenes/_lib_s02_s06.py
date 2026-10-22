@@ -316,6 +316,66 @@ def basket_pendulum(dt=0.0, dx=0.0):
     return HandSwing(pivot, length=60.0, t0=S02_GO - dt - 0.5, t1=S02_GO - dt + 26.0, damping=2.2, gravity=900.0)
 
 
+def walk_prints(a, t0=-1e9, t1=1e9, size=40.0, lead=0.05):
+    """sets.Footprints from an Actor's planned footfalls (each _Walk's plants) that land in
+    [t0, t1]: one print per planted foot, a little ahead of the ankle (lead x height)."""
+    fp = S.Footprints(fill_time=40.0)
+    for seg in a.segs:
+        if type(seg).__name__ != "_Walk":
+            continue
+        for side, plants in seg.plants.items():
+            for (x, tl, _lift, _g) in plants[1:]:
+                if t0 <= tl <= t1:
+                    fp.add(x + seg.d * lead * a.H, tl, side=1 if side == BASKET_SIDE else -1, size=size)
+    return fp
+
+
+# ----------------------------------------------------------------------------- s03 THE PATH (and s04's IN)
+# s03 shares s02's walk (girl_base(S03_DT, S03_DX)). These are the s03 -> s04 dissolve exports:
+# s04 reads them for its IN (valid for s03 t in [12, 14.5]; defined for any t).
+S03_Z0 = 0.42                           # s02's tracking zoom (the s02 -> s03 dissolve matches it)
+S03_FEET = (540.0, 1350.0)              # her feet on screen, the whole scene
+S03_PUSH = (8.30, 3.70)                 # push-in 0.42 -> 1.0 ([deeper] 8.78), done by 12.0
+S03_DARK = (8.55, 3.15)                 # DAY -> mix(DAY, DEEP, 0.6), done by 11.7
+S03_HUSH = (10.25, 1.35)                # [quieter] 10.39: snow and light shafts fade out by 11.6
+S03_SNOW = 0.8                          # snowfall density before the hush
+
+
+def s03_girl_x(t):
+    """The girl's mean walking x (trail coords) at s03 time t (s04: t + 14)."""
+    return walk_x(t + S03_DT) + S03_DX
+
+
+def s03_zoom(t):
+    return S03_Z0 * (1.0 / S03_Z0) ** k(t, *S03_PUSH)
+
+
+def s03_cam(t):
+    """s03's camera: tracks her mean x with her feet at screen (540, 1350); zoom 0.42 until
+    8.3, then pushes in to 1.0 (12.0). From 12.0 on it is exactly
+    Camera(x, PATH.ground_y(x) - 390, 1.0) with x = s03_girl_x(t)."""
+    x = s03_girl_x(t)
+    z = s03_zoom(t)
+    return Camera(x, float(S.PATH.ground_y(x)) - (S03_FEET[1] - 960.0) / z, z)
+
+
+def s03_mood(t):
+    """DAY until 8.55, darkening to mood_mix(DAY, DEEP, 0.6) by 11.7; the light shafts
+    (shaft_a) fade to 0 over 10.25-11.6 (the hush). From 11.6 on: mix 0.6, shaft_a 0."""
+    import copy
+    m = S.mood_mix(S.DAY, S.DEEP, 0.6 * k(t, *S03_DARK))
+    s = 1.0 - k(t, *S03_HUSH)
+    if s < 1.0:
+        m = copy.copy(m)
+        m.shaft_a = m.shaft_a * s
+    return m
+
+
+def s03_snow(t):
+    """Snowfall density 0..1 (0.8 until 10.25, none from 11.6 on)."""
+    return S03_SNOW * (1.0 - k(t, *S03_HUSH))
+
+
 # ----------------------------------------------------------------------------- weather
 def snow(f, mood, density=1.0, wind=22.0, gust=10.0, t=None, seed=0, lit=None, alpha=1.0, size=1.0):
     """Falling snow in the mood's light (three depth bands, near flakes blurred)."""

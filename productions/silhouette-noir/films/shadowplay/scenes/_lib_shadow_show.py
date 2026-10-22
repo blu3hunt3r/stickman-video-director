@@ -61,7 +61,7 @@ import math
 import cairo
 
 from engine import bass, draw
-from engine.core import clamp, ease, lerp
+from engine.core import ease, lerp
 from engine.figure import Pose, solve, draw_figure, head_point
 from engine.palette import RED
 

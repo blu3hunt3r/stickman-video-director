@@ -111,14 +111,57 @@ def draw_pale(ctx, pts, width=LINE_W, color=LINE_C, alpha=1.0):
     stroke(ctx, pts, width, color, alpha)
 
 
-def draw_hook_rim(ctx, x, y, angle=0.0, s=1.0, rim=None, rim_a=0.55, off=(-1.3, -1.1)):
+def draw_hook_rim(ctx, x, y, angle=0.0, s=1.0, rim=None, rim_a=0.55, off=(-1.3, -1.1), flip=False):
     """The cargo hook (eye at x, y) in INK with a thin glint on the edges facing the light:
-    a pale copy offset toward the light, the black hook over it."""
+    a pale copy offset toward the light, the black hook over it. flip mirrors it (the point
+    on the right)."""
     from films.salvage import sets as S
+    ctx.save()
+    ctx.translate(x, y)
+    if flip:
+        ctx.scale(-1.0, 1.0)
+        angle, off = -angle, (-off[0], off[1])
     if rim_a > 0.0:
         rc = rim or LINE_C
-        S.draw_hook(ctx, x + off[0], y + off[1], angle=angle, s=s, color=(rc[0], rc[1], rc[2], rim_a))
-    S.draw_hook(ctx, x, y, angle=angle, s=s)
+        S.draw_hook(ctx, off[0], off[1], angle=angle, s=s, color=(rc[0], rc[1], rc[2], rim_a))
+    S.draw_hook(ctx, 0.0, 0.0, angle=angle, s=s)
+    ctx.restore()
+
+
+class Swing:
+    """A heavy thing hanging from a moving hand (a hook on its eye): pendulum angle (deg,
+    + = the bottom swings toward +x) driven by the pivot's acceleration, integrated once on
+    a fixed grid from (theta0, omega0) at t0. pivot(t) must be cheap (sample it)."""
+
+    def __init__(self, pivot, t0, t1, length=65.0, theta0=0.0, omega0=0.0, g=1500.0, damping=2.0,
+                 dt=1.0 / 240.0):
+        self.pivot, self.t0, self.t1, self.dt = pivot, float(t0), float(t1), dt
+        self.L, self.g, self.c = length, g, damping
+        self.th0, self.om0 = math.radians(theta0), math.radians(omega0)
+        self._a = None
+
+    def _build(self):
+        n = int(math.ceil((self.t1 - self.t0) / self.dt)) + 3
+        ts = self.t0 + np.arange(n + 2) * self.dt - self.dt
+        P = np.array([self.pivot(float(t)) for t in ts], np.float64)
+        acc = (P[2:] - 2.0 * P[1:-1] + P[:-2]) / (self.dt * self.dt)
+        th, om = self.th0, self.om0
+        out = np.empty(n)
+        for i in range(n):
+            out[i] = th
+            ax, ay = acc[i]
+            al = (-ax * math.cos(th) - (self.g - ay) * math.sin(th)) / self.L - self.c * om
+            om += al * self.dt
+            th += om * self.dt
+        self._a = np.degrees(out)
+
+    def __call__(self, t):
+        if self._a is None:
+            self._build()
+        x = (min(max(t, self.t0), self.t1) - self.t0) / self.dt
+        i = min(int(x), len(self._a) - 2)
+        u = x - i
+        return float(self._a[i] * (1.0 - u) + self._a[i + 1] * u)
 
 
 def polyline_len(pts):

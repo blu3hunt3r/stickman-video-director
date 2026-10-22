@@ -658,11 +658,15 @@ class _QLie(_QPosture):
     STEP_LIFT = 0.035
 
     def __init__(self, A, t0, state, dur=2.0, fade=0.25, base=None, head_down=0.0, eyes=1.0,
-                 breath=1.0, **kw):
+                 breath=1.0, t_in=None, **kw):
+        self.t_in_o = t_in
         self.hd, self.eyes = clamp(head_down), clamp(eyes)
         self.BREATH_AMP = float(breath)
         self.BREATH_PER = A.BREATH / (1.0 + 0.45 * max(0.0, breath - 1.0))
         _QPosture.__init__(self, A, t0, state, dur, fade, base, **kw)
+
+    def _t_in(self):
+        return self.T_IN if self.t_in_o is None else max(0.2, float(self.t_in_o))
 
     def _targets(self):
         A, S, fac, PR = self.A, self.A.S, self.fac, self.A.PR
@@ -859,7 +863,7 @@ class _QLunge(_Clip):
     kind = "lunge"
 
     def __init__(self, A, t0, state, dur=None, fade=0.15, base=None, to=None, height=None,
-                 big=False, bite=False, **kw):
+                 big=False, bite=False, rest=0.6, **kw):
         _Clip.__init__(self, A, t0, state, 1.0, fade, base)
         S = A.S
         self.yaw = state["yaw"]
@@ -896,7 +900,7 @@ class _QLunge(_Clip):
         self.x_lo = self.x_a + fac * 0.5 * v * self.T_push
         self.x_td = self.x_lo + fac * v * T_fl
         self.x1 = self.x_td + fac * 0.5 * v * T_abs
-        t_end = self.t_ab + 0.6
+        t_end = self.t_ab + max(0.05, float(rest))
         if dur:
             t_end = max(t_end, self.t0 + dur)
         self.t1 = t_end
@@ -1732,6 +1736,17 @@ class Quadruped(_Actor):
         P = self.state(t)
         return {k: (v[0], v[1], v[2], v[6]) for k, v in P["legs"].items()}
 
+    def head_points(self, t):
+        """World points at time t: dict(tip (muzzle tip), eye, crown, chin, withers, sacrum) -
+        for aiming things at the animal (a bite target, a stab, a look-at)."""
+        P = self.state(t)
+        R = solve_quadruped(self, P)
+        Lh = self.PR["head"] * self.S
+        tip, eye, crown, chin = _head_pts(R, [(1.0, 0.02), _EYE, (0.2, 0.25), (0.75, -0.1)], Lh)
+        (xw, yw), (xs, ys) = _girdles(self, P)
+        return dict(tip=tuple(tip[:2]), eye=tuple(eye[:2]), crown=tuple(crown[:2]),
+                    chin=tuple(chin[:2]), withers=(xw, yw), sacrum=(xs, ys))
+
     def footprints(self, t0=-_INF, t1=_INF):
         """Every paw plant of the locomotion runs in [t0, t1]: [(t, leg, x, y, z), ...] -
         handy for prints in the snow."""
@@ -1835,24 +1850,27 @@ class Wolf(Quadruped):
         """Sit: rump drops onto the hocks, chest upright, front legs straight."""
         return self._add("sit", dur=dur, look=look)
 
-    def lie(self, dur=2.0, head_down=0.0, eyes=1.0, breath=1.0):
+    def lie(self, dur=2.0, head_down=0.0, eyes=1.0, breath=1.0, t_in=None):
         """Lie down (sphinx): forelegs flat forward, hind legs folded. head_down 0..1 rests the
-        chin on the snow; eyes 0..1; breath > 1 = heavy fast breathing (wounded, e.g. 2.5)."""
-        return self._add("lie", dur=dur, head_down=head_down, eyes=eyes, breath=breath)
+        chin on the snow; eyes 0..1; breath > 1 = heavy fast breathing (wounded, e.g. 2.5).
+        t_in: how long the lying down takes (default 1.3 s; ~0.5 = knocked down)."""
+        return self._add("lie", dur=dur, head_down=head_down, eyes=eyes, breath=breath, t_in=t_in)
 
     def crouch(self, dur=1.0):
         """Crouch low on loaded haunches, head low and forward: the lunge anticipation."""
         return self._add("crouch", dur=dur)
 
-    def lunge(self, to, dur=None, height=None, bite=False):
+    def lunge(self, to, dur=None, height=None, bite=False, rest=0.6):
         """Spring forward to root x `to`: load, drive, flight, land fore-then-hind, absorb,
         recovery step. height: apex rise in px (default 0.3 S). bite=True snaps on landing.
-        Lunges from a crouch skip most of the load."""
-        return self._add("lunge", to=float(to), dur=dur, height=height, bite=bite)
+        Lunges from a crouch skip most of the load. rest: how long after the absorb the
+        next action may start (default 0.6 s; shorter for a fight)."""
+        return self._add("lunge", to=float(to), dur=dur, height=height, bite=bite, rest=rest)
 
-    def leap(self, to, height=None, dur=None):
-        """A big leap (default apex 0.85 S, stretched flight) - e.g. over the girl."""
-        return self._add("lunge", to=float(to), dur=dur, height=height, big=True)
+    def leap(self, to, height=None, dur=None, bite=False, rest=0.6):
+        """A big leap (default apex 0.85 S, stretched flight) - e.g. over the girl.
+        bite=True: jaws open in the flight and snap shut on the landing. rest: see lunge."""
+        return self._add("lunge", to=float(to), dur=dur, height=height, big=True, bite=bite, rest=rest)
 
     def bite(self, dur=0.5, n=1):
         """n fast snaps of the jaws (head act, layers over the body action)."""
@@ -2617,7 +2635,8 @@ class _SRun(_SpiderClip):
         gk = A.GAIT[segs[0]["kind"]]
         L0 = gk["L"] * A.LL
         Dn = (self.x_end - x0) * fac
-        m = int(round(abs(Dn) / (0.5 * L0)))
+        # (a short move still takes one half cycle: every tip re-plants, none is left hanging)
+        m = max(1, int(round(abs(Dn) / (0.5 * L0)))) if abs(Dn) > 1e-3 else 0
         self.L = abs(Dn) / (0.5 * m) if m > 0 else L0
         self.beta = 0.65
         self.phi0 = 0.13
@@ -2636,10 +2655,16 @@ class _SRun(_SpiderClip):
                 lo = min((k0 + tau + b - self.phi0) * L, o + 0.5 * b * L)
                 td = (k0 + 1 + tau - self.phi0) * L
                 lo = min(max(lo, 0.02 * L), td - 0.15 * L)
+                if lo < Dn < td:            # a short move: the first step lands by the end
+                    td = Dn
+                    lo = min(lo, td - 0.3 * abs(Dn))
             else:
                 lo = max((k0 + tau - self.phi0) * L, o - 0.5 * b * L)
                 td = (k0 - 1 + tau + b - self.phi0) * L
                 lo = max(min(lo, -0.02 * L), td + 0.15 * L)
+                if td < Dn < lo:
+                    td = Dn
+                    lo = max(lo, td + 0.3 * abs(Dn))
             self.first_lo.append(lo)
             self.first_td.append(td)
         self.t1 = self.t_stop + 0.02
@@ -2987,6 +3012,77 @@ class _SThreat(_SpiderClip):
         return P
 
 
+class _SPin(_SpiderClip):
+    """Pin something to the ground: the pinning legs wind up and strike down into the snow
+    on either side of `target` (x) one after the other and stay in, the body sinks to
+    `low` x its standing height and tips its head down over the victim; the fangs work and
+    a struggle tremor runs through the body and the planted legs."""
+    kind = "pin"
+
+    def __init__(self, A, t0, state, dur=2.0, fade=0.15, base=None, target=0.0, legs=(0, 4),
+                 offsets=None, low=0.62, pitch=-16.0, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        S = A.S
+        self.x = state["x"]
+        self.legs = tuple(int(i) % 8 for i in legs)
+        if offsets is None:
+            offsets = [(-0.38 if k % 2 == 0 else 0.30) * S for k in range(len(self.legs))]
+        self.pts = []
+        for o in offsets:
+            px = float(target) + float(o)
+            self.pts.append((px, A.ground(px)))
+        self.low, self.pitch = float(low), float(pitch)
+        self.feet0 = [list(v) for v in state["feet"]]
+        gy = A.ground(self.x)
+        self.y0 = state.get("y") or (gy - A.H)
+        self.y_low = gy - A.H * self.low
+        feet1 = [list(v) for v in self.feet0]
+        for i, (px, py) in zip(self.legs, self.pts):
+            feet1[i] = [px, py, self.feet0[i][2], 1.0, None]
+        self.end_state = dict(state, y=self.y_low, feet=feet1, posture="stand")
+
+    def pose(self, t):
+        A, S, LL = self.A, self.A.S, self.A.LL
+        tau = max(0.0, t - self.t0)
+        e = _ss(0.15, 0.6, tau)
+        st = 0.6 * math.sin(2 * math.pi * 2.3 * t) + 0.4 * noise1(t * 5.0, A.seed + 71)
+        y = self.y0 + (self.y_low - self.y0) * e + 0.012 * S * st * e
+        P = self._base(self.x, t, y=y, feet=self.feet0)
+        A._idle(P, t, moving=1.0)
+        P["pitch"] += self.pitch * e + 2.0 * st * e
+        P["mand"] = max(P["mand"], e * (0.45 + 0.4 * abs(math.sin(2 * math.pi * 1.6 * t))))
+        P["rear"] = 0.0
+        feet = P["feet"]
+        fac = 1.0 if math.cos(P["yaw"] * D2R) >= 0 else -1.0
+        for k, i in enumerate(self.legs):
+            px, py = self.pts[k]
+            f0 = self.feet0[i]
+            tk = tau - 0.12 * k
+            W = (px + fac * 0.10 * LL, py - 0.50 * LL, f0[2])
+            tdir = None
+            if tk <= 0.0:
+                pt, c = list(f0[:3]), f0[3]
+            elif tk < 0.26:                     # wind-up: lifted high over the spot
+                w = _s01(tk / 0.26)
+                pt = [f0[j] + (W[j] - f0[j]) * w for j in range(3)]
+                pt[1] -= 0.08 * LL * math.sin(math.pi * w)
+                c = 0.0
+            elif tk < 0.34:                     # the strike
+                w = ((tk - 0.26) / 0.08) ** 1.6
+                pt = [W[0] + (px - W[0]) * w, W[1] + (py - W[1]) * w, f0[2]]
+                d = math.hypot(px - W[0], py - W[1]) or 1.0
+                tdir = ((px - W[0]) / d, (py - W[1]) / d)
+                c = 0.0
+            else:                               # driven in: it shudders with the struggle
+                d = math.hypot(px - W[0], py - W[1]) or 1.0
+                tdir = ((px - W[0]) / d, (py - W[1]) / d)
+                pt = [px + 0.004 * LL * st, py, f0[2]]
+                c = 1.0
+            feet[i] = [pt[0], pt[1], pt[2], c, tdir]
+        P["feet"] = feet
+        return P
+
+
 class _SAct(_Clip):
     """Overlay acts for the spider (stab, eyes)."""
     overlay = True
@@ -3183,6 +3279,14 @@ class Spider(_Actor):
         end (the next action takes over from the raised pose)."""
         return self._add("threat", dur=dur, settle=settle)
 
+    def pin(self, dur=2.0, target=0.0, legs=(0, 4), offsets=None, low=0.62, pitch=-16.0):
+        """Pin something down at x `target`: `legs` strike into the snow at target + offsets
+        (default -0.38 S / +0.30 S, alternating) and stay in; the body sinks to `low` x its
+        standing height, head tipped down (`pitch`), fangs working, a struggle tremor. The
+        next action starts from the low pose with those legs planted."""
+        return self._add("pin", dur=dur, target=target, legs=legs, offsets=offsets, low=low,
+                         pitch=pitch)
+
     def recoil(self, dur=1.2, dist=None, burn=0.0):
         """Flinch from fire: legs snap up, skitter back dist px; burn > 0: embers + twitching."""
         return self._add("recoil", dur=dur, dist=dist, burn=burn)
@@ -3312,7 +3416,7 @@ class Spider(_Actor):
 
 
 Spider.CLIPS = {"stand": _SStand, "descend": _SDescend, "recoil": _SRecoil, "die": _SDie,
-                "threat": _SThreat, "stab": _SStab, "eyes": _SEyes, "drop": _SDrop}
+                "threat": _SThreat, "stab": _SStab, "eyes": _SEyes, "drop": _SDrop, "pin": _SPin}
 
 
 def _sp_leg_ik(hip, tip, LL, ndir, tdir=None):

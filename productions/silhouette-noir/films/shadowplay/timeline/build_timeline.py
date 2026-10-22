@@ -17,7 +17,7 @@ SCENES = [
     ("s02", "the_watcher",  15.0, dict(kind="shape", dur=1.0, invert=True, shape="binocular",
                                                  shape_args=dict(center=(540, 960), r=300, sep=330, seed=0))),
     ("s03", "window_nine",  17.0, None),
-    ("s04", "nothing",      11.5, dict(kind="bars", dur=1.0, n=2, axis="h", color=None)),
+    ("s04", "nothing",      11.5, dict(kind="bars", dur=1.0, n=2, axis="h", color=None, sizes=[1, 1])),
     ("s05", "again",        14.0, dict(kind="slash", dur=0.75)),
     ("s06", "crossing",     13.0, dict(kind="shape", dur=1.0, shape="window",
                                                  shape_args=dict(rect0=(444, 840, 636, 1080)))),

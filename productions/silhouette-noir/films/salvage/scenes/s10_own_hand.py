@@ -420,38 +420,81 @@ def draw_photo(ctx, c, ang, face=1.0, light=0.8, hide=None):
 
 def _photo_free(t):
     """Where the photo floats after slipping out from between the pages (a slow falling
-    leaf): (centre, angle, face)."""
+    leaf): (centre, angle, face). It lands in his glove at T_CATCH showing its back."""
     tau = max(t - T_FATHER, 0.0)
     p0 = _bk(T_FATHER, -4.0, 120.0)
-    x = p0[0] - 92.0 * (1 - math.exp(-tau / 0.6)) - 10.0 * math.sin(4.0 * tau)
-    y = p0[1] + 30.0 * tau + 28.0 * tau * tau
+    x = p0[0] - 130.0 * (1 - math.exp(-tau / 0.5)) - 10.0 * math.sin(4.0 * tau)
+    y = p0[1] + 40.0 * tau + 50.0 * tau * tau
     ang = -8.0 - 24.0 * math.sin(3.2 * tau + 0.3)
-    face = math.cos(1.9 * tau * tau + 0.6 * tau)
+    face = math.cos(5.39 * tau * tau + 0.6 * tau)
     return (x, y), ang, face
 
 
-HOLD_OFF = (6.0, -62.0)                          # photo centre relative to the right wrist (held from below)
+def lerp2(a, b, u):
+    return a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u
 
 
-def _photo_state(t, wR):
+def _rot(a, v):
+    r = math.radians(a)
+    return v[0] * math.cos(r) - v[1] * math.sin(r), v[0] * math.sin(r) + v[1] * math.cos(r)
+
+
+def _corner(c, ang, face):
+    """The photo's top-left corner (where his glove pinches it) from its centre."""
+    d = _rot(ang, (PHOTO_W / 2 * max(abs(face), 0.04), PHOTO_H / 2))
+    return c[0] - d[0], c[1] - d[1]
+
+
+def _photo_held(t):
+    """(centre, angle, face) once caught: pinched at its top-left corner, turned over as it
+    comes up past the left of the book, held up to the port, lowered, slid under the
+    breastplate. The corner is the pivot, so it turns about its held edge."""
+    c0, a0, f0 = _photo_free(T_CATCH)
+    g0 = _corner(c0, a0, f0)
+    face = LIB.track([(T_CATCH, f0), (1.98, f0), (2.30, 1.0, "inout")], t)
+    ang = LIB.track([(T_CATCH, a0), (1.98, a0 * 0.8, "inout"), (2.42, -3.0, "inout")], t)
+    ang += 1.5 * math.sin(1.3 * t) * ss(2.4, 2.8, t)
+    up = _corner((X0 - 112.0, 4722.0), -5.0, 1.0)
+    hold = _corner((X0 - 6.0, 4702.0), -3.0, 1.0)
+    g = LIB.track([(T_CATCH, g0), (T_CATCH + 0.16, (g0[0] + 2.0, g0[1] - 5.0), "inout"),
+                   (2.24, up, "inout"), (2.55, hold, "inout"), (T_HOLD1, (hold[0] + 2.0, hold[1] - 3.0), "inout"),
+                   (T_LOWER, (hold[0] + 2.0, hold[1] + 88.0), "inout"),
+                   (T_TUCK1, (hold[0] + 4.0, hold[1] - 2.0), "inout")], t)
+    d = _rot(ang, (PHOTO_W / 2 * max(abs(face), 0.04), PHOTO_H / 2))
+    return (g[0] + d[0], g[1] + d[1]), ang, face
+
+
+def _photo_state(t):
     """(centre, angle, face, tucked) of the photo, or None while it is not in the water."""
     if t < T_FATHER or t >= T_TUCK1:
         return None
     if t <= T_CATCH:
         c, ang, face = _photo_free(t)
         return c, ang, face, False
-    c0, a0, f0 = _photo_free(T_CATCH)
-    u = ease("inout", clamp((t - T_CATCH - 0.16) / (T_HOLD0 + 0.08 - T_CATCH - 0.16)))
-    held = (wR[0] + HOLD_OFF[0], wR[1] + HOLD_OFF[1])
-    d0 = (c0[0] - _wrist_target(T_CATCH)[0][0] - HOLD_OFF[0], c0[1] - _wrist_target(T_CATCH)[0][1] - HOLD_OFF[1])
-    c = (held[0] + d0[0] * (1 - u), held[1] + d0[1] * (1 - u))
-    ang = lerp(a0, -3.0 + 1.5 * math.sin(1.3 * t), u)
-    face = lerp(f0, 1.0, u)
+    c, ang, face = _photo_held(t)
     return c, ang, face, t > T_LOWER
 
 
-def lerp2(a, b, u):
-    return a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u
+def _photo_grip(t):
+    """World wrist target while the photo is in play (None otherwise)."""
+    if t <= T_CATCH:
+        c, ang, face = _photo_free(T_CATCH)
+    else:
+        c, ang, face = _photo_held(t)
+    g = _corner(c, ang, face)
+    d = _rot(ang, (-6.0, -5.0))
+    return g[0] + d[0], g[1] + d[1]
+
+
+def _photo_thumb(L, ph):
+    """His thumb across the pinched corner, on the side facing us."""
+    c, ang, face = ph[0], ph[1], ph[2]
+    g = _corner(c, ang, face)
+    a = _rot(ang, (2.0, 10.0))
+    b = _rot(ang, (11.0, 2.0))
+    draw.capsule(L, (g[0] + a[0], g[1] + a[1]), (g[0] + b[0], g[1] + b[1]), 4.6, 4.0)
+    L.set_source_rgb(*INK)
+    L.fill()
 
 
 # ----------------------------------------------------------------------------- the hook
@@ -495,17 +538,13 @@ def _wrist_target(t):
     """World wrist targets (R, L): the book's edges, plus the acting beats."""
     gR = _bk(t, -116.0, 70.0)
     gL = _bk(t, 116.0, 64.0)
-    # right glove: catches the photo, holds it up, lowers it, slides it under the breastplate
+    # right glove: catches the photo, brings it up past the book, holds it to the port,
+    # lowers it, slides it under the breastplate
     if T_FATHER + 0.3 < t < T_TUCK1 + 0.5:
-        cf = _photo_free(T_CATCH)[0]
-        catch = (cf[0] - HOLD_OFF[0], cf[1] - HOLD_OFF[1])
-        hold = (X0 - 14.0 - HOLD_OFF[0], 4708.0 - HOLD_OFF[1])
-        low = (X0 - 10.0 - HOLD_OFF[0], 4796.0 - HOLD_OFF[1])
-        tuck = (X0 - 8.0 - HOLD_OFF[0], 4704.0 - HOLD_OFF[1])
-        gR = LIB.track([(T_FATHER + 0.3, gR), (T_CATCH, catch, "inout"), (T_CATCH + 0.16, catch),
-                        (T_HOLD0 + 0.08, hold, "inout"),
-                        (T_HOLD1, (hold[0] + 2.0, hold[1] - 3.0), "inout"), (T_LOWER, low, "inout"),
-                        (T_TUCK1, tuck, "inout"), (T_TUCK1 + 0.5, _bk(t, -116.0, 70.0), "inout")], t)
+        w = LIB.bump(t, T_FATHER + 0.3, T_CATCH, T_TUCK1, T_TUCK1 + 0.5)
+        w = ease("inout", w)
+        pg = _photo_grip(min(t, T_TUCK1 - 1e-3))
+        gR = (lerp(gR[0], pg[0], w), lerp(gR[1], pg[1], w))
     # left glove: lifts the right page's edge and lays it over
     if T_TURN0 - 0.3 < t < T_TURN1 + 0.4:
         p = _turn_p(t)
@@ -560,13 +599,13 @@ def _hook_eye(t):
 
 # ----------------------------------------------------------------------------- camera
 def camera(t):
-    z = LIB.track([(-1.0, 4.30), (0.7, 4.30), (1.8, 4.10, "inout"), (2.7, 4.85, "inout"), (3.7, 5.00, "inout"),
+    z = LIB.track([(-1.0, 4.30), (0.7, 4.30), (1.8, 4.10, "inout"), (2.25, 4.30, "inout"), (2.7, 4.85, "inout"), (3.7, 5.00, "inout"),
                    (4.5, 4.35, "inout"), (5.7, 4.35, "inout"), (6.8, 5.10, "inout"), (8.3, 3.05, "inout"),
                    (9.4, 3.0, "inout"), (10.2, 2.85, "inout")], t)
-    cx = LIB.track([(-1.0, X0 - 2.0), (0.7, X0 - 2.0), (1.8, X0 - 34.0, "inout"), (2.7, X0 - 14.0, "inout"),
+    cx = LIB.track([(-1.0, X0 - 2.0), (0.7, X0 - 2.0), (1.8, X0 - 34.0, "inout"), (2.25, X0 - 44.0, "inout"), (2.7, X0 - 14.0, "inout"),
                     (3.7, X0 - 12.0, "inout"), (4.5, X0 - 2.0, "inout"), (5.7, X0, "inout"), (6.8, X0 + 30.0, "inout"),
                     (8.3, X0 - 40.0, "inout"), (9.45, X0 - 30.0, "inout"), (10.25, X0 + 60.0, "inout")], t)
-    cy = LIB.track([(-1.0, 4722.0), (0.7, 4722.0), (1.8, 4790.0, "inout"), (2.7, 4684.0, "inout"),
+    cy = LIB.track([(-1.0, 4722.0), (0.7, 4722.0), (1.8, 4790.0, "inout"), (2.25, 4740.0, "inout"), (2.7, 4684.0, "inout"),
                     (3.7, 4680.0, "inout"), (4.5, 4738.0, "inout"), (5.7, 4744.0, "inout"),
                     (6.8, 4800.0, "inout"), (8.3, 4668.0, "inout"), (10.2, 4660.0, "inout")], t)
     return Camera(cx, cy, z).shaken(t, amp=0.9, rot_amp=0.05, freq=0.45, seed=10)
@@ -598,19 +637,15 @@ def render(f, t, T):
     atmos.marine_snow(f, density=0.3, t=t, seed=10, sink=3.0, current=(2.0, 0.0), alpha=0.5, lit=shaft,
                       lit_gain=2.5)
     # --- the diver, the photo, the book, his gloves
-    wR = sk.j["wrist_R"]
-    ph = _photo_state(t, wR)
+    ph = _photo_state(t)
     with f.layer() as L:
         F.draw_figure(f, sk, LOOK, L, eyes=False)
         # the photo is held between his chest and the book (his forearm is behind the book)
         if ph is not None:
             hide = (lambda c, sk=sk: _corselet_path(sk)(c)) if ph[3] else None
             draw_photo(L, ph[0], ph[1], ph[2], 0.62 if t < T_FATHER + 0.3 else 0.84, hide=hide)
-            if t > T_CATCH:                                  # his thumb over the photo's edge
-                a = (wR[0] + 6.0, wR[1] - 26.0)
-                draw.capsule(L, a, (a[0] + 12.0, a[1] - 13.0), 6.0, 5.0)
-                L.set_source_rgb(*INK)
-                L.fill()
+            if t > T_CATCH:
+                _photo_thumb(L, ph)
         if t < 9.75:
             _draw_book(L, t, 1.0)
             gR = 1.0 - LIB.bump(t, T_FATHER + 0.3, T_FATHER + 0.45, T_TUCK1 + 0.3, T_TUCK1 + 0.5)
@@ -626,10 +661,10 @@ def render(f, t, T):
         if SIG0 < t < SIG1:                                  # his left thumb runs down to the name
             _sig_thumb(L, t)
     # --- his eyes in the port
-    look_x = LIB.track([(-1, -0.05), (1.2, -0.05), (1.8, -0.55, "inout"), (2.4, -0.30, "inout"), (3.8, -0.30),
+    look_x = LIB.track([(-1, -0.05), (1.2, -0.05), (1.8, -0.55, "inout"), (2.2, -0.80, "inout"), (2.6, -0.30, "inout"), (3.8, -0.30),
                         (4.4, 0.10, "inout"), (5.1, 0.35, "inout"), (6.0, 0.30), (6.8, 0.22, "inout"),
                         (7.9, -0.70, "inout"), (9.2, -0.65), (9.8, 0.45, "inout")], t)
-    look_y = LIB.track([(-1, 0.80), (1.2, 0.85), (1.9, 0.95, "inout"), (2.4, 0.62, "inout"), (3.8, 0.62),
+    look_y = LIB.track([(-1, 0.80), (1.2, 0.85), (1.9, 0.95, "inout"), (2.2, 0.50, "inout"), (2.6, 0.62, "inout"), (3.8, 0.62),
                         (4.4, 0.85, "inout"), (6.8, 0.95, "inout"), (7.9, -0.85, "inout"), (9.0, -0.55),
                         (9.6, 0.0, "inout")], t)
     blink = 1.0 - LIB.bump(t, T_BLINK, T_BLINK + 0.24, T_BLINK + 0.42, T_BLINK + 0.70)

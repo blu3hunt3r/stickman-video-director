@@ -570,3 +570,25 @@ def glove_arm(ctx, S, Wt, L1, L2, r=(90.0, 76.0, 58.0), hand=150.0, hand_ang=Non
         ctx.fill()
     tip = H(1.69, -0.15)
     return dict(tip=tip, wrist=Wr, elbow=E, polys=polys, palm=palm, angle=ang0)
+
+
+# ----------------------------------------------------------------------------- rim light
+def rim_light(f, paint_mask, to_light, width, color, alpha, blur=2.0):
+    """A thin additive edge of light on a silhouette, on the side facing a light.
+    paint_mask(ctx) appends and fills the silhouette (any colour) in world coords;
+    to_light = unit direction toward the light; width = rim thickness (world px)."""
+    if alpha <= 0.0:
+        return
+    dx, dy = -to_light[0] * width, -to_light[1] * width
+    with f.light(blur=blur) as A:
+        A.push_group()
+        paint_mask(A)
+        A.set_operator(cairo.OPERATOR_DEST_OUT)
+        A.save()
+        A.translate(dx, dy)
+        paint_mask(A)
+        A.restore()
+        A.set_operator(cairo.OPERATOR_OVER)
+        m = A.pop_group()
+        A.set_source_rgba(color[0], color[1], color[2], alpha)
+        A.mask(m)

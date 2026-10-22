@@ -22,6 +22,7 @@ import cairo
 from engine import atmos, bass, draw
 from engine import figure as FIG
 from engine.core import W, H, clamp, lerp, ease, smoothstep, hash01, noise1, fbm1, pulse
+from engine import creatures as CR
 from engine.creatures import Cat
 from engine.frame import Camera
 from engine.motion import Actor
@@ -191,6 +192,32 @@ def kseg(t, t0, t1, e="inout"):
     if t >= t1:
         return 1.0
     return ease(e, (t - t0) / (t1 - t0))
+
+
+# =========================================================================== the binocular view
+def _zf_F(zf):
+    return zf * END_C * K_F
+
+
+# THE BINOCULAR VIEW (tw = s02 time; s03 passes t + 15): from her window, lens + aim only.
+#   s02 12.60  the title framing: the whole facade, SHADOW / PLAY on rows 3 and 5 (TITLE_*)
+#   s02 14.40-15.15  the push onto window 9 (END_RIG at 15.15, held through the cut)
+#   s03 1.0-7.0  slow push on the dark window; 7.35-8.3 zoom in to the show (zf 1.7)
+BINO_T0 = 12.6
+TITLE_ZF = 0.50
+TITLE_AIM = (540.0, 1610.0)
+SHOW_ZF = 1.70
+_BINO_F = Spline([(BINO_T0, _zf_F(TITLE_ZF), "hold"), (14.4, _zf_F(0.53)), (15.15, END_F, "hold"),
+                  (16.0, END_F, "hold"), (19.4, _zf_F(0.97)), (22.0, _zf_F(1.05)), (22.35, _zf_F(1.07)),
+                  (23.3, _zf_F(SHOW_ZF), "hold"), (40.0, _zf_F(SHOW_ZF))])
+_BINO_AIM = Spline([(BINO_T0, TITLE_AIM, "hold"), (14.4, (572.0, 1545.0)), (15.15, W9C, "hold"), (40.0, W9C)])
+
+
+def bino_rig(tw):
+    """Her binocular view at s02 time tw (>= BINO_T0): END position, lens and aim keyed."""
+    u, v = _BINO_AIM(tw)
+    return Rig(_BINO_F(tw), END_C, END_X, END_Y, u, v, bino_shake(tw))
+
 
 
 # =========================================================================== sky + rain
@@ -489,17 +516,20 @@ def draw_window4_flare(f, t, four, k=1.0):
 
 
 # =========================================================================== window 12: cat lady + cat
+LADY_LIFT = 0.16 * K_F          # her chair stands on a rug-covered step (she sits above the fire-escape rail)
+
+
 @lru_cache(maxsize=4)
 def cat_lady(twelve=2.79, talks=3.25, cat_t=4.05):
     x0, y0, x1, y1 = W12
     w = x1 - x0
-    floor = FAC.floor_y(12)
+    floor = FAC.floor_y(12) - LADY_LIFT
     sc = P_H / 600.0
-    a = seat_actor(cast.CAT_LADY, cast.cat_lady(), x0 + 0.70 * w, floor, 180.0, sc, seed=12, lean=14.0,
+    a = seat_actor(cast.CAT_LADY, cast.cat_lady(), x0 + 0.74 * w, floor, 180.0, sc, seed=12, lean=10.0,
                    arms=dict(sh=24.0, abd=8.0, elbow=70.0, wrist=10.0, grip=0.5), t1=80.0)
     # Twelve: she perks up and leans to the cat; talks: the near hand lifts and chats
-    a.key("pitch", [(twelve - 0.3, 14.0), (twelve + 0.25, 26.0, "outback"), (cat_t + 0.9, 24.0),
-                    (cat_t + 1.8, 12.0), (80.0, 12.0)], fade=0.2)
+    a.key("pitch", [(twelve - 0.3, 10.0), (twelve + 0.25, 19.0, "outback"), (cat_t + 0.9, 17.0),
+                    (cat_t + 1.8, 9.0), (80.0, 9.0)], fade=0.2)
     a.key("head", [(twelve - 0.3, 18.0), (twelve + 0.2, 4.0, "out3"), (cat_t + 1.8, 10.0), (80.0, 10.0)], fade=0.2)
     # chatty nods on the syllables of 'talks to her cat'
     nods = [(talks - 0.1, 0.0)]
@@ -517,6 +547,21 @@ def cat_lady(twelve=2.79, talks=3.25, cat_t=4.05):
     return a
 
 
+class _SillSit(CR._CSit):
+    """Cat sit with tail='up': the tail sweeps up behind him in an S (it shows above the
+    fire-escape rail; 'wrap' and 'hang' tails would hide behind it)."""
+
+    def _targets(self):
+        K, x1, legs1, sched, stage = CR._CSit._targets(self)
+        if self.tail_mode == "up":
+            K.update(tail=70.0, tcurve=20.0, thook=-90.0, thang=0.0)
+        return K, x1, legs1, sched, stage
+
+
+class SillCat(Cat):
+    CLIPS = dict(Cat.CLIPS, sit=_SillSit)
+
+
 CAT_SIZE = 0.40 * FK                     # a big tom (shoulder height 0.4 m)
 CAT_CUSHION = 0.17 * FK                  # he sits on a cushion on the sill, above the fire-escape rail
 
@@ -525,12 +570,13 @@ CAT_CUSHION = 0.17 * FK                  # he sits on a cushion on the sill, abo
 def window_cat(twelve=2.79, talks=3.25, cat_t=4.05):
     x0, y0, x1, y1 = W12
     w = x1 - x0
-    c = Cat(x0 + 0.28 * w, y1 - CAT_CUSHION, facing=1, size=CAT_SIZE, seed=4)
-    c.sit(talks + 4.8, look=0.0, tail="wrap")
-    c.look(1.0, turn=55.0).sit(4.0, tail="wrap").look(1.6, turn=25.0).sit(60.0, tail="wrap")
+    c = SillCat(x0 + 0.25 * w, y1 - CAT_CUSHION, facing=1, size=CAT_SIZE, seed=4)
+    c.sit(talks + 4.8, look=0.0, tail="up")
+    c.look(1.0, turn=55.0).sit(4.0, tail="up").look(1.6, turn=25.0).sit(60.0, tail="up")
     c.overlay("look", twelve + 0.15, 1.0, turn=-20.0)
     c.overlay("meow", talks + 0.55, 0.6)
-    c.overlay("flick", cat_t - 0.02, 0.6, n=2)
+    for _ in range(2):                    # doubled: a big, readable flick on 'cat'
+        c.overlay("flick", cat_t - 0.02, 0.6, n=2)
     c.overlay("flick", cat_t + 1.9, 0.5, n=1)
     for k in range(6):
         c.overlay("flick", cat_t + 4.5 + 3.3 * k + 0.8 * hash01(12, k), 0.5, n=1)
@@ -543,11 +589,11 @@ def draw_cat_lady(ctx, win, T12):
     t = win.t
     x0, y0, x1, y1 = W12
     w = x1 - x0
-    floor = FAC.floor_y(12)
-    chair(ctx, (x0 + 0.70 * w - 0.04 * FK, floor - 0.47 * FK), FK, facing=-1)
+    floor = FAC.floor_y(12) - LADY_LIFT
+    chair(ctx, (x0 + 0.74 * w - 0.04 * FK, floor - 0.47 * FK), FK, facing=-1)
     a.draw(win.f, t, ctx, eyes=win.mode == "direct")
     # the cushion on the sill, then the cat on it
-    cx = x0 + 0.28 * w
+    cx = x0 + 0.25 * w
     draw.smooth(ctx, [(cx - 0.30 * FK, y1), (cx - 0.31 * FK, y1 - CAT_CUSHION * 0.8), (cx - 0.2 * FK, y1 - CAT_CUSHION),
                       (cx + 0.2 * FK, y1 - CAT_CUSHION), (cx + 0.31 * FK, y1 - CAT_CUSHION * 0.8), (cx + 0.30 * FK, y1)],
                 close=True, tension=0.3)
@@ -615,56 +661,104 @@ def interiors_for(T4, T12, T30):
 # =========================================================================== the street below
 class Walker:
     """Somebody under an umbrella seen from her window (high above): x(t) along the street,
-    depth u in the street band (< 0: the far sidewalk), size relative."""
+    depth u in the street band (< 0: the far sidewalk; du: drifting across the road), size
+    relative."""
 
-    __slots__ = ("t0", "x0", "vx", "u", "size", "seed")
+    __slots__ = ("t0", "x0", "vx", "u", "size", "seed", "du")
 
-    def __init__(self, t0, x0, vx, u, size=1.0, seed=0):
-        self.t0, self.x0, self.vx, self.u, self.size, self.seed = t0, x0, vx, u, size, seed
+    def __init__(self, t0, x0, vx, u, size=1.0, seed=0, du=0.0):
+        self.t0, self.x0, self.vx, self.u, self.size, self.seed, self.du = t0, x0, vx, u, size, seed, du
+
+    def depth(self, t):
+        return self.u if self.u < 0 else self.u + self.du * (t - self.t0)
 
     def at(self, t, st):
         x = self.x0 + self.vx * (t - self.t0)
-        if self.u < 0:
+        u = self.depth(t)
+        if u < 0:
             y = st.g + (st.curb_y - st.g) * 0.55
             s = 1.0
         else:
-            y = st.lane_y(self.u)
-            s = st.depth_scale(self.u)
+            y = st.lane_y(u)
+            s = st.depth_scale(u)
         return x, y, s * self.size
 
 
-def _walker_shape(ctx, t, w, x, y, s):
-    """Umbrella seen from above at an angle: a scalloped canopy hiding the walker, legs
-    scissoring under its near edge, the ferrule on top."""
+def _walker_q(u):
+    """Canopy foreshortening seen from her window: ~47 deg down to the far sidewalk, nearly
+    straight down to the near curb."""
+    return lerp(0.70, 0.92, clamp(u if u >= 0 else 0.0))
+
+
+def _canopy_pts(cx, cy, R, q, seed, n=8):
+    pts = []
+    for j in range(n * 4 + 1):
+        a = 2 * math.pi * j / (n * 4) + 0.3 * seed
+        scal = 1.0 - 0.07 * (0.5 - 0.5 * math.cos(a * n))          # sags between the ribs
+        pts.append((cx + R * scal * math.cos(a), cy + R * q * scal * math.sin(a)))
+    return pts
+
+
+def _walker_geom(t, w, x, y, s, u):
     k = K_F * s
     R = 0.52 * k
-    q = 0.62                                     # canopy foreshortening (seen from ~40 deg)
+    q = _walker_q(u)
     stride = 0.72 * k
     ph = (x - w.x0) / max(stride, 1e-6) * math.pi * (1 if w.vx >= 0 else -1)
     dirx = 1.0 if w.vx >= 0 else -1.0
-    hip = (x, y - 0.80 * k * 0.55)
-    for sgn in (1.0, -1.0):
-        sw = math.sin(ph) * sgn
-        foot = (x + dirx * 0.22 * k * sw, y - 0.06 * k * max(0.0, math.cos(ph) * sgn))
-        draw.capsule(ctx, hip, foot, 0.055 * k, 0.045 * k)
-    # coat skirt under the canopy
-    draw.poly(ctx, [(x - 0.20 * k, y - 0.80 * k * 0.55 - 0.05 * k), (x + 0.20 * k, y - 0.80 * k * 0.55 - 0.05 * k),
-                    (x + 0.14 * k, y - 1.7 * k * 0.55), (x - 0.14 * k, y - 1.7 * k * 0.55)])
-    cy = y - 1.75 * k * 0.55
     bob = 0.02 * k * abs(math.sin(ph))
     cx = x + dirx * 0.06 * k
-    pts = []
-    n = 8
-    for j in range(n * 4 + 1):
-        a = 2 * math.pi * j / (n * 4) + 0.3 * w.seed
-        scal = 1.0 - 0.07 * (0.5 - 0.5 * math.cos(a * n))         # sags between the ribs
-        pts.append((cx + R * scal * math.cos(a), cy - bob + R * q * scal * math.sin(a)))
-    draw.poly(ctx, pts)
-    draw.circle(ctx, (cx, cy - bob - 0.03 * k), 0.035 * k)
+    cy = y - 1.75 * k * 0.55 * (1.15 - q) / 0.45 - bob     # the steeper the view, the less height shows
+    return k, R, q, ph, dirx, cx, cy
+
+
+def _walker_shape(ctx, t, w, x, y, s, u=0.0):
+    """Umbrella seen from above at an angle: a scalloped canopy hiding the walker, legs
+    scissoring under its near edge, the ferrule on top."""
+    k, R, q, ph, dirx, cx, cy = _walker_geom(t, w, x, y, s, u)
+    hip = (x, y - 0.40 * k * (1.15 - q) / 0.45)
+    for sgn in (1.0, -1.0):
+        sw = math.sin(ph) * sgn
+        foot = (x + dirx * 0.22 * k * sw, y - 0.05 * k * max(0.0, math.cos(ph) * sgn))
+        draw.capsule(ctx, hip, foot, 0.06 * k, 0.05 * k)
+    draw.ellipse(ctx, ((x + cx) / 2, (y + cy) / 2), 0.20 * k, abs(y - cy) * 0.45 + 0.1 * k)     # coat
+    draw.poly(ctx, _canopy_pts(cx, cy, R, q, w.seed))
+    draw.circle(ctx, (cx, cy - 0.03 * k), 0.035 * k)
     draw.fill(ctx, INK)
 
 
-def draw_walkers(f, t, st, walkers, sheen=1.0):
+def _walker_sheen(A, t, w, x, y, s, u, level, col):
+    """Wet canopy catching the light: a broad soft sheen on the far half, the ribs, a bright
+    rim along the far edge and a specular point by the ferrule (additive context)."""
+    k, R, q, ph, dirx, cx, cy = _walker_geom(t, w, x, y, s, u)
+    A.save()
+    A.new_path()
+    draw.poly(A, _canopy_pts(cx, cy, R, q, w.seed))
+    A.clip()
+    sets.glow_ellipse(A, (cx, cy - 0.45 * R * q), R * 1.0, R * q * 0.75, col, 0.45 * level)
+    A.set_line_width(0.026 * k)
+    A.set_line_cap(cairo.LINE_CAP_ROUND)
+    for j in range(8):
+        a = 2 * math.pi * j / 8 + 0.3 * w.seed
+        lit = 0.35 + 0.65 * max(0.0, -math.sin(a))            # ribs on the far side catch more
+        A.move_to(cx, cy)
+        A.line_to(cx + R * math.cos(a) * 0.97, cy + R * q * math.sin(a) * 0.97)
+        draw.rgba(A, col, 0.45 * level * lit)
+        A.stroke()
+    A.restore()
+    A.save()
+    A.translate(cx, cy)
+    A.scale(1.0, q)
+    A.new_path()
+    A.arc(0, 0, R * 0.95, math.pi * 1.06, math.pi * 1.94)
+    A.restore()
+    A.set_line_width(0.06 * k)
+    draw.rgba(A, col, 0.8 * level)
+    A.stroke()
+    sets.glow(A, (cx - 0.18 * R, cy - 0.30 * R * q), 0.2 * R, sets.mix(col, (1, 1, 1), 0.4), 0.9 * level)
+
+
+def draw_walkers(f, t, st, walkers, sheen=1.0, sheen_col=None):
     """Umbrellas in the street band (facade camera set): their broken reflections in the
     wet road first, then the walkers, then the rain sheen on the canopies."""
     vb = f.cam.view_rect(200)
@@ -674,33 +768,50 @@ def draw_walkers(f, t, st, walkers, sheen=1.0):
         k = K_F * s
         if x + k < vb[0] or x - k > vb[2] or y - 2 * k > vb[3] or y + k < vb[1]:
             continue
-        vis.append((w, x, y, s))
-    for (w, x, y, s) in vis:
+        vis.append((w, x, y, s, w.depth(t)))
+    for (w, x, y, s, u) in vis:
         k = K_F * s
         bb = (x - 0.7 * k, y - 1.3 * k, x + 0.7 * k, y + 0.05 * k)
-        st.reflect(f, t, lambda c, w=w, x=x, y=y, s=s: _walker_shape(c, t, w, x, y, s), y, bb, strength=0.45,
-                   length=0.9, seed=w.seed)
+        st.reflect(f, t, lambda c, w=w, x=x, y=y, s=s, u=u: _walker_shape(c, t, w, x, y, s, u), y, bb,
+                   strength=0.6, length=0.9, seed=w.seed)
     if not vis:
         return
     with f.layer() as L:
-        for (w, x, y, s) in vis:
-            _walker_shape(L, t, w, x, y, s)
+        for (w, x, y, s, u) in vis:
+            _walker_shape(L, t, w, x, y, s, u)
     if sheen > 0:
-        with f.light(blur=2.0) as A:
-            for (w, x, y, s) in vis:
-                k = K_F * s
-                R, q = 0.52 * k, 0.62
-                cy = y - 1.75 * k * 0.55
-                cx = x + (0.06 if w.vx >= 0 else -0.06) * k
-                A.save()
-                A.translate(cx, cy)
-                A.scale(1.0, q)
-                A.new_path()
-                A.arc(0, 0, R * 0.92, math.pi * 1.08, math.pi * 1.92)
-                A.restore()
-                A.set_line_width(0.05 * k)
-                draw.rgba(A, sets.mix(COOL, AMBER, 0.3), 0.42 * sheen)
-                A.stroke()
+        col = sheen_col or sets.mix(PAL.rain, AMBER, 0.4)
+        with f.light(blur=1.5) as A:
+            for (w, x, y, s, u) in vis:
+                _walker_sheen(A, t, w, x, y, s, u, sheen, col)
+
+
+def street_pools(f, t, st, level=1.0):
+    """Extra light on the street for the view from above: the late diner's light thrown out
+    across the wet sidewalk and into the road, the streetlamp's pool, a sheen of city glow
+    along the far half of the road (the umbrellas cross these and read against them)."""
+    if level <= 0.01:
+        return
+    x0, y0, x1, y1 = FAC.shop_rect(1)
+    g = FAC.ground_y
+    with f.light(blur=6.0) as A:
+        # the diner's spill: a trapezoid of warm light fanning out from the glass
+        A.save()
+        A.new_path()
+        A.move_to(x0 - 10.0, g)
+        A.line_to(x1 + 10.0, g)
+        A.line_to(x1 + 260.0, g + 520.0)
+        A.line_to(x0 - 200.0, g + 520.0)
+        A.close_path()
+        draw.linear(A, (0, g), (0, g + 520.0), [(0, AMBER, 0.42 * level), (0.25, AMBER, 0.22 * level),
+                                                        (1, AMBER, 0.0)])
+        A.fill()
+        A.restore()
+        sets.glow_ellipse(A, ((x0 + x1) / 2, g + 40.0), (x1 - x0) * 0.62, 90.0, HOT, 0.30 * level)
+        # the city glow on the wet road
+        A.rectangle(st.x0, st.road_y, st.x1 - st.x0, 1100.0)
+        draw.linear(A, (0, st.road_y), (0, st.road_y + 1100.0), [(0, COOL, 0.16 * level), (1, COOL, 0.0)])
+        A.fill()
 
 
 # =========================================================================== the title
@@ -749,6 +860,9 @@ def facade_lit(t, extra=None):
     return lit
 
 
+LIFE_CURTAINS = {12: "sheers_open"}     # window 12's drapes would hide the cat lady
+
+
 def halo_for(zf):
     """Facade halo / emit strength: full at the lock, lower when the windows are big (the
     bloom would wash the silhouettes out)."""
@@ -770,7 +884,9 @@ def draw_world(f, t, rig, lit=None, interiors=None, curtains=None, street_depth=
     cam = rig.facade()
     f.set_camera(cam)
     sets.draw_blocks(f, t, BLOCKS, layer=dict(par=1.0, fog=0.28))
-    FAC.draw(f, t, lit=lit, interiors=interiors or {}, curtains=curtains or {}, shops=SHOPS, halo=halo, emit=emit)
+    cur = dict(LIFE_CURTAINS)
+    cur.update(curtains or {})
+    FAC.draw(f, t, lit=lit, interiors=interiors or {}, curtains=cur, shops=SHOPS, halo=halo, emit=emit)
     if flare4 is not None:
         draw_window4_flare(f, t, flare4)
     if street:
@@ -920,3 +1036,337 @@ def draw_room(f, t, rig, watch=9.18, rain_k=1.0, her=True):
               outside_light=1.0, wipe=WIPE)
     if her and rig.c > HER_Z + 0.02:
         draw_her_inside(f, t, rig, watch)
+
+
+# =========================================================================== her close-up (s03)
+# The reverse at the end of s03: her face behind her window, seen from outside (from window
+# 9's side of the street). Room units (1 m = ROOM_K) with the origin at her eye midpoint;
+# every plane sits dz metres in front of her face (toward the camera). As seen from out
+# here her window's centre is 0.40 m to our right of her (she sits right of it, inside).
+GLASS_DZ = 0.75                  # the glass, 0.75 m in front of her face
+WALL_DZ = -3.2                   # her back wall
+BINO_DZ = 0.08                   # her binoculars' objectives
+REFL_DZ = -24.0                  # the facade across, mirrored in her glass (far away)
+C_WIN = (0.40 * ROOM_K, 0.0)     # her window: centre x (mullion), glass box below
+C_GLASS = (C_WIN[0] - 257.0, -446.0, C_WIN[0] + 257.0, 206.0)
+C_RAIL = -120.0                  # meeting rail (0.35 m above her eyes)
+C_FROST = -40.0                  # top of the steam on the lower pane (ragged)
+C_WIPE = (22.0, -4.0, 78.0)      # the patch she wiped clear to watch (x, y, r)
+BINO_SCALE = 1.0                 # sets.binoculars scale (objectives 42 units apart)
+
+
+class CloseRig:
+    """Pinhole for the close-up: the camera D m in front of her face plane, lens F px,
+    (X, Y) = the lateral point (room units, any plane) at the screen centre, shake px."""
+
+    __slots__ = ("F", "D", "X", "Y", "shake")
+
+    def __init__(self, F, D, X=0.0, Y=0.0, shake=(0.0, 0.0)):
+        self.F, self.D, self.X, self.Y, self.shake = F, D, X, Y, shake
+
+    def zoom(self, dz=0.0):
+        return self.F / (max(self.D - dz, 1e-3) * ROOM_K)
+
+    def plane(self, dz=0.0):
+        if self.D - dz <= 0.02:
+            return None
+        z = self.zoom(dz)
+        return Camera(self.X - self.shake[0] / z, self.Y - self.shake[1] / z, z)
+
+    def screen(self, p, dz=0.0):
+        z = self.zoom(dz)
+        return (540.0 + z * (p[0] - self.X) + self.shake[0], 960.0 + z * (p[1] - self.Y) + self.shake[1])
+
+
+def _front_pose(t, u):
+    p = FIG.Pose(0.0, 0.0, 90.0)
+    p.pitch = 5.0
+    p.spine = [2.0, 3.0, 2.0]
+    p.neck = 2.0
+    p.head = 3.0
+    for s in ("L", "R"):
+        p.legs[s] = dict(hip=100.0, abd=8.0, knee=120.0, ankle=20.0, toe=0.0)
+        p.arms[s] = dict(sh=0.0, abd=1.0, elbow=4.0, wrist=0.0, grip=0.4)
+    return p
+
+
+def _front_actor(py):
+    a = Actor(cast.HER, cast.her(), x=0.0, ground=600.0, facing=90.0, scale=1.0, seed=31)
+    a.free(200.0, lambda t, py=py: (0.0, py), _front_pose, at=-100.0, end_x=0.0)
+    return a
+
+
+@lru_cache(maxsize=1)
+def _front_pelvis_y():
+    sk = _front_actor(0.0).skeleton(0.0)
+    e1, e2, r, w, fr = FIG.eye_points(sk, cast.her())
+    return -(e1[1] + e2[1]) / 2.0
+
+
+@lru_cache(maxsize=2)
+def her_front(lower_t=14.75, frozen=15.15):
+    """Her, frontal (yaw 90), seated at her glass, eye midpoint at (0, 0). Her own arms
+    hang (the custom arms holding the binoculars are drawn by draw_her_closeup); she
+    breathes until the binoculars come down, then holds her breath, eyes wide."""
+    a = _front_actor(_front_pelvis_y())
+    a.channel("spine.1", lambda t: 1.1 * math.sin(t * 2.0 * math.pi / 3.6) * (1.0 - smoothstep(lower_t, frozen, t)),
+              -100.0, 200.0, mode="add")
+    a.key("head", [(lower_t - 0.1, 3.0), (lower_t + 0.35, -3.0, "out3"), (frozen + 0.3, -1.0), (200.0, -1.0)],
+          fade=0.2)
+    a.eyes(-100.0, 200.0, open=1.0, glow=1.0)
+    return a
+
+
+def bino_lower(t, lower_t=14.75):
+    """0 at her eyes .. 1 lowered to her chest (slow, numb)."""
+    return kseg(t, lower_t, lower_t + 0.55, "inout3")
+
+
+def bino_hinge(t, lower_t=14.75):
+    k = bino_lower(t, lower_t)
+    x = lerp(0.0, 6.0, k)
+    y = lerp(9.0, 168.0, k) + 1.2 * math.sin(t * 2.0 * math.pi / 3.6) * (1.0 - k)
+    return (x, y), lerp(0.0, -7.0, k)
+
+
+def _ik2(S, W, L1, L2, out):
+    """Two-bone IK in the picture plane: elbow for shoulder S, wrist W, bending toward `out`
+    (a unit-ish vector, the side the elbow goes)."""
+    dx, dy = W[0] - S[0], W[1] - S[1]
+    d = clamp(math.hypot(dx, dy), abs(L1 - L2) + 1e-3, (L1 + L2) * 0.999)
+    a = (L1 * L1 - L2 * L2 + d * d) / (2 * d)
+    h = math.sqrt(max(0.0, L1 * L1 - a * a))
+    ux, uy = dx / max(math.hypot(dx, dy), 1e-6), dy / max(math.hypot(dx, dy), 1e-6)
+    px, py = S[0] + ux * a, S[1] + uy * a
+    nx, ny = -uy, ux
+    if nx * out[0] + ny * out[1] < 0:
+        nx, ny = -nx, -ny
+    return (px + nx * h, py + ny * h)
+
+
+def _lens_glass(ctx, c, r, t, level=1.0, refl=None):
+    """An objective lens seen from the front: deep coated glass, the facade across mirrored
+    small and bent in it, the rim ring and a curved highlight."""
+    ctx.save()
+    ctx.new_path()
+    ctx.arc(c[0], c[1], r, 0, 2 * math.pi)
+    ctx.clip()
+    draw.radial(ctx, (c[0] + 0.2 * r, c[1] + 0.25 * r), 0, r * 1.05,
+                [(0, (0.015, 0.02, 0.04), 1), (0.7, (0.04, 0.05, 0.09), 1), (1, (0.10, 0.10, 0.16), 1)])
+    ctx.paint()
+    # the coating's sheen: a violet / amber band across the glass
+    draw.radial(ctx, (c[0] - 0.35 * r, c[1] - 0.4 * r), 0.2 * r, 1.1 * r,
+                [(0, (0.30, 0.22, 0.45), 0.0), (0.55, (0.30, 0.22, 0.45), 0.22 * level),
+                 (0.8, sets.mix(AMBER, (0.4, 0.2, 0.5), 0.5), 0.12 * level), (1, (0.3, 0.2, 0.4), 0.0)])
+    ctx.paint()
+    # the facade across, tiny and barrel-bent (a 5 x 8 grid of panes, the lit ones amber)
+    if refl:
+        for (u, v, lv) in refl:
+            q = math.hypot(u, v)
+            bend = 1.0 / (1.0 + 0.55 * q * q)
+            x, y = c[0] + 0.62 * r * u * bend, c[1] + 0.62 * r * v * bend
+            w2 = 0.045 * r * bend
+            draw.rect(ctx, x - w2, y - 1.25 * w2, x + w2, y + 1.25 * w2)
+            draw.fill(ctx, sets.mix((0.04, 0.05, 0.08), AMBER, lv), (0.35 + 0.6 * lv) * level)
+    ctx.restore()
+    # rim ring and the crescent highlight
+    ctx.new_path()
+    ctx.arc(c[0], c[1], r * 0.97, 0, 2 * math.pi)
+    ctx.set_line_width(r * 0.05)
+    draw.rgba(ctx, sets.mix(COOL, AMBER, 0.3), 0.55 * level)
+    ctx.stroke()
+    ctx.new_path()
+    ctx.arc(c[0], c[1], r * 0.78, math.radians(200), math.radians(250))
+    ctx.set_line_width(r * 0.07)
+    draw.rgba(ctx, (0.9, 0.92, 1.0), 0.42 * level)
+    ctx.stroke()
+
+
+def lens_reflection():
+    """(u, v, level) of the facade's windows as mirrored in her lenses: -1..1 grid."""
+    out = []
+    for i in range(1, 41):
+        r_, c_ = sets.rowcol(i)
+        lv = sets.level_of(sets.NIGHT.get(i), 0.0)
+        u = -((c_ - 3) / 2.6)                  # mirrored
+        v = (r_ - 4.5) / 4.2
+        out.append((u, v, clamp(lv)))
+    return out
+
+
+def draw_her_closeup(f, t, rig, lower_t=14.75, frozen=15.15, room=1.0, wall=1.0, glass=1.0, dark=0.0,
+                     lens_level=1.0):
+    """The reverse: her back wall (a pale patch of the facade's light), her (rim-lit ink,
+    glowing eyes), her arms and the binoculars with their objective lenses, then her window
+    from outside: steam on the lower pane with the wiped patch, the facade mirrored faintly,
+    rain beads and runners, the sash bars."""
+    a = her_front(lower_t, frozen)
+    look = cast.her()
+    look.eye_size = lerp(1.0, 1.3, smoothstep(lower_t + 0.2, frozen, t))
+    # 1) the room: dark, the facade's light thrown on the back wall in her window's shape
+    f.fill(sets.mix(INK, COOL, 0.10 * room))
+    cam_w = rig.plane(WALL_DZ)
+    if cam_w is not None and wall > 0.01:
+        f.set_camera(cam_w)
+        with f.light(blur=26.0) as A:
+            wx, wy = C_WIN[0] * 1.9 - 40.0, -150.0
+            pw, ph = 514.0 * 2.3, 652.0 * 2.3
+            col = sets.mix(COOL, AMBER, 0.45)
+            A.rectangle(wx - pw / 2, wy - ph / 2, pw, ph)
+            draw.radial(A, (wx - 0.1 * pw, wy + 0.1 * ph), 0, 0.75 * pw, [(0, col, 0.20 * wall), (1, col, 0.06 * wall)])
+            A.fill()
+            # her window's mullion and meeting rail, as shadows in the patch
+            A.save()
+            A.set_operator(cairo.OPERATOR_DEST_OUT)
+            draw.rect(A, wx - 24.0, wy - ph / 2, wx + 24.0, wy + ph / 2)
+            draw.rect(A, wx - pw / 2, wy - 0.06 * ph - 26.0, wx + pw / 2, wy - 0.06 * ph + 26.0)
+            draw.fill(A, (0, 0, 0), 0.8)
+            A.restore()
+    # 2) her, the arms and the binoculars (one ink silhouette with a hairline of backlight)
+    cam = rig.plane(0.0)
+    if cam is None:
+        return
+    f.set_camera(cam)
+    sk = a.skeleton(t)
+    hinge, ang = bino_hinge(t, lower_t)
+    body = cast.HER
+    Hh = body.height
+    L1, L2 = body.upper_arm * Hh * 0.82, body.forearm * Hh * 0.80
+    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+
+    def rot(dx, dy):
+        return (hinge[0] + dx * ca - dy * sa, hinge[1] + dx * sa + dy * ca)
+    hands = {"R": rot(-27.0, 13.0), "L": rot(27.0, 13.0)}
+    k_low = bino_lower(t, lower_t)
+
+    def shapes(L):
+        a.draw(f, t, L, look=look, eyes=False)
+        for side, sgn in (("R", -1.0), ("L", 1.0)):
+            S = sk.j["shoulder_" + side]
+            W_ = hands[side]
+            E_ = _ik2(S, W_, L1, L2, (sgn * 0.8, 0.6))
+            draw.capsule(L, S, E_, 0.045 * Hh, 0.036 * Hh)
+            draw.capsule(L, E_, W_, 0.036 * Hh, 0.027 * Hh)
+            draw.ellipse(L, (W_[0] + sgn * 2.0, W_[1] - 3.0), 0.03 * Hh, 0.036 * Hh, angle=sgn * 20.0)
+        sets.binoculars(L, hinge, ang, BINO_SCALE, view="front")
+        draw.fill(L, INK)
+    with f.layer() as L:
+        rimlit(f, L, shapes, rim=(sets.mix(COOL, AMBER, 0.35), 0.6 * wall), d=2.0)
+        FIG.draw_eyes(f, sk, look, L)
+    # the objective lenses (they look at us; the binoculars are a few cm in front of her)
+    lenses = [rot(-21.0 * BINO_SCALE, 0.0), rot(21.0 * BINO_SCALE, 0.0)]
+    refl = lens_reflection()
+    lv = lens_level * (1.0 - 0.6 * k_low)
+    with f.layer() as L:
+        for c in lenses:
+            _lens_glass(L, c, 13.5 * BINO_SCALE, t, lv, refl)
+    # 3) her window from outside
+    camg = rig.plane(GLASS_DZ)
+    if camg is None or glass <= 0.01:
+        return
+    gx0, gy0, gx1, gy1 = C_GLASS
+    dist = rig.D - GLASS_DZ
+    defocus = 1.5 + 22.0 * clamp((1.05 - dist) / 0.8)
+    f.set_camera(camg)
+    # steam on the lower pane (veils her, except where she wiped it)
+    with f.layer(blur=max(4.0, defocus)) as V:
+        V.save()
+        V.rectangle(gx0, gy0, gx1 - gx0, gy1 - gy0)
+        V.clip()
+        pts = []
+        for j in range(41):
+            u = j / 40.0
+            corner = (abs(u - 0.5) * 2) ** 3
+            pts.append((lerp(gx0, gx1, u), C_FROST - 70.0 * corner + 26.0 * (fbm1(u * 7.0, 63) - 0.5)))
+        pts += [(gx1, gy1 + 10), (gx0, gy1 + 10)]
+        draw.poly(V, pts)
+        draw.linear(V, (0, C_FROST - 40.0), (0, gy1), [(0, COOL, 0.0), (0.2, COOL, 0.30 * glass),
+                                                        (1, COOL, 0.52 * glass)])
+        V.fill()
+        wx, wy, wr = C_WIPE
+        V.set_operator(cairo.OPERATOR_DEST_OUT)
+        for j in range(7):
+            ex = wx + wr * 0.55 * math.sin((j - 3) * 0.33)
+            ey = wy + wr * 0.10 * (j - 3)
+            rg = cairo.RadialGradient(ex, ey, wr * 0.35, ex, ey, wr * (0.95 + 0.1 * hash01(64, j)))
+            rg.add_color_stop_rgba(0, 0, 0, 0, 0.55)
+            rg.add_color_stop_rgba(1, 0, 0, 0, 0.0)
+            V.set_source(rg)
+            V.arc(ex, ey, wr * 1.1, 0, 2 * math.pi)
+            V.fill()
+        V.restore()
+    # the facade across, mirrored faintly in the glass (far away: it barely moves)
+    camr = rig.plane(REFL_DZ)
+    if camr is not None:
+        gpx = [camg.to_screen(p) for p in ((gx0, gy0), (gx1, gy1))]
+        f.set_camera(camr)
+        rx0, ry0 = camr.to_world(gpx[0])
+        rx1, ry1 = camr.to_world(gpx[1])
+        with f.light(blur=max(6.0, defocus * 0.8)) as A:
+            A.save()
+            A.rectangle(rx0, ry0, rx1 - rx0, ry1 - ry0)
+            A.clip()
+            for (u, v, lvw) in refl:
+                if lvw <= 0.05:
+                    continue
+                x, y = -60.0 + 900.0 * u, -500.0 + 1100.0 * v
+                A.rectangle(x - 70.0, y - 90.0, 140.0, 180.0)
+                draw.fill(A, AMBER, 0.06 * lvw * glass)
+            A.restore()
+    # rain on the glass: beads catching the facade's light, a few runners
+    f.set_camera(camg)
+    with f.light(blur=max(1.0, defocus * 0.7)) as A:
+        A.save()
+        A.rectangle(gx0, gy0, gx1 - gx0, gy1 - gy0)
+        A.clip()
+        gw, gh = gx1 - gx0, gy1 - gy0
+        for j in range(170):
+            u, v = hash01(91, j, 1), hash01(91, j, 2)
+            x, y = gx0 + u * gw, gy0 + v * gh
+            r = 1.2 + 3.2 * hash01(91, j, 3) ** 2
+            al = 1.0
+            if j % 11 == 0:                      # a runner: slides in bursts, fades at the ends
+                per = 2.6 + 2.4 * hash01(91, j, 4)
+                ph = (t / per + hash01(91, j, 5)) % 1.0
+                run = (ph ** 2.5) * gh * 0.55
+                yy = v * gh * 0.5 + run
+                al = smoothstep(0.0, 0.12, ph) * (1.0 - smoothstep(0.8, 1.0, ph))
+                y = gy0 + yy
+                r *= 1.5
+                draw.capsule(A, (x, y - min(run, gh * 0.25)), (x + 0.6, y), 0.5, r * 0.45)
+                draw.fill(A, COOL, 0.22 * al * glass)
+            draw.circle(A, (x, y), r)
+            draw.fill(A, COOL, 0.16 * al * glass)
+            draw.circle(A, (x - r * 0.3, y - r * 0.35), r * 0.36)
+            draw.fill(A, sets.mix(PAL.rain, HOT, 0.4), 0.6 * al * glass)
+        A.restore()
+    # the sash: mullion, meeting rail, the frame and the wall round it (we are outside)
+    with f.layer(blur=max(0.0, defocus - 1.5)) as L:
+        fw = 26.0
+        L.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+        L.rectangle(gx0 - 4000.0, gy0 - 4000.0, gx1 - gx0 + 8000.0, gy1 - gy0 + 8000.0)
+        L.rectangle(gx0, gy0, gx1 - gx0, gy1 - gy0)
+        L.fill()
+        L.set_fill_rule(cairo.FILL_RULE_WINDING)
+        draw.rect(L, C_WIN[0] - 9.0, gy0, C_WIN[0] + 9.0, gy1)
+        draw.rect(L, gx0, C_RAIL - 11.0, gx1, C_RAIL + 11.0)
+        draw.rect(L, gx0, gy0, gx1, gy0 + fw)
+        draw.rect(L, gx0, gy0, gx0 + fw, gy1)
+        draw.rect(L, gx1 - fw, gy0, gx1, gy1)
+        draw.rect(L, gx0 - 30.0, gy1, gx1 + 30.0, gy1 + 34.0)            # the outer sill
+        draw.fill(L, INK)
+    with f.light(blur=max(1.5, defocus * 0.6)) as A:
+        col = sets.mix(COOL, AMBER, 0.5)
+        A.set_line_width(2.4)
+        for (x0_, y0_, x1_, y1_) in ((gx0 - 30.0, gy1, gx1 + 30.0, gy1),
+                                     (gx0, C_RAIL - 11.0, gx1, C_RAIL - 11.0),
+                                     (C_WIN[0] - 9.0, gy0, C_WIN[0] - 9.0, gy1)):
+            A.move_to(x0_, y0_)
+            A.line_to(x1_, y1_)
+        draw.rgba(A, col, 0.35 * glass)
+        A.stroke()
+    if dark > 0.01:
+        with f.screen() as S:
+            draw.radial(S, (540.0, 900.0), lerp(1100.0, 90.0, dark), lerp(1500.0, 420.0, dark),
+                        [(0, INK, 0.0), (1, INK, min(1.0, 1.4 * dark))])
+            S.paint()

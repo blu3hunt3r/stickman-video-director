@@ -423,7 +423,7 @@ def cl_spider():
     sp.threat(dur=1.6)
     sp.stand(dur=0.5)
     sp.creep(to=1200.0)
-    sp.threat(dur=2.2)
+    _spider_s08(sp)
     return sp
 
 
@@ -431,7 +431,62 @@ def cl_spider():
 def cl_wolf():
     from engine.creatures import Wolf
     w = Wolf(x=-200.0, ground=CG, facing=1, size=330.0, seed=1)
-    w.at(8.7).stalk(to=250.0, speed=280.0).crouch(dur=0.14).leap(to=1150.0, height=400.0)
+    w.at(8.7).stalk(to=250.0, speed=280.0).crouch(dur=0.14).leap(to=1150.0, height=400.0, bite=True, rest=0.15)
+    _wolf_s08(w)
+    return w
+
+
+# ----------------------------------------------------------------------------- s08: the fight
+# s08 times (t8 = t7 - S08_DT). The spider (facing left) is driven back to the right by the
+# wolf, then pins it at W_PIN; the girl smashes the lantern on the anchor strand at
+# C.smash_point (1426, 1354), just left of them.
+F8 = dict(stabA=1.30, dodge=1.37, knock=2.385, fly=2.42, roll=3.95, bread=5.5, wine=6.3, lantern=8.25,
+          pin=9.6, smash=12.66, burnt=13.05)
+W_PIN = 1700.0              # the wolf's root when pinned (facing right)
+SP_PIN = 2060.0             # the spider's body x while it pins the wolf
+
+
+def _spider_s08(sp):
+    D, G = S08_DT, CG
+    sp.threat(dur=D - sp.end, settle=False)              # still reared at the cut
+    sp.at(D).recoil(dur=0.8, dist=260.0)                  # 0.0: the wolf crashes into its face
+    sp.stand(dur=0.3)
+    sp.at(D + 3.1).threat(dur=0.9)                        # the wolf jumps at its face: it rears
+    sp.creep(to=1700.0)                                   # backs off, the wolf pressing
+    sp.at(D + 5.65).threat(dur=0.75)
+    sp.walk(to=1880.0)
+    sp.at(D + 7.4).threat(dur=0.95)
+    sp.walk(to=SP_PIN)
+    sp.at(D + F8["pin"]).pin(dur=D + F8["burnt"] - (D + F8["pin"]), target=W_PIN + 120.0, legs=(0, 4),
+                             offsets=(-260.0, 120.0), low=0.66, pitch=-18.0)
+    # the stabs (overlays, absolute times): the strike lands 0.385 s after t0
+    sp.stab(0, target=(1180.0, G(1180.0)), t0=D + F8["stabA"], hold=1.4)     # where the wolf was
+    sp.stab(1, target=(880.0, G(880.0)), t0=D + F8["knock"] - 0.385, hold=0.12)   # at the girl
+    sp.stab(1, target=(1150.0, G(1150.0)), t0=D + F8["roll"] - 0.385, hold=0.2)   # by the basket
+    sp.stab(0, target=lambda t: cl_wolf().head_points(t)["withers"], t0=D + F8["bread"] - 0.385,
+            hold=0.25)
+    sp.stab(1, target=(1130.0, G(1130.0)), t0=D + F8["wine"] - 0.385, hold=0.2)
+    sp.stab(0, target=(1190.0, G(1190.0)), t0=D + F8["lantern"] - 0.385, hold=0.3)
+    return sp
+
+
+def _wolf_s08(w):
+    D = S08_DT
+    w.overlay("bite", D + 0.25, 0.55, n=2)               # snaps at its face as it lands
+    w.at(D + F8["dodge"]).recoil(dur=0.9, dist=200.0)     # dodges stab A
+    w.overlay("bite", D + 1.85, 0.75, n=2)               # bites the stuck leg
+    w.at(D + 2.35).crouch(dur=0.2)
+    w.lunge(to=1250.0, height=200.0, bite=True, rest=0.2)      # up at its face as it rears
+    w.trot(to=1420.0)
+    w.at(D + F8["bread"]).recoil(dur=0.8, dist=120.0)     # stab D hits it
+    w.crouch(dur=0.2)
+    w.lunge(to=1560.0, height=180.0, bite=True, rest=0.2)
+    w.trot(to=W_PIN)
+    w.snarl(dur=0.3)
+    w.at(D + F8["pin"] + 0.25).lie(dur=8.0, head_down=0.0, eyes=1.0, breath=2.2, t_in=0.45)
+    w.overlay("snarl", D + F8["pin"] + 0.4, 3.2)
+    for tb in (10.4, 11.1, 11.7, 12.3):
+        w.overlay("bite", D + tb, 0.45, n=1)
     return w
 
 

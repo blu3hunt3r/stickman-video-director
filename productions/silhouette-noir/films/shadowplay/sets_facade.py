@@ -643,6 +643,10 @@ class Facade:
         """World rect of the front door opening (the stoop leads up to its sill)."""
         return self._rect_world(self.d.door)
 
+    def shop_rect(self, i):
+        """World rect of shopfront i's glass (0 = left, 1 = right: the late diner)."""
+        return self._rect_world(self.d.shops[i])
+
     def stoop_top(self):
         """World point at the top of the stoop, in front of the door."""
         x0, y0, x1, y1 = self.d.door
