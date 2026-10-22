@@ -756,17 +756,19 @@ def _hat_ref():
 
 def _hat_keys():
     c0 = _hat_ref()[1]
-    k = [  # (t, x, y, rot): up off his head, across the moon, over the diver, into the sea by the stern
+    k = [  # (t, x, y, rot): up off his head, across the moon, high over the diver, down into the
+        # sea by the stern (during the dip)
         (T_HAT, c0[0], c0[1], 0.0),
         (T_FLY, c0[0] + 4.0, c0[1] - 8.0, 6.0),
         (7.40, c0[0] + 50.0, c0[1] - 110.0, 18.0),
         (7.60, -550.0, -945.0, 30.0),
-        (7.80, -440.0, -935.0, 120.0),
-        (7.94, -340.0, -890.0, 220.0),
-        (8.04, -255.0, -770.0, 290.0),
-        (8.14, -180.0, -500.0, 330.0),
-        (8.25, -118.0, -150.0, 352.0),
-        (8.31, -100.0, 20.0, 358.0),
+        (7.80, -440.0, -935.0, 110.0),
+        (7.95, -320.0, -900.0, 190.0),
+        (8.10, -245.0, -770.0, 250.0),
+        (8.27, -190.0, -560.0, 300.0),
+        (8.44, -148.0, -330.0, 335.0),
+        (8.58, -122.0, -120.0, 352.0),
+        (8.66, -110.0, -20.0, 358.0),
     ]
     return k
 
@@ -813,21 +815,38 @@ def _hat_pose(t):
     return LIB.rigid(pts0, c0, c, rot), c
 
 
+def _smear(L, polys, rgb, alpha=1.0):
+    """Fill several copies of a shape as one motion-blurred shape (their average coverage)."""
+    n = len(polys)
+    L.push_group()
+    L.set_operator(cairo.OPERATOR_ADD)
+    for pts in polys:
+        L.new_path()
+        draw.poly(L, pts)
+        L.set_source_rgba(rgb[0], rgb[1], rgb[2], 1.0 / n)
+        L.fill()
+    L.pop_group_to_source()
+    L.paint_with_alpha(alpha)
+
+
+_HAT_SHUTTER = 0.5 / 24.0
+_HAT_SAMPLES = 9
+
+
 def _draw_hat(L, f, t, ms):
+    """The fedora once the gust has it: drawn with its own motion blur (it is the only fast
+    thing in the frame), a moonlit rim on the side toward the moon, and a silhouette against
+    the moon's glow when it crosses it."""
     pts, c = _hat_pose(t)
+    n = _HAT_SAMPLES
+    polys = [_hat_pose(t + _HAT_SHUTTER * (i / (n - 1.0) - 0.5))[0] for i in range(n)]
     sc = f.cam.to_screen(c)
     if math.hypot(sc[0] - ms[0], sc[1] - ms[1]) < MOON_R + 160.0:
-        _occlude_emit(f, lambda G: draw.poly(G, pts))         # a silhouette against the moon
+        _occlude_emit(f, lambda G: draw.poly(G, pts))
     md = LIB.moon_dir_world(f.cam, c, ms)
     off = 3.0 / f.cam.zoom
-    L.new_path()
-    draw.poly(L, [(x + md[0] * off, y + md[1] * off) for x, y in pts])
-    L.set_source_rgba(*LIB.MOONLIT, 0.55)
-    L.fill()
-    L.new_path()
-    draw.poly(L, pts)
-    L.set_source_rgb(*INK)
-    L.fill()
+    _smear(L, [[(x + md[0] * off, y + md[1] * off) for x, y in q] for q in polys], LIB.MOONLIT, 0.55)
+    _smear(L, polys, INK)
 
 
 # ============================================================================= the cut hose
@@ -1210,9 +1229,7 @@ def motion_blur(t, T):
         return 3
     if T_TOLL - 0.02 < t < T_TOLL + 0.25:        # the shudder of the toll
         return 3
-    if T_FLY < t < 8.45:                         # the hat in the wind
-        return 3
-    return 1
+    return 1                                     # (the hat blurs itself: see _draw_hat)
 
 
 def cues(T):
@@ -1220,37 +1237,44 @@ def cues(T):
     hs = HOSE.splash_at()
     th = _hat_splash_c()[0]
     return [
-        Cue(ts, "the helmet breaks the surface: water sheets off the brass dome, a gasp of air through the "
-                "exhaust valve", gain_db=-8, pan=0.15, dur=1.2),
-        Cue(0.58, "a gloved hand slaps onto an iron ladder rung", gain_db=-12, pan=0.15),
-        Cue(1.62, "climbing the ladder: heavy wet boots on iron rungs, the suit streaming water", gain_db=-11,
-            pan=0.15, dur=0.3),
+        Cue(ts, "the helmet breaks the surface: water sheets off the brass dome, air gasps through the exhaust "
+                "valve", gain_db=-8, pan=0.15, dur=1.2),
+        Cue(0.62, "a gloved hand slaps onto an iron ladder rung", gain_db=-12, pan=0.15),
+        Cue(0.95, "the other hand clanks onto a rung; boots find the rungs under water (muffled)", gain_db=-14,
+            pan=0.15),
+        Cue(1.30, "water streaming off the suit as he hauls himself up the ladder", gain_db=-13, pan=0.15, dur=2.2),
+        Cue(1.62, "a heavy wet boot on an iron rung", gain_db=-11, pan=0.15),
         Cue(1.94, "boot on a rung", gain_db=-12, pan=0.1),
-        Cue(2.20, "the hose coupling unscrewed from the helmet: a gritty metal thread turning", gain_db=-14,
+        Cue(2.20, "the hose coupling unscrewed from the helmet: a gritty brass thread turning", gain_db=-14,
             pan=0.1, dur=0.2),
-        Cue(T_REL, "the hose let go: the rubber slithers off the ladder and down the hull", gain_db=-11, pan=0.15,
-            dur=0.5),
-        Cue(hs[0] if hs else 2.9, "the brass coupling plops into the sea", gain_db=-13, pan=0.15),
+        Cue(T_REL, "the coupling comes free: a last squeal of thread, a hiss of air", gain_db=-13, pan=0.1),
+        Cue(2.42, "the client's shoe steps back on the wet deck (slow, careful)", gain_db=-16, pan=-0.4),
+        Cue(T_TOSS - 0.06, "he throws the hose out behind him: the rubber whips off the ladder and slithers down "
+                           "the hull", gain_db=-11, pan=0.2, dur=0.5),
         Cue(2.85, "boot on a rung", gain_db=-12, pan=0.05),
+        Cue(2.92, "a second step back", gain_db=-16, pan=-0.4),
+        Cue(hs[0] if hs else 3.05, "the brass coupling plops into the sea; the hose follows it in", gain_db=-13,
+            pan=0.45),
         Cue(3.15, "boot on a rung", gain_db=-12, pan=0.05),
-        Cue(3.45, "boot on a rung", gain_db=-12, pan=0.0),
+        Cue(3.45, "boot on the top rung; a third step back from the client", gain_db=-12, pan=0.0),
         Cue(3.80, "a heavy wet boot comes down on the deck", gain_db=-9, pan=0.0),
+        Cue(3.95, "the client's heel finds the pump frame behind him: a soft knock", gain_db=-15, pan=-0.45),
         Cue(4.10, "the second boot on deck; water drips off the suit", gain_db=-10, pan=-0.05),
         Cue(4.40, "a step forward on the boards, the bell swishing past behind him, the davit creaking",
             gain_db=-12, pan=0.2, dur=0.6),
-        Cue(2.00, "the client's shoes step back on the wet deck (slow, careful)", gain_db=-16, pan=-0.4),
-        Cue(2.50, "a second step back", gain_db=-16, pan=-0.4),
-        Cue(3.05, "a third step back", gain_db=-17, pan=-0.45),
-        Cue(3.55, "his heel finds the pump frame behind him: a soft knock", gain_db=-15, pan=-0.45),
+        Cue(4.75, "he plants his feet; the drip of water on the boards", gain_db=-14, pan=0.0),
         Cue(T_TWIST[1] - 0.03, "the helmet unlocks: a quarter-turn clunk of the interrupted thread", gain_db=-8,
             pan=0.0),
         Cue(5.72, "the seal pops; water spills out of the helmet and the breastplate", gain_db=-9, pan=0.0,
             dur=0.7),
-        Cue(6.12, "his first breath of night air (a long, slow inhale)", gain_db=-14, pan=0.0, dur=0.6),
-        Cue(6.45, "the helmet comes down to his side; one step toward the client", gain_db=-12, pan=-0.05),
-        Cue(T_TOLL, "THE BELL TOLLS the third time: the loudest sound in the film (tonic D), ringing on over the "
-                    "dip to black and into s16", gain_db=0, pan=0.2, dur=6.0),
+        Cue(6.05, "his first breath of night air (a long, slow inhale)", gain_db=-14, pan=0.0, dur=0.6),
+        Cue(6.52, "(optional) his voice, very low and unintelligible: he says his name; it must not be heard",
+            gain_db=-26, pan=0.0, dur=0.3),
+        Cue(T_LOWER[1], "the helmet settles against his hip; a step toward the client (the boot lands at 6.80, "
+                        "under the toll)", gain_db=-13, pan=-0.05),
+        Cue(T_TOLL, "THE BELL TOLLS (tonic D) the third time, right over them: the loudest sound in the film; "
+                    "let it ring on over the dip to black and into s16", gain_db=0, pan=0.2, dur=6.0),
         Cue(T_TOLL + 0.05, "the client's sharp intake of breath; the cigar crackles", gain_db=-16, pan=-0.3),
-        Cue(T_HAT - 0.08, "a gust off the sea", gain_db=-12, pan=-0.2, dur=1.2),
-        Cue(th, "the fedora slaps onto the water", gain_db=-14, pan=0.35),
+        Cue(T_HAT - 0.08, "a gust off the sea takes the client's hat", gain_db=-12, pan=-0.2, dur=1.2),
+        Cue(th, "the fedora slaps onto the water by the stern", gain_db=-14, pan=0.35),
     ]

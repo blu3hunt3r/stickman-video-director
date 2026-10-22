@@ -11,7 +11,8 @@ Exactly 153.5 s x 48000 = 7 368 000 samples, 48 kHz stereo 24-bit.
      HPF 80 Hz, 2.5:1 compression, -16 LUFS, a dialogue limiter at -3 dBTP.
   b. SFX: cuesheet.build_cues (word anchors + storyboard beats; the scenes' own cues(T), when
      they exist, retime / extend it), each sent to the room of its stretch of film.
-  c. ambience beds (ambience.py) and the score (score.py: main + hits buses).
+  c. ambience beds (ambience.py) and the score (score.py: main + hits buses); the designed
+     silences (cuesheet.sfx_silences: s10's fuse, the very end) gate the SFX and the beds.
   d. ducking from the narration (word times OR'd with its envelope, 60 ms look-ahead, gaps
      under 300 ms bridged): music -8 dB, music hits -2, SFX -3, SFX hits -1.5, beds -2; 30 ms
      attack, 250 ms release. (The bible asks -6 dB for the music; the brief's -8 dB wins.)
@@ -205,6 +206,21 @@ def render_sfx(cues, spaces, N):
     return bus, rows
 
 
+def silence_gate(spans, N):
+    """Per-sample gain: 0 inside each (t0, t1, fade_out, fade_in) span (silent from t0 to t1, the
+    fade-out ending at t0, the fade-in starting at t1), 1 elsewhere."""
+    gate = np.ones(N)
+    for t0, t1, fo, fi in spans:
+        a, b = n_of(max(0.0, t0 - fo)), min(N, n_of(t1 + fi))
+        if b <= a:
+            continue
+        st = np.arange(a, b) / SR
+        gdn = np.clip((t0 - st) / max(fo, 1e-4), 0, 1)
+        gup = np.clip((st - t1) / max(fi, 1e-4), 0, 1)
+        gate[a:b] = np.minimum(gate[a:b], np.maximum(gdn, gup))
+    return gate
+
+
 # ============================================================================ master
 def master_chain(pre, ref):
     """pre: the mix to master; ref: the same mix with the narration, for every level decision.
@@ -376,6 +392,15 @@ def main(argv=None):
     report["score_hits"] = hits
     log("score rendered")
 
+    # ---- designed silences: every effect and bed (and their reverbs) cut dead
+    sil = cuesheet.sfx_silences(sync)
+    gate = silence_gate(sil, N)[:, None]
+    sbus["sfx"] *= gate
+    sbus["hit"] *= gate
+    amb *= gate
+    del gate
+    report["sfx_silences"] = [dict(t0=round(a, 3), t1=round(b, 3)) for a, b, _, _ in sil]
+
     # ---- ducking
     music = m_main.astype(np.float64) * duck_curve(act, DUCK["music"], N)[:, None] * db2lin(GAIN["music"])
     music += m_hits.astype(np.float64) * duck_curve(act, DUCK["music_hits"], N)[:, None] * db2lin(GAIN["music_hits"])
@@ -425,9 +450,9 @@ def main(argv=None):
 
     # ---- checks
     chk = qa.check_master(master, SR, N)
-    chk["clicks"] = explain_clicks(chk["clicks"], cues, rows, sinfo.get("onsets", []), ainfo, vinfo, stems, master)
-    every = explain_clicks(qa.find_clicks(master, SR, max_report=10 ** 6), cues, rows, sinfo.get("onsets", []), ainfo, vinfo,
-                           stems, master)
+    onsets = sinfo.get("onsets", []) + [(round(t, 4), "sfx_silence") for a, b, _, _ in sil for t in (a, b)]
+    chk["clicks"] = explain_clicks(chk["clicks"], cues, rows, onsets, ainfo, vinfo, stems, master)
+    every = explain_clicks(qa.find_clicks(master, SR, max_report=10 ** 6), cues, rows, onsets, ainfo, vinfo, stems, master)
     chk["clicks_by_source"] = {}
     for c in every:
         kk = c["source"].split(":")[0] if not c["source"].startswith("texture") else c["source"]

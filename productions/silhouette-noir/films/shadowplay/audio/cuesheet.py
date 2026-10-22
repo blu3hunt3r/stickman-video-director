@@ -1,15 +1,17 @@
-"""SHADOW PLAY cue sheet: every designed sound on the film clock, built from the narration's
-word anchors and the storyboard beats (docs/bible.md section 4).
+"""SHADOW PLAY cue sheet: every designed sound on the film clock, hung on the final scenes' own
+cues and the narration's word anchors.
 
-    sync, notes = sync_points(scene_cues)    # named sync moments (film s), after picture retiming
+    sync, notes = sync_points(scene_cues)    # named sync moments (film s), claimed from the scenes' cues
     cues = build_cues(sync)                  # [{t, name, gain_db, pan, dur, params, seed, ...}]
-    spans = sfx_spaces()                     # [(t0, t1, room, send_db)] reverb per stretch of film
+    spans = sfx_spaces(sync)                 # [(t0, t1, room, send_db)] reverb per stretch of film
+    gaps = sfx_silences(sync)                # [(t0, t1, fade_out, fade_in)] where every SFX and bed stops
 
-Film time = scene start + scene-local time. The scenes have not been written yet, so every
-picture beat is the storyboard's. When a scene file exports cues(T), its cues (free-text names
-such as 'knife stab' or 'door slam') are mapped onto this sheet by keyword: a scene cue with the
-same tag within +-1 s of a sync point moves that point to the picture (every SFX and score hit
-built on it follows); mappable scene cues with no partner are added; the rest are reported.
+Film time = scene start + scene-local time. Every scene exports cues(T) (free-text names such as
+'the door SLAMS'); each one is claimed by a sync point here - by its own text (SCENE_SYNC_A / _B,
+at the scene's time) or, for s01 / s05, by keyword tag - within +-1 s, and the point moves to the
+cue's time (every SFX and score hit built on it follows). Scene cues no point claims are covered
+by a sustained cue, added by keyword (-6 dB) or reported unmapped; a text claim that finds no cue
+is reported missing.
 """
 from __future__ import annotations
 

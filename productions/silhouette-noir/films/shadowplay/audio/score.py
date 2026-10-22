@@ -390,12 +390,13 @@ class Plan:
         self.st(9.0, w("s02", "Twelve") - 9.0 + 3.9, AMM7, 0.3, attack=0.8, release=1.6)
         self.st(15.7, 3.9, FMA7S11, 0.3, attack=1.4, release=1.4)
         self.st(19.6, 1.9, DM9, 0.3, attack=1.0, release=1.0)
-        self.nt(S["s02_win4"], "harp", "E5", 0.55, pan=-0.3)
-        self.nt(S["s02_win12"], "harp", "C5", 0.55, pan=0.25)
-        self.nt(S["s02_win30"], "harp", "A4", 0.55, pan=-0.1)
-        self.nt(S["s02_bino"] + 0.07, "celesta", "G#6", 0.5, pan=0.2)
-        self.nt(S["s02_bino"] + 0.07, "celesta", "E7", 0.3, pan=0.25)
-        title = S["s02_title_in"] + 0.45                                           # the letters stop
+        self.nt(S["s02_win4"], "harp", "E5", 0.55, pan=-0.3)                     # [Four]
+        self.nt(S["s02_win12"], "harp", "C5", 0.55, pan=0.25)                    # [Twelve]
+        self.nt(w("s02", "Thirty"), "harp", "A4", 0.55, pan=-0.1)                # [Thirty]
+        self.nt(S["s02_glint"], "celesta", "G#6", 0.5, pan=0.2)                  # the binoculars' glint
+        self.nt(S["s02_glint"], "celesta", "E7", 0.3, pan=0.25)
+        self.mark(S["s02_glint"], "celesta (glint)", "main")
+        title = S["s02_title_in2"] + 0.427                                       # the letters settle (~21.96)
         self.br(title, 0.5, "A3 C4 E4 G#4", 0.85, "hits", sfz=True, attack=0.012, release=0.5)
         self.st(title, 0.35, "A4 C5 E5 G#5", 0.55, attack=0.01, release=0.6, layer="hits")
         self.nt(title, "pizz", "A1 A2", 0.85, "hits")
@@ -429,7 +430,10 @@ class Plan:
         self.silence(S["s03_light_out"], S["s03_light_out"] + 1.1, fo=0.01, fi=0.4)
         self.mark(S["s03_light_out"], "light out: silence")
         self.st(S["s03_light_out"] + 1.1, 41.0 - S["s03_light_out"] - 1.1, "A1 E2", 0.35, attack=1.6, release=1.0, voices=4)
-        self.notes.append((w("s03", "Every"), "harm", m("G#6"), 0.5, "main", dict(dur=40.6 - w("s03", "Every"))))
+        self.notes.append((w("s03", "Every"), "harm", m("G#6"), 0.5, "main", dict(dur=S["s03_heart"] - w("s03", "Every"))))
+        self.nt(S["s03_heart"], "pizz", "A1 A2", 0.7, "hits")                      # the one slow heartbeat
+        self.nt(S["s03_heart"] + 0.34, "pizz", "E2", 0.55, "hits")
+        self.mark(S["s03_heart"], "heartbeat pizz")
         # T2: phase-locked to s05's [eleven]
         eleven5 = w("s05", "eleven")
         t2_start = eleven5 - math.floor(eleven5 - w("s03", "second"))
@@ -445,6 +449,7 @@ class Plan:
             self.mark(S[nm], f"nothing dot {k + 1}")
         self.st(41.8, 46.2 - 41.8, "D2 A2 F3 A3", 0.28, attack=1.0, release=1.0)
         self.st(46.2, S["s04_dreamed"] - 46.2 + 0.2, FMA7S11, 0.28, attack=0.9, release=0.8)
+        self.stab(S["s04_finds"], 2, size=0.45, gain=0.6, label="string sting (the beam finds her)")
         dre = S["s04_dreamed"]
         self.notes.append((dre, "harm", m("G#5"), 0.55, "main", dict(dur=1.4, bend=lambda tt: 2 ** (-1.0 * np.clip((tt - 0.5) / 0.6, 0, 1) / 12))))
         self.mark(dre, "G#->G [dreamed]", "main")
@@ -522,17 +527,18 @@ class Plan:
 
         # ============================================================ s07 the show
         self.st(79.5, 86.0 - 79.5, "A1 Bb1", 0.3, attack=1.5, release=0.6, voices=4, detune=5)
-        for k, (nm, note) in enumerate((("s07_lamp", "C6"), ("s07_sheet", "E6"), ("s07_dolls", "G#6"))):
-            self.nt(S[nm], "celesta", note, 0.5, pan=(-0.2, 0.15, 0.3)[k], var=k)
-            self.mark(S[nm], f"celesta [{nm[4:]}]", "main")
+        for k, (wd, note) in enumerate((("lamp", "C6"), ("sheet", "E6"), ("dolls", "G#6"))):
+            tw = w("s07", wd)
+            self.nt(tw, "celesta", note, 0.5, pan=(-0.2, 0.15, 0.3)[k], var=k)
+            self.mark(tw, f"celesta [{wd}]", "main")
         self.st(86.0, 87.1 - 86.0, DM9, 0.28, attack=0.8, release=0.5)
         self.st(87.1, S["s07_show"] - 87.1, BB, 0.32, attack=0.6, release=0.1)
-        show = S["s07_show"]
-        self.br(show, 0.7, "A3 C4 E4 G#4", 0.85, "hits", sfz=True, attack=0.012, release=0.6)
-        self.st(show, 0.4, AMM7, 0.5, attack=0.01, release=0.8, layer="hits")
-        self.ev(show, lambda r: timpani(55.0, r, 0.7), "hits", send=0.3)
-        self.mark(show, "show stab")
-        self.st(show + 0.3, 92.0 - show - 0.3, AMM7, 0.24, attack=0.8, release=0.8)
+        sw = S["s07_swell"]                                                      # under the giant shadow: a low swell
+        self.st(sw, 1.3, "A1 E2 A2", 0.5, attack=0.45, release=1.0, voices=6, detune=6)
+        self.br(sw, 1.3, "A2 E3 G#3 C4", 0.5, "main", swell=(0.8, 1.6), attack=0.3, release=0.7)
+        self.ev(sw, lambda r: timp_roll(55.0, 1.1, r, 0.1, 0.45), "main", send=0.3)
+        self.mark(sw, "low swell [show]", "main")
+        self.st(sw + 1.0, 92.0 - sw - 1.0, AMM7, 0.24, attack=0.8, release=0.8)
 
         # ============================================================ s08 the other side
         self.st(92.0, S["s08_someone"] - 92.0 + 0.4, "A2 Bb2 E3", 0.24, attack=1.5, release=0.8)
@@ -544,7 +550,7 @@ class Plan:
             self.nt(S["s08_wave"] + 0.55 * k, "celesta", nm, 0.45, pan=0.25 - 0.2 * k, var=k)
         self.mark(S["s08_wave"], "the wave", "main")
         b0 = 101.0
-        b1 = S["s08_light_off"] - 0.06
+        b1 = S["s08_light_off"] - 0.02                                           # cut dead on her lamp's click
         self.st(b0, b1 - b0, "A3 Bb3 E4 F4", 0.42, attack=b1 - b0, release=0.01, trem=(9.0, 0.4))
         self.st(b0, b1 - b0, "A1 E2", 0.35, attack=2.0, release=0.01, voices=4)
         self.silence(b1, w("s09", "ninety") - 0.01, fo=0.005, fi=0.02)
@@ -556,9 +562,9 @@ class Plan:
         self.ticks(n0, stop, period=0.5, accel_to=0.3, vel=0.42, vel_end=0.62, bass_every=4)
         self.mark(n0, "fast clock [ninety]", "main")
         self.st(110.0, stop - 110.0, "A2 E3 A3", 0.42, attack=stop - 110.0, release=0.01, trem=(12.0, 0.45))
-        for k, nm in enumerate(("s09_lamp", "s09_sheet", "s09_believe")):
-            self.nt(S[nm], "pizz", ("A2 E3 A3", "C3 G#3 C4", "E3 A3 E4")[k], 0.8, "hits", strum=0.006)
-            self.mark(S[nm], f"pizz accent [{nm[4:]}]")
+        for k, tw in enumerate((S["s09_lamp"], S["s09_sheet"], S["s09_believe"])):   # [light] [sheet] [believe]
+            self.nt(tw, "pizz", ("A2 E3 A3", "C3 G#3 C4", "E3 A3 E4")[k], 0.8, "hits", strum=0.006)
+            self.mark(tw, f"pizz accent [{('light', 'sheet', 'believe')[k]}]")
         bel = S["s09_believe"]
         for nm in ("A5", "C6", "E6", "G#6"):
             self.notes.append((bel, "harm", m(nm), 0.4, "main", dict(dur=S["s09_show"] - bel - 0.1)))
@@ -568,19 +574,24 @@ class Plan:
         self.mark(stop, "dead stop", "mask")
 
         # ============================================================ s10 the trap (wordless)
-        bu = S["s10_burst"]
-        self.br(bu, 0.55, "A2 Bb2 E3 Bb3 E4", 1.0, "hits", sfz=True, attack=0.008, release=0.4)
+        bu, mb = S["s10_burst"], S["s10_brass"]
+        self.br(mb, 0.55, "A2 Bb2 E3 Bb3 E4", 1.0, "hits", sfz=True, attack=0.008, release=0.4)   # the muted brass stab
         self.st(bu, 0.25, "A2 E3 A3", 0.7, attack=0.006, release=0.3, layer="hits")
         self.ev(bu, lambda r: timpani(55.0, r, 1.0), "hits", send=0.3)
-        self.mark(bu, "tutti hit (burst)")
-        for k, nm in enumerate(("s10_stab1", "s10_stab2", "s10_stab3", "s10_stab4")):
-            self.stab(S[nm], k, size=0.7 + 0.1 * k, gain=1.0 + 0.06 * k, label=f"trap stab {k + 1}")
-        self.silence(S["s10_stab4"] + 0.5, S["s10_slam"] - 0.01, fo=0.15, fi=0.005, layers=("main", "hits", "tick"))
+        self.mark(mb, "muted brass stab (burst)")
+        # the knife through the sheet: the Psycho strings again - two punches and the long rip
+        for k, nm in enumerate(("s10_stab1", "s10_stab2", "s10_rip")):
+            self.stab(S[nm], k, size=(0.75, 0.85, 1.0)[k], gain=(1.0, 1.06, 1.12)[k],
+                      label=("trap stab 1", "trap stab 2", "the rip")[k])
+        rp = S["s10_rip"]
+        self.st(rp, 0.55, "A5 E6", 0.5, attack=0.01, release=0.15, layer="hits", trem=(18.0, 0.5),
+                bend=lambda tt: 2 ** (-12.0 * np.clip(tt / 0.5, 0, 1) ** 1.2 / 12))
+        self.silence(S["s10_hum"], S["s10_slam"] - 0.01, fo=0.15, fi=0.005)        # the bare bulb's hum, nothing else
         sl = S["s10_slam"]
         self.br(sl, 0.4, "A1 A2 E3", 0.9, "hits", sfz=True, attack=0.008, release=0.4)
         self.ev(sl, lambda r: timpani(55.0, r, 1.0), "hits", send=0.3)
         self.mark(sl, "slam hit")
-        bolt = S["s10_key"] + 0.52
+        bolt = S["s10_bolt"]
         self.nt(bolt, "pizz", "A1 E2", 0.9, "hits")
         self.mark(bolt, "bolt pizz")
         cr = S["s10_crash"]
@@ -588,17 +599,22 @@ class Plan:
         self.st(cr, 0.3, "A4 Bb4 E5", 0.6, attack=0.006, release=0.4, layer="hits", trem=(16.0, 0.5))
         self.ev(cr, lambda r: timpani(58.27, r, 0.9), "hits", send=0.3)
         self.mark(cr, "crash hit")
-        self.silence(S["s10_dark"], S["s10_slide"], fo=0.05, fi=1.2)
+        self.silence(S["s10_dark"], S["s10_slide"], fo=0.03, fi=1.2)              # the fuse: total silence
         self.st(S["s10_slide"], 141.5 - S["s10_slide"], "A1 E2", 0.36, attack=2.5, release=1.0, voices=4)
         self.notes.append((S["s10_slide"] + 0.8, "harm", m("E6"), 0.4, "main", dict(dur=S["s10_tear"] - S["s10_slide"] - 0.3)))
 
         # ============================================================ s11 forty dolls
         self.nt(S["s11_found"], "pizz", TICK, 0.5, "hits", pan=0.12)
         self.mark(S["s11_found"], "one tick [forty]")
-        wn = S["s11_window"]
+        wn = S["s11_window"]                                                      # the facade print, on [window]
+        self.br(wn, 0.45, "A3 C4 E4 G#4", 0.75, "hits", sfz=True, attack=0.012, release=0.4)
         self.nt(wn, "pizz", AMM7, 0.7, "hits", strum=0.008)
         self.nt(wn + 0.03, "celesta", "A5 C6 E6 G#6", 0.45, "main", strum=0.05)
-        self.mark(wn, "grid chord [window]")
+        self.mark(wn, "muted brass + pizz chord [window]")
+        pu = S["s11_push"]                                                        # the push in on her doll
+        self.st(pu, 3.6, "A1 E2 A2 C3", 0.42, attack=2.6, release=1.2, voices=6, detune=6)
+        self.br(pu + 0.6, 3.0, "A2 E3 G#3", 0.4, "main", swell=(2.4, 1.5), attack=0.6, release=0.6)
+        self.mark(pu, "low strings swell (push in)", "main")
         self.notes.append((S["s11_binoculars"], "harm", m("G#6"), 0.45, "main", dict(dur=2.5)))
         self.nt(S["s11_binoculars"], "celesta", "G#6", 0.45, pan=0.1)
         self.st(139.0, 142.9 - 139.0, "F2 C3 A3 E4", 0.26, attack=1.5, release=1.2)
@@ -608,11 +624,22 @@ class Plan:
         mo = S["s12_mostly"]
         self.nt(mo, "pizz", TICK, 0.6, "hits", pan=0.12, var=7)
         self.mark(mo, "last pizz [Mostly]")
-        self.st(mo + 0.7, 153.4 - mo - 0.7, "A1 A2 E3 C4 G#4", 0.22, attack=2.0, release=0.4)
-        self.notes.append((mo + 3.0, "harm", m("E6"), 0.35, "main", dict(dur=152.6 - mo - 3.0)))
-        self.nt(S["s12_glint"], "celesta", "G#6", 0.45, pan=0.0)
+        self.st(mo + 0.7, S["s12_lift"] - mo - 0.7 + 0.3, "A1 A2 E3 C4 G#4", 0.22, attack=2.0, release=0.6)
+        lf = S["s12_lift"]                                                        # 'Be honest...': the strings lift
+        self.st(lf, 2.6, "A2 E3 A3 C4 E4", 0.3, attack=1.6, release=1.2)
+        self.notes.append((lf + 0.4, "harm", m("E6"), 0.35, "main", dict(dur=152.9 - lf - 0.4)))
+        self.notes.append((lf + 1.4, "harm", m("A6"), 0.3, "main", dict(dur=152.9 - lf - 1.4)))
+        self.st(lf + 2.2, 152.9 - lf - 2.2, "A1 E2 A2", 0.24, attack=1.0, release=0.4)
+        self.mark(lf, "strings lift", "main")
+        self.nt(S["s12_glint"], "celesta", "G#6", 0.45, pan=0.25)
         self.mark(S["s12_glint"], "glint", "main")
-        self.silence(153.42, self.total + 1.0, fo=1.0, fi=0.0)
+        # the last windows go dark one by one: a muted pizzicato click each, falling through the chord
+        from films.shadowplay.audio.cuesheet import S12_DARK
+        fall = "G#5 E5 C5 A4 G#4 E4 C4 A3 E3 A2".split()
+        for k, (win, tt, pan) in enumerate(S12_DARK):
+            self.nt(S[f"s12_dark{k}"], "pizz", fall[k], 0.42 - 0.012 * k, "hits", pan=round(0.6 * pan, 2), var=k % 3)
+        self.mark(S["s12_dark0"], "window pizz x10")
+        self.silence(S["s12_end"], self.total + 1.0, fo=0.3, fi=0.0)              # all music gone with the glint
 
     def _spiral(self, t0, t1, step, vel, spin, mode, chords):
         """Vertigo arpeggios: harp (low layer) + celesta (high layer) running through the chord

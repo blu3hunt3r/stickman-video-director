@@ -255,53 +255,73 @@ def _cal(x, target, mode="int"):
 def bed_map(S, total):
     """Every bed's envelope. S: sync points (film s) from cuesheet.sync_points."""
     B = {k: Bed(total) for k in list(GEN) + ["gutter_int", "traffic_ext", "traffic_int"]}
-    slam, sirens = S["s10_slam"], S["s10_sirens"]
+    thr, out2, up2 = S["s02_through"], S["s02_out"], S["s02_up"]
+    door6, stairs6, street6, crane6 = S["s06_door"], S["s06_stairs"], S["s06_street"], S["s06_crane"]
+    burst, hum10, slam = S["s10_burst"], S["s10_hum"], S["s10_slam"]
     pull = S["s12_pullout"]
-    # her window glass: s02 dolly through the window -> s03; s05 -> s06 to the stairs; s12
-    B["rain_glass"].on(16.6, 41.0, fi=1.2, fo=0.03).on(52.5, 70.3, fi=1.0, fo=0.15).on(141.5, pull + 1.0, fi=1.25, fo=2.0)
-    B["rain_glass"].level((19.2, 0), (19.9, -5), (21.2, -5), (21.9, 0), (S["s03_light_on"], 0), (S["s03_light_on"] + 0.5, -2),
-                          (S["s03_light_out"], -2), (S["s03_light_out"] + 0.6, -3), (40.0, -1), (52.5, -1))
-    B["tone_her"].on(16.6, 41.0, fi=1.2, fo=0.03).on(52.5, 70.3, fi=1.0, fo=0.15).on(141.5, pull + 1.0, fi=1.25, fo=2.0)
+    HER = ("rain_glass", "tone_her", "gutter_int", "traffic_int")
+    STREET = ("rain_street", "gutter_ext", "traffic_ext")
+    # her room (her window's glass from inside, her room tone, the gutter and the traffic through the
+    # glass): s02 in through the pane, s03 (cut to s04), s05 - s06 to her door, s12 to the pull-out
+    for nm in HER:
+        B[nm].on(thr, out2, fi=0.15, fo=0.3).on(24.05, 41.0, fi=1.0, fo=0.03).on(52.5, door6, fi=1.0, fo=0.3)
+        B[nm].on(141.5, pull, fi=1.25, fo=0.8)
+    # s03: the light snaps out -> silence; the reverse: the rain loud on her pane; she stops breathing
+    lo3, rv3, ev3, ht3 = S["s03_light_out"], S["s03_reverse"], S["s03_every"], S["s03_heart"]
+    B["rain_glass"].level((24.0, -1), (lo3, -1), (lo3 + 0.03, -14), (rv3 - 0.05, -14), (rv3 + 0.05, 3), (ev3, 2),
+                          (ev3 + 0.3, -9), (41.0, -9), (52.5, -1))
+    for nm in ("tone_her", "gutter_int", "traffic_int"):
+        B[nm].level((24.0, 0), (lo3, 0), (lo3 + 0.03, -30), (rv3 - 0.05, -30), (rv3 + 0.3, 0), (ev3, 0), (ev3 + 0.3, -30),
+                    (41.0, -30), (52.5, 0))
     # s05's silent scream: every sound drops out on [scream] for 1.6 s, then the room returns
     sc5 = S["s05_scream"]
     for nm, base in (("rain_glass", -1.0), ("tone_her", 0.0), ("gutter_int", 0.0), ("traffic_int", -2.0)):
         B[nm].level((sc5 - 0.03, base), (sc5, -45.0), (sc5 + 1.6, -45.0), (sc5 + 2.2, base))
-    # the open street: s01 rain streaks -> s02; the tilt down; s04 outside; s06 out of the door -> crane; s12 pull-out
-    B["rain_street"].on(S["s01_rain"], 16.6, fi=1.8, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0)
-    B["rain_street"].on(S["s04_street"], 52.5, fi=0.3, fo=1.0)
-    B["rain_street"].on(S["s06_street"], 79.5, fi=0.25, fo=1.0)
-    B["rain_street"].on(pull + 1.0, 153.5, fi=2.0, fo=1.6)
-    B["rain_street"].level((S["s01_rain"], -6), (9.5, 0), (20.0, -3), (21.4, -3), (S["s06_street"], 1.5), (S["s06_crane"], 1.5),
-                           (S["s06_crane"] + 1.5, -2.5), (79.5, -3.5), (pull, -2), (pull + 2.5, 0))
-    B["gutter_ext"].on(9.0, 16.6, fi=1.0, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0).on(S["s04_street"], 52.5, fi=0.3, fo=1.0)
-    B["gutter_ext"].on(S["s06_street"], S["s06_crane"] + 1.0, fi=0.25, fo=2.0).on(pull + 1.0, 153.5, fi=2.0, fo=1.6)
-    B["gutter_int"].on(16.6, 41.0, fi=1.2, fo=0.03).on(52.5, 70.3, fi=1.0, fo=0.15).on(141.5, pull + 1.0, fi=1.25, fo=2.0)
-    # traffic: the city at night (from the flip to night in s01), through glass indoors
-    B["traffic_ext"].on(S["s01_flip"] + 0.5, 16.6, fi=2.0, fo=1.2).on(20.55, 21.4, fi=1.3, fo=1.0)
-    B["traffic_ext"].on(S["s04_street"], 52.5, fi=0.3, fo=1.0).on(S["s06_street"], 79.5, fi=0.25, fo=1.0).on(pull + 1.0, 153.5, fi=2.0, fo=1.6)
-    B["traffic_ext"].level((5.0, -8), (8.0, -3), (9.5, 0), (S["s06_crane"], 0), (S["s06_crane"] + 2.0, -4))
-    B["traffic_int"].on(16.6, 41.0, fi=1.2, fo=0.03).on(41.0, S["s04_street"], fi=0.03, fo=0.3).on(52.5, 70.3, fi=1.0, fo=0.15)
-    B["traffic_int"].on(79.5, slam, fi=1.0, fo=0.05).on(141.5, pull + 1.0, fi=1.25, fo=2.0)
-    B["traffic_int"].level((79.5, -2), (92.0, -2), (92.05, 2), (106.5, 2), (106.55, -2))   # s08 at the glass
+    # s12: the rain swells under 'Be honest...'
+    lf = S["s12_lift"]
+    B["rain_glass"].level((141.0, -1), (lf - 0.2, -1), (lf + 0.6, 2), (pull, 2))
+    # the open street: s01's rain -> the facade -> the pull back; out through the pane -> the street
+    # below -> the titles; s04 outside; s06 out of the door -> the crane; s12's pull-out
+    for nm in STREET:
+        B[nm].on(S["s01_rain"], thr, fi=1.8, fo=0.25).on(out2, 24.05, fi=0.4, fo=1.0)
+        B[nm].on(S["s04_street"], 52.5, fi=0.3, fo=1.0).on(street6, 79.5, fi=0.25, fo=1.0).on(pull, 153.5, fi=1.2, fo=0.5)
+    B["rain_street"].level((S["s01_rain"], -6), (9.5, 0), (S["s02_pull"], 0), (thr - 0.3, 3), (out2, 3), (out2 + 0.8, 0),
+                           (S["s02_title_in"], -2), (24.0, -2), (S["s04_street"], 0), (street6, 2.5), (crane6, 2.5),
+                           (crane6 + 1.5, -2.5), (79.5, -3.5), (pull, -1), (pull + 1.5, 0))
+    B["traffic_ext"].on(S["s01_flip"] + 0.5, 9.0, fi=2.0, fo=0.1)
+    B["traffic_ext"].level((5.0, -8), (8.0, -3), (9.5, 0), (crane6, 0), (crane6 + 2.0, -4), (79.5, -4), (pull, 0))
+    # wind: out through the pane over the street; the crane up the facade
+    B["wind"].on(out2, up2 + 0.3, fi=0.6, fo=0.6).on(crane6 + 0.6, 79.5, fi=2.2, fo=1.0)
+    B["wind"].level((out2, -2), (79.5, 0))
     # the stairwell
-    B["rain_stair"].on(S["s06_stairs"], S["s06_street"], fi=0.15, fo=0.25)
-    # wind over the roofs for the crane up the facade
-    B["wind"].on(S["s06_crane"] + 0.6, 79.5, fi=2.2, fo=1.0)
-    # apartment 9: s04 (dark, the police), s07 - s10 until the slam
-    B["rain_apt9"].on(41.0, S["s04_street"], fi=0.03, fo=0.3).on(79.5, slam, fi=1.0, fo=0.05)
-    B["tone_apt9"].on(41.0, S["s04_street"], fi=0.03, fo=0.3).on(79.5, slam, fi=1.0, fo=0.05)
-    B["rain_apt9"].level((92.0, 0), (92.05, 3), (106.0, 3), (106.6, 0),           # s08 at the window
-                         (S["s09_feet_stop"], 0), (S["s09_feet_stop"] + 0.3, -4), (S["s10_burst"], -4), (S["s10_burst"] + 0.05, 0))
-    B["tone_apt9"].level((S["s09_feet_stop"], 0), (S["s09_feet_stop"] + 0.3, -4), (S["s10_burst"], -4), (S["s10_burst"] + 0.05, 0))
-    # the hallway after the slam, until the tear
-    B["rain_hall"].on(slam, 131.5, fi=0.05, fo=1.0)
-    B["tone_hall"].on(slam, 131.5, fi=0.05, fo=1.0)
+    B["rain_stair"].on(stairs6, street6, fi=0.15, fo=0.25)
+    # the hallway: s06 out of her door; s07's door spilling it in; s09 the timer light outside the door,
+    # s10 the burst (hallway air) and, after the slam, the hallway itself
+    t7 = S["s07_door"]
+    B["tone_hall"].on(door6, stairs6, fi=0.15, fo=0.2).on(t7 + 0.25, S["s07_steps"] + 0.7, fi=0.5, fo=0.8)
+    B["tone_hall"].on(S["s09_timer"] + 0.05, hum10, fi=0.1, fo=0.15).on(slam, 131.5, fi=0.03, fo=1.0)
+    B["tone_hall"].level((door6, 0), (stairs6 + 0.3, 0), (t7, -6), (S["s07_steps"] + 1.2, -6), (S["s09_timer"], -12), (burst - 0.01, -12), (burst + 0.03, 0),
+                         (hum10, 0))
+    B["rain_hall"].on(door6, stairs6, fi=0.15, fo=0.2).on(burst, hum10, fi=0.05, fo=0.15).on(slam, 131.5, fi=0.03, fo=1.0)
+    B["rain_hall"].level((door6, -3), (stairs6, -3), (burst, -4), (hum10, -4), (slam, 0))
+    # apartment 9: s04 (dark, the police); s07 - s10 until the sheet is down and only the bulb hums
+    for nm in ("rain_apt9", "tone_apt9"):
+        B[nm].on(41.0, S["s04_street"], fi=0.03, fo=0.3).on(79.5, hum10, fi=1.0, fo=0.15)
+    B["traffic_int"].on(41.0, S["s04_street"], fi=0.03, fo=0.3).on(79.5, hum10, fi=1.0, fo=0.15)
+    gl7, fs9 = S["s07_glass"], S["s09_feet_stop"]
+    B["rain_apt9"].level((41.0, 0), (S["s04_woman"] - 0.25, 0), (S["s04_woman"], 4), (S["s04_street"], 4), (79.5, 0),
+                         (gl7 - 0.1, 0), (gl7 + 0.2, 3), (106.4, 3), (106.6, 0), (fs9, 0), (fs9 + 0.3, -6), (burst, -6),
+                         (burst + 0.05, 0))
+    B["tone_apt9"].level((fs9, 0), (fs9 + 0.3, -6), (burst, -6), (burst + 0.05, 0))
+    B["traffic_int"].level((41.01, -2), (S["s04_street"], -2), (79.5, -2), (gl7 - 0.1, -2), (gl7 + 0.2, 2), (106.5, 2), (106.55, -2), (fs9, -2), (fs9 + 0.3, -8),
+                           (burst, -8), (burst + 0.05, -2))
     # the killer's room
     B["rain_killer"].on(131.5, 141.5, fi=1.0, fo=1.25)
     B["tone_killer"].on(131.5, 141.5, fi=1.0, fo=1.25)
-    # the end: everything out with the last windows
+    # the end: the rain thins to nothing with the last glint
+    end = S["s12_end"]
     for b in B.values():
-        b.level((152.4, 0), (153.45, -40))
+        b.level((end - 0.4, 0), (end + 0.45, -40))
     return B
 
 
@@ -339,28 +359,28 @@ def render_beds(S, N, seed=0):
 
     # her radiator ticking (her room only, between the words where possible)
     rr = dsp.rng_for("sp_radiator", seed)
-    for k, tt in enumerate((26.9, 33.0, 38.6, 55.6, 68.1, 144.9, 147.2)):
+    for k, tt in enumerate((27.9, 32.1, 57.6, 144.95, 147.3)):
         x = SP.render("radiator_tick", seed=900 + k).astype(np.float64)
         x = SP.reverb(x, "her_room", wet_db=-8.0)
         x = dsp.pan_stereo(_cal(x, -41.0 - rr.uniform(0, 3), "max"), 0.55)
         dsp.mix_into(out, x, n_of(tt))
         info["events"].append(f"radiator@{tt}")
 
-    # sirens: s04 the arriving car's siren winding down outside apartment 9's window
-    t0 = S["s04_burst"] - 0.4
-    x = SP.render("siren_wail", dur=3.2, params=dict(mode="winddown", cars=1), seed=41).astype(np.float64)
-    x = sos(x, "lowpass", 2400, 2)
-    x = SP.reverb(x, "apt9", wet_db=-10.0)[:len(x) + n_of(0.8)]
-    x = dsp.pan_stereo(_cal(x, -27.0, "max"), 0.35)
-    dsp.mix_into(out, dsp.fade(x, 0.25, 0.4), n_of(t0))
-    info["events"].append(f"siren_winddown@{t0:.2f}")
+    # sirens: s04 the dark room - a siren looping far below, muffled by apartment 9's glass
+    t0, t1 = S["s04_dark"], S["s04_street"]
+    x = SP.render("siren_wail", dur=t1 - t0 + 0.4, params=dict(mode="far", cars=1, period=3.0), seed=41).astype(np.float64)
+    x = sos(x, "lowpass", 1300, 2)
+    x = SP.reverb(x, "apt9", wet_db=-10.0)[:len(x)]
+    x = dsp.pan_stereo(_cal(x, -33.0, "int"), 0.35)
+    dsp.mix_into(out, dsp.fade(x, 0.3, 0.35), n_of(t0))
+    info["events"].append(f"siren_far@{t0:.2f}-{t1:.2f}")
     # s10: two cars approaching (the hallway window floods blue / red), then far in s11
-    ta = S["s10_sirens"] - 0.1
+    ta = S["s10_sirens"]
     tb = S["s11_dissolve"] - 4.0
     x = SP.render("siren_wail", dur=S["s10_tear"] + 0.6 - ta, params=dict(mode="approach", cars=2, period=3.0), seed=101).astype(np.float64)
     x = sos(x, "lowpass", 5000, 2)
     x = _cal(x, -23.0, "max")
-    dsp.mix_into(out, dsp.fade(x, 0.8, 0.9), n_of(ta))
+    dsp.mix_into(out, dsp.fade(x, 0.15, 0.9), n_of(ta))
     xf = SP.render("siren_wail", dur=tb - (S["s10_tear"] - 0.2), params=dict(mode="far", cars=2, period=3.4), seed=111).astype(np.float64)
     xf = sos(xf, "lowpass", 1400, 2)
     xf = SP.reverb(xf, "killer", wet_db=-12.0)[:len(xf)]
