@@ -446,7 +446,9 @@ def flashlight_beam(f, origin, angle, length=1100.0, spread=10.0, level=1.0, par
                 half = d * math.tan(math.radians(spread)) * 0.9
                 off = (hash01(seed, k, 2) * 2 - 1) * half
                 dx = 18 * s * noise1(t * 0.3 + k, seed + 3)
-                dy = 18 * s * noise1(t * 0.25 + k * 1.7, seed + 5) + 10 * s * t % 40
+                # (a slow sway, not a wrapping drift: a modulo here made every mote jump
+                # back every 4 s)
+                dy = 18 * s * noise1(t * 0.25 + k * 1.7, seed + 5) + 8 * s * math.sin(t * 0.6 + 1.7 * k)
                 px = origin[0] + ux * d - uy * off + dx
                 py = origin[1] + uy * d + ux * off + dy
                 tw = 0.5 + 0.5 * math.sin(t * 3.0 + k)

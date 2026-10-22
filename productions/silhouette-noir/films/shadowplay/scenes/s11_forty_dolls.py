@@ -45,9 +45,10 @@ PIN_SCREEN = (540.0, 905.0)          # where doll 9's pin sits at the end (s12 m
 GFX = 0.15                           # the facade-print flash frames after [window]
 TORCH_COL = (1.0, 0.91, 0.76)
 FLASH_COL = (1.0, 0.985, 0.96)
-TORCH_HAND = (70.0, 1930.0)          # the cop's torch, par 1.6 (just out of frame, bottom left)
+TORCH_HAND = (292.0, 1688.0)         # the cop's torch head, par 1.6 (he stands bottom left)
 TORCH_PAR = 1.6
 FLASH_AT = (960.0, 1760.0)           # the photographer's bulb (world, par 1), bottom right
+FG_BLUR = 14.0                       # the two men in the foreground (par 1.6, out of focus)
 
 # s01's Bass grid (ink lines between the windows)
 V_LINES = (LOCK_COLS[0] - 77.5,) + tuple((LOCK_COLS[i] + LOCK_COLS[i + 1]) / 2 for i in range(4)) + (LOCK_COLS[-1] + 77.5,)
@@ -156,11 +157,17 @@ def camera(t):
     return cam.shaken(t, amp=amp, rot_amp=0.12, freq=0.55, seed=11)
 
 
+def _torch_hand(t):
+    """The torch head in the cop's fist (par 1.6 world): his arm follows the aim a little."""
+    a = _aim(t)
+    return (TORCH_HAND[0] + 14.0 * fbm1(t * 0.6, 3) + 0.035 * (a[0] - 540.0),
+            TORCH_HAND[1] + 10.0 * fbm1(t * 0.5, 7) + 0.030 * (a[1] - 960.0))
+
+
 def _torch_origin(f, t):
     """The torch lens (held by a cop near the camera, par 1.6) as a point on the wall plane."""
-    hand = (TORCH_HAND[0] + 14.0 * fbm1(t * 0.6, 3), TORCH_HAND[1] + 10.0 * fbm1(t * 0.5, 7))
     cf = f.cam.parallax(TORCH_PAR)
-    return f.cam.to_world(cf.to_screen(hand))
+    return f.cam.to_world(cf.to_screen(_torch_hand(t)))
 
 
 # ----------------------------------------------------------------------------- the dolls
@@ -348,6 +355,65 @@ def _flash_air(f, t, B):
     f.post["exposure"] = 1.0 + 0.25 * fl
 
 
+# ----------------------------------------------------------------------------- foreground
+def _cop(c, t):
+    """The cop with the torch, back to us, bottom left: peaked cap, heavy shoulders, his right
+    arm up and out with the torch (its head is the beam's origin)."""
+    hx, hy = _torch_hand(t)
+    a = _aim(t)
+    ang = math.atan2(a[1] - 960.0 - (hy - 1688.0) * 4.0, a[0] - 540.0 + 900.0)   # roughly at the wall
+    ux, uy = math.cos(ang), math.sin(ang)
+    head = (54.0 + 0.4 * (hx - TORCH_HAND[0]), 1736.0 + 0.3 * (hy - TORCH_HAND[1]))
+    # shoulders and back (off the bottom edge)
+    draw.smooth(c, [(-260.0, 2100.0), (-230.0, 1868.0), (-60.0, 1826.0), (head[0] + 40.0, 1810.0),
+                    (210.0, 1838.0), (300.0, 1900.0), (330.0, 2100.0)], close=True)
+    draw.capsule(c, (head[0] + 4.0, head[1] + 40.0), (head[0] + 10.0, 1840.0), 40.0, 46.0)
+    draw.ellipse(c, head, 64.0, 74.0, 0.12)
+    # the peaked cap from behind: a flat crown wider than the head, a band
+    cx, cy = head[0] - 2.0, head[1] - 58.0
+    draw.poly(c, [(cx - 82.0, cy - 30.0), (cx + 84.0, cy - 36.0), (cx + 70.0, cy + 6.0), (cx + 58.0, cy + 26.0),
+                  (cx - 60.0, cy + 30.0), (cx - 72.0, cy + 8.0)])
+    # the arm: shoulder -> elbow -> fist, then the torch barrel pointing at the wall
+    sh = (186.0, 1846.0)
+    fist = (hx - ux * 70.0, hy - uy * 70.0)
+    el = ((sh[0] + fist[0]) / 2 + 34.0, (sh[1] + fist[1]) / 2 + 26.0)
+    draw.capsule(c, sh, el, 46.0, 38.0)
+    draw.capsule(c, el, fist, 36.0, 30.0)
+    draw.circle(c, fist, 34.0)
+    draw.capsule(c, fist, (hx - ux * 14.0, hy - uy * 14.0), 17.0, 21.0)
+    draw.circle(c, (hx, hy), 25.0)
+    draw.fill(c, INK)
+
+
+def _photographer(c, t):
+    """The press photographer, bottom right: fedora, his Speed Graphic up at his face, the
+    round reflector of the flashgun beside it (its bulb is FLASH_AT)."""
+    sway = 6.0 * fbm1(t * 0.4, 19)
+    head = (1032.0 + sway, 1842.0)
+    draw.smooth(c, [(820.0, 2100.0), (850.0, 1930.0), (960.0, 1890.0), (1110.0, 1900.0), (1260.0, 1960.0),
+                    (1290.0, 2100.0)], close=True)
+    draw.ellipse(c, head, 60.0, 70.0, -0.1)
+    # fedora: brim and pinched crown
+    bx, by = head[0] + 2.0, head[1] - 44.0
+    draw.ellipse(c, (bx, by), 112.0, 17.0, -0.08)
+    draw.poly(c, [(bx - 62.0, by + 4.0), (bx - 54.0, by - 62.0), (bx - 8.0, by - 52.0), (bx + 10.0, by - 68.0),
+                  (bx + 58.0, by - 58.0), (bx + 64.0, by + 2.0)])
+    # the camera held up in front of his face, elbows out; the flashgun's dish beside it
+    draw.capsule(c, (1150.0 + sway, 1915.0), (1102.0 + sway, 1830.0), 40.0, 30.0)
+    draw.capsule(c, (930.0 + sway, 1930.0), (952.0 + sway, 1842.0), 40.0, 30.0)
+    draw.rect(c, 940.0 + sway, 1800.0, 1080.0 + sway, 1872.0)
+    fx, fy = FLASH_AT
+    draw.capsule(c, (fx + 30.0, fy + 40.0), (fx + 6.0, fy + 6.0), 8.0, 8.0)
+    draw.circle(c, (fx, fy), 62.0)
+    draw.fill(c, INK)
+
+
+def _foreground(f, t):
+    with f.layer(par=TORCH_PAR, blur=FG_BLUR) as L:
+        _cop(L, t)
+        _photographer(L, t)
+
+
 # ----------------------------------------------------------------------------- the print
 def _facade_print(f, t, B):
     """[window]: three frames of s01's Bass print. PAPER field, ink grid lines, the forty ink
@@ -393,6 +459,7 @@ def render(f, t, T):
     _beam(f, t, aim, radius, level, origin)
     _strobe_air(f, t)
     _flash_air(f, t, B)
+    _foreground(f, t)
     f.post["vignette"] = 0.62
     f.post["bloom"] = 0.26
 

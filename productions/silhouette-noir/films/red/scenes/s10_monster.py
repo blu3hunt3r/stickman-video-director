@@ -64,9 +64,14 @@ def _cast(T):
     m = Actor(cast.MOTHER, cast.mother(), x=MOTHER_X, ground=G, facing=1, seed=4, name="mother")
     m.stand(until=7.98, at=-1.0)
     m.walk(to=EMBRACE_X - 10.0, gait="run", speed=2.5)
-    t_down = m.end - 0.42                   # she drops to her knees out of the last steps
-    L.kneel(m, t_down, 30.0, x=EMBRACE_X, t_in=0.55, lean=13.0, head=12.0, delay=(0.0, 0.12),
+    # she plants her last full stride and drops to her knees, gliding in on the run's speed
+    # (cut in before the run's own closing steps)
+    lands = getattr(m.segs[-1], "lands", None)
+    t_down = (lands[-3] + 0.03) if lands and len(lands) >= 3 else m.end - 0.8
+    K_IN = 0.6
+    L.kneel(m, t_down, 30.0, x=EMBRACE_X, t_in=K_IN, lean=13.0, head=12.0, delay=(0.15, 0.0),
             arms=(60.0, 50.0))
+    t_knees = t_down + 0.75 * K_IN          # the knees take the snow
     gx = lambda t: _C["girl"].root(t)[0]
     # arms around her back: wrists just inside the cloak's back edge, hands curled down it
     m.reach("R", t_down + 0.2, 30.0, lambda t: (gx(t) - 16.0, G(gx(t)) - 232.0), fade=0.35)
@@ -81,7 +86,7 @@ def _cast(T):
     # ---- the girl: a slow, tired walk home; stops in the gateway; held by her mother
     g = Actor(cast.RED_GIRL, cast.red(), x=GIRL_X0, ground=G, facing=-1, seed=9, name="red")
     g.walk(to=GIRL_STOP, gait="trudge", speed=0.36, at=-1.0)              # tired; arrives ~4.7
-    t_meet = t_down - 0.2
+    t_meet = t_down + K_IN - 0.75
     g.stand(until=t_meet - 0.3)
     g.walk(to=GIRL_HUG_X, gait="child_walk", speed=0.5)                     # one step into her arms
     g.stand(until=30.0)
@@ -121,7 +126,7 @@ def _cast(T):
     w.walk(to=3300.0, dur=5.0)
     # ---- villagers in the doorways: watch, step back, the doors shut on them
     shut = {"m3": W_["looked"] + 0.2, "n3": W_["me"] + 0.15, "m4": W_["like"] + 0.1}
-    _C.update(girl=g, mother=m, man=man, wolf=w, shut=shut, t_meet=t_meet, t_down=t_down,
+    _C.update(girl=g, mother=m, man=man, wolf=w, shut=shut, t_meet=t_meet, t_down=t_down, t_knees=t_knees,
               doors=V.door_schedule(shut, dur=0.32))
     return _C
 
@@ -230,7 +235,7 @@ def _man_lantern(f, c, sk, t):
 
 def motion_blur(t, T):
     cs = _cast(T)
-    return 2 if cs["t_down"] - 1.4 < t < cs["t_down"] + 0.1 else 1
+    return 2 if cs["t_down"] - 1.25 < t < cs["t_down"] + 0.35 else 1
 
 
 def cues(T):
@@ -247,9 +252,9 @@ def cues(T):
         Cue(sh["m4"], "a wooden door shuts (far right, quick slam)", -10, pan=0.35),
         Cue(W_["monster"], "a lantern lifted sharply on its iron handle: creak and swing", -10, pan=-0.2),
         Cue(7.9, "her mother's door bangs open (off to the left)", -6, pan=-0.85),
-        Cue(8.0, "running footsteps in snow, adult, fast, coming closer", -9, dur=td - 8.0, pan=-0.5),
+        Cue(8.0, "running footsteps in snow, adult, fast, coming closer", -9, dur=td - 7.95, pan=-0.5),
         Cue(8.8, "the man's heavy boots walking away, lantern handle creaking", -16, dur=2.4, pan=-0.4),
-        Cue(td, "knees drop into snow; cloth rustle as she gathers the child in", -8),
-        Cue(td + 0.4, "a held breath, a small sob muffled in cloth", -14, dur=1.5),
+        Cue(cs["t_knees"], "knees drop into snow; cloth rustle as she gathers the child in", -8),
+        Cue(cs["t_knees"] + 0.4, "a held breath, a small sob muffled in cloth", -14, dur=1.5),
         Cue(12.35, "at the forest edge: the wolf turns, soft paws in snow, receding", -18, dur=3.0, pan=0.7),
     ]

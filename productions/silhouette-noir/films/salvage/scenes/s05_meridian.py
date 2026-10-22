@@ -453,9 +453,17 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
-    if t > 12.95:
+    """Sub-frames for the whip, by how fast the frame streams (each one costs a full finish):
+    few while the pan is still slow, most just before the whip transition's own blur takes
+    over (from ~13.4 it smears the frame far more than the shutter; from ~13.55 the frame has
+    mostly slid out)."""
+    if t <= 12.95:
+        return 1
+    if t <= 13.08 or t > 13.55:
+        return 2
+    if 13.20 < t <= 13.40:
         return 4
-    return 1
+    return 3
 
 
 def cues(T):

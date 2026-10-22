@@ -104,11 +104,11 @@ def _her(show=9.632):
     a.stand(until=1.62, idle=0.2)
     a.walk(to=0.0, gait="walk", speed=0.56, at=1.62)            # the flame through the dark
     a.stand(until=3.95, idle=0.2)
-    a.turn(-55.0, dur=0.45, at=3.95, via=-90.0)                  # to the sheet
+    a.turn(-55.0, dur=0.45, at=3.95, via=-28.0)                  # to the sheet
     a.walk(to=0.76 * PXM, gait="stroll", yaw=-55.0, at=4.45)     # round the lamp to the table's end
     a.turn(-150.0, dur=0.45, at=5.30, via=-90.0)                 # faces the dolls (left, away)
     a.stand(until=7.35, idle=0.15)
-    a.turn(-95.0, dur=0.5, at=7.35, via=-90.0)                   # in the dark: her back to us
+    a.turn(-95.0, dur=0.5, at=7.35, via=-120.0)                  # in the dark: her back to us
     a.walk(to=0.24 * PXM, gait="stroll", yaw=-95.0, at=7.80, turn=0)
     a.stand(until=10.30, idle=0.12)
     a.turn(-30.0, dur=0.45, at=10.30, via=-90.0)                 # toward the window
@@ -215,7 +215,7 @@ def _doll_light(t, W_, m3, ml):
     lv = _lamp(t, W_)
     out = []
     for p3 in (MAN3, WOMAN3):
-        v = 1.6 * min(ml, 1.3) * L.falloff(L.dist3(m3, p3), 0.30) if ml > 0 else 0.0
+        v = 1.6 * min(ml, 1.3) * L.falloff(L.dist3(m3, p3), 0.40) if ml > 0 else 0.0
         out.append(v + 1.0 * lv)
     return tuple(out)
 
@@ -328,21 +328,26 @@ def _render_room(f, t, W_):
                                          "after_door": after_door}, dust=1.0)
     # the bulb's glass catching the match as she lifts it [lamp]
     if lv < 0.2 and ml > 0:
+        # the clear glass catches the flame: a specular point toward the match (always, while
+        # it burns), and when the match is close [lamp] the whole bulb glows from it
         g = clamp(1.8 * min(ml, 1.2) * L.falloff(L.dist3(m3, LAMP3), 0.22))
-        if g > 0.01:
-            s = R.ppm(LAMP3[2]) * APT.BULB_Y / 520.0
-            with f.light(blur=1.0) as A:
-                # the glass lights up from inside: a warm fill, a hot specular, a bright rim
+        sp = 0.55 * clamp(min(ml, 1.0)) + 0.45 * g
+        s = R.ppm(LAMP3[2]) * APT.BULB_Y / 520.0
+        dx, dy = tip[0] - BULB[0], tip[1] - BULB[1]
+        n = math.hypot(dx, dy) or 1.0
+        hp = (BULB[0] + dx / n * 7.0 * s, BULB[1] + dy / n * 9.0 * s)
+        with f.light(blur=1.0) as A:
+            if g > 0.01:
                 A.save()
                 A.translate(BULB[0], BULB[1])
                 A.scale(1.0, 21.0 / 17.0)
                 sets.glow(A, (0.0, 0.0), 19.0 * s, sets.mix(AMBER, HOT, 0.5), 0.55 * g)
                 A.restore()
-                sets.glow(A, (BULB[0] - 6.0 * s, BULB[1] - 8.0 * s), 6.0 * s, (1.0, 0.97, 0.9), 0.95 * g)
                 sets.glow(A, BULB, 70.0 * s, AMBER, 0.22 * g)
-            with f.emit() as G:
-                draw.circle(G, (BULB[0] - 6.0 * s, BULB[1] - 8.0 * s), 2.2 * s)
-                draw.fill(G, HOT, 0.7 * g)
+            sets.glow(A, hp, 5.0 * s, (1.0, 0.97, 0.9), 0.9 * sp)
+        with f.emit() as G:
+            draw.circle(G, hp, 1.8 * s)
+            draw.fill(G, HOT, 0.6 * sp)
 
 
 def _her_look(ml, lv, X, Z):
@@ -439,7 +444,7 @@ def _draw_her(f, t, st):
     _smoke(f, t, st)
     # the match itself (hidden while her body is between it and us: the far hand)
     if ml > 0.01:
-        s = 0.62 * R.ppm(Z) / 343.0
+        s = 0.80 * R.ppm(Z) / 343.0
         occ = _covered(sk, M, plain, tip, 5.0 * s + 2.0) if sk.z.get("hand_R", 0.0) < 0.0 else 0.0
         vis = min(1.0, ml) * (1.0 - occ)
         ang = math.degrees(math.atan2(tip[1] - fing[1], tip[0] - fing[0]))
@@ -517,18 +522,18 @@ HER_FOOT = (440.0, 1830.0)
 
 @lru_cache(maxsize=1)
 def _her_win():
-    """She walks in from the left (the cut lands mid-stride, her screen direction kept from
+    """She comes in from the left (the cut lands mid-stride, her screen direction kept from
     the room), stops at the glass and lifts her eyes to her own window: at 12.5 she holds
     s08's pose (yaw -50, head -5, head_yaw 10, the same arms)."""
-    a = Actor(cast.HER, None, x=-230.0, ground=0.0, facing=-38.0, seed=81)
-    a.stand(until=T_WIN - 0.30, at=-2.0, idle=0.3)
-    a.walk(to=0.0, gait="walk", yaw=-38.0, at=T_WIN - 0.30, turn=0)
-    a.turn(-50.0, dur=0.35, at=a.cursor, via=-90.0)
+    a = Actor(cast.HER, None, x=-200.0, ground=0.0, facing=-38.0, seed=81)
+    a.stand(until=10.85, at=-2.0, idle=0.3)
+    a.walk(to=0.0, gait="brisk", yaw=-38.0, at=10.85, turn=0)           # ends ~11.95
+    a.turn(-50.0, dur=0.35, at=a.cursor, via=-44.0)
     a.stand(until=30.0, idle=0.4)
-    a.key("head", [(-2.0, 4.0), (T_WIN + 0.55, 8.0), (12.30, -5.0, "inout"), (30.0, -5.0)])
-    a.key("head_yaw", [(-2.0, 18.0), (T_WIN + 0.55, 18.0), (12.30, 10.0, "inout"), (30.0, 10.0)])
-    a.arm("R", T_WIN + 0.55, 30.0, fade=0.45, sh=10.0, abd=8.0, elbow=34.0)
-    a.arm("L", T_WIN + 0.55, 30.0, fade=0.45, sh=6.0, abd=8.0, elbow=20.0)
+    a.key("head", [(-2.0, 4.0), (11.90, 8.0), (12.35, -5.0, "inout"), (30.0, -5.0)])
+    a.key("head_yaw", [(-2.0, 18.0), (11.90, 18.0), (12.35, 10.0, "inout"), (30.0, 10.0)])
+    a.arm("R", 11.95, 30.0, fade=0.4, sh=10.0, abd=8.0, elbow=34.0)
+    a.arm("L", 11.95, 30.0, fade=0.4, sh=6.0, abd=8.0, elbow=20.0)
     return a
 
 
@@ -597,6 +602,11 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
+    """Sub-frames: the strike, and the flick that shakes the match out."""
+    if 1.38 <= t <= 1.52:
+        return 3
+    if 7.04 <= t <= 7.36:
+        return 2
     return 1
 
 

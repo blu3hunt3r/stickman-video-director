@@ -7,7 +7,7 @@ A  HER DOOR (-0.375 - 3.30)  HerEntry, her flat dark, cold window light on the w
      -0.38-0.30  her hands on the collar; 0.30 lifts it off the hook
      0.45-1.30   turns to us and swings it up over her head: it FLARES (cue 0.62), drops on her
                  shoulders 1.25; arms into the sleeves 1.30-1.55 (L14 "So I did...")
-     1.62-2.25   tugs the coat closed by its lapels ("watcher" 1.90)
+     1.62-2.25   collar up round her face, a sharp tug on "watcher" (1.90)
      2.18-2.80   turns and goes to the door; opens it on "never" (2.81): hall light floods in
      3.05-3.30   back to us, into the doorway ("does" 3.17)
 B  STAIRWELL (3.30 - 4.72)   straight down the square spiral: dolly-zoom (cam 3.4 -> 1.15 m)
@@ -88,8 +88,8 @@ def _her_a():
                                    (1.20, 2.0, "inout")], fade=0.12)
         a.key("arm.%s.elbow" % side, [(0.46, 70.0), (0.62, 104.0, "inout"), (0.80, 148.0, "inout"), (1.00, 30.0, "inout"),
                                       (1.20, 14.0, "inout")], fade=0.12)
-    # 3) on "watcher" she tugs the coat closed by its lapels: hands to her chest, a sharp pull
-    #    down with a small dip, then her hands drop
+    # 3) collar up: hands close to the body, up to the collar round her face, a sharp tug with a
+    #    small dip on "watcher", then her hands drop
     for side in ("L", "R"):
         a.key("arm.%s.abd" % side, [(1.62, 10.0), (1.80, 4.0, "inout"), (1.92, 8.0, "out3"), (2.22, 8.0, "inout")],
               fade=0.1)
@@ -464,6 +464,11 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
+    """Sub-frames: the coat's flying hem, and the spinning stairwell."""
+    if 0.50 <= t <= 1.10:
+        return 3
+    if T_B <= t < T_C:
+        return 2
     return 1
 
 

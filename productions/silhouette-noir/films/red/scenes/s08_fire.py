@@ -28,15 +28,17 @@ T_SMASH = G8["smash"]
 
 _CAM = L.CamPath([
     (0.0, 1050.0, 990.0, 0.95),
-    (2.3, 1070.0, 1000.0, 0.95),
-    (3.5, 1120.0, 1190.0, 1.75),
-    (8.4, 1110.0, 1200.0, 1.85),
-    (9.6, 1000.0, 1050.0, 1.05),
-    (10.7, 1040.0, 1050.0, 1.0),
+    (2.3, 1060.0, 1000.0, 0.95),
+    (3.2, 1000.0, 1490.0, 2.1),
+    (8.5, 990.0, 1495.0, 2.2),
+    (9.5, 930.0, 1150.0, 1.25),
+    (10.6, 980.0, 1120.0, 1.15),
     (12.66, 1560.0, 1010.0, 0.82),
     (13.3, 1560.0, 990.0, 0.80),
-    (16.5, 1150.0, 450.0, 0.42),
-    (17.5, 1130.0, 420.0, 0.40),
+    (15.0, 1600.0, 820.0, 0.62),
+    (16.0, 1250.0, 600.0, 0.46),
+    (17.0, 700.0, 400.0, 0.38),
+    (17.5, 650.0, 380.0, 0.37),
 ])
 SHAKES = [(0.0, 4.0, 0.25), (1.685, 2.5, 0.2), (2.385, 4.0, 0.25), (3.95, 2.0, 0.2), (5.5, 2.5, 0.2),
           (6.3, 2.0, 0.2), (8.25, 2.5, 0.2), (T_SMASH, 4.0, 0.35)]
@@ -93,6 +95,24 @@ def render(f, t, T):
         if fire:
             S.lantern_burst(f, c, L.C_SMASH, t7, D + T_SMASH, MOOD, S.CLEARING, size=1.2)
     C.draw_front(f, MOOD, era="web", t=t7, burn=B, fire_strength=1.0)
+    if fire:
+        atmos.embers(f, L.ember_source(B), rate=70.0, life=(1.0, 2.6), rise=(110.0, 260.0), spread=40.0,
+                     wind=25.0, gust=20.0, size=(1.2, 2.8), color=MOOD.lamp, t=t7, seed=11, t_start=D + T_SMASH)
+        _flare(f, t)
+
+
+def _flare(f, t):
+    """The fire flares toward white at the end (under the flash to s09)."""
+    a = 0.42 * L.ss(16.0, 17.5, t)
+    if a <= 0.005:
+        return
+    import cairo
+    with S.soft_layer(f, k=8, op="add", screen=True) as A:
+        g = cairo.RadialGradient(540.0, 1150.0, 80.0, 540.0, 1100.0, 1500.0)
+        g.add_color_stop_rgba(0, *MOOD.lamp, a)
+        g.add_color_stop_rgba(1, *MOOD.lamp, 0.45 * a)
+        A.set_source(g)
+        A.paint()
 
 
 def _draw_lantern(f, c, t, lant):

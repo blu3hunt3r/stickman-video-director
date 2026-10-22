@@ -74,19 +74,31 @@ def kneel(actor, t0, dur, x=None, t_in=1.0, lean=14.0, head=8.0, delay=(0.0, 0.2
     x0 = st["x"]
     xk = x0 if x is None else float(x)
     feet = dict(st["feet"])
+    feet_y = {}
     y_st = g(x0) - (b.hip - 0.006) * Hh
+    v0 = 0.0
     if t0 < A.cursor - 1e-6:
-        # cutting into the previous segment (e.g. dropping to the knees out of a run's last
-        # steps): start from the live pelvis and the ankles where they are at t0
+        # cutting into the previous segment (dropping to the knees out of a run): start from
+        # the live pelvis, the ankles where they are at t0, and carry the run's momentum
         x0, y_st = A.root(t0)
         sk = A.skeleton(t0)
         feet = {s: sk.j["ankle_" + s][0] for s in ("L", "R")}
+        feet_y = {s: min(sk.j["ankle_" + s][1], g(feet[s]) - b.ankle_h * Hh) for s in ("L", "R")}
+        v0 = (A.root(t0 + 0.02)[0] - A.root(t0 - 0.02)[0]) / 0.04
     y_kn = g(xk) - (b.thigh + 0.028) * Hh
     seed = A.seed
+    D = xk - x0
+    m0 = v0 * t_in if v0 * D > 0 else 0.0
+    if m0:
+        m0 = math.copysign(min(abs(m0), 2.8 * abs(D)), D)      # cubic Hermite stays monotone
 
     def path(t):
-        u = ease("inout", clamp((t - t0) / t_in))
-        xx = lerp(x0, xk, u)
+        uu = clamp((t - t0) / t_in)
+        u = ease("inout", uu)
+        if m0:      # glide in on the run's speed, settle to rest at xk
+            xx = x0 + m0 * (uu ** 3 - 2 * uu * uu + uu) + D * (3 * uu * uu - 2 * uu ** 3)
+        else:
+            xx = lerp(x0, xk, u)
         yy = lerp(y_st, y_kn, u) + 0.018 * Hh * math.sin(math.pi * u)
         yy += 0.0025 * Hh * math.sin(2 * math.pi * t / 3.3 + seed) * u          # breathing
         return xx, yy
@@ -98,7 +110,7 @@ def kneel(actor, t0, dur, x=None, t_in=1.0, lean=14.0, head=8.0, delay=(0.0, 0.2
         for i, s in enumerate(("L", "R")):
             w = ease("inout", clamp((u - delay[i]) / 0.62))
             fx0 = feet[s]
-            a0 = (fx0, g(fx0) - b.ankle_h * Hh)
+            a0 = (fx0, feet_y.get(s, g(fx0) - b.ankle_h * Hh))       # a swinging foot starts in the air
             off = (spread * Hh) * (1 if i else -1) * 0.5
             kx = xk - d * 0.90 * b.shin * Hh + d * off
             a1 = (kx, g(kx) - 0.048 * Hh)

@@ -167,8 +167,8 @@ def _carry(t, sh):
 def _hands_line(t, pel):
     """Where his two gloves hold the line after backing away: (lower = right, upper = left),
     with the hand-over-hand and the two tugs."""
-    base_r = (pel[0] + 92.0, pel[1] - 92.0)
-    base_l = (pel[0] + 98.0, pel[1] - 150.0)
+    base_r = (pel[0] + 110.0, pel[1] - 92.0)
+    base_l = (pel[0] + 116.0, pel[1] - 150.0)
     # hand over hand: R pulls down, L reaches up, L pulls, R reaches up (two cycles)
     hh = 0.0
     if T_TAKE0 < t < T_TAKE1:
@@ -209,15 +209,17 @@ def _wrist_targets(t, sk0):
         w = ease("inout", clamp((t - (T_HITCH1 + 0.15)) / (T_BACK1 - T_HITCH1 - 0.15)))
         gR = (lerp(gR[0], r[0], w), lerp(gR[1], r[1], w))
     # the left glove comes up for the hitch, drops while he backs away, takes the line
-    if 1.95 < t < T_BACK0 + 0.3:
+    shL = sk0.j["shoulder_L"]
+    hang = (shL[0] + 26.0, shL[1] + 178.0)
+    if 1.95 < t < T_BACK1:
         w = LIB.bump(t, 1.95, T_HITCH0, T_HITCH1 + 0.05, T_BACK0 + 0.3)
         c = math.sin(2.0 * math.pi * 2.0 * clamp((t - T_HITCH0) / (T_HITCH1 - T_HITCH0)) + 1.6)
         tgt = (at_eye_l[0] + 7.0 * c, at_eye_l[1] - 8.0 * c)
-        gL = (lerp(pel[0] + 30.0, tgt[0], w), lerp(pel[1] + 20.0, tgt[1], w))
-    if t > T_BACK1 - 0.3:
+        gL = (lerp(hang[0], tgt[0], w), lerp(hang[1], tgt[1], w))
+    if t >= T_BACK1 - 0.3:
         r, l = _hands_line(t, pel)
         w = ease("inout", clamp((t - (T_BACK1 - 0.3)) / 0.55))
-        gL = (lerp(pel[0] + 30.0, l[0], w), lerp(pel[1] + 20.0, l[1], w))
+        gL = (lerp(hang[0], l[0], w), lerp(hang[1], l[1], w))
     return gR, gL
 
 
@@ -244,21 +246,20 @@ def _hand(sk, side):
 
 
 # ----------------------------------------------------------------------------- the hook
-def _pivot_path(t):
-    """Cheap stand-in for the right hand while walking (the IK target), for the swing."""
-    return _carry(t, _diver().skeleton(t).j["shoulder_R"])
-
-
-_PIVOT = LIB.Sampled(_pivot_path, -0.2, 2.6, hz=60.0)
-# at the cut the hook is still flying out toward frame right (s10 ends at -40 deg, moving)
-_SWING = LIB.Swing(_PIVOT, 0.0, 2.6, length=62.0, theta0=34.0, omega0=60.0, g=1500.0, damping=2.2)
+def _swing(t):
+    """The hook hanging from his glove while he walks, as a draw angle (deg, + = its bowl
+    toward -x): still flying out toward frame right at the cut (s10 ends on -40, moving),
+    falling back, trailing a little as he walks, settling as he stops."""
+    a = LIB.track([(0.0, -36.0), (0.16, -44.0, "out"), (0.62, -6.0, "inout"), (1.05, 10.0, "inout"),
+                   (1.55, 2.0, "inout"), (2.0, -4.0, "inout"), (2.4, 0.0, "inout")], t)
+    return a + 4.0 * math.sin(5.6 * t + 0.4) * ss(0.4, 0.8, t) * (1.0 - ss(1.4, 1.9, t))
 
 
 def _hook(t, sk):
     """(eye, angle, flip) of the hook: in his right glove (swinging), then under the lip."""
     if t < T_HOOK:
         eye = _hand(sk, "R")
-        a = -_SWING(t)
+        a = _swing(t)
         if t > 1.9:                       # he lifts it in front of the edge, turning it over
             w = ss(1.9, T_HOOK - 0.05, t)
             th, e2, ang = _tie(t)
@@ -271,7 +272,7 @@ def _hook(t, sk):
 
 # ----------------------------------------------------------------------------- the line
 def _line_x_top():
-    return X_BACK + 92.0 + 8.0
+    return X_BACK + 118.0
 
 
 def _line_pts(t, sk, cam):
@@ -512,10 +513,10 @@ def render(f, t, T):
     _night_water(f, t, cam)
     # the hose and the line
     up, lo = _line_pts(t, sk, cam)
+    held = bool(lo)
     with f.layer() as L:
-        LIB.draw_pale(L, up, LIB.LINE_W)
-        if lo:
-            LIB.stroke(L, lo, LIB.LINE_W, LIB.LINE_C, smooth=False)
+        if not held:
+            LIB.draw_pale(L, up, LIB.LINE_W)
         LIB.draw_hose(L, _hose_pts(t, cam), LIB.HOSE_W)
     # the beam (ends on the edge of the bell), its rim, the diver
     cone = _beam(f, t, sk)
@@ -525,6 +526,13 @@ def render(f, t, T):
         eye, ang, flip = _hook(t, sk)
         LIB.draw_hook_rim(L, eye[0], eye[1], angle=ang, s=HOOK_S, rim=mix(LIGHT, LIB.LINE_C, 0.5), rim_a=0.35,
                           off=(-1.2, -0.8), flip=flip)
+        if held:                                   # he holds it in front of him
+            LIB.draw_pale(L, up, LIB.LINE_W)
+            LIB.stroke(L, lo, LIB.LINE_W, LIB.LINE_C, smooth=False)
+            for side in ("R", "L"):                # his fingers close over it
+                F._hand(L, sk, side, LOOK, 0.9)
+                L.set_source_rgb(*INK)
+                L.fill()
     lx = LIB.track([(-1, 0.75), (1.4, 0.75), (2.0, 0.6), (2.6, 0.55), (4.6, 0.5), (6.5, 0.5), (7.2, 0.35)], t)
     ly = LIB.track([(-1, 0.55), (1.4, 0.6), (2.05, -0.3), (2.6, 0.0), (4.6, 0.25), (6.5, 0.2), (7.2, -0.9)], t)
     with f.layer() as L:

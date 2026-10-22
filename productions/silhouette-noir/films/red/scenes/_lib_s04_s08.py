@@ -441,7 +441,7 @@ def cl_wolf():
 # wolf, then pins it at W_PIN; the girl smashes the lantern on the anchor strand at
 # C.smash_point (1426, 1354), just left of them.
 F8 = dict(stabA=1.30, dodge=1.37, knock=2.385, fly=2.42, roll=3.95, bread=5.5, wine=6.3, lantern=8.25,
-          pin=9.6, smash=12.66, burnt=13.05)
+          pin=9.6, smash=12.66, burnt=13.05, burn1=13.95)
 W_PIN = 1700.0              # the wolf's root when pinned (facing right)
 SP_PIN = 2060.0             # the spider's body x while it pins the wolf
 
@@ -459,6 +459,10 @@ def _spider_s08(sp):
     sp.walk(to=SP_PIN)
     sp.at(D + F8["pin"]).pin(dur=D + F8["burnt"] - (D + F8["pin"]), target=W_PIN + 120.0, legs=(0, 4),
                              offsets=(-260.0, 120.0), low=0.66, pitch=-18.0)
+    # the fire: the burst makes it rear off the wolf, the burning silk reaches it, it burns
+    sp.recoil(dur=0.95, dist=140.0, burn=0.0)
+    sp.at(D + F8["burn1"]).recoil(dur=1.05, dist=120.0, burn=1.0)
+    sp.die(dur=2.1, burn=1.0)
     # the stabs (overlays, absolute times): the strike lands 0.385 s after t0
     sp.stab(0, target=(1180.0, G(1180.0)), t0=D + F8["stabA"], hold=1.4)     # where the wolf was
     sp.stab(1, target=(880.0, G(880.0)), t0=D + F8["knock"] - 0.385, hold=0.12)   # at the girl
@@ -733,7 +737,7 @@ def _girl_channels(a):
     tg = D + G8["grab"]
     a.key("pitch", [(tg - 0.42, 5.0), (tg - 0.1, 52.0, "out"), (tg + 0.08, 50.0), (tg + 0.3, 12.0)],
           fade=0.15, fade_out=0.15)
-    a.reach("R", tg - 0.3, tg, lambda t: lantern_state(LANTERN_GRAB_T)["ring"], fade=0.18, grip=0.95)
+    a.reach("R", tg - 0.3, tg, lambda t: _lantern_ground(LANTERN_GRAB_T - 1e-3)["ring"], fade=0.18, grip=0.95)
     a.arm("L", tg - 0.4, tg + 0.3, fade=0.2, sh=-20.0, elbow=30.0, abd=18.0)
     # running with it, then the swing into the strand
     ts = D + G8["smash"]
@@ -876,30 +880,32 @@ def item_state(name, t):
     return x, y, ang
 
 
+def _lantern_ground(t):
+    s_ = LANTERN_SIZE
+    x, y, ang = item_state("lantern", t)
+    c = _rot((0.0, 37.0 * s_), ang)              # centre -> anchor (handle top): 37 s along 'down'
+    anchor = (x - c[0], y - c[1])
+    r = _rot((0.0, 8.0 * s_), ang)
+    return dict(shown=True, pos=(x, y), anchor=anchor, angle=ang, ring=(anchor[0] + r[0], anchor[1] + r[1]))
+
+
 def lantern_state(t):
-    """s08 t -> dict(pos (flame / centre), anchor (handle top), angle, lit, shown, ring).
+    """s08 t -> dict(shown, pos (centre), anchor (handle top), angle, lit, ring).
     In the basket -> rolls out glowing -> lying in the snow -> in her hand -> smashed."""
     s_ = LANTERN_SIZE
-    L_ = S.Lantern(s_)
     tg, ts = LANTERN_GRAB_T, G8["smash"]
-    lit = 0.0
-    if t >= SPILL["lantern"][0]:
-        lit = ss(SPILL["lantern"][0] + 0.05, SPILL["lantern"][0] + 0.4, t) * (0.85 + 0.15 * noise1(t * 3.0, 41))
-    if t < SPILL["lantern"][0]:
+    t_out = SPILL["lantern"][0]
+    if t < t_out:
         return dict(shown=False, pos=basket_mouth(t), anchor=None, angle=0.0, lit=0.0, ring=None)
-    if t < tg - 0.02 or True:
-        x, y, ang = item_state("lantern", min(t, tg))
-        # centre -> anchor (handle top) for the drawing: the centre is 37 s below the anchor
-        c = _rot((0.0, 37.0 * s_), ang)
-        anchor = (x - c[0], y - c[1])
-        ring = _rot((0.0, 8.0 * s_), ang)
-        ring = (anchor[0] + ring[0], anchor[1] + ring[1])
-        st = dict(shown=True, pos=(x, y), anchor=anchor, angle=ang, lit=lit, ring=ring)
-        if t < tg:
-            return st
+    lit = ss(t_out + 0.05, t_out + 0.4, t) * (0.85 + 0.15 * noise1(t * 3.0, 41))
     if t >= ts:
         return dict(shown=False, pos=C_SMASH, anchor=None, angle=0.0, lit=0.0, ring=None)
-    # in her hand: hangs from the ring, swings with her; the swing throws it along the arm
+    if t < tg:
+        st = _lantern_ground(t)
+        st["lit"] = lit
+        return st
+    st = _lantern_ground(tg - 1e-3)
+    # in her hand: hangs from the ring and swings with her; the swing throws it along the arm
     a = cl_girl()
     t7 = t + S08_DT
     sk = a.skeleton(t7)
@@ -920,5 +926,28 @@ def lantern_state(t):
         along = math.degrees(math.atan2(-dx, dy))         # the lantern's 'down' axis along the arm
         ang = lerp(ang, along, sw)
     c = _rot((0.0, 37.0 * s_), ang)
-    return dict(shown=True, pos=(hand[0] + c[0], hand[1] + c[1]), anchor=hand, angle=ang, lit=lit,
-                ring=hand)
+    return dict(shown=True, pos=(hand[0] + c[0], hand[1] + c[1]), anchor=hand, angle=ang, lit=lit, ring=hand)
+
+
+def ember_source(burn):
+    """atmos.embers source: embers are born on the silk that is burning at their birth time."""
+    arr = np.asarray(burn.arrival, float)
+    ok = np.isfinite(arr)
+    idx = np.nonzero(ok)[0]
+    order = np.argsort(arr[idx])
+    vs = idx[order]
+    ta = arr[vs]
+    P = np.asarray(burn.web.P, float)
+    bt = burn.burn_time
+
+    def src(tk, u):
+        tk = np.asarray(tk, float)
+        u = np.asarray(u, float)
+        lo = np.searchsorted(ta, tk - bt)
+        hi = np.searchsorted(ta, tk)
+        n = hi - lo
+        valid = n > 0
+        k = np.clip(lo + np.floor(u * np.maximum(n, 1)).astype(int), 0, len(vs) - 1)
+        v = vs[k]
+        return P[v, 0], P[v, 1], valid
+    return src

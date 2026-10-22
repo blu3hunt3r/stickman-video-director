@@ -24,7 +24,7 @@ import cv2
 import numpy as np
 
 from engine import draw
-from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, siren
+from engine.core import W, H, clamp, lerp, hash01, noise1, fbm1, siren, smoothstep
 from engine.frame import array_surface, surf_array
 from engine.palette import RED, PAPER
 
@@ -1144,19 +1144,23 @@ class HerRoom:
                 x = x0 + u * gw
                 y = y0 + v * gh
                 r = (1.6 + 3.8 * hash01(77, j, 3) ** 2) * s
+                al = 1.0
                 if j % 9 == 0:
-                    # stick-slip runners: a few drops slide down in bursts, leaving a trail
+                    # stick-slip runners: a few drops slide down in bursts, leaving a trail;
+                    # each run fades in and out (no jump back up when its cycle restarts)
                     per = 3.0 + 3.0 * hash01(77, j, 4)
                     ph = (t / per + hash01(77, j, 5)) % 1.0
                     run = (ph ** 3) * gh * 0.8
-                    y = y0 + ((v * gh + run) % gh)
+                    yy = v * gh * 0.2 + run
+                    al = smoothstep(0.0, 0.1, ph) * (1.0 - smoothstep(0.8, 1.0, ph)) * (1.0 - smoothstep(0.9 * gh, gh, yy))
+                    y = y0 + min(yy, gh)
                     r *= 1.6
                     draw.capsule(A, (x, max(y0, y - run * 0.6)), (x + 2 * s, y), 0.8 * s, r * 0.5)
-                    draw.fill(A, PAL.fog_at(1.0), 0.18 * k)
+                    draw.fill(A, PAL.fog_at(1.0), 0.18 * k * al)
                 draw.circle(A, (x, y), r)
-                draw.fill(A, PAL.fog_at(1.0), 0.20 * k)
+                draw.fill(A, PAL.fog_at(1.0), 0.20 * k * al)
                 draw.circle(A, (x - r * 0.35, y + r * 0.35), r * 0.38)
-                draw.fill(A, mix(PAL.rain, HOT, 0.4), 0.55 * k)
+                draw.fill(A, mix(PAL.rain, HOT, 0.4), 0.55 * k * al)
 
 
 class NineWindow(HerRoom):

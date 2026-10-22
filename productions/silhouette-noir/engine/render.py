@@ -39,7 +39,7 @@ if ROOT not in sys.path:
 import numpy as np  # noqa: E402
 
 from engine.core import FPS, W, H  # noqa: E402
-from engine.frame import Frame  # noqa: E402
+from engine.frame import Frame, surf_array  # noqa: E402
 from engine.palette import PALETTES  # noqa: E402
 from engine.timing import SceneTiming, film_dir, timeline  # noqa: E402
 
@@ -96,15 +96,41 @@ def render_scene(film, sid, t, scale=1.0):
         f = Frame(t, scale, pal=pal)
         mod.render(f, t, T)
         return f.finish()
-    acc = None
+    # Sub-frames are averaged in scene light (canvas + emissive layer) and finished ONCE
+    # with the post settings of the sub-frame nearest t: one finish() instead of n, and
+    # the grain stays at full strength on blurred frames. Posterized (Bass flatten)
+    # frames keep the old average-of-finished-frames path so their flat tones stay flat.
     shutter = 0.5 / FPS
-    for i in range(n):
-        ts = t + shutter * (i / (n - 1) - 0.5)
+    subs = [t + shutter * (i / (n - 1) - 0.5) for i in range(n)]
+    acc = gacc = keep = None
+    done = []
+    for ts in subs:
         f = Frame(ts, scale, pal=pal)
         mod.render(f, ts, T)
-        a = f.finish().astype(np.float32)
+        poster = f.post.get("poster")
+        if poster and poster.get("amount", 0) > 0:
+            done.append(f.finish().astype(np.float32))
+            continue
+        f.surf.flush()
+        f.gsurf.flush()
+        a = surf_array(f.surf).astype(np.float32)
+        g = surf_array(f.gsurf).astype(np.float32)
         acc = a if acc is None else acc + a
-    return np.clip(acc / n, 0, 255).astype(np.uint8)
+        gacc = g if gacc is None else gacc + g
+        if keep is None or abs(ts - t) < abs(keep.t - t):
+            keep = f
+    if keep is None:                                  # every sub-frame was posterized
+        return np.clip(sum(done) / n, 0, 255).astype(np.uint8)
+    m = n - len(done)
+    surf_array(keep.surf)[...] = np.clip(acc / m + 0.5, 0, 255)
+    keep.surf.mark_dirty()
+    surf_array(keep.gsurf)[...] = np.clip(gacc / m + 0.5, 0, 255)
+    keep.gsurf.mark_dirty()
+    keep.t = t
+    out = keep.finish()
+    if done:                                          # mixed: weight both kinds by count
+        out = np.clip((out.astype(np.float32) * m + sum(done)) / n, 0, 255).astype(np.uint8)
+    return out
 
 
 # ----------------------------------------------------------------------------- film clock

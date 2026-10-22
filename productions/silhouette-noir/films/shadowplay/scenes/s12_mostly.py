@@ -254,7 +254,12 @@ def _bino_scale(t, C):
 
 
 def _arm_targets(t, sk, C):
-    """Wrist targets (her plane) and the elbows' preferred directions, per arm."""
+    """Hand targets (her plane) and the elbows' preferred directions, per arm. Room points
+    are carried into her plane through the live camera (her hand stays ON the curtain's
+    edge on screen), frozen once the camera starts its run at her (else the hand would be
+    dragged to the lens)."""
+    if t > 6.9:
+        C = cams(6.9)
     shL, shR = sk.j["shoulder_L"], sk.j["shoulder_R"]
     hc = sk.j["head"]
     back = t < T_TURN + 0.2
@@ -347,13 +352,13 @@ def draw_her(f, t, C, color=INK, ctx=None):
 def _her_rim(f, t, C, sk_fn):
     """The crack's light along her face and fingers: her silhouette shifted toward the slit,
     in light (fading away from the slit), drawn just before her ink."""
-    g = crack(t)
+    g = crack(t) * (1.0 - _k(t, 7.42, 0.22))      # gone before the dolly whips past her face
     if g <= 0.01:
         return
     warm = switch(t, T_NEW, kind="bulb")
     col = mix(PAL.fog_at(1.0), mix(AMBER, HOT, 0.5), 0.35 * warm)
     col = mix(col, (1, 1, 1), 0.25)
-    cx = _room_to_her(C, (CRACK_X, 1240.0))[0]
+    cx = _room_to_her(C if t <= 6.9 else cams(6.9), (CRACK_X, 1240.0))[0]
     c = f.ctx
     c.save()
     c.translate(3.2 / max(C["her"].zoom, 0.2), -0.6)
@@ -583,6 +588,30 @@ def _rain3d(f, t, c3, level):
                 A.stroke()
 
 
+def _window_shaft(f, t, close):
+    """The window's cold light falling into the dark room: a soft shaft from the glass down
+    to its four panes on the floor (dust in the air), drawn before her so she cuts it."""
+    k = 1.0 - 0.92 * clamp(close)
+    if k <= 0.02:
+        return
+    x0, y0, x1, y1 = ROOM.glass
+    xm = (x0 + x1) / 2
+    oy = ROOM.floor_y
+    col = mix(PAL.fog_at(1.0), RAIN, 0.3)
+    with f.light(blur=26.0) as A:
+        # from the glass (its right part is hidden as the curtain closes) to the floor patch
+        xr = min(x1, curtain_x(t))
+        if xr <= x0 + 4:
+            return
+        ur = (xr - x0) / (x1 - x0)
+        near_l, near_r = xm + (x0 - xm) * 1.5, xm + (lerp(x0, x1, ur) - xm) * 1.5
+        draw.linear(A, (0, y0 + (y1 - y0) * 0.3), (0, oy + 210),
+                    [(0, col, 0.0), (0.35, col, 0.11 * k), (0.8, col, 0.08 * k), (1, col, 0.0)])
+        draw.poly(A, [(x0 + 10, y0 + (y1 - y0) * 0.3), (xr - 10, y0 + (y1 - y0) * 0.3), (near_r, oy + 210),
+                      (near_l, oy + 210)])
+        A.fill()
+
+
 def _curtain_glow(f, t, g):
     """The drawn curtain is not quite opaque: the window glows through the cloth, its four
     panes and the cross of the sash a shade darker (only over the covered glass)."""
@@ -631,6 +660,7 @@ def render(f, t, T):
         g = crack(t)
         ROOM.draw(f, t, curtain=curtain_close(t), gap=g, gap_at=GAP_AT, rain=1.0, binoculars=t >= 1.62, lamp=0.0,
                   chair=True, outside_light=1.1, condensation=1.0, room_light=0.0)
+        _window_shaft(f, t, curtain_close(t))
         _curtain_glow(f, t, g)
         if g > 0.01:
             warm = switch(t, T_NEW, kind="bulb")
