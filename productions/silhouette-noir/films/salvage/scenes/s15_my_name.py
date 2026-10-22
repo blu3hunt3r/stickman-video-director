@@ -40,6 +40,9 @@ T_TOLL = LIB.TOLLS[2][0] - OFF       # 6.80: the third toll (the loudest)
 # L22 "He never asked my name." 1.60-3.62 (name 2.97); L23 "So I told him." 5.20-6.49
 # (I 5.50, told 5.68, him 6.06)
 T_REL = 2.40                         # the hose coupling comes off the helmet
+T_TOSS = 2.54                        # ... and he throws it out behind him, into the sea
+TOSS = (55.0, 16.0)                  # how far his hand carries it (boat-local)
+V_TOSS = (230.0, 20.0)               # its speed as he lets go (px/s)
 T_TWIST = (5.30, 5.58)               # the helmet's quarter-turn (unlock)
 T_LIFT = (5.62, 6.00)                # lifted off over his head
 T_LOWER = (6.00, 6.55)               # brought forward and down to his side
@@ -94,6 +97,7 @@ _CAM = [  # (t, x, y, zoom)
     (0.0, -165.0, -420.0, 0.86),
     (1.25, -60.0, -215.0, 1.35),
     (1.75, -90.0, -245.0, 1.31),
+    (2.75, -180.0, -340.0, 1.18),
     (3.35, -320.0, -430.0, 1.08),
     (4.45, -410.0, -462.0, 1.10),
     (5.60, -432.0, -472.0, 1.15),
@@ -406,7 +410,7 @@ _HR = [
     (0.55, 0.95, "start", _hand_rung(3), (30.0, -20.0)),
     (1.65, 1.92, _hand_rung(3), _hand_rung(1), (24.0, -20.0)),
     (2.00, 2.18, _hand_rung(1), "inlet", (30.0, -20.0)),
-    (2.42, 2.66, "inlet", H_RAIL, (30.0, -30.0)),
+    (2.60, 2.88, "inlet", H_RAIL, (30.0, -30.0)),
 ]
 
 
@@ -416,10 +420,24 @@ def _s14_wrist_local(side):
     return BOAT.to_local(sk.j["wrist_" + side], _tau(0.3))
 
 
-def _inlet_grip_local(t):
-    """The far hand on the hose coupling (twisting it loose), local."""
+def _coupling_local(t):
+    """Boat-local position of the hose's coupling while he has it: on the helmet's inlet until
+    T_REL, then in his far hand as he throws it out behind him (lets go at T_TOSS)."""
     tc = min(t, T_REL)
-    p = BOAT.to_local(_inlet_world(tc), _tau(tc))
+    p0 = BOAT.to_local(_inlet_world(tc), _tau(tc))
+    if t <= T_REL:
+        return p0
+    u = clamp((t - T_REL) / (T_TOSS - T_REL))
+    d = T_TOSS - T_REL
+    h01 = 3.0 * u * u - 2.0 * u * u * u
+    h11 = u * u * u - u * u
+    return (p0[0] + h01 * TOSS[0] + h11 * d * V_TOSS[0], p0[1] + h01 * TOSS[1] + h11 * d * V_TOSS[1])
+
+
+def _inlet_grip_local(t):
+    """The far hand on the hose coupling (twisting it loose, then throwing it), local."""
+    p = _coupling_local(min(t, T_TOSS))
+    tc = min(t, T_REL)
     tw = 4.0 * math.sin(2 * math.pi * (tc - 2.18) / 0.11) * LIB.bump(tc, 2.16, 2.20, 2.34, 2.39)
     return (p[0] + 12.0 + tw, p[1] + 14.0)
 
@@ -578,8 +596,9 @@ def draw_diver(f, L, t, sk=None):
         G.save()
         G.set_operator(cairo.OPERATOR_CLEAR)
         F.draw_figure(None, sk, look, G, color=(0, 0, 0), eyes=False)
-        if not bare:
-            _paint(G, costume.pieces(sk, DV_LOOK)["head"], (0, 0, 0))
+        if bare:
+            _paint(G, costume.pieces(sk, DV_LOOK)["head"][:2], (0, 0, 0))
+            _draw_helmet_off(G, t, (0, 0, 0))
         G.restore()
     if not bare:
         F.draw_figure(f, sk, DV_LOOK, L)
@@ -796,6 +815,9 @@ def _hat_pose(t):
 
 def _draw_hat(L, f, t, ms):
     pts, c = _hat_pose(t)
+    sc = f.cam.to_screen(c)
+    if math.hypot(sc[0] - ms[0], sc[1] - ms[1]) < MOON_R + 160.0:
+        _occlude_emit(f, lambda G: draw.poly(G, pts))         # a silhouette against the moon
     md = LIB.moon_dir_world(f.cam, c, ms)
     off = 3.0 / f.cam.zoom
     L.new_path()
@@ -823,7 +845,8 @@ def _sea_y_np(x, tau):
 
 class _Hose:
     """The cut red hose from s14's state at the cut. Node 0 is fixed on the helmet's inlet
-    until he unscrews the coupling (T_REL), then free and heavy (brass). Above the surface it
+    until he unscrews the coupling (T_REL), in his hand as he throws it out behind him, then
+    (T_TOSS) free and heavy (brass). Above the surface it
     falls (air); below, it drifts and sinks slowly in the current (as s14)."""
 
     def __init__(self):
@@ -852,14 +875,14 @@ class _Hose:
             cur = np.stack([26.0 + 10.0 * np.sin(0.37 * tau + P[:, 1] / 700.0),
                             -40.0 + 30.0 * np.sin(0.5 * tau + P[:, 1] / 400.0)], axis=1)
             acc = np.where(wet, g_w - 1.6 * (vel - cur), g_a - 0.5 * vel)
-            pin = t < T_REL
+            pin = t < T_TOSS
             if not pin and wet[0, 0]:
                 acc[0, 1] += 420.0                 # brass sinks
             new = P + vel * dt + acc * dt * dt
             prev, P = P, new
             w = inv.copy()
             if pin:
-                pa = np.array(_inlet_world(t), np.float64)
+                pa = np.array(BOAT.to_world(_coupling_local(t), tau), np.float64)
                 w[0] = 0.0
             for _ in range(10):
                 if pin:
@@ -1023,6 +1046,32 @@ def _moon_screen(f):
     return (MOON[0], S.horizon_y(f) - MOON[1])
 
 
+def _occlude_emit(f, path_fn):
+    """Cut a silhouette out of the glow layer (it is added over everything at the end): the
+    moon's and the lantern's glow must not shine through things in front of them."""
+    with f.emit() as G:
+        G.save()
+        G.set_operator(cairo.OPERATOR_CLEAR)
+        G.new_path()
+        path_fn(G)
+        G.fill()
+        G.restore()
+
+
+def _boat_over_moon(f, tau, ms):
+    """The davit's arm can cross the moon as the camera follows him up: cut the boat's
+    silhouette out of the moon's glow when it does."""
+    top = f.cam.to_screen(BOAT.to_world((800.0, -700.0), tau))[1]
+    if top > ms[1] + MOON_R + 40.0:
+        return
+    with f.emit() as G:
+        G.save()
+        G.set_operator(cairo.OPERATOR_CLEAR)
+        BOAT.draw(G, tau, pump_angle=150.0 * tau, winch_angle=-2.0 * LIB.crank_deg(LIB.T_STOP), hose=False,
+                  hook=False)
+        G.restore()
+
+
 def _moon_k(t):
     """How strongly the moon shows in his port (as it clears the water, facing us)."""
     return LIB.bump(t, 0.80, 0.98, 1.35, 1.62)
@@ -1127,6 +1176,7 @@ def render(f, t, T):
         BOAT.draw(L, tau, pump_angle=150.0 * tau, winch_angle=-2.0 * LIB.crank_deg(LIB.T_STOP), hose=False,
                   hook=False)
         S14._deck_hose(L, tau)
+    _boat_over_moon(f, tau, ms)
     BOAT.draw_lights(f, tau, lantern=1.0, window=0.5, masthead=1.0)
     with f.layer() as L:
         draw_client(f, L, t, ck)
@@ -1156,12 +1206,12 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
-    if T_REL - 0.02 < t < T_REL + 0.35:
-        return 2
-    if T_TOLL - 0.02 < t < T_TOLL + 0.2:
-        return 2
-    if T_FLY < t < 8.4:
-        return 2
+    if T_REL - 0.02 < t < T_REL + 0.35:          # the hose drops away
+        return 3
+    if T_TOLL - 0.02 < t < T_TOLL + 0.25:        # the shudder of the toll
+        return 3
+    if T_FLY < t < 8.45:                         # the hat in the wind
+        return 3
     return 1
 
 

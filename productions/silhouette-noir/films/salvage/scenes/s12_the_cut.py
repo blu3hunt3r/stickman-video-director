@@ -1,6 +1,48 @@
 """s12 · THE CUT: on deck at night under a high moon (9.5 s).
 
-(draft: the docstring is finalised after QA)
+IN  (scroll 'down' = ascent from s11, window -0.625..0.625; our bottom edge meets s11's top
+    edge): still rising through night water. Zoom 0.55 and camera x locked so the pale line
+    leaves the bottom edge at screen x 470 and the red hose at x ~598-618 (it follows s11's
+    top-edge wander, _IN_DX); the hose comes down the near side of the hull, crosses under
+    the line between 900 and 1950 px deep and runs on to its right, as in s11. The water
+    colour of the bottom edge follows s11's compressed night water (_vscale/_bright) with
+    s11's top glow mirrored (_in_glow). -0.625: waterline at screen y -377 (all water);
+    0.625: waterline y 787, the stern and the client at top left.
+Beats (scene-local s; L17 0.8-7.279: He waited until the line went [tight@3.343]. [Then@5.073]
+he cut [mine@6.408], [cut@6.025]):
+  1.00        the lens breaks the surface (waterline through frame centre); the camera
+              settles to the stern working deck by 2.05 (zoom 0.85): the moon at (430, 400)
+              with his fedora biting its lower left (crown ~(448, 446)); donkey engine and
+              belt turning the pump flywheels; the line goes down from the davit at x ~930
+  1.75, 3.68  he draws on the cigar (ember flares, smoke)
+  3.343       [tight] the slack line snaps straight and rings, the winch drum jolts back,
+              the davit nods, a 3 px shudder; he looks up at the block
+  3.98-4.52   he takes the cigar from his mouth, bows and lays it on the rail (4.52, a tap;
+              screen ~(466, 854)); it keeps smoking there
+  5.073-5.43  [Then] his right hand goes to the knife; it is drawn along +handle_dir
+  5.47        the knife's second and LAST glint (blade tip, screen ~(498, 787)); the camera
+              has pushed in (zoom 1.10 by 5.85)
+  5.70-5.92   his left hand takes the hose at the rail and lifts a bight of it clear of the
+              winch, against the sky
+  6.025       [cut] the slash (moonlit arc, 2 px shudder) through the bight just outboard of
+              his fist (screen ~(570, 860)): butt-cut ends
+  6.03-6.385  the diver's end is snatched back along its own path over the rail and down the
+              hull (kinematic), then falls free (physics); splash 6.625 at the hull
+  6.125       he lets the pump end drop: it whips back onto the deck and flops there, the
+              pump's air hissing out of it (to ~10 s)
+  6.40-6.62   [mine] his left hand goes to the crank; from 6.62 he cranks, calm, bent over
+              the winch (s14's pose); the knife hangs in his right hand
+  7.30-8.9    the camera tilts down over the side after the sinking end (waterline through
+              centre 7.94, out of the top 8.58), zoom 1.25 by 8.9; bubbles from the end
+OUT (scroll 'up' = descent into s13, window 9.0-10.0; our bottom edge meets s13's top
+    edge): open water under the hull. The slack hose hangs from its end (screen (784, 821)
+    at 9.0, (713, 1011) at 9.5, (641, 1147) at 10.0) in one loose bend to the bottom edge at
+    x 533 (held there through the window, eased onto s13's slope, _guide_out). No pale line
+    in frame after the push-in (it is right of x 1200). The bottom band carries s13's
+    top-edge haze (_out_band) and s13's lamp beam is continued up across the seam
+    (_out_beam).
+Sound: line snap + winch creak, cigar tap, knife shing, the slash, the hiss; the diver's air
+stops at the cut; the winch ratchet; the deck goes muffled as we go under.
 """
 import copy
 import functools
@@ -314,7 +356,7 @@ def _line_pts(t):
             if y < 0.0:
                 x += sl * 16.0 * math.sin(math.pi * clamp((y - sh[1]) / (0.0 - sh[1])))
             else:
-                env = ss(0.0, 220.0, y) * (1.0 - ss(1300.0, 2600.0, y))
+                env = ss(0.0, 220.0, y) * (1.0 - ss(1300.0, 2000.0, y))
                 x += sl * env * (52.0 * math.sin(y / 250.0 - 1.1 * t + 0.6) + 22.0 * math.sin(y / 120.0 + 1.6 * t))
                 x += sl * 16.0 * ss(-40.0, 120.0, y) * (1.0 - ss(120.0, 400.0, y))
         if ring:
@@ -740,7 +782,7 @@ def _hose_water(t, p0):
         top = p0[0] - 24.0 * ss(y0, 860.0, y) + 7.0 * math.sin(0.5 * t + y / 310.0) * ss(y0, y0 + 300.0, y)
         x = lerp(top, _line_x0(y, t) + DX_HOSE, u)
         x += 12.0 * math.sin(0.45 * t + y / 520.0) * math.sin(math.pi * clamp((y - y0) / 2400.0))
-        x += _in_dx(t) * ss(1950.0, 2500.0, y)
+        x += _in_dx(t) * ss(1500.0, 1950.0, y)
         out.append((x, y))
     return out
 
@@ -869,16 +911,21 @@ class _MediumRope(Rope):
                     hit = P[:, 1] > ym
                     if hit.any():
                         P[hit, 1] = ym[hit]
-                        prev[hit, 0] = P[hit, 0] - (P[hit, 0] - prev[hit, 0]) * 0.5
             P[0] = pa
             if ph is not None:
                 P[hi] = ph
+            if self.collide is not None:
+                # sliding friction on the deck, once per step
+                on = P[:, 1] >= self.collide(P[:, 0], P[:, 1]) - 0.5
+                if on.any():
+                    prev[on, 0] = P[on, 0] - (P[on, 0] - prev[on, 0]) * FRICTION
             frames[k] = P
         self._frames = frames
 
 
 # --- the pump end, on deck (boat-local coordinates: the deck stays put in them)
 DECK_N = 48
+FRICTION = 0.94                     # x velocity kept per 1/240 s step by a node on the deck
 _DECK_X = np.arange(-200.0, 1000.0, 4.0)
 _DECK_Y = np.array([deck_l(float(x)) for x in _DECK_X])
 
@@ -898,9 +945,10 @@ def _deck_accel(t, P, V):
         e /= (np.linalg.norm(e) + 1e-9)
         nrm = np.array([-e[1], e[0]])
         k = ss(0.02, 0.1, tau) * (1.0 - 0.5 * ss(1.2, 3.5, tau))
+        kr = k * (1.0 - 0.85 * ss(0.5, 0.9, tau))        # the shove back eases once it is down
         wob = math.sin(2.0 * math.pi * 2.9 * tau) + 0.7 * math.sin(2.0 * math.pi * 5.3 * tau + 1.0)
-        acc[-1] += k * (-6000.0 * e + 4200.0 * wob * nrm)
-        acc[-2] += k * (-2400.0 * e + 1800.0 * wob * nrm)
+        acc[-1] += -2600.0 * kr * e + 4200.0 * k * wob * nrm
+        acc[-2] += -1000.0 * kr * e + 1800.0 * k * wob * nrm
         acc[-3] += k * (900.0 * wob * nrm)
     return acc
 
@@ -1428,12 +1476,39 @@ def render(f, t, T):
 def motion_blur(t, T):
     if t < 0.75:
         return 3
-    if T_TIGHT - 0.02 < t < T_TIGHT + 0.12 or 5.97 < t < 6.12:
+    if T_TIGHT - 0.02 < t < T_TIGHT + 0.12 or 5.97 < t < T_REL + 0.06:
         return 3
     return 1
 
 
 def cues(T):
+    ts, _ = _splash_t()
     return [
         Cue(-0.6, "rising through night water (s11's ascent goes on): a muffled rush", gain_db=-12, dur=1.6),
+        Cue(T_BREAK, "the lens breaks the surface: water sheeting off, the night air opening up", gain_db=-8,
+            dur=0.8),
+        Cue(0.9, "on deck: the donkey engine's slow chuff and belt slap, the pump flywheels turning, swell "
+            "slaps on the hull, a light wind", gain_db=-14, pan=-0.2, dur=6.9),
+        Cue(0.9, "the diver's air going down the hose: the pump's steady wheeze (it STOPS dead at the cut)",
+            gain_db=-18, pan=0.1, dur=T_CUT - 0.9),
+        Cue(T_PUFF - 0.35, "the client draws on his cigar: a soft crackle of the ember", gain_db=-16, pan=-0.2),
+        Cue(T_PUFF2 - 0.12, "a second, shorter draw on the cigar", gain_db=-19, pan=-0.2),
+        Cue(T_TIGHT, "the line SNAPS taut: a low twang through the line, the winch creaks and its pawl clacks, "
+            "the davit groans", gain_db=-6, pan=0.35, dur=0.9),
+        Cue(T_SET, "the cigar laid on the rail: a small wooden tap", gain_db=-16, pan=-0.1),
+        Cue(T_GRAB + 0.01, "the knife drawn: a leather whisper, then a steel SHING as it clears the sheath",
+            gain_db=-6, dur=0.25),
+        Cue(T_GLINT, "the glint: a faint high shimmer", gain_db=-20),
+        Cue(T_HOLD, "he takes up the hose: rubber creaks as the bight lifts off the winch", gain_db=-14, dur=0.25),
+        Cue(T_CUT - 0.035, "THE CUT: a fast whoosh into a wet rubber CHUK as the hose parts", gain_db=-3, dur=0.2),
+        Cue(T_CUT + 0.02, "AIR HISS: the pump end blows free, a loud raw hiss, slapping on the deck boards as it "
+            "whips, settling to a steady hiss", gain_db=-6, pan=0.05, dur=3.6),
+        Cue(T_CUT + 0.08, "the cut end snatched back over the rail: a rubbery slither over the gunwale",
+            gain_db=-12, pan=0.15, dur=0.35),
+        Cue(ts, "the cut end slaps into the sea by the hull: a small splash", gain_db=-12, pan=0.15),
+        Cue(T_CRANK, "he cranks the winch, calm: the ratchet clicking, steady", gain_db=-10, pan=-0.05, dur=3.0),
+        Cue(ts + 0.05, "the last air out of the cut end: a short string of bubbles, then nothing", gain_db=-16,
+            dur=1.8),
+        Cue(7.94, "under the waterline: the deck sounds muffle and drop away (low-pass sweep), a low "
+            "underwater hum", gain_db=-10, dur=2.1),
     ]
