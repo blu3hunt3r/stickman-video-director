@@ -1,9 +1,10 @@
 """s11 · TWO TUGS: outside, at the bell, in the dark under her quarter (10.0 s).
 
 IN  (hard cut on action from s10, whose hook swings toward frame right at 10.0): the diver
-    walks right along the silt (screen x ~420 at 0.0), the hook in his right glove swinging
-    forward (toward frame right), the pale line rising from its eye out of the top of frame,
-    the red hose trailing up and left from the back of his helmet; the lamp rakes the silt.
+    walks right along the silt (body at screen x ~500 at 0.0), the hook in his right glove
+    swinging forward (toward frame right, eye at x ~780), the pale line rising from its eye
+    out of the top of frame, the red hose trailing up and left from the back of his helmet;
+    the lamp rakes the silt.
 
 Beats (scene-local s; L16 tied 0.84 ... tugs 6.45-7.31):
   0.0-1.7          he walks right into the shadow under the wreck's quarter (heavy gait)
