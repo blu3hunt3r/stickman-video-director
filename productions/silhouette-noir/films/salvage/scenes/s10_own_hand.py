@@ -1,24 +1,29 @@
 """s10 · HIS OWN HAND: the logbook in the diver's gloves (10.0 s, one continuous shot).
 
-IN  (dissolve from s09, 0.75 s): the captain's cabin, black, the helmet lamp on an open
-    logbook held in both gloves, filling the lower half of the frame; the helmet port with
-    his eyes above it; a cold glow from the hull opening far above behind his helmet.
+IN  (dissolve from s09, 0.75 s; handle from -0.375): the captain's cabin, black; the helmet
+    lamp on an open logbook held in both gloves, filling the lower half of the frame (screen
+    y ~1130-1510, edge to edge); the helmet port with his eyes at screen (600, 620); a cold
+    glow from the hull opening far above, behind his helmet.
 
-Beats (scene-local s; L15 0.80-7.43):
-  [father's@1.09]  a PHOTO slips from between the pages and floats down, tumbling
-  1.78             his right glove catches it; lifts it up in front of his chest
-  2.3-3.8          hold on the photo: the captain with the boy on his shoulders; the camera
+Beats (scene-local s; L15 father's 1.09, orders 4.92, hand 6.69):
+  [father's@1.09]  a PHOTO slips from between the pages and flutters down, tumbling, below
+                   the book
+  1.80             his right glove pinches it by a corner below the book's edge
+  2.0-2.3          he lifts it up at the left of the book and turns it face-up
+  2.55-3.8         hold on the photo: the captain with the boy on his shoulders; the camera
                    leans in; his eyes on it, a slow blink (2.85-3.55)
-  3.8-4.45         he slides it up under his breastplate
-  [orders@4.92]    his left glove turns the page: a darker, heavier scrawl block
+  3.8-4.42         he slides it down, under the edge of his breastplate
+  [orders@4.92]    his left glove turns the page (4.92-5.52): a darker, heavier scrawl block
   5.6-6.9          the lamp light slides down the page; the camera leans in; on [hand@6.69]
-                   his glove finds the SIGNATURE, a big looping flourish
-  7.0-8.8          the camera pulls back and up: the pale WINCH LINE descends from the
-                   opening above with its iron hook, swinging gently; it stops at his eye
-                   level, at his right (screen left); he looks up at it (eyes up)
-  9.0-10.0         he lowers the book, takes the hook in his right glove and swings it toward
-                   frame right as he starts to turn right
-OUT (hard cut on action): the hook swinging right, in his right glove.
+                   his thumb finds the SIGNATURE, a big looping flourish (6.05-7.45)
+  7.0-8.8          the camera pulls back: the pale WINCH LINE comes down through the cold
+                   shaft from the opening with its iron hook, swinging; it stops at his eye
+                   level, screen left; his eyes go up to it
+  8.95-9.32        he lowers the book (out of frame by 9.75) and his right glove takes the hook
+  9.40-10.0        he swings it back, down past his hip and out in an arc to frame right, his
+                   body turning right with it (yaw 72 -> 18 from 9.45)
+OUT (hard cut on action): the hook in his right glove at screen (783, 1080), still swinging
+    toward frame right and up, a warm rim on its curve; the helmet at (418, 900).
 """
 import functools
 import math

@@ -49,7 +49,7 @@ CHILD_X0 = -2450.0       # the child, out of shot down the path until ~9 s
 CHILD_X1 = -360.0
 
 FLAT = 13.0              # the flatten begins
-TURN0, TURN_DUR = 13.45, 0.7
+TURN0, TURN_DUR = 13.38, 0.62
 LAND = TURN0 + TURN_DUR  # the triangle lands at s01's stop
 LIVE_END = 13.6          # after this the frame is all paper: the set is not drawn
 
@@ -363,12 +363,16 @@ def render(f, t, T):
     rim = mix(MOOD.lamp, SNOW, 0.25)
     L.rim(f, 1.0, lambda c, col: wolf.draw(f, t, c, color=col, eyes=False), -5.0, -6.0, rim, alpha=0.8,
           blur=3.0)
+    # once the paper comes over the print the figures go with the trees (the poster keeps reds,
+    # so a red cape would otherwise outlive the black for a frame); the triangle stands in
+    figures = t < FLAT or _flat_amounts(t)["paper"] < 0.06
     with f.layer() as c:
-        wolf.draw(f, t, c, far_shade=0.25)
-        r = cs["red"]
-        sk = r.draw(f, t, c)
-        _props(f, c, sk, t, cs)
-        cs["child"].draw(f, t, c)
+        if figures:
+            wolf.draw(f, t, c, far_shade=0.25)
+            r = cs["red"]
+            sk = r.draw(f, t, c)
+            _props(f, c, sk, t, cs)
+            cs["child"].draw(f, t, c)
     C.draw_front(f, MOOD, era="later", t=t, lit=lit, occluders=False)
     _door_spill(f, t)
     _light_flare(f, cs["lantern"], t, cs["lit"])
