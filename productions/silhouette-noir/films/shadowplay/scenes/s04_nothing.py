@@ -1,30 +1,34 @@
-"""s04 · NOTHING: the police in apartment 9 find an empty room; outside, a cop's torch finds
-HER in her window instead.
+"""s04 · NOTHING · 11.5 s (+0.5 out handle): the police in apartment 9 find an empty room;
+outside, a cop's torch finds HER in her window instead.
 
-A  0.0-5.6  inside apartment 9 (sets.Apartment9, emptied: no lamp, sheet, table or rig).
-     0.15  the door bursts open: hall light, a cop's silhouette in the doorway, his torch
-           beam cuts in; the police strobe washes blue / red through the window.
-     [police@0.985] a second torch from the hall. The beams search, then land on nothing:
-     [body@2.704]  torch 1 on the bare floor where she fell;
-     [blood@3.516] torch 2 on the bare back wall where the sheet hung;
-     [woman@4.48]  torch 1 on the bare window; torch 2 joins it.
-B  5.6-12.0 outside: her building ('hers' facade) seen from window 9's side of the street.
-     5.6-7.0  crane down her facade (dark windows, the strobe washing it) to the street: the
-              police car at the near curb, light bar strobing, a cop beside it.
-     [L10 6.2] 7.15 the cop raises his torch; the beam climbs the facade, the camera with
-              it, and finds HER window: she stands in it, caught, eyes on the street.
-     [dreamed@8.963] she steps back into the dark; the beam holds on the empty window.
-     9.6   the torch drops; the camera pulls back down to the street; the cop walks off left,
-           the police car pulls away right, its strobe sliding over the wet street and
-           fading.
-OUT (bars, 2 horizontal, 1.0 s at 11.0-12.0) a calm, mostly dark frame: her building, every
-     window on her floor dark, the empty wet street, rain.
+A  0.0-5.6  inside apartment 9 (sets.Apartment9, emptied: no lamp, sheet, table or rig), dark;
+            the police strobe pulses blue / red through the window, hall light under the door.
+     0.15   the door is kicked open (bangs on its stop 0.29, rebounds): hall light floods in;
+            cop 1 in the doorway, his torch clicks on (0.27); he steps in (0.42-1.2).
+     [police@0.985] cop 2's torch from the hall. The beams search, then land on nothing:
+     [body@2.70]   torch 1 on the bare floor where she fell;
+     [blood@3.52]  torch 2 on the bare back wall where the sheet hung;
+     [woman@4.48]  torch 1 on the bare window, torch 2 joins it. Slow push on the window.
+B  5.6-12.0 (cut on the window) outside, her building ('hers' facade) from window 9's side:
+     5.6    her dark window 13 where window 9 was on screen; two faint eye glints in it.
+     5.75-7.05 crane down her facade (the strobe washing it) to the street: the police car at
+            the near curb, light bar strobing, a cop beside it, torch on the wet asphalt.
+     [L10 6.2] 7.15 he raises the torch; the beam climbs the facade and the camera with it
+            (7.25-8.25); 8.2 it finds HER window: her silhouette and her shadow on her wall,
+            eyes lit. Slow push in.
+     [dreamed@8.96] she steps back and aside, behind the drape, out of the light; the beam
+            holds on the empty window.
+     9.6    the torch drops; the camera pulls back to the whole building; the cop walks off
+            left, the car pulls away right (from 9.85), its strobe sliding off the facade.
+OUT 11.0-12.0 (bars, 2 horizontal): calm and mostly dark: her building, her window dark,
+     the empty wet street, rain.
 """
 import math
+from functools import lru_cache
 
-from engine import draw
+from engine import atmos, draw
 from engine import figure as FIG
-from engine.core import clamp, lerp, smoothstep, fbm1, noise1
+from engine.core import clamp, lerp, smoothstep, fbm1
 from engine.frame import Camera
 from engine.motion import Actor
 from engine.timing import Cue
@@ -32,322 +36,419 @@ from films.shadowplay import cast, sets
 from films.shadowplay.scenes import _lib_s02_s04 as L
 
 INK = sets.INK
+PAL = sets.PAL
+TORCH = sets.mix(sets.HOT, (1.0, 1.0, 1.0), 0.25)       # police torch (warm-white incandescent)
 CUT_T = 5.6
-APT = sets.Apartment9(origin=(540.0, 880.0), scale=1.0)
-HERS = sets.Facade(origin=(540.0, 3940.0), scale=1.0, variant="hers")
-HERS_BLOCKS = sets.neighbours(HERS)
-HW = sets.HER_WINDOW                                  # 13
-HWR = HERS.window_rect(HW)
-HWC = HERS.window_center(HW)
-HERS_LIT = {2: 0.55, 7: 0.45, 17: 0.8, 24: 0.6, 29: 0.5, 31: 0.75, 38: 0.5}
 
 
 def _words(T):
-    return dict(police=T.at("police"), body=T.at("body"), blood=T.at("blood"), woman=T.at("woman"),
-                year=T.at("year"), they=T.at("They"), dreamed=T.at("dreamed"), it=T.at("it"))
+    return (T.at("police"), T.at("body"), T.at("blood"), T.at("woman"), T.at("dreamed"))
 
 
-def _ease_keys(keys, t):
-    """Piecewise eased interpolation of tuples: keys [(t, value, ease), ...]."""
+def _cam_spline(keys):
+    """Camera(t) through keys (t, (x, y, zoom)[, 'hold']); zoom interpolated in log space."""
+    sp = L.Spline([(k[0], (k[1][0], k[1][1], math.log(k[1][2]))) + tuple(k[2:]) for k in keys])
+
+    def cam(t):
+        x, y, lz = sp(t)
+        return Camera(x, y, math.exp(lz))
+    return cam
+
+
+def _aim_keys(keys, t):
+    """Piecewise eased tuple keys [(t, value[, ease]), ...] (ease of the segment ending at a key)."""
     if t <= keys[0][0]:
         return keys[0][1]
     for i in range(1, len(keys)):
-        t0, v0 = keys[i - 1][0], keys[i - 1][1]
         t1, v1 = keys[i][0], keys[i][1]
         if t <= t1:
-            e = keys[i][2] if len(keys[i]) > 2 else "inout"
-            k = L.kseg(t, t0, t1, e)
+            t0, v0 = keys[i - 1][0], keys[i - 1][1]
+            k = L.kseg(t, t0, t1, keys[i][2] if len(keys[i]) > 2 else "inout")
             return tuple(lerp(a, b, k) for a, b in zip(v0, v1))
     return keys[-1][1]
 
 
+def _hand_target(a, t, aim, reach=0.31):
+    """Where the torch hand goes: from the (approximate) shoulder toward `aim`, arm almost
+    straight. Uses only the actor's root (no pose), so it can drive Actor.reach."""
+    rx, ry = a.root(t)
+    sx, sy = rx, ry - 0.29 * a.H
+    dx, dy = aim[0] - sx, aim[1] - sy
+    n = math.hypot(dx, dy) or 1.0
+    return (sx + dx / n * reach * a.H, sy + dy / n * reach * a.H)
+
+
 # ============================================================================= A: apartment 9
+APT = sets.Apartment9(origin=(540.0, 880.0), scale=1.0)
+ROOM = APT.room
+DOOR_KEYS = [(0.15, 0.0), (0.29, 1.0, "out3"), (0.52, 0.84, "inout"), (0.95, 0.885, "inout")]
+COP1_Z, COP1_X0, COP1_X1 = 1.80, -1.80, -1.30            # steps in from the doorway
+COP2_X, COP2_Z = -2.02, 1.48                              # in the hall, framed by the doorway
+
+
 def door_open(t):
-    return sets.door_swing(t, [(0.15, 0.0), (0.30, 1.0, "out3"), (0.55, 0.84, "inout"), (0.9, 0.88, "inout")])
+    return sets.door_swing(t, DOOR_KEYS)
 
 
-def _torch_targets(w):
-    body, blood, woman = w["body"], w["blood"], w["woman"]
-    t1 = [(0.30, (-0.6, 0.5, 3.4)), (1.05, (0.9, 1.4, 4.2)), (1.8, (0.5, 0.25, 3.8)),
-          (body - 0.28, (-0.35, 0.05, 3.3)), (body, (0.05, 0.0, 3.05), "out3"), (woman - 0.35, (0.0, 0.05, 3.1)),
-          (woman, (0.02, 1.62, 4.2), "out3"), (CUT_T + 0.5, (0.05, 1.66, 4.2))]
-    t2 = [(w["police"] - 0.05, (-1.2, 2.3, 2.8)), (1.7, (-0.3, 2.0, 4.2)), (2.5, (1.3, 1.2, 3.4)),
-          (blood - 0.3, (0.2, 1.9, 4.2)), (blood, (-0.82, 1.45, 4.2), "out3"), (woman + 0.15, (-0.8, 1.5, 4.2)),
-          (woman + 0.55, (-0.12, 1.45, 4.2), "inout"), (CUT_T + 0.5, (-0.1, 1.42, 4.2))]
+def to3d(p, Z):
+    """A world point p seen at room depth Z -> room (X, Y, Z)."""
+    d = Z - ROOM.E[2]
+    return ((p[0] - ROOM.ox) * d / ROOM.F + ROOM.E[0], ROOM.E[1] - (p[1] - ROOM.oy) * d / ROOM.F, Z)
+
+
+def ray_exit(pos, d):
+    """Where the ray pos + s d (pos inside the room) meets a wall, the floor or the ceiling."""
+    s = 1e9
+    for i, (lo, hi) in enumerate(((-ROOM.hw, ROOM.hw), (0.0, ROOM.h), (-10.0, ROOM.zb))):
+        if d[i] > 1e-9:
+            s = min(s, (hi - pos[i]) / d[i])
+        elif d[i] < -1e-9:
+            s = min(s, (lo - pos[i]) / d[i])
+    return tuple(pos[i] + d[i] * s for i in range(3))
+
+
+def torch_aims(w):
+    """3D aim points of the two torches: they search, then land on nothing."""
+    police, body, blood, woman, _ = w
+    t1 = [(0.27, (0.40, 2.10, 4.20)), (0.75, (0.95, 1.20, 4.20), "out3"), (1.45, (1.60, 0.0, 3.30)),
+          (2.05, (0.85, 0.0, 2.30)), (body - 0.35, (-0.40, 0.0, 2.75)), (body, (0.05, 0.0, 3.10), "out3"),
+          (woman - 0.40, (0.10, 0.0, 3.15)), (woman, (0.02, 1.62, 4.20), "out3"), (CUT_T + 0.5, (0.05, 1.66, 4.20))]
+    t2 = [(police - 0.05, (1.60, 2.90, 3.20)), (police + 0.6, (1.90, 1.50, 3.60), "out3"),
+          (2.2, (1.20, 2.10, 4.20)), (blood - 0.35, (0.55, 2.35, 4.20)), (blood, (-0.86, 1.48, 4.20), "out3"),
+          (woman + 0.15, (-0.80, 1.50, 4.20)), (woman + 0.65, (-0.16, 1.48, 4.20), "inout"),
+          (CUT_T + 0.5, (-0.12, 1.45, 4.20))]
     return t1, t2
 
 
-def _settle(t, t_land, amp=0.04):
-    """A small overshoot wobble after a beam lands (metres)."""
+def _settle(t, t_land, amp):
+    """Overshoot wobble of a beam right after it lands (m)."""
     dt = t - t_land
-    if dt < 0 or dt > 0.8:
+    if dt < 0.0 or dt > 0.9:
         return 0.0
-    return amp * math.exp(-dt * 6.0) * math.sin(dt * 18.0)
+    return amp * math.exp(-dt * 6.5) * math.sin(dt * 17.0)
 
 
-COP1_X, COP1_Z = -1.55, 1.78          # in the doorway
-TORCH_Y = 1.38
+def aim_at(i, t, w):
+    k1, k2 = torch_aims(w)
+    if i == 0:
+        X, Y, Z = _aim_keys(k1, t)
+        X += _settle(t, w[1], 0.05) + 0.02 * fbm1(t * 1.6, 5)
+        Y += _settle(t, w[3], 0.04)
+        Z += 0.02 * fbm1(t * 1.3, 6)
+    else:
+        X, Y, Z = _aim_keys(k2, t)
+        X += _settle(t, w[2], 0.06) + 0.015 * fbm1(t * 1.4, 9)
+        Y += 0.015 * fbm1(t * 1.9, 11)
+    return (X, Y, Z)
+
+
+@lru_cache(maxsize=2)
+def cops(w):
+    """The two cops (Actors in world px at their depth), with the torch arms aimed."""
+    police = w[0]
+    x0 = ROOM.P(COP1_X0, 0.0, COP1_Z)[0]
+    x1 = ROOM.P(COP1_X1, 0.0, COP1_Z)[0]
+    gy = ROOM.P(0.0, 0.0, COP1_Z)[1]
+    k1 = ROOM.ppm(COP1_Z) / sets.PX_M
+    c1 = Actor(cast.COP, cast.cop(), x=x0, ground=gy, facing=1, scale=k1, seed=41)
+    c1.stand(until=0.42, at=-1.0, idle=0.4)
+    c1.walk(to=x1, at=0.42, speed=165.0)
+    c1.stand(until=30.0, idle=0.5)
+    c1.reach("R", 0.25, 30.0, lambda t: _hand_target(c1, t, ROOM.P(*aim_at(0, t, w))), fade=0.12)
+    c1.key("head", [(0.2, 4.0), (1.4, 8.0), (2.7, 14.0), (4.4, 2.0), (6.0, 2.0)], fade=0.3)
+    x2 = ROOM.P(COP2_X, 0.0, COP2_Z)[0]
+    gy2 = ROOM.P(0.0, 0.0, COP2_Z)[1]
+    k2 = ROOM.ppm(COP2_Z) / sets.PX_M
+    c2 = Actor(cast.COP, cast.cop(), x=x2 - 140.0, ground=gy2, facing=1, scale=k2 * 0.97, seed=42)
+    c2.stand(until=police - 0.55, at=-1.0, idle=0.4)
+    c2.walk(to=x2, at=police - 0.55, speed=260.0)
+    c2.stand(until=30.0, idle=0.5)
+    c2.reach("R", police - 0.2, 30.0, lambda t: _hand_target(c2, t, ROOM.P(*aim_at(1, t, w))), fade=0.15)
+    return c1, c2
 
 
 def torches(t, w):
-    """[dict(pos, dir, cone, power)] for Apartment9.draw, and the torch-1 3D pos/target."""
-    t1, t2 = _torch_targets(w)
+    """Torch states (or None) from the cops' hands: 2D hand / angle / scale for the prop,
+    3D pos / dir / hit for the room light and the beam."""
+    c1, c2 = cops(w)
     out = []
-    if t >= 0.27:
-        on = smoothstep(0.27, 0.36, t)
-        step = smoothstep(0.35, 1.3, t)
-        pos = (COP1_X + 0.25 * step, TORCH_Y + 0.02 * math.sin(t * 7.0) * (1 - step), COP1_Z + 0.1 * step)
-        tg = _ease_keys(t1, t)
-        tg = (tg[0] + _settle(t, w["body"]) + 0.012 * fbm1(t * 1.7, 5), tg[1] + _settle(t, w["woman"], 0.03),
-              tg[2])
-        out.append(dict(pos=pos, dir=tuple(b - a for a, b in zip(pos, tg)), cone=7.5, power=2.8 * on, reach=6.0,
-                        target=tg))
-    if t >= w["police"] - 0.1:
-        on = smoothstep(w["police"] - 0.1, w["police"] + 0.05, t)
-        pos = (-1.75, 1.55, 1.42)
-        tg = _ease_keys(t2, t)
-        tg = (tg[0] + _settle(t, w["blood"], 0.05) + 0.012 * fbm1(t * 1.5, 9), tg[1] + 0.01 * fbm1(t * 2.0, 11), tg[2])
-        out.append(dict(pos=pos, dir=tuple(b - a for a, b in zip(pos, tg)), cone=6.5, power=2.3 * on, reach=6.0,
-                        target=tg))
+    for i, (a, Z, t_on) in enumerate(((c1, COP1_Z, 0.27), (c2, COP2_Z + 0.02, w[0] - 0.02))):
+        if t < t_on - 0.3:
+            out.append(None)
+            continue
+        sk = a.skeleton(t)
+        hand = sk.j["hand_R"]
+        aim = aim_at(i, t, w)
+        a2 = ROOM.P(*aim)
+        ang = math.degrees(math.atan2(a2[1] - hand[1], a2[0] - hand[0]))
+        sc = 0.62 * ROOM.ppm(Z) / sets.PX_M
+        ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+        lens = (hand[0] + 59.0 * sc * ca, hand[1] + 59.0 * sc * sa)
+        pos = to3d(lens, Z + 0.08)
+        d = tuple(b - c for b, c in zip(aim, pos))
+        hit = ray_exit(pos, d)
+        lv = smoothstep(t_on, t_on + 0.05, t)
+        out.append(dict(hand=hand, ang=ang, scale=sc, pos=pos, dir=d, hit=hit, level=lv, sk=sk))
     return out
 
 
-@L.lru_cache(maxsize=2)
-def cop_in_door():
-    x, fy, k = APT.place(COP1_X, COP1_Z)
-    a = Actor(cast.COP, cast.cop(), x=x - 40.0, ground=fy, facing=0.0, scale=1.84 * k * 343.0 / 630.0 / 1.0 * (600.0 / 343.0) / 1.75,
-              seed=41)
-    a.stand(0.35, at=-1.0)
-    a.walk(to=x + 30.0, at=0.35, speed=90.0)
-    a.stand(until=20.0)
-    return a
-
-
-def _cop_torch_hand(a, t, tl):
-    """Arm of the cop in the door raised toward the torch's screen direction."""
-    sk = a.skeleton(t)
-    return sk
+def _doorway_clip(ctx):
+    draw.poly(ctx, APT.door.opening_quad())
+    ctx.clip()
 
 
 def draw_apartment(f, t, T, w):
-    cam = _ease_keys([(0.0, (470.0, 960.0, 0.96)), (1.6, (470.0, 960.0, 0.96)),
-                      (w["body"] + 0.3, (500.0, 1010.0, 1.0), "inout"),
-                      (w["blood"] + 0.3, (455.0, 955.0, 1.03), "inout"),
-                      (w["woman"] + 0.4, (520.0, 905.0, 1.10), "inout"), (CUT_T, (528.0, 900.0, 1.13))], t)
-    f.set_camera(Camera(*cam))
+    cam = _cam_spline([(0.0, (430.0, 978.0, 0.94), "hold"), (0.9, (430.0, 978.0, 0.94)),
+                       (w[1] + 0.25, (468.0, 1000.0, 0.98)), (w[2] + 0.25, (452.0, 958.0, 1.02)),
+                       (w[3] + 0.55, (516.0, 902.0, 1.09)), (CUT_T, (522.0, 896.0, 1.12))])(t)
+    sh = 1.6 * smoothstep(0.1, 0.4, t)
+    f.set_camera(cam.copy(x=cam.x + sh * fbm1(t * 0.9, 31), y=cam.y + sh * fbm1(t * 0.9, 37)))
     tl = torches(t, w)
+    c1, c2 = cops(w)
     op = door_open(t)
-    hall = 0.75 * smoothstep(0.12, 0.3, t) + 0.15
+    lights = []
+    extra = []
+    for st in tl:
+        if st is None or st["level"] <= 0.01:
+            continue
+        reach = math.sqrt(sum((a - b) ** 2 for a, b in zip(st["hit"], st["pos"])))
+        lights.append(dict(pos=st["pos"], dir=st["dir"], cone=6.0, soft=5.0, color=TORCH, power=2.0 * st["level"],
+                           reach=reach))
+        # the pool on the surface is brighter than the beam in the air
+        extra.append(dict(kind="spot", pos=st["pos"], dir=st["dir"], cone=5.0, soft=4.0, color=TORCH,
+                          power=7.5 * st["level"], r0=0.2))
 
     def people(f_, t_):
-        if t_ < 0.2:
+        if t_ <= 0.18:
             return
-        a = cop_in_door()
         with f_.layer() as Lc:
-            a.draw(f_, t_, Lc, eyes=False)
-            if tl:
-                pos, tg = tl[0]["pos"], tl[0]["target"]
-                o = APT.P(*pos)
-                e = APT.P(*tg)
-                ang = math.degrees(math.atan2(e[1] - o[1], e[0] - o[0]))
-                sets.flashlight(Lc, (o[0] - 30.0 * math.cos(math.radians(ang)), o[1] - 30.0 * math.sin(math.radians(ang))),
-                                ang, scale=0.5)
-    APT.draw(f, t, lamp=0.0, lamp_stand=False, sheet=False, table=False, rig=False, door_open=op, hall=hall,
-             police=1.0, street=0.3, flashlights=[dict(pos=d["pos"], dir=d["dir"], cone=d["cone"], power=d["power"],
-                                                       reach=d["reach"]) for d in tl],
-             hooks={"after_door": people})
-    f.haze(sets.PAL.fog_at(1.0), 0.04)
+            Lc.save()
+            _doorway_clip(Lc)
+            c2.draw(f_, t_, Lc, eyes=False)
+            st = tl[1]
+            if st is not None and st["level"] > 0:
+                sets.flashlight(Lc, st["hand"], st["ang"], scale=st["scale"])
+            Lc.restore()
+            c1.draw(f_, t_, Lc, eyes=False)
+            st = tl[0]
+            if st is not None:
+                sets.flashlight(Lc, st["hand"], st["ang"], scale=st["scale"])
+    APT.draw(f, t, lamp=0.0, lamp_stand=False, sheet=False, table=False, rig=False, door_open=op, hall=0.85,
+             police=1.0, street=0.3, flashlights=lights, extra_lights=extra, hooks={"after_door": people}, dust=0.8)
+    f.haze(PAL.fog_at(1.0), 0.03)
 
 
 # ============================================================================= B: her building
-def street_cam(t, w):
-    """Camera on her building from the street (facade units)."""
-    return Camera(*_ease_keys([(CUT_T, (548.0, 1500.0, 0.86)), (7.05, (600.0, 3560.0, 0.80), "inout"),
-                               (7.25, (600.0, 3560.0, 0.80)), (8.25, (548.0, 1330.0, 0.95), "inout3"),
-                               (9.65, (548.0, 1300.0, 0.97), "inout"), (11.0, (600.0, 2780.0, 0.52), "inout3"),
-                               (12.2, (602.0, 2800.0, 0.515), "out")], t))
+HERS = sets.Facade(origin=(540.0, 3940.0), scale=1.0, variant="hers")
+HERS_BLOCKS = sets.neighbours(HERS)
+HW = sets.HER_WINDOW                                     # 13: row 3, col 3
+HWR = HERS.window_rect(HW)                               # (412, 1050, 668, 1370)
+HWC = HERS.window_center(HW)                             # (540, 1210)
+HERS_LIT = {2: 0.55, 7: 0.45, 17: 0.8, 24: 0.6, 29: 0.5, 31: 0.75, 38: 0.5}
+ST = sets.Street(HERS.ground_y, depth=760.0, seed=5)
+CAR_U, CAR_X0, CAR_GO = 0.62, 860.0, 9.85
+COP_U, COP_X = 0.86, 250.0
+LAMP = sets.Streetlamp((-40.0, HERS.ground_y + 40.0), height=680.0, facing=1)
+RAISE_T, FOUND_T, LOWER_T = 7.15, 8.2, 9.6
+DARK_TOP, DARK_BOT = (0.062, 0.070, 0.098), (0.020, 0.024, 0.037)     # the facade's dark glass
+
+street_cam = _cam_spline([(CUT_T, (540.0, 1326.0, 0.86), "hold"), (5.75, (540.0, 1326.0, 0.86)),
+                          (7.05, (600.0, 3560.0, 0.80), "hold"), (7.25, (600.0, 3560.0, 0.80), "hold"),
+                          (8.25, (546.0, 1300.0, 0.97)), (9.35, (536.0, 1236.0, 1.30), "hold"),
+                          (9.65, (536.0, 1236.0, 1.30), "hold"), (10.95, (590.0, 2900.0, 0.50)),
+                          (12.2, (594.0, 2930.0, 0.49))])
 
 
-ST_DEPTH = 760.0
-CAR_U = 0.62
-COP_X = 250.0
-COP_U = 0.95
-CAR_X0 = 860.0
+def car_at(t):
+    x = CAR_X0
+    if t > CAR_GO:
+        dt = t - CAR_GO
+        x += 110.0 * dt + 520.0 * dt * dt
+    return sets.PoliceCar((x, ST.lane_y(CAR_U)), scale=ST.depth_scale(CAR_U), facing=1)
 
 
-def car_x(t):
-    """The police car pulls away right after the cop is done (eased start)."""
-    dt = t - 10.25
-    if dt <= 0:
-        return CAR_X0
-    return CAR_X0 + 260.0 * dt * dt + 60.0 * dt
+def beam_target(t):
+    """Where the cop's torch points (facade world): the wet street ahead of him, up the
+    facade, onto her window, held, then down."""
+    hx, hy = HWC
+    gx, gy = COP_X + 260.0, ST.lane_y(0.5)
+    p = _aim_keys([(RAISE_T - 0.05, (gx, gy)), (RAISE_T + 0.4, (395.0, 2950.0), "in3"),
+                   (7.85, (548.0, 1640.0), "inout"), (FOUND_T, (hx + 4.0, hy - 6.0), "out3"),
+                   (LOWER_T, (hx + 2.0, hy - 4.0)), (LOWER_T + 0.38, (gx + 120.0, gy), "in3")], t)
+    wob = 1.0 - 0.75 * smoothstep(FOUND_T - 0.1, FOUND_T + 0.2, t)
+    return (p[0] + 12.0 * wob * fbm1(t * 1.3, 17), p[1] + 9.0 * wob * fbm1(t * 1.1, 19))
 
 
-@L.lru_cache(maxsize=2)
-def street_cop(st_key, raise_t=7.15, lower_t=9.6):
-    st = sets.Street(HERS.ground_y, depth=ST_DEPTH, seed=5)
-    gy = st.lane_y(COP_U)
-    sc = 233.0 * st.depth_scale(COP_U) / 600.0 * 1.06
-    a = Actor(cast.COP, cast.cop(), x=COP_X, ground=gy, facing=0.0, scale=sc, seed=43)
-    a.stand(until=lower_t + 0.45, at=-1.0)
-    a.walk(to=COP_X - 900.0, at=lower_t + 0.45, speed=150.0, turn=0.5)
-    # the torch arm: low (pool on the street) -> up at her window -> down
-    a.key("arm.R.sh", [(raise_t - 0.1, 28.0), (raise_t + 0.45, 168.0, "out3"), (lower_t, 166.0),
-                       (lower_t + 0.35, 30.0, "inout")], fade=0.2)
-    a.key("arm.R.elbow", [(raise_t - 0.1, 12.0), (raise_t + 0.45, 4.0), (lower_t + 0.35, 12.0)], fade=0.2)
-    a.key("head", [(raise_t - 0.2, 0.0), (raise_t + 0.5, -32.0, "out3"), (lower_t, -30.0), (lower_t + 0.4, 0.0)],
-          fade=0.2)
-    return a, st
+def torch_on(t):
+    return 1.0 - smoothstep(LOWER_T + 0.42, LOWER_T + 0.5, t)
 
 
-def beam_target(t, w):
-    """Where the cop's torch points (facade world): the street at his feet, up the facade,
-    onto her window, held, then down."""
-    raise_t, lower_t = 7.15, 9.6
-    gx, gy = COP_X + 140.0, HERS.ground_y + 330.0
-    keys = [(raise_t, (gx, gy)), (raise_t + 0.4, (430.0, 2700.0), "in3"), (7.9, (610.0, 1650.0), "inout"),
-            (8.2, (HWC[0] + 8.0, HWC[1] - 10.0), "out3"), (lower_t, (HWC[0] + 4.0, HWC[1] - 8.0)),
-            (lower_t + 0.4, (gx + 200.0, gy), "in3")]
-    p = _ease_keys(keys, t)
-    wob = 1.0 if t < 8.2 else 0.3
-    return (p[0] + 14.0 * wob * fbm1(t * 1.4, 17), p[1] + 10.0 * wob * fbm1(t * 1.2, 19))
+def caught(t):
+    """The torch's pool on her window (0..1)."""
+    return smoothstep(FOUND_T - 0.2, FOUND_T + 0.02, t) * (1.0 - smoothstep(LOWER_T, LOWER_T + 0.22, t))
 
 
-def caught(t, w):
-    """How much of her window the beam holds (0..1)."""
-    return smoothstep(8.05, 8.25, t) * (1.0 - smoothstep(9.6, 9.85, t))
+@lru_cache(maxsize=1)
+def street_cop():
+    gy = ST.lane_y(COP_U)
+    sc = 1.84 * L.K_F / cast.COP.height * ST.depth_scale(COP_U)
+    a = Actor(cast.COP, cast.cop(), x=COP_X, ground=gy, facing=1, scale=sc, seed=43)
+    a.stand(until=LOWER_T + 0.55, at=-1.0, idle=0.5)
+    a.walk(to=COP_X - 1500.0, at=LOWER_T + 0.55, speed=1.5 * L.K_F * ST.depth_scale(COP_U), turn=0.4)
+    a.reach("R", 4.0, LOWER_T + 0.45, lambda t: _hand_target(a, t, beam_target(t)), fade=0.3)
+    a.look_at(RAISE_T, LOWER_T + 0.2, lambda t: beam_target(t), fade=0.45, amount=0.8)
+    return a
 
 
-@L.lru_cache(maxsize=2)
-def her_at_window(dreamed=8.963):
-    x0, y0, x1, y1 = HWR
+HER_X = HWC[0] - 22.0
+HER_FLOOR = HERS.floor_y(HW) - 12.0         # she stands right at the glass (eyes clear of the meeting rail)
+
+
+@lru_cache(maxsize=1)
+def her_at_window():
     sc = HERS.person_h / cast.HER.height
-    a = Actor(cast.HER, cast.her(), x=(x0 + x1) / 2 - 12.0, ground=HERS.floor_y(HW), facing=90.0, scale=sc, seed=44)
-    a.stand(until=40.0, at=-5.0, idle=0.3)
-    a.key("arm.R.sh", [(-5.0, 6.0), (40.0, 6.0)], fade=0.0)
-    a.key("head", [(-5.0, 14.0), (40.0, 14.0)], fade=0.0)        # looking down at the street
+    a = Actor(cast.HER, cast.her(), x=HER_X, ground=HER_FLOOR, facing=90.0, scale=sc, seed=44)
+    a.stand(until=40.0, at=-5.0, idle=0.35)
+    a.key("head", [(-5.0, 9.0), (FOUND_T - 0.02, 9.0), (FOUND_T + 0.18, 2.0, "out3"), (40.0, 2.0)], fade=0.0)
     return a
 
 
 def step_back(t, dreamed):
-    return L.kseg(t, dreamed, dreamed + 0.45, "inout")
+    return L.kseg(t, dreamed, dreamed + 0.5, "inout")
 
 
-def draw_her_window(f, t, w):
-    """Window 13 caught in the torch beam: the pool of light inside, her shadow thrown up
-    the wall behind her, her silhouette with the eyes catching the light, the sash bars."""
-    lv = caught(t, w)
-    if lv <= 0.005:
-        return
+def _her_xf(ctx, k):
+    """She steps back and aside (left, behind the drape): smaller, a little lower."""
+    s = 1.0 - 0.10 * k
+    ctx.translate(HER_X - 95.0 * k, HER_FLOOR + 6.0 * k)
+    ctx.scale(s, s)
+    ctx.translate(-HER_X, -HER_FLOOR)
+
+
+def her_window(t, dreamed):
+    """Interior of window 13 (drawn by the facade, under its drapes and sash): dark glass,
+    the torch's pool on her back wall, her shadow thrown up it, her, her eyes."""
+    a = her_at_window()
+    look = a.look
+
+    def fn(ctx, win):
+        x0, y0, x1, y1 = win.rect
+        ww, wh = x1 - x0, y1 - y0
+        draw.linear(ctx, (0, y0), (0, y1), [(0, DARK_TOP, 1), (0.55, sets.mix(DARK_TOP, DARK_BOT, 0.7), 1),
+                                            (1, DARK_BOT, 1)])
+        ctx.paint()
+        lv = caught(t)
+        kb = step_back(t, dreamed)
+        tgt = beam_target(t)
+        if lv > 0.005:
+            # the pool on her back wall (the beam rises: it lands above where it enters)
+            pc = (tgt[0] + 0.05 * ww, tgt[1] - 0.12 * wh)
+            draw.radial(ctx, pc, 0, 0.62 * wh, [(0, sets.mix(DARK_TOP, TORCH, 0.62 * lv), 1),
+                                                (0.45, sets.mix(DARK_TOP, TORCH, 0.30 * lv), 1),
+                                                (1, DARK_TOP, 0)])
+            ctx.paint()
+            # her shadow on the wall: up and to the right of her (the torch is low, left)
+            ctx.save()
+            ctx.translate(0.07 * ww * (1 - 0.6 * kb), -0.17 * wh * (1 - 0.6 * kb))
+            ctx.translate(HER_X, HER_FLOOR - 0.5 * win.person_h)
+            ctx.scale(1.10, 1.10)
+            ctx.translate(-HER_X, -(HER_FLOOR - 0.5 * win.person_h))
+            _her_xf(ctx, kb)
+            ctx.push_group()
+            a.draw(None, t, ctx, eyes=False)
+            ctx.pop_group_to_source()
+            ctx.paint_with_alpha(0.78 * lv * (1.0 - 0.8 * kb))
+            ctx.restore()
+        # her
+        ctx.save()
+        _her_xf(ctx, kb)
+        sk = a.draw(None, t, ctx, eyes=False)
+        ctx.restore()
+        # her eyes: two faint glints in the dark, wide and bright in the torch
+        vis = 1.0 - smoothstep(0.15, 0.55, kb)
+        gl = (0.35 + 0.65 * lv) * vis
+        if gl > 0.01:
+            e1, e2, r, wgt, front = FIG.eye_points(sk, look)
+            s = 1.0 - 0.10 * kb
+            r *= 1.5 * s
+            pts = [(HER_X - 95.0 * kb + s * (e[0] - HER_X), HER_FLOOR + 6.0 * kb + s * (e[1] - HER_FLOOR))
+                   for e in (e1, e2)]
+            for p in pts:
+                draw.ellipse(ctx, p, r * 0.95, r)
+                draw.fill(ctx, look.eye_color, gl)
+            with win.f.emit() as G:
+                for p in pts:
+                    draw.glow_disc(G, p, r * 6.0, look.eye_color, 0.55 * gl)
+    return fn
+
+
+def draw_window_light(f, t):
+    """The torch on and around her window: the hot spot on the brick, glare on the glass,
+    rain caught in it (additive, over the facade)."""
+    lv = caught(t)
+    tgt = beam_target(t)
+    up = smoothstep(RAISE_T + 0.1, RAISE_T + 0.5, t) * torch_on(t)
     x0, y0, x1, y1 = HWR
     ww, wh = x1 - x0, y1 - y0
-    k_back = step_back(t, w["dreamed"])
-    a = her_at_window(w["dreamed"])
-    tgt = beam_target(t, w)
-    col = sets.mix(sets.HOT, (1.0, 1.0, 1.0), 0.35)
-    # the pool of torch light in the room (on the drapes and the back wall)
-    with f.light(blur=6.0) as A:
-        A.save()
-        A.rectangle(x0, y0, ww, wh)
-        A.clip()
-        sets.glow_ellipse(A, (tgt[0], tgt[1] - 0.06 * wh), 0.62 * ww, 0.55 * wh, col, 1.05 * lv)
-        sets.glow_ellipse(A, (tgt[0], tgt[1]), 0.30 * ww, 0.28 * wh, col, 0.6 * lv)
-        A.restore()
-    # her: she steps back, out of the light (smaller, lower, swallowed by the dark)
-    ax, ay = a.state["x"], HERS.floor_y(HW)
-    s_back = lerp(1.0, 0.82, k_back)
-    vis = 1.0 - smoothstep(0.55, 1.0, k_back)
-    with f.layer(alpha=1.0) as Lh:
-        Lh.save()
-        Lh.rectangle(x0, y0, ww, wh)
-        Lh.clip()
-        # her shadow, big on the wall behind her (the torch is far below her)
-        if vis > 0.01:
-            Lh.save()
-            Lh.translate(ax + 18.0, ay - 40.0)
-            Lh.scale(1.45 * s_back, 1.45 * s_back)
-            Lh.translate(-ax, -ay)
-            a.draw(f, t, Lh, eyes=False, color=None) if False else a.draw(f, t, Lh, eyes=False)
-            Lh.restore()
-            draw.rgba(Lh, INK, 0.0)
-        Lh.restore()
-    with f.layer(alpha=0.42 * vis) as Ls:
-        Ls.save()
-        Ls.rectangle(x0, y0, ww, wh)
-        Ls.clip()
-        Ls.translate(ax + 18.0, ay - 40.0)
-        Ls.scale(1.45 * s_back, 1.45 * s_back)
-        Ls.translate(-ax, -ay)
-        a.draw(f, t, Ls, eyes=False)
-        Ls.restore()
-    with f.layer() as Lf:
-        Lf.save()
-        Lf.rectangle(x0, y0, ww, wh)
-        Lf.clip()
-        Lf.translate(ax, ay)
-        Lf.scale(s_back, s_back)
-        Lf.translate(-ax, -ay + 0.10 * HERS.person_h * k_back)
-        a.draw(f, t, Lf, eyes=False)
-        Lf.restore()
-        # the sash bars (the facade's frame for this window), over her and the light
-        cx, ym = (x0 + x1) / 2, y0 + wh * 0.5
-        for (a0, b0, a1, b1) in ((x0, y0, x0 + 8, y1), (x1 - 8, y0, x1, y1), (x0, y0, x1, y0 + 9),
-                                 (x0, y1 - 11, x1, y1), (x0, ym - 6, x1, ym + 5), (cx - 3, y0, cx + 3, y1)):
-            draw.rect(Lf, a0, b0, a1, b1)
-        draw.fill(Lf, INK)
-    if vis > 0.01:
-        sk = a.skeleton(t)
-        look = cast.her()
-        with f.layer() as Le:
-            Le.translate(ax, ay)
-            Le.scale(s_back, s_back)
-            Le.translate(-ax, -ay + 0.10 * HERS.person_h * k_back)
-            FIG.draw_eyes(f, sk, look, Le, emit=False, alpha=lv * vis)
-    # glare of the torch on the glass
-    with f.light(blur=3.0) as A:
-        sets.glow(A, (tgt[0] - 0.12 * ww, tgt[1] + 0.18 * wh), 0.16 * ww, col, 0.55 * lv)
+    with f.light(blur=4.0) as A:
+        if up > 0.01:
+            sets.glow_ellipse(A, tgt, 165.0, 185.0, TORCH, 0.30 * up)
+            sets.glow_ellipse(A, tgt, 80.0, 90.0, TORCH, 0.22 * up * (1.0 - 0.6 * lv))
+        if lv > 0.01:
+            A.save()
+            A.rectangle(x0, y0, ww, wh)
+            A.clip()
+            sets.glow(A, (tgt[0] - 0.18 * ww, tgt[1] + 0.30 * wh), 0.20 * ww, TORCH, 0.5 * lv)
+            A.restore()
+            sets.rain_glints(A, t, (x0 - 0.6 * ww, y0 - 0.3 * wh, x1 + 0.6 * ww, y1 + 0.8 * wh),
+                             color=TORCH, alpha=0.8 * lv, density=1.4, seed=313, speed=1250.0, length=34.0,
+                             width=1.6, wind=0.14,
+                             weight=lambda x, y: math.exp(-(((x - tgt[0]) / (0.9 * ww)) ** 2 +
+                                                            ((y - tgt[1]) / (0.9 * wh)) ** 2)))
 
 
 def draw_street(f, t, T, w):
-    cam = street_cam(t, w)
+    cam = street_cam(t)
     f.set_camera(cam)
-    a, st = street_cop(ST_DEPTH)
-    sets.night_sky(f, t)
-    f.set_camera(cam)
-    sets.draw_blocks(f, t, HERS_BLOCKS, layer=dict(par=1.0, fog=0.28))
+    sets.night_sky(f, t, glow_y=HERS.top_y + 40.0, spread=300.0, par=0.25, clouds=0.8)
+    sets.draw_blocks(f, t, HERS_BLOCKS, layer=dict(par=1.0, fog=0.25))
     lit = dict(HERS_LIT)
-    lit[HW] = 0.0
-    HERS.draw(f, t, lit=lit, shops=(0.0, 0.0), halo=0.9, emit=0.8)
-    car = sets.PoliceCar((car_x(t), st.lane_y(CAR_U)), scale=st.depth_scale(CAR_U), facing=1)
-    away = smoothstep(10.4, 12.0, t)
-    lights = 1.0 - 0.35 * away
-    wash = (1.0 - 0.75 * away)
-    sets.strobe_wash(f, t, car, (HERS.x0, 1000.0, HERS.x1, HERS.ground_y), k=1.6 * wash)
-    draw_her_window(f, t, w)
-    lamp = sets.Streetlamp((HERS.x0 + 300.0, HERS.ground_y + 40.0), height=680.0, facing=1)
-    srcs = HERS.light_sources(t, lit) + [lamp.light_source()] + car.light_sources(t, lights)
-    st.draw(f, t, sources=srcs, lamp_pools=[(lamp.lantern[0], 1.0)], reflections=0.9)
-    lamp.draw(f, t)
-    car.draw(f, t, lights=lights, wash=1.8 * wash)
-    # the cop and his torch
+    lit[HW] = 0.021                     # 'lit' only so that her interior callback runs
+    HERS.draw(f, t, lit=lit, interiors={HW: her_window(t, w[4])}, shops=(0.0, 0.0), halo=0.9, emit=0.8)
+    car = car_at(t)
+    gone = smoothstep(CAR_GO + 0.3, CAR_GO + 1.5, t)
+    sets.strobe_wash(f, t, car, (HERS.x0, 1000.0, HERS.x1, HERS.ground_y), k=1.5 * (1.0 - 0.85 * gone))
+    draw_window_light(f, t)
+    srcs = HERS.light_sources(t, HERS_LIT) + [LAMP.light_source()] + car.light_sources(t, 1.0 - 0.4 * gone)
+    ST.draw(f, t, sources=srcs, lamp_pools=[(LAMP.lantern[0], 1.0)], reflections=0.9)
+    LAMP.draw(f, t)
+    car.draw(f, t, lights=1.0 - 0.4 * gone, wash=1.8 * (1.0 - 0.7 * gone))
+    # the cop, his reflection, his torch
+    a = street_cop()
+    gy = ST.lane_y(COP_U)
     sk = a.skeleton(t)
+    px = sk.j["pelvis"][0]
+    ST.reflect(f, t, lambda c: a.draw(None, t, c, eyes=False), gy,
+               (px - 0.4 * a.H, gy - 1.05 * a.H, px + 0.4 * a.H, gy), strength=0.5)
+    on = torch_on(t)
+    tgt = beam_target(t)
     hand = sk.j["hand_R"]
-    tg = beam_target(t, w)
-    ang = math.degrees(math.atan2(tg[1] - hand[1], tg[0] - hand[0]))
-    raise_t, lower_t = 7.15, 9.6
-    st.reflect(f, t, lambda c: a.draw(f, t, c, eyes=False), a.state["x"] if False else st.lane_y(COP_U),
-               (sk.j["pelvis"][0] - 120, sk.j["head"][1] - 80, sk.j["pelvis"][0] + 120, st.lane_y(COP_U)), strength=0.5)
+    ang = math.degrees(math.atan2(tgt[1] - hand[1], tgt[0] - hand[0]))
     with f.layer() as Lc:
         a.draw(f, t, Lc, eyes=False)
-        lens = sets.flashlight(Lc, hand, ang, scale=0.55)
-    on = 1.0 - smoothstep(lower_t + 0.5, lower_t + 0.8, t)
+        lens = sets.flashlight(Lc, hand, ang if on > 0 else 100.0, scale=0.62 * a.H / cast.COP.height)
+    cone = None
     if on > 0.01:
-        length = math.hypot(tg[0] - lens[0], tg[1] - lens[1])
-        sets.flashlight_beam(f, lens, ang, length=length, spread=2.6 if t > raise_t + 0.3 else 9.0, level=1.6 * on, t=t,
-                             scale=1.3, dust=0.6, hit=t < raise_t + 0.2 or t > lower_t + 0.3)
-    f.haze(sets.PAL.fog_at(0.85), 0.16, y0=3450.0, y1=4700.0, feather=500.0)
-    rig = L.Rig(900.0, 18.0, 0.0, 16.0, cam.x, cam.y)
-    L.rain(f, t, rig, density=1.1)
+        dist = math.hypot(tgt[0] - lens[0], tgt[1] - lens[1])
+        ux, uy = (tgt[0] - lens[0]) / dist, (tgt[1] - lens[1]) / dist
+        stop = ((tgt[0] - uy * 400.0, tgt[1] + ux * 400.0), (tgt[0] + uy * 400.0, tgt[1] - ux * 400.0))
+        half = lerp(9.0, 2.7, smoothstep(RAISE_T, RAISE_T + 0.5, t)) if t < LOWER_T else \
+            lerp(2.7, 9.0, smoothstep(LOWER_T, LOWER_T + 0.4, t))
+        cone = atmos.beam(f, lens, ang, length=dist / 0.62, half_angle=half, color=TORCH, intensity=0.55 * on,
+                          falloff=0.55, soft=0.5, core=0.5, fog=0.5, stop=stop, pool=0.0, glare=0.8 * on, t=t,
+                          seed=7)
+    f.haze(PAL.fog_at(0.85), 0.12, y0=3500.0, y1=4900.0, feather=500.0)
+    atmos.rain(f, density=1.0, angle=-8.0, t=t, seed=21, alpha=0.85, lit=cone, lit_gain=3.0, lit_color=TORCH)
 
 
 # ============================================================================= scene
@@ -360,25 +461,25 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
-    if 7.3 < t < 8.2 or 9.8 < t < 10.9:
+    if 0.15 < t < 0.34 or 6.0 < t < 6.9 or 7.4 < t < 8.15 or 9.9 < t < 10.7:
         return 2
     return 1
 
 
 def cues(T):
-    w = _words(T)
+    police, body, blood, woman, dreamed = _words(T)
     return [
-        Cue(0.15, "door kicked open: wood crack, slam against the wall, hall echo", gain_db=-4, pan=-0.6),
-        Cue(0.3, "torch clicks on; heavy boots on floorboards", gain_db=-10, pan=-0.5),
-        Cue(0.4, "police siren far below, muffled through the glass, strobe hum", gain_db=-18, dur=5.0),
-        Cue(w["police"], "second torch clicks on; radio crackle in the hall", gain_db=-14, pan=-0.7),
-        Cue(w["body"], "a boot stops: creak of the bare floor", gain_db=-14),
-        Cue(w["blood"], "torch beam sweeps the wall: cloth rustle of a sleeve", gain_db=-18, pan=-0.2),
-        Cue(w["woman"], "rain against the bare window, close", gain_db=-12),
-        Cue(CUT_T, "outside: rain hiss, siren loop close, idling engine", gain_db=-8, dur=4.0),
-        Cue(7.15, "torch raised: click, a cop's grunt", gain_db=-14, pan=-0.3),
-        Cue(8.2, "the beam finds her: a sharp string sting", gain_db=-10),
-        Cue(w["dreamed"], "she steps back: floorboard creak (inside, far)", gain_db=-20),
-        Cue(9.6, "torch clicks off; footsteps away on wet pavement", gain_db=-14, pan=-0.6),
-        Cue(10.25, "police car pulls away: engine rev, tyres hiss on the wet street", gain_db=-8, pan=0.5, dur=1.8),
+        Cue(0.0, "dark room: rain on the glass, a siren loop muffled far below, strobe hum", gain_db=-20, dur=5.6),
+        Cue(0.15, "door kicked open: wood crack, slam against the wall stop, hall echo", gain_db=-4, pan=-0.6),
+        Cue(0.27, "torch clicks on; heavy boots on bare floorboards", gain_db=-12, pan=-0.5),
+        Cue(police - 0.02, "second torch clicks on; a police radio crackles in the hall", gain_db=-14, pan=-0.7),
+        Cue(body, "a boot stops: the bare floor creaks", gain_db=-16),
+        Cue(blood, "beam sweeps the wall: sleeve rustle", gain_db=-20, pan=-0.2),
+        Cue(woman, "rain against the bare window, close", gain_db=-12),
+        Cue(CUT_T, "outside: rain hiss, siren whoop close, idling engine", gain_db=-8, dur=4.0),
+        Cue(RAISE_T, "torch raised: click of the switch, a cop's grunt", gain_db=-16, pan=-0.3),
+        Cue(FOUND_T, "the beam finds her: a sharp string sting", gain_db=-10),
+        Cue(dreamed, "she steps back: a floorboard creaks far inside", gain_db=-22),
+        Cue(LOWER_T + 0.45, "torch clicks off; footsteps away on wet pavement", gain_db=-14, pan=-0.6),
+        Cue(CAR_GO, "police car pulls away: engine rev, tyres hiss on the wet street", gain_db=-8, pan=0.5, dur=2.0),
     ]

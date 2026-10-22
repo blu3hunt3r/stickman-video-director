@@ -532,7 +532,7 @@ class Floor:
         self.xk, self.yk = R.path(tk)
         o = 0.022 * H
         self.f_sit = {s: R.sitst.planted_x(s, tk) for s in ("L", "R")}
-        self.f_lie = {"L": x_lie + 0.36 * H, "R": x_lie + 0.31 * H}
+        self.f_lie = {"L": x_lie + 0.26 * H, "R": x_lie + 0.22 * H}
         self.f_up = {"L": x_up + o, "R": x_up - o}
         self.y_lie = self.g(x_lie) - self.LIE_H * H
         self.y_stand = self.g(x_up) - (self.body.hip - 0.006) * H
@@ -848,9 +848,43 @@ def basket_mouth(t):
     return (b["grip"][0] + m[0], b["grip"][1] + m[1])
 
 
-# the spill: (start, end) of each item's way out; rest x of its centre
-SPILL = dict(bread=(5.62, 6.05, LANTERN_X + 22.0), bottle=(6.38, 7.2, LANTERN_X - 48.0),
-             lantern=(8.3, 8.95, LANTERN_X))
+# the spill: (start, end) of each item's way out; rest x of its centre. Left to right on the
+# snow: the bottle (rolled up to her boots), the lantern, the loaf just out of the mouth, inside
+# the handle (backlit by the lantern's glow in the basket).
+SPILL = dict(bread=(5.62, 6.05, 1000.0), bottle=(6.38, 7.2, 893.0), lantern=(8.3, 8.95, LANTERN_X))
+ITEM_SCALE = dict(bread=1.1, bottle=1.15)      # loose items drawn a little large (close-up legibility)
+
+
+def _bread_local(s):
+    """A scored loaf (bottom at +7 s), centred, long axis x."""
+    top, bot = [], []
+    n = 36
+    for i in range(n + 1):
+        x = -22.0 + 44.0 * i / n
+        q = max(0.0, 1.0 - (x / 22.0) ** 2)
+        y = -13.0 * q ** 0.42
+        for xc in (-11.0, 0.0, 11.0):                  # the score cuts: notches in the crust
+            d = abs(x - xc)
+            if d < 3.2:
+                y += 4.5 * (1.0 - d / 3.2) * q ** 0.5
+        top.append((x * s, y * s))
+        bot.append((-x * s, 7.0 * q ** 0.35 * s))
+    return top + bot
+
+
+def _bottle_local(s):
+    """A wine bottle, centred, neck toward -y: punt, round shoulders, long neck, lip."""
+    half = [(9.5, 27.0), (9.6, 4.0), (8.8, -1.5), (6.5, -6.0), (4.0, -10.0), (3.3, -14.0), (3.3, -23.0),
+            (4.3, -23.5), (4.3, -26.5), (3.0, -27.5)]
+    pts = [(x * s, y * s) for x, y in half] + [(-x * s, y * s) for x, y in reversed(half)]
+    pts += [(-6.0 * s, 27.0 * s), (0.0, 24.0 * s), (6.0 * s, 27.0 * s)]       # the punt
+    return pts
+
+
+def item_poly(name):
+    """Local outline of a loose bread / bottle (see ITEM_SCALE)."""
+    s_ = BASKET_SIZE * ITEM_SCALE[name]
+    return _bread_local(s_) if name == "bread" else _bottle_local(s_)
 
 
 def item_state(name, t):
@@ -859,19 +893,22 @@ def item_state(name, t):
     if t < t0:
         return None
     s_ = BASKET_SIZE
-    half = {"bread": 12.0, "bottle": 7.5}[name] * s_ if name != "lantern" else 17.0 * LANTERN_SIZE
+    half = {"bread": 7.0, "bottle": 9.6}[name] * s_ * ITEM_SCALE[name] if name != "lantern" else 17.0 * LANTERN_SIZE
     m = basket_mouth(t0)
     u = clamp((t - t0) / (t1 - t0))
     gy = CG(xr)
     if name == "bread":
-        x = lerp(m[0] + 8.0, xr, ease("out", u))
-        y = lerp(m[1], gy - half, ss(0.0, 0.45, u)) - 16.0 * math.sin(math.pi * clamp(u / 0.45))
-        ang = -230.0 * ease("out", u) - 14.0
+        # tumbles out of the mouth, a hop and one roll, and settles dome up
+        x = lerp(m[0] + 6.0, xr, ease("out", u))
+        y = lerp(m[1] - 4.0, gy - half, ss(0.0, 0.5, u)) - 14.0 * math.sin(math.pi * clamp(u / 0.5))
+        ang = -360.0 * ease("out", u) + 6.0 * math.sin(2 * math.pi * clamp((u - 0.7) / 0.3)) * (u > 0.7)
         return x, y, ang
     if name == "bottle":
-        x = lerp(m[0] + 20.0, xr, ease("out", u))
-        y = lerp(m[1], gy - half, ss(0.0, 0.25, u))
-        ang = lerp(-60.0, -270.0, ease("out", u))            # neck first, tumbling to rest on its side
+        # slides out neck first and drops onto its side, rocking
+        x = lerp(m[0] + 18.0, xr, ease("out", u))
+        y = lerp(m[1], gy - half, ss(0.0, 0.3, u))
+        ang = lerp(-58.0, -90.0, ss(0.0, 0.35, u)) + 5.0 * math.exp(-max(u - 0.35, 0.0) * 6.0) * \
+            math.sin(2 * math.pi * max(u - 0.35, 0.0) * 3.0)
         return x, y, ang
     # the lantern: rolls out on its side (ring toward her), glowing
     x = lerp(m[0] + 10.0, xr, ease("out", u))

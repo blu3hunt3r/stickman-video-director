@@ -151,6 +151,9 @@ def _c_pose(t, u):
     # head: up toward the stern while cranking; pleased tilt on the puff
     puff = LIB.bump(t, 3.35, 3.65, 4.0, 4.6)
     p.head = -p.pitch * 0.88 - 6.0 * puff + 2.0 * noise1(t * 0.4, 5)
+    fl = _flinch(t)
+    p.pitch -= 5.0 * fl
+    p.head -= 9.0 * fl
     for s, fx in (("R", FEET_C[0]), ("L", FEET_C[1])):
         dy = BOAT.deck_y(fx, t)
         p.legs[s] = {"ik": (fx + 6.0 * k * (1 if s == "L" else -1), dy - 0.043 * cast.CLIENT.height),
@@ -161,6 +164,16 @@ def _c_pose(t, u):
     p.arms["R"] = dict(sh=lerp(60.0, 4.0, kr), abd=6.0, elbow=lerp(24.0, 16.0, kr), wrist=0.0, grip=lerp(1.0, 0.5, kr))
     p.eyes = dict(open=1.0, glow=0.9, look=0.0)
     return p
+
+
+def _flinch(t):
+    """A start at each toll: 0.6 on the first (he freezes), 1 on the second (it swings at him)."""
+    v = 0.0
+    for tk, amt in ((T_STOP, 0.6), (T_TOLL2, 1.0)):
+        if t > tk - 0.05:
+            u = t - tk + 0.05
+            v += amt * smoothstep(0.0, 0.12, u) * math.exp(-max(0.0, u - 0.12) / 0.45)
+    return v
 
 
 def _grip_target(t):
@@ -321,22 +334,35 @@ def _lamp_head(f, t):
 
 # ============================================================================= the bell
 def _silt(L, st, t, k):
-    """Silt and weed streaming off the load as it is hauled up (part of the dark mass)."""
+    """Silt and weed shed by the load as it is hauled up: a few clots clinging round its
+    mouth and a trail left behind in the water (where it was), spreading and thinning."""
     if k <= 0.0:
         return
-    for i in range(22):
-        h = hash01(77, i, 1)
-        u = (hash01(77, i, 2) - 0.5) * 2.0
-        lag = -110.0 + 380.0 * h
-        p = LIB.bell_point(st, (u * 80.0 + 14.0 * math.sin(t * 0.9 + i), 120.0 + lag))
-        r = (30.0 + 50.0 * hash01(77, i, 3)) * (0.7 + 0.6 * h)
+    def blob(p, rx, ry, a):
         L.save()
         L.translate(p[0], p[1])
-        L.scale(r, r * (1.2 + 0.8 * h))
+        L.scale(rx, ry)
+        L.new_path()
         L.arc(0, 0, 1.0, 0, 2 * math.pi)
         L.restore()
-        L.set_source_rgba(INK[0], INK[1], INK[2], 0.7 * k * (1.0 - 0.5 * h))
+        L.set_source_rgba(INK[0], INK[1], INK[2], clamp(a))
         L.fill()
+    for i in range(7):                      # clinging round the mouth
+        u = (hash01(78, i, 1) - 0.5) * 2.0
+        p = LIB.bell_point(st, (u * 70.0, 112.0 + 30.0 * hash01(78, i, 2)))
+        r = 26.0 + 22.0 * hash01(78, i, 3)
+        blob(p, r * 1.3, r * 0.8, 0.5 * k)
+    for j in range(1, 17):                  # the trail
+        age = 0.16 * j + 0.05 * hash01(79, j, 1)
+        te = t - age
+        if te > 7.9:
+            continue
+        sp = LIB.bell_state(te, BOAT)
+        u = (hash01(79, j, 2) - 0.5) * 2.0
+        p = LIB.bell_point(sp, (u * 50.0, 150.0))
+        p = (p[0] + 18.0 * age + 30.0 * u * age, p[1] - 10.0 * age)
+        r = (34.0 + 46.0 * age) * (0.8 + 0.4 * hash01(79, j, 3))
+        blob(p, r * 1.5, r * 0.75, 0.55 * k * math.exp(-age / 1.3))
 
 
 def _sea_clip(c, x0, x1, t, below=True):
@@ -367,7 +393,7 @@ def _bell_under(f, t, st):
         L.save()
         _sea_clip(L, x0, x1, t, below=True)
         LIB.draw_bell_lit(L, st, (0.0, -1.0), f.cam.zoom, color=INK)
-        _silt(L, st, t, 1.0 - smoothstep(8.2, 8.9, t))
+        _silt(L, st, t, 1.0 - smoothstep(7.9, 8.4, t))
         L.restore()
 
 

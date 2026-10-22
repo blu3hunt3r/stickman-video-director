@@ -8,6 +8,10 @@ Everything is a pure function of its arguments (plus caches of deterministic dat
   * screen_glow / screen_band   soft screen-space light (backlight behind a silhouette)
   * pulses_offset            transverse kinks running along a line (the two tugs)
   * streaks                  particles smeared by a fast camera move (the ascents)
+  * drop / silt_puff         heavy things let go underwater (the weights, the boots) and the
+                             silt they throw up
+  * weight_anchors / boot_frame   where the diver's chest weights and lead boots sit (props
+                             drawn over a weights=False, boots=False look so they can come off)
 """
 import math
 
@@ -126,42 +130,6 @@ def draw_hook_rim(ctx, x, y, angle=0.0, s=1.0, rim=None, rim_a=0.55, off=(-1.3, 
         S.draw_hook(ctx, off[0], off[1], angle=angle, s=s, color=(rc[0], rc[1], rc[2], rim_a))
     S.draw_hook(ctx, 0.0, 0.0, angle=angle, s=s)
     ctx.restore()
-
-
-class Swing:
-    """A heavy thing hanging from a moving hand (a hook on its eye): pendulum angle (deg,
-    + = the bottom swings toward +x) driven by the pivot's acceleration, integrated once on
-    a fixed grid from (theta0, omega0) at t0. pivot(t) must be cheap (sample it)."""
-
-    def __init__(self, pivot, t0, t1, length=65.0, theta0=0.0, omega0=0.0, g=1500.0, damping=2.0,
-                 dt=1.0 / 240.0):
-        self.pivot, self.t0, self.t1, self.dt = pivot, float(t0), float(t1), dt
-        self.L, self.g, self.c = length, g, damping
-        self.th0, self.om0 = math.radians(theta0), math.radians(omega0)
-        self._a = None
-
-    def _build(self):
-        n = int(math.ceil((self.t1 - self.t0) / self.dt)) + 3
-        ts = self.t0 + np.arange(n + 2) * self.dt - self.dt
-        P = np.array([self.pivot(float(t)) for t in ts], np.float64)
-        acc = (P[2:] - 2.0 * P[1:-1] + P[:-2]) / (self.dt * self.dt)
-        th, om = self.th0, self.om0
-        out = np.empty(n)
-        for i in range(n):
-            out[i] = th
-            ax, ay = acc[i]
-            al = (-ax * math.cos(th) - (self.g - ay) * math.sin(th)) / self.L - self.c * om
-            om += al * self.dt
-            th += om * self.dt
-        self._a = np.degrees(out)
-
-    def __call__(self, t):
-        if self._a is None:
-            self._build()
-        x = (min(max(t, self.t0), self.t1) - self.t0) / self.dt
-        i = min(int(x), len(self._a) - 2)
-        u = x - i
-        return float(self._a[i] * (1.0 - u) + self._a[i + 1] * u)
 
 
 def polyline_len(pts):
@@ -364,3 +332,107 @@ def streaks(f, t, vel, n=90, seed=3, color=None, alpha=0.5, size=1.6, depth=(0.3
             A.set_source_rgba(col[0], col[1], col[2], clamp(a / (1.0 + L / (8.0 * r + 4.0)) ** 0.5 * 0.9))
             A.stroke()
         A.restore()
+
+
+# ----------------------------------------------------------------------------- shedding lead
+def drop(t, t0, p0, v0=(0.0, 0.0), floor_y=None, vt=1300.0, tau=0.35, ang0=0.0, spin=0.0, rest=None,
+         settle=0.16):
+    """A heavy thing let go at t0 from p0 underwater: its velocity relaxes from v0 to (0, vt)
+    (time constant tau), it turns by `spin` deg (eased), lands on floor_y and settles to the
+    angle `rest` (default: the landing angle * 0.25) over `settle` s with a small rock.
+    Returns (x, y, angle, landed_time or None). Pure function of t."""
+    if t <= t0:
+        return p0[0], p0[1], ang0, None
+
+    def at(dt):
+        e = 1.0 - math.exp(-dt / tau)
+        return (p0[0] + v0[0] * tau * e, p0[1] + vt * dt + (v0[1] - vt) * tau * e,
+                ang0 + spin * (1.0 - math.exp(-dt / (2.0 * tau))))
+
+    dt = t - t0
+    x, y, a = at(dt)
+    if floor_y is None or y < floor_y:
+        return x, y, a, None
+    lo, hi = 0.0, dt
+    for _ in range(28):
+        mid = 0.5 * (lo + hi)
+        if at(mid)[1] < floor_y:
+            lo = mid
+        else:
+            hi = mid
+    xl, _, al = at(hi)
+    tl = t0 + hi
+    tr = al * 0.25 if rest is None else rest
+    u = clamp((t - tl) / settle)
+    rock = 3.5 * math.exp(-(t - tl) * 5.0) * math.sin((t - tl) * 14.0)
+    sink = 4.0 * smoothstep(0.0, 0.25, t - tl)
+    return xl, floor_y + sink, lerp(al, tr, ease("out", u)) + rock, tl
+
+
+def silt_puff(f, p, t, t0, size=1.0, color=None, alpha=0.5, seed=0, n=9, blur=10.0):
+    """Silt thrown up where something heavy lands at p (world, on the seabed) at t0: soft
+    blobs rolling out and up, growing, thinning over ~3 s. Additive (a lit veil over what
+    landed). size 1 ~ a lead weight."""
+    tau = t - t0
+    if tau <= 0.0 or tau > 4.0 or alpha <= 0.0:
+        return
+    col = color or mix(PAL.mid, PAL.surface, 0.35)
+    with f.light(blur=blur) as A:
+        for i in range(n):
+            h1, h2, h3 = hash01(seed, i, 1), hash01(seed, i, 2), hash01(seed, i, 3)
+            ang = math.pi * (1.0 + h1)                       # pi..2pi: sideways and up
+            sp = (60.0 + 110.0 * h2) * size
+            grow = 1.0 - math.exp(-tau / (0.30 + 0.25 * h3))
+            x = p[0] + math.cos(ang) * sp * grow * 1.4
+            y = p[1] + math.sin(ang) * sp * grow * 0.55 - (14.0 + 26.0 * h3) * size * tau
+            r = (26.0 + 34.0 * h3) * size * (0.35 + 1.4 * grow)
+            a = alpha * (0.55 + 0.45 * h2) * math.exp(-tau / (1.1 + 0.6 * h1)) * smoothstep(0.0, 0.05, tau)
+            draw.glow_disc(A, (x, y), r, col, clamp(a))
+
+
+def weight_anchors(sk):
+    """[(lug (x, y), side k)] of the chest weights as costume._helmet hangs them (k = +1 the
+    one on the +x side of the breastplate, -1 the other), for sets.draw_lead_weight at
+    WEIGHT_S (its slab then covers the costume's weight rectangle)."""
+    Hh = sk.H
+    J = sk.j
+    c, R, vp, vr, inlet = costume.helmet_frame(sk)
+    w = sk.side_w
+    fwd = 1.0 if math.cos((sk.pose.yaw + sk.pose.head_yaw) * D2R) >= 0 else -1.0
+    neck, chest = J["neck"], J["chest"]
+    sw = sk.body.shoulder_w * Hh
+    pw = lerp(0.115 * Hh, sw * 1.45, w)
+    top = c[1] + R * 0.55
+    bot = lerp(neck[1], chest[1], 0.95)
+    cx = lerp(neck[0], chest[0], 0.5) + lerp(0.008 * Hh * fwd, 0.0, w)
+    y0 = lerp(top, bot, 0.62)
+    out = []
+    for k in (-1, 1):
+        xc = cx + k * pw * lerp(0.95, 0.5, w)
+        out.append(((xc, y0 + 0.0375 * Hh - 62.0 * WEIGHT_S), k))
+    return out
+
+
+WEIGHT_S = 0.42          # sets.draw_lead_weight scale matching the costume's chest weights
+
+
+def boot_frame(sk, side):
+    """(origin, angle deg, scale, flip) to draw sets.draw_lead_boot over the diver's foot
+    `side` so its sole matches figure's 'lead' sole (heel and toe on the ground)."""
+    pts = F._foot_shape(sk, side, "lead")
+    heel, toe = pts[5], pts[4]
+    dx, dy = toe[0] - heel[0], toe[1] - heel[1]
+    L = math.hypot(dx, dy) or 1.0
+    flip = dx < 0
+    s = L / 194.0
+    if flip:
+        ang = math.degrees(math.atan2(-dy, -dx))
+        a = math.radians(ang)
+        lx, ly = 66.0 * s, 4.0 * s                       # heel at local (+66, 4) when mirrored
+    else:
+        ang = math.degrees(math.atan2(dy, dx))
+        a = math.radians(ang)
+        lx, ly = -66.0 * s, 4.0 * s
+    ox = heel[0] - (lx * math.cos(a) - ly * math.sin(a))
+    oy = heel[1] - (lx * math.sin(a) + ly * math.cos(a))
+    return (ox, oy), ang, s, flip

@@ -29,8 +29,8 @@ T_SMASH = G8["smash"]
 _CAM = L.CamPath([
     (0.0, 1050.0, 990.0, 0.95),
     (2.3, 1060.0, 1000.0, 0.95),
-    (3.2, 990.0, 1395.0, 2.15),
-    (8.5, 965.0, 1430.0, 2.6),
+    (3.2, 975.0, 1395.0, 2.15),
+    (8.5, 955.0, 1430.0, 2.6),
     (9.5, 930.0, 1150.0, 1.25),
     (10.6, 980.0, 1120.0, 1.15),
     (12.66, 1560.0, 1010.0, 0.82),
@@ -195,14 +195,13 @@ def _draw_basket_spill(f, c, t, bk):
             a = 0.35 * L.ss(F8["roll"] + 0.3, F8["roll"] + 1.5, t) * (0.8 + 0.2 * S.flick(t, 41))
             with f.emit() as G:
                 S.glow(G, m, 40.0, MOOD.lamp, a)
-    bkt = S.Basket(L.BASKET_SIZE)
     from engine import draw
     for name in ("bread", "bottle"):
         st = L.item_state(name, t)
         if st is None:
             continue
         x, y, ang = st
-        poly = bkt.item_poly(name)
+        poly = L.item_poly(name)
         a = math.radians(ang)
         ca, sa = math.cos(a), math.sin(a)
         draw.poly(c, [(x + px * ca - py * sa, y + px * sa + py * ca) for px, py in poly])

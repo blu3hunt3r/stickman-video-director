@@ -438,24 +438,45 @@ def rim_offset(center, light, px):
 
 
 def draw_walker(f, t, w, look, color=None, rims=(), eyes=0.0, eye_open=None, eye_size=1.0, occlude=True,
-                sk=None, alpha=1.0):
+                sk=None, alpha=1.0, clip=None, M=None):
     """Draw a Walker's figure at t (main layer): ink silhouette with the look's part colours,
     additive rims [(rgb, alpha, offset px)], Limbo eyes (glow `eyes`), and erase the bloom
-    under it (f.emit glows drawn before it are hidden behind it). Returns (skeleton, M)."""
-    M = w.matrix(t)
+    under it (f.emit glows drawn before it are hidden behind it). clip: fn(c) that sets a
+    path to clip everything to (the part of a figure seen through a doorway). Returns (skeleton, M)."""
+    M = M or w.matrix(t)
     sk = sk or w.a.skeleton(t)
+
+    def _clip(c):
+        if clip is not None:
+            c.new_path()
+            clip(c)
+            c.clip()
     with f.layer() as Lc:
+        Lc.save()
+        _clip(Lc)
         draw_skeleton(Lc, sk, look, M, color=color, alpha=alpha)
+        Lc.restore()
     if occlude:
-        occlude_figure(f, 1.0, sk, look, M)
+        with f.emit() as G:
+            G.save()
+            _clip(G)
+            G.set_operator(cairo.OPERATOR_SOURCE)
+            draw_skeleton(G, sk, plain_look(look), M, color=(0.0, 0.0, 0.0))
+            G.restore()
     live = [r for r in rims if r[1] > 0.005]
     if live:
         with f.light() as A:
+            A.save()
+            _clip(A)
             for (col, a, off) in live:
                 rim(A, sk, look, M, col, a, off)
+            A.restore()
     if eyes > 0.01:
         with f.layer() as Lc:
+            Lc.save()
+            _clip(Lc)
             draw_eyes(f, sk, look, Lc, M, par=1.0, glow_k=eyes, open_=eye_open, size=eye_size)
+            Lc.restore()
     return sk, M
 
 
@@ -521,36 +542,92 @@ def _to_w(pts, at, ang, S):
     return [(at[0] + (x * ca - y * sa) * S, at[1] + (x * sa + y * ca) * S) for x, y in pts]
 
 
+def golden_arm_polys(sh, el, wr, blade_rel=150.0, blade=1.0, width=1.0, knife=True):
+    """World polygons of golden_arm() (arm pieces, fist, and the knife when blade > 0).
+    Returns (arm_polys, blade_polys)."""
+    a1 = math.atan2(el[1] - sh[1], el[0] - sh[0])
+    a2 = math.atan2(wr[1] - el[1], wr[0] - el[0])
+    L1 = max(math.hypot(el[0] - sh[0], el[1] - sh[1]), 1e-3)
+    L2 = max(math.hypot(wr[0] - el[0], wr[1] - el[1]), 1e-3)
+    if SHOW is None:
+        w = 0.32 * L1
+        return [[sh, el, wr, (wr[0] + w * 0.3, wr[1] + w * 0.3), (el[0] + w * 0.4, el[1] + w * 0.4)]], []
+    G = SHOW._geom()
+    S1 = L1 / SHOW.L1
+    S2 = L2 / SHOW.L2
+    Sw1, Sw2 = S1 * width, S2 * width
+    arm = [_to_w([(x, y * width) for x, y in G["upper"]], sh, a1, S1), _to_w(G["sh_disc"], sh, a1, Sw1),
+           _to_w(G["el_disc"], el, a1, Sw1), _to_w([(x, y * width) for x, y in G["fore"]], el, a2, S2),
+           _to_w(G["fist"], wr, a2, Sw2)]
+    bl = []
+    if knife and blade > 0.01:
+        a3 = a2 + math.radians(blade_rel)
+        fi = (wr[0] + math.cos(a2) * SHOW.FIST * S2, wr[1] + math.sin(a2) * SHOW.FIST * S2)
+        root = (fi[0] + math.cos(a3) * 0.012 * S2, fi[1] + math.sin(a3) * 0.012 * S2)
+        for b in G["blade"]:
+            bl.append(_to_w([(x * blade, y) for x, y in b], root, a3, S2))
+    return arm, bl
+
+
+def fill_polys(c, polys, color, alpha=1.0):
+    c.new_path()
+    for p in polys:
+        draw.poly(c, p)
+    draw.fill(c, color, alpha)
+
+
+def polys_rim(A, polys, color, alpha, offset):
+    """rim() for a set of polygons (the Golden Arm): their outline minus itself shifted."""
+    if alpha <= 0.005 or not polys:
+        return
+    A.push_group()
+    A.set_operator(cairo.OPERATOR_OVER)
+    fill_polys(A, polys, color)
+    A.set_operator(cairo.OPERATOR_DEST_OUT)
+    A.save()
+    A.translate(offset[0], offset[1])
+    fill_polys(A, polys, (0.0, 0.0, 0.0))
+    A.restore()
+    A.pop_group_to_source()
+    A.paint_with_alpha(clamp(alpha))
+
+
+def occlude_polys(f, polys):
+    """Erase the bloom buffer under polygons (a silhouette in front of a bulb)."""
+    if not polys:
+        return
+    with f.emit() as G:
+        G.save()
+        G.set_operator(cairo.OPERATOR_SOURCE)
+        fill_polys(G, polys, (0.0, 0.0, 0.0))
+        G.restore()
+
+
+def occlude_shape(f, fn, alpha=1.0):
+    """Erase the bloom buffer under whatever fn(c) fills."""
+    with f.emit() as G:
+        G.push_group()
+        fn(G)
+        pat = G.pop_group()
+        G.save()
+        G.set_operator(cairo.OPERATOR_DEST_OUT)
+        G.set_source_rgba(0, 0, 0, clamp(alpha))
+        G.mask(pat)
+        G.restore()
+
+
 def golden_arm(c, sh, el, wr, color=None, blade_rel=150.0, blade=1.0, width=1.0):
     """The killer's real arm in the show's cut-paper Golden-Arm pieces (jagged upper arm and
     forearm, angular fist, knife), laid along his shoulder -> elbow -> wrist (world).
     blade_rel: knife angle relative to the forearm (deg; ~150 = ice-pick grip, pointing down
     when the arm is raised)."""
     col = color or INK
-    a1 = math.atan2(el[1] - sh[1], el[0] - sh[0])
-    a2 = math.atan2(wr[1] - el[1], wr[0] - el[0])
-    L1 = math.hypot(el[0] - sh[0], el[1] - sh[1])
-    L2 = math.hypot(wr[0] - el[0], wr[1] - el[1])
     if SHOW is None:
+        L1 = math.hypot(el[0] - sh[0], el[1] - sh[1])
         bass.jagged_arm(c, sh, wr, col, width=0.35 * L1, jags=3, jag=0.7, claw=1.0, seed=3)
         return
-    G = SHOW._geom()
-    S1 = L1 / SHOW.L1
-    S2 = L2 / SHOW.L2
-    Sw1, Sw2 = S1 * width, S2 * width
-    polys = [_to_w([(x, y * width) for x, y in G["upper"]], sh, a1, S1), _to_w(G["sh_disc"], sh, a1, Sw1),
-             _to_w(G["el_disc"], el, a1, Sw1), _to_w([(x, y * width) for x, y in G["fore"]], el, a2, S2),
-             _to_w(G["fist"], wr, a2, Sw2)]
-    if blade > 0.01:
-        a3 = a2 + math.radians(blade_rel)
-        fi = (wr[0] + math.cos(a2) * SHOW.FIST * S2, wr[1] + math.sin(a2) * SHOW.FIST * S2)
-        root = (fi[0] + math.cos(a3) * 0.012 * S2, fi[1] + math.sin(a3) * 0.012 * S2)
-        for b in G["blade"]:
-            polys.append(_to_w([(x * blade, y) for x, y in b], root, a3, S2))
-    c.new_path()
-    for p in polys:
-        draw.poly(c, p)
-    draw.fill(c, col)
+    arm, bl = golden_arm_polys(sh, el, wr, blade_rel, blade, width)
+    fill_polys(c, arm + bl, col)
 
 
 def knife_tip(sh, el, wr, blade_rel=150.0):
@@ -588,6 +665,8 @@ class Room9:
       casters   [(z, fn(c))] shapes behind the sheet (as the camera sees them) -> its shadows
       wall_casters [(z, fn(c))] shapes in front of the back wall (lamp in front) -> its shadows
       items     [(z, fn(f, t))] people / things, drawn far -> near around the room's props
+      door_z    items nearer than this depth are drawn after the door (in front of its open
+                leaf); default: the door is drawn over every item
       after     fn(f, t) drawn last"""
 
     BUNCH = 0.35
@@ -907,6 +986,11 @@ class Room9:
                     slev = lv * 0.4 * lerp(0.4, 1.0, cover)
                 sh.light(f, t, hot, level=slev, back=behind)
                 self._sheet_emit_shadows(f, t, st, sh, lamp, b3, lv, behind)
+        dz_ = st.get("door_z")
+        front = []
+        if dz_ is not None:                       # what stands nearer than the door's leaf
+            front = [it for it in near if it[0] < dz_]
+            near = [it for it in near if it[0] >= dz_]
         for z, fn in near:
             fn(f, t)
         # the door and its handle
@@ -920,6 +1004,8 @@ class Room9:
                 glow(A, tip, 9.0, HOT, 0.55 * door.get("lever_rim", 0.0))
         self.door.light(f, t, open=dop, hall=hall, spill=door.get("spill", 0.0), feet=door.get("feet", ()))
         self.door_leaks(f, t, hall=hall, open_=dop, lit=door.get("lit", 0.0))
+        for z, fn in front:
+            fn(f, t)
         after = st.get("after")
         if after is not None:
             after(f, t)
