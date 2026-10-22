@@ -362,8 +362,10 @@ def bw_target(t):
     return layer_x(t, her_sx(t) + _bw_dx().x(t))
 
 
-@lru_cache(maxsize=None)
-def bw():
+def _bw_build(shift):
+    """The thicket wolf. Its run segments end on the BW_KEYS track every ~0.45 s; shift[j]
+    moves segment j's end time (the run's speed ramps make it arrive a little late or early:
+    bw() solves for the shifts so it arrives on time)."""
     w = Wolf(x=bw_target(-1.0) - 0.9 * BW_SIZE * 3.0, ground=TH.thicket_ground, facing=1, size=BW_SIZE, seed=3)
     G = {k_: dict(v) for k_, v in w.GAIT.items()}
     # a prowl: the walk on the stalk's low frame (hidden in the brambles, the eyes in them)
@@ -377,6 +379,7 @@ def bw():
     G["gallop"] = dict(G["gallop"], acc=7.0, v=6.0)
     w.GAIT = G
     o = BW_OFF
+    plan = []                           # (scene t the segment should end, its target x)
 
     def leg(t0, t1, kind=None, dt=0.45):
         n = max(1, int(round((t1 - t0) / dt)))
@@ -385,11 +388,15 @@ def bw():
             xa, xb = bw_target(ta), bw_target(tb)
             v = abs(xb - xa) / (tb - ta) / BW_SIZE
             k_ = kind or ("walk" if v < 1.4 else "trot" if v < 3.2 else "gallop")
-            getattr(w, k_)(to=xb, dur=tb - ta)
+            i = len(plan)
+            ta_s = ta + (shift[i - 1] if i > 0 and plan[-1][0] == ta else 0.0)
+            getattr(w, k_)(to=xb, dur=max(0.15, tb + shift[i] - ta_s))
+            plan.append((tb, xb))
 
     w.stalk(to=bw_target(-1.0), dur=3.0)          # (already pacing her in s03's last seconds)
+    plan.append((-1.0, bw_target(-1.0)))
     leg(-1.0, BW_STOP[0], "stalk")
-    w.crouch(dur=BW_STOP[1] - BW_STOP[0] - 0.35)
+    w.stand(dur=BW_STOP[1] - BW_STOP[0], low=1.5, head=-20.0, ears=0.9)
     w.at(BW_STOP[1] + o)
     leg(BW_STOP[1], 6.3, "walk")
     leg(6.3, 10.25)
@@ -397,6 +404,31 @@ def bw():
     # its head turned to us (both eyes on her) while it paces her
     w.overlay("look", 1.2 + o, dur=1.4, turn=42.0)
     w.overlay("look", 6.0 + o, dur=4.2, turn=38.0)
+    return w, plan
+
+
+def _arrival(w, x, t_guess):
+    """Scene time at which the wolf's root reaches x (searching near t_guess)."""
+    ts = np.arange(t_guess - 1.2, t_guess + 1.2, 1.0 / 120.0)
+    xs = np.array([w.state(float(t) + BW_OFF)["x"] for t in ts])
+    j = int(np.argmax(xs >= x - 0.5)) if np.any(xs >= x - 0.5) else len(ts) - 1
+    return float(ts[j])
+
+
+@lru_cache(maxsize=None)
+def bw():
+    shift = [0.0] * 64
+    for _ in range(4):
+        w, plan = _bw_build(shift)
+        worst = 0.0
+        for i, (tk, xk) in enumerate(plan):
+            if i == 0 or not (BW_STOP[1] < tk or tk <= BW_STOP[0]):
+                continue
+            err = _arrival(w, xk, tk) - tk
+            shift[i] -= 0.8 * err
+            worst = max(worst, abs(err))
+        if worst < 0.03:
+            break
     return w
 
 

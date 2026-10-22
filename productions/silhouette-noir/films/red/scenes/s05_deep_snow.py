@@ -778,8 +778,11 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
-    """Two sub-frames through the chase and the fall (fast legs, the gallop, the burst)."""
-    return 2 if t < 5.6 else 1
+    """Sub-frames through the chase and the fall (fast legs, the gallop, the burst). The
+    camera pans at up to 780 px/s early on: 4 taps keep the trunks and stakes from doubling."""
+    if t < 5.6:
+        return 4 if t < 1.6 else 3
+    return 1
 
 
 def cues(T):
