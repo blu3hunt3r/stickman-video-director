@@ -310,7 +310,7 @@ class Forest:
         dict) and the haze that follows it, before the next layer: to slip props (a title,
         a figure in the fog) between the fog layers."""
         mood = self._mood(f, mood)
-        backdrop(f, mood, glow=glow, glow_r=1100.0, glow_a=0.45 if mood.night < 0.5 else 0.15)
+        backdrop(f, mood, glow=glow, glow_r=1100.0, glow_a=lerp(0.45, 0.15, smoothstep(0.45, 0.55, mood.night)))
         for i, L in enumerate(self.layers):
             trees = self._trees(f, L)
             if L.get("direct"):

@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 
 from engine import draw
-from engine.core import clamp, lerp, hash01, fbm1
+from engine.core import clamp, lerp, hash01, fbm1, smoothstep
 from engine.palette import RED_FILM, RED
 
 PAL = RED_FILM
@@ -224,7 +224,10 @@ def backdrop(f, mood, glow=None, glow_r=900.0, glow_a=0.35):
     c.restore()
     if glow is not None and glow_a > 0:
         base = mood.sky_at(0.6)
-        hot = mix(base, mood.shaft, 0.75) if mood.night < 0.5 else mix(base, mood.fog_at(1.0), 0.8)
+        # day: a bright shaft-coloured hot spot; night: a cold fog glow (eased across night
+        # 0.45..0.55 so a mood blend through dusk does not pop)
+        w = smoothstep(0.45, 0.55, mood.night)
+        hot = mix(mix(base, mood.shaft, 0.75), mix(base, mood.fog_at(1.0), 0.8), w)
         with soft_layer(f, k=4, screen=True) as L:
             rg = cairo.RadialGradient(glow[0], glow[1], 0, glow[0], glow[1], glow_r)
             rg.add_color_stop_rgba(0, hot[0], hot[1], hot[2], glow_a)

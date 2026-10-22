@@ -86,8 +86,9 @@ def _mood(t):
 def _campath(house):
     st, ho, hd, wd = V.camera("start"), V.camera("house"), V.camera("hoods"), V.camera("wide")
     keys = [(-1.0, st.x, st.y, st.zoom), (0.55, st.x, st.y - 2.0, st.zoom * 1.004),
-            (2.25, 596.0, 1392.0, 1.72),                      # the far bend of the path
-            (3.50, 588.0, 1188.0, 2.60),
+            (1.55, 548.0, 1190.0, 1.31),                      # rising over her: she drops away
+            (2.40, 566.0, 862.0, 1.44),                       # out over the valley: the path's end
+            (3.45, 596.0, 905.0, 2.30),                       # gliding down it
             (house + 0.09, ho.x, ho.y, ho.zoom),              # the cottage: dead still
             (7.25, ho.x + 2.0, ho.y - 1.5, ho.zoom * 1.035),
             (8.45, hd.x, hd.y, hd.zoom),                      # the hood trees
@@ -193,9 +194,9 @@ def _layout():
 
 @lru_cache(maxsize=None)
 def _tri_shape(seed, ratio):
-    """A cut-paper triangle, height 1, centred on its bbox centre (unit coords)."""
-    pts = bass.triangle_pts((0.0, 0.5), 1.0, 0.0, seed, ratio)
-    return tuple(pts)
+    """A cut-paper triangle (cut at 100 px), height 1, centred on its bbox centre (unit)."""
+    pts = bass.triangle_pts((0.0, 50.0), 100.0, 0.0, seed, ratio)
+    return tuple((x / 100.0, y / 100.0) for x, y in pts)
 
 
 def _tri(c, h, seed, ratio=TRI_R, rot=0.0, sx=1.0):

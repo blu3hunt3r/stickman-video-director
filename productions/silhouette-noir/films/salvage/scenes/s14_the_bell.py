@@ -212,10 +212,10 @@ def _top_depth(t):
     """Helmet-top depth below mean sea level: a steady rise, easing near the surface (breaks
     the surface at s15 ~0.3)."""
     if t <= 8.0:
-        return 1500.0 - 140.0 * t
+        return 1500.0 - 125.0 * t
     D = 3.3
     u = min((t - 8.0) / D, 1.0)
-    p0, m0, p1, m1 = 380.0, -140.0 * D, 0.0, -80.0 * D
+    p0, m0, p1, m1 = 500.0, -125.0 * D, 0.0, -80.0 * D
     h00, h10, h01, h11 = 2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u, -2 * u ** 3 + 3 * u ** 2, u ** 3 - u ** 2
     v = h00 * p0 + h10 * m0 + h01 * p1 + h11 * m1
     if t > 8.0 + D:
@@ -224,7 +224,7 @@ def _top_depth(t):
 
 
 def _dv_x(t):
-    return -560.0 + 390.0 * smoothstep(-0.5, 6.6, t) + 100.0 * smoothstep(8.5, 10.2, t)
+    return -560.0 + 370.0 * smoothstep(-0.5, 6.6, t) + 130.0 * smoothstep(8.4, 10.2, t)
 
 
 def _dv_path(t):
@@ -237,9 +237,9 @@ def _dv_pose(t, u):
     for s, ph in (("L", 0.0), ("R", math.pi)):
         k = math.sin(2 * math.pi * t / 1.9 + ph)
         p.legs[s] = dict(hip=6.0 + 9.0 * k, abd=4.0, knee=12.0 + 10.0 * max(0.0, k), ankle=-14.0, toe=0.0)
-    # one hand up over the helmet (the ascent), the other easy at his side
-    p.arms["R"] = dict(sh=148.0 + 5.0 * noise1(t * 0.3, 7), abd=14.0, elbow=28.0, wrist=6.0, grip=0.4)
-    p.arms["L"] = dict(sh=14.0 + 6.0 * kick, abd=24.0, elbow=30.0, wrist=6.0, grip=0.3)
+    # one hand up over the helmet (the ascent; the outboard one), the other easy at his side
+    p.arms["L"] = dict(sh=148.0 + 5.0 * noise1(t * 0.3, 7), abd=14.0, elbow=28.0, wrist=6.0, grip=0.4)
+    p.arms["R"] = dict(sh=14.0 + 6.0 * kick, abd=24.0, elbow=30.0, wrist=6.0, grip=0.3)
     p.pitch = -4.0 + 2.0 * noise1(t * 0.2, 11)
     p.spine = [0.0, -2.0, -3.0]
     p.head = -46.0 + 4.0 * noise1(t * 0.25, 13)
@@ -310,7 +310,7 @@ def _beam(f, t):
     # where it meets the underside of the surface: a warm spot on the skin
     sx = p[0] + d[0] / max(0.2, -d[1]) * (p[1] - S.sea_y(p[0], t))
     with f.light(blur=14) as A:
-        draw.glow_disc(A, (sx, S.sea_y(sx, t) + 10.0), 120.0, PAL.light, 0.22)
+        draw.glow_disc(A, (sx, S.sea_y(sx, t) + 10.0), 120.0, PAL.light, 0.12)
 
 
 def _lamp_head(f, t):
@@ -323,12 +323,12 @@ def _silt(L, st, t, k):
     """Silt and weed streaming off the load as it is hauled up (part of the dark mass)."""
     if k <= 0.0:
         return
-    for i in range(14):
+    for i in range(22):
         h = hash01(77, i, 1)
         u = (hash01(77, i, 2) - 0.5) * 2.0
-        lag = 30.0 + 260.0 * h
-        p = LIB.bell_point(st, (u * 60.0 + 14.0 * math.sin(t * 0.9 + i), 120.0 + lag))
-        r = (26.0 + 46.0 * hash01(77, i, 3)) * (0.6 + 0.6 * h)
+        lag = -110.0 + 380.0 * h
+        p = LIB.bell_point(st, (u * 80.0 + 14.0 * math.sin(t * 0.9 + i), 120.0 + lag))
+        r = (30.0 + 50.0 * hash01(77, i, 3)) * (0.7 + 0.6 * h)
         L.save()
         L.translate(p[0], p[1])
         L.scale(r, r * (1.2 + 0.8 * h))
@@ -357,7 +357,8 @@ def _bell_under(f, t, st):
         return
     top_d = st["top"][1]
     depth = max(0.0, top_d + 150.0)
-    fog = (0.30 + 0.26 * smoothstep(0.0, 1600.0, depth)) * (1.0 - 0.5 * smoothstep(7.9, 8.6, t))
+    fog = (0.30 + 0.26 * smoothstep(0.0, 1600.0, depth) + 0.2 * (1.0 - smoothstep(7.7, 8.3, t))) \
+        * (1.0 - 0.5 * smoothstep(7.9, 8.6, t))
     blur = lerp(3.0, 11.0, smoothstep(0.0, 1400.0, depth)) * f.cam.zoom / 0.5
     wc = S.water_at(depth, BRIGHT)
     x0, y0, x1, y1 = f.cam.view_rect(300)
