@@ -340,9 +340,9 @@ def _window_glare(f, t, tl):
 
 
 def draw_apartment(f, t, T, w):
-    cam = _cam_spline([(0.0, (395.0, 965.0, 1.10), "hold"), (0.9, (395.0, 965.0, 1.10)),
-                       (w[1] + 0.25, (432.0, 988.0, 1.13)), (w[2] + 0.25, (440.0, 952.0, 1.17)),
-                       (w[3] + 0.55, (505.0, 905.0, 1.27)), (CUT_T, (512.0, 900.0, 1.32))])(t)
+    cam = _cam_spline([(0.0, (395.0, 1000.0, 1.10), "hold"), (0.9, (395.0, 1000.0, 1.10)),
+                       (w[1] + 0.25, (432.0, 1015.0, 1.13)), (w[2] + 0.25, (440.0, 980.0, 1.17)),
+                       (w[3] + 0.55, (505.0, 930.0, 1.27)), (CUT_T, (512.0, 922.0, 1.32))])(t)
     sh = 1.6 * smoothstep(0.1, 0.4, t)
     f.set_camera(cam.copy(x=cam.x + sh * fbm1(t * 0.9, 31), y=cam.y + sh * fbm1(t * 0.9, 37)))
     tl = torches(t, w)
@@ -358,8 +358,8 @@ def draw_apartment(f, t, T, w):
         lights.append(dict(pos=st["pos"], dir=st["dir"], cone=6.0, soft=5.0, color=TORCH, power=2.0 * st["level"],
                            reach=reach))
         # the hot spot on the surface: brighter and crisper than the beam in the air
-        extra.append(dict(kind="spot", pos=st["pos"], dir=st["dir"], cone=6.5, soft=2.5, color=TORCH,
-                          power=15.0 * st["level"], r0=0.2))
+        extra.append(dict(kind="spot", pos=st["pos"], dir=st["dir"], cone=5.5, soft=2.5, color=TORCH,
+                          power=7.0 * st["level"], r0=0.2))
 
     def marks(f_, t_):
         _room_marks(f_, t_)
@@ -639,7 +639,9 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
-    if 0.15 < t < 0.34 or 5.9 < t < 6.7 or 7.45 < t < 8.15 or 10.0 < t < 10.85:
+    if 0.15 < t < 0.42:
+        return 3
+    if 5.9 < t < 6.7 or 7.45 < t < 8.15 or 10.0 < t < 10.85:
         return 2
     return 1
 
