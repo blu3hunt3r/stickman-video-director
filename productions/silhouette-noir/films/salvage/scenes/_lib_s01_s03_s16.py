@@ -447,6 +447,19 @@ def bell_point(st, local, s=BELL_S):
     return (st["top"][0] + x * math.cos(a) - y * math.sin(a), st["top"][1] + x * math.sin(a) + y * math.cos(a))
 
 
+def _bell_rim_body(c):
+    """sets_props._bell_body with a wider crown hole, for the offset rim copy (so the ink
+    bell's own hole never shows a sliver of the pale copy)."""
+    S.solid_circle(c, (0, 13), 13)
+    S.hole_circle(c, (0, 13), 10.5)
+    draw.poly(c, S.oriented([(-9, 20), (9, 20), (11, 30), (-11, 30)]))
+    pts = [(-30, 30), (-22, 26), (0, 24), (22, 26), (30, 30), (36, 44), (37, 70), (40, 96), (49, 118), (61, 134),
+           (66, 142), (60, 146), (0, 141), (-60, 146), (-66, 142), (-61, 134), (-49, 118), (-40, 96), (-37, 70),
+           (-36, 44)]
+    draw.smooth(c, S.oriented(pts), close=True, tension=0.42)
+    draw.poly(c, S.oriented([(-67, 136), (67, 136), (69, 143), (-69, 143)]))
+
+
 def draw_bell_lit(ctx, st, moon_dir, zoom, color=INK, rim=0.0, sheen=0.0, rim_col=None):
     """The bell in ink with moonlight on it: a thin rim on the edges facing the moon (an
     offset pale copy under the ink) and a wet sheen just inside them. moon_dir: unit vector
@@ -457,7 +470,10 @@ def draw_bell_lit(ctx, st, moon_dir, zoom, color=INK, rim=0.0, sheen=0.0, rim_co
         ctx.save()
         ctx.translate(moon_dir[0] * off, moon_dir[1] * off)
         ctx.new_path()
-        bell_path(ctx, st)
+        ctx.translate(*st["top"])
+        ctx.rotate(math.radians(st["angle"]))
+        ctx.scale(BELL_S, BELL_S)
+        ctx.append_path(S.shape("bell_rim_body_lib", _bell_rim_body))
         ctx.set_source_rgba(rc[0], rc[1], rc[2], clamp(rim))
         ctx.fill()
         ctx.restore()

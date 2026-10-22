@@ -157,7 +157,8 @@ def _c_pose(t, u):
                      "pitch": 0.0, "toe": 0.0, "abd": 3.0}
     # the far arm hangs with the knife; the near one is on the crank (reach below)
     p.arms["L"] = dict(sh=lerp(-28.0, -6.0, k), abd=6.0, elbow=lerp(24.0, 16.0, k), wrist=8.0, grip=1.0)
-    p.arms["R"] = dict(sh=lerp(70.0, 8.0, k), abd=6.0, elbow=lerp(20.0, 14.0, k), wrist=0.0, grip=lerp(1.0, 0.5, k))
+    kr = smoothstep(10.2, 10.75, t)
+    p.arms["R"] = dict(sh=lerp(60.0, 4.0, kr), abd=6.0, elbow=lerp(24.0, 16.0, kr), wrist=0.0, grip=lerp(1.0, 0.5, kr))
     p.eyes = dict(open=1.0, glow=0.9, look=0.0)
     return p
 
@@ -212,10 +213,10 @@ def _top_depth(t):
     """Helmet-top depth below mean sea level: a steady rise, easing near the surface (breaks
     the surface at s15 ~0.3)."""
     if t <= 8.0:
-        return 1500.0 - 125.0 * t
+        return 1500.0 - 110.0 * t
     D = 3.3
     u = min((t - 8.0) / D, 1.0)
-    p0, m0, p1, m1 = 500.0, -125.0 * D, 0.0, -80.0 * D
+    p0, m0, p1, m1 = 620.0, -110.0 * D, 0.0, -80.0 * D
     h00, h10, h01, h11 = 2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u, -2 * u ** 3 + 3 * u ** 2, u ** 3 - u ** 2
     v = h00 * p0 + h10 * m0 + h01 * p1 + h11 * m1
     if t > 8.0 + D:
@@ -224,7 +225,7 @@ def _top_depth(t):
 
 
 def _dv_x(t):
-    return -560.0 + 370.0 * smoothstep(-0.5, 6.6, t) + 130.0 * smoothstep(8.4, 10.2, t)
+    return -560.0 + 290.0 * smoothstep(-0.5, 6.6, t) + 220.0 * smoothstep(8.2, 9.9, t)
 
 
 def _dv_path(t):
@@ -334,7 +335,7 @@ def _silt(L, st, t, k):
         L.scale(r, r * (1.2 + 0.8 * h))
         L.arc(0, 0, 1.0, 0, 2 * math.pi)
         L.restore()
-        L.set_source_rgba(INK[0], INK[1], INK[2], 0.55 * k * (1.0 - 0.6 * h))
+        L.set_source_rgba(INK[0], INK[1], INK[2], 0.7 * k * (1.0 - 0.5 * h))
         L.fill()
 
 
@@ -357,7 +358,7 @@ def _bell_under(f, t, st):
         return
     top_d = st["top"][1]
     depth = max(0.0, top_d + 150.0)
-    fog = (0.30 + 0.26 * smoothstep(0.0, 1600.0, depth) + 0.2 * (1.0 - smoothstep(7.7, 8.3, t))) \
+    fog = (0.22 + 0.16 * smoothstep(0.0, 1600.0, depth) + 0.2 * (1.0 - smoothstep(7.7, 8.3, t))) \
         * (1.0 - 0.5 * smoothstep(7.9, 8.6, t))
     blur = lerp(3.0, 11.0, smoothstep(0.0, 1400.0, depth)) * f.cam.zoom / 0.5
     wc = S.water_at(depth, BRIGHT)
@@ -409,26 +410,28 @@ def _bell_water(f, t, st):
     LIB.splash(f, t, xb + 24.0, T_CLEAR, 60, 0.7, 32)
     if t > T_BREAK - 0.1:
         LIB.bell_pour(f, t, BOAT, T_CLEAR, rate=1.0, seed=5)
-    # the water film running down the bell's flanks while it rises out of the sea
-    if T_BREAK < t < T_CLEAR + 0.6:
-        k = smoothstep(T_BREAK, T_BREAK + 0.2, t) * (1.0 - smoothstep(T_CLEAR + 0.1, T_CLEAR + 0.6, t))
+    # rivulets running down its flanks while it rises out of the sea (inside the silhouette)
+    if T_BREAK < t < T_CLEAR + 1.6:
+        k = smoothstep(T_BREAK, T_BREAK + 0.2, t) * (1.0 - smoothstep(T_CLEAR + 0.3, T_CLEAR + 1.6, t))
         c = f.ctx
-        col = LIB.SPRAY
         c.save()
+        c.new_path()
+        LIB.bell_path(c, st)
+        c.clip()
         x0, y0, x1, y1 = f.cam.view_rect(300)
         _sea_clip(c, x0, x1, t, below=False)
-        for side in (-1.0, 1.0):
-            for j in range(5):
-                u = 0.35 + 0.13 * j
-                ya = 40.0 + 18.0 * j + 12.0 * math.sin(t * 9.0 + j)
-                pts = []
-                for i in range(9):
-                    v = i / 8.0
-                    yy = lerp(ya, 146.0, v)
-                    xx = side * (lerp(30.0, 66.0, (yy - 30.0) / 116.0) + 1.5) * (0.98 + 0.02 * u)
-                    pts.append(LIB.bell_point(st, (xx, yy)))
-                LIB.draw_hose(c, pts, (2.2 + 1.4 * hash01(5, j, side > 0)) / f.cam.zoom * 0.6, color=col,
-                              alpha=0.55 * k)
+        for j in range(9):
+            side = 1.0 if j % 2 else -1.0
+            u = 0.25 + 0.7 * hash01(5, j, 1)
+            ph = hash01(5, j, 2) * 6.0
+            pts = []
+            for i in range(10):
+                v = i / 9.0
+                yy = lerp(30.0 + 20.0 * hash01(5, j, 3), 142.0, v)
+                half = lerp(30.0, 64.0, clamp((yy - 30.0) / 112.0)) * (0.9 + 0.08 * u)
+                xx = side * half * u + 2.0 * math.sin(yy / 9.0 + ph + 7.0 * t)
+                pts.append(LIB.bell_point(st, (xx, yy)))
+            LIB.draw_hose(c, pts, 1.6 / f.cam.zoom, color=LIB.MOONLIT, alpha=0.32 * k * (0.6 + 0.4 * u))
         c.restore()
 
 
