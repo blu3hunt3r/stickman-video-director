@@ -1,0 +1,11 @@
+# heavy / regenerable intermediates
+out/
+qa/
+__pycache__/
+*.pyc
+
+# narration: keep the lossless FLAC in git, the WAV is decoded on demand
+audio/vo/*.wav
+films/*/audio/vo/*.wav
+films/*/out/
+films/*/qa/
