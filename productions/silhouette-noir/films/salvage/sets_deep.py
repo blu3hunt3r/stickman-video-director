@@ -151,15 +151,17 @@ class Painter:
         self.items = []
         self._n = 0
 
-    def add(self, z, fn):
-        """fn(ctx, view) draws (and fills) itself in action-plane coords."""
+    def add(self, z, fn, front=None):
+        """fn(ctx, view) draws (and fills) itself in action-plane coords. front: drawn by
+        render(front=True) as a soft occluder over the action plane (default: z < 0)."""
         self._n += 1
-        self.items.append((z, self._n, fn))
+        self.items.append((z, self._n, fn, (z < 0.0) if front is None else bool(front)))
 
-    def render(self, f, view, zmin=0.0, zmax=1e9, bins=((9000.0, 7.0), (3200.0, 3.5), (900.0, 1.4), (-1e9, 0.0))):
-        """Draw the items with zmin <= z < zmax. bins: [(z_from, blur_px)], far to near: items
-        with z >= z_from (and below the previous bin) go into a layer blurred by blur_px."""
-        its = sorted([it for it in self.items if zmin <= it[0] < zmax], key=lambda it: (-it[0], it[1]))
+    def render(self, f, view, front=False, bins=((9000.0, 7.0), (3200.0, 3.5), (900.0, 1.4), (-1e9, 0.0))):
+        """Draw the main-pass items (front=False) or the front occluders (front=True), far to
+        near. bins: [(z_from, blur_px)], far to near: items with z >= z_from (and below the
+        previous bin) go into a layer blurred by blur_px."""
+        its = sorted([it for it in self.items if it[3] == front], key=lambda it: (-it[0], it[1]))
         if not its:
             return
         hi = 1e18
@@ -169,7 +171,7 @@ class Painter:
             if not group:
                 continue
             with f.layer(blur=blur) as L:
-                for z, _, fn in group:
+                for z, _, fn, _f in group:
                     fn(L, view)
 
 
@@ -514,14 +516,14 @@ class DeepWorld:
         view = view or View(f)
         P = self.painter(f, t, view, wreck_kw)
         if bins:
-            P.render(f, view, 0.0, 1e9, bins)
+            P.render(f, view, False, bins)
         else:
-            P.render(f, view, 0.0, 1e9)
+            P.render(f, view, False)
         return view
 
     def draw_front(self, f, t, view=None, wreck_kw=None, blur=14.0):
         """Paint items in front of the action plane (z < 0) as soft occluders."""
         view = view or View(f)
         P = self.painter(f, t, view, wreck_kw)
-        P.render(f, view, -1e9, 0.0, bins=((-1e9, blur),))
+        P.render(f, view, True, bins=((-1e9, blur),))
         return view

@@ -44,6 +44,16 @@ def _ss(a, b, x):
     return smoothstep(a, b, x)
 
 
+class _MainPass:
+    """Painter proxy: items added through it are never treated as front occluders."""
+
+    def __init__(self, P):
+        self.P = P
+
+    def add(self, z, fn):
+        self.P.add(z, fn, front=False)
+
+
 class Wreck:
     """The Meridian on the seabed. heading: angle of her length to the view axis (negative =
     the bow recedes to the left and the deck faces the camera); z0: distance of her stern
@@ -57,11 +67,13 @@ class Wreck:
     FOC = 280.0
     BURY = 230.0        # her port side is sunk this deep into the silt
 
-    BELL_SBH = (1750.0, 380.0, 2580.0 + 760.0 + 300.0)   # bracket end (s, b, h)
-    LINE_SBH = (1750.0, 1050.0, 2580.0 + 420.0)          # winch line enters the deckhouse here
+    BELL_SBH = (260.0, -930.0, 2580.0 + 430.0)    # end of the bell's bracket arm (s, b, h): low on her
+                                                  # port quarter, a diver's reach above the silt
+    BELL_SCALE = 1.5                              # the bell prop is drawn at this size (k * 1.5)
+    LINE_SH = (1750.0, 1900.0)                    # the starboard port (facing up) over the captain's cabin
     HOLES = ((3350.0, 560.0, 150.0), (4250.0, 760.0, 185.0), (5150.0, 600.0, 130.0))   # (s, h, radius)
 
-    def __init__(self, heading=-34.0, z0=1350.0, bell_x=None, heel=90.0):
+    def __init__(self, heading=24.0, bell_z=150.0, bell_x=None, heel=90.0):
         th = math.radians(heading)
         ph = math.radians(heel)
         self.heading, self.heel = heading, heel
@@ -78,7 +90,7 @@ class Wreck:
         bx = DIVE_X if bell_x is None else bell_x
         x_b = self.W(*self.BELL_SBH)[0]
         self.ox = bx - x_b
-        self.oz = z0
+        self.oz = bell_z - self.W(*self.BELL_SBH)[2]
         self._items_cache = None
 
     # ---------------------------------------------------------------- frame
@@ -146,7 +158,7 @@ class Wreck:
 
     def bell_screen(self, view, t=0.0):
         """(X, Y, k): the bell's hanging point in action-plane coords this frame and the
-        scale to draw props there (draw_bell(ctx, X, Y, s=k, ...))."""
+        scale to draw props there (draw_bell(ctx, X, Y, s=k * Wreck.BELL_SCALE, ...))."""
         x, y, z = self.bell_point(t)
         X, Y = view.P(x, y, z)
         return X, Y, view.k(z)
@@ -154,7 +166,8 @@ class Wreck:
     def line_entry(self):
         """World (x, y, z) of the starboard port (now facing up) where the winch line enters
         the captain's deckhouse."""
-        return self.W(*self.LINE_SBH)
+        s, h = self.LINE_SH
+        return self.W(s, self.hb_at(s, h), h)
 
     def holes(self):
         """[(world centre (x, y, z), radius)] of the three cut holes (petals outward = up)."""
@@ -175,8 +188,10 @@ class Wreck:
     # ---------------------------------------------------------------- items
     def add_items(self, P, t, bell=True, bell_angle=None, clapper=None, petals=True, lines=True,
                   detail=1.0):
-        """Add all wreck silhouette items to a sets_deep.Painter."""
+        """Add all wreck silhouette items to a sets_deep.Painter (all in the main pass, even the
+        parts that come in front of the action plane)."""
         W_ = self.W
+        P = _MainPass(P)
         # hull body: swept between stations
         st = [0, 300, 600, 1100, 1800, 2600, 3199, 3201, 4300, 6000, 8000, 10000, 12000, 14000, 15500,
               16800, 18299, 18301, 19300, 20100, 20700, 21000]
@@ -215,8 +230,8 @@ class Wreck:
 
         D, PO = self.D, self.POOP
         dp = D + PO
-        # poop deckhouse (the captain's quarters) + skylight
-        for (s0, s1, b0, b1, h0, h1) in ((700, 2700, -1050, 1050, dp, dp + 760), (1450, 2000, -330, 330, dp + 760, dp + 900)):
+        # poop: companion house + skylight over the captain's cabin (which is under the poop deck)
+        for (s0, s1, b0, b1, h0, h1) in ((1350, 2350, -520, 520, dp, dp + 520), (1600, 2100, -260, 260, dp + 520, dp + 640)):
             n, f_ = box(s0, s1, b0, b1, h0, h1)
             zm = sum(p[2] for p in n + f_) / 8
             P.add(zm - 200, lambda ctx, view, n=n, f_=f_: prism3(ctx, view, n, f_))
@@ -252,18 +267,20 @@ class Wreck:
         # ensign staff at the stern, bent
         a3, b3, c3 = W_(60, 0, dp), W_(60, 0, dp + 900), W_(60, -260, dp + 1500)
         P.add(a3[2] - 100, lambda ctx, view: (rod3(ctx, view, a3, b3, 30, 24), rod3(ctx, view, b3, c3, 24, 16)))
-        # bell bracket (the bell itself is drawn as a prop at the bracket end)
+        # the bell's bracket: an arm out of her port quarter (now horizontal, low over the silt) + a brace
         s_, b_, h_ = self.BELL_SBH
-        br0, br1 = W_(s_, b_, dp + 760), W_(s_, b_, h_ + 20)
-        brace0 = W_(s_, b_ - 220, dp + 760)
+        br0, br1 = W_(s_, b_, dp - 10), W_(s_, b_, h_ + 20)
+        brace0, brace1 = W_(s_, b_ + 320, dp - 10), W_(s_, b_, dp + 300)
+        bs = self.BELL_SCALE
+
         def bracket(ctx, view, t=t):
-            rod3(ctx, view, br0, br1, 30, 26)
-            rod3(ctx, view, brace0, W_(s_, b_, h_ - 120), 18, 16)
+            rod3(ctx, view, br0, br1, 34, 28)
+            rod3(ctx, view, brace0, brace1, 20, 18)
             if bell:
                 X, Y = view.Pp(br1)
                 k = view.k(br1[2])
                 ang, cl = bell_swing(t, seed=1) if bell_angle is None else (bell_angle, clapper or 0.0)
-                draw_bell(ctx, X, Y - 4 * k, angle=ang, clapper=cl, s=k, color=view.tone(br1[2], Y), yoke=True)
+                draw_bell(ctx, X, Y - 6 * k, angle=ang, clapper=cl, s=k * bs, color=view.tone(br1[2], Y), yoke=True)
         P.add(br1[2] - 150, bracket)
         # mainmast (broken), crosstree, slack shrouds, hanging derricks
         sm = 4700.0

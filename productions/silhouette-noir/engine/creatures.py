@@ -437,36 +437,754 @@ def _blend_pose(a, b, w, S):
     return P
 
 
-class _QStand(_Clip):
-    """Idle stand: breathing, tail sway, small head drift, ear flicks. Paws stay planted."""
-    kind = "stand"
+def _fac(yaw):
+    return 1.0 if math.cos(yaw * D2R) >= 0 else -1.0
 
-    def __init__(self, A, t0, state, dur=1.0, fade=0.3, base=None, look=0.0, head=None,
-                 neck=None, tail=None, ears=None, low=0.0, **kw):
-        _Clip.__init__(self, A, t0, state, dur, fade, base)
-        self.look, self.head_o, self.neck_o, self.tail_o, self.ears_o = look, head, neck, tail, ears
-        self.low = low
+
+def _step_leg(la, lb, u, S, lift=0.07):
+    """A paw stepping from la to lb as u goes 0..1: a quick arc, the paw peeling off."""
+    if u <= 0.0:
+        out = list(la)
+        out[6] = 1.0
+        return out
+    if u >= 1.0:
+        out = list(lb)
+        out[6] = 1.0
+        return out
+    us = u * u * (3 - 2 * u)
+    d = math.hypot(lb[0] - la[0], lb[1] - la[1])
+    if d < 0.02 * S:            # nothing to step over: just re-angle the paw in place
+        return [la[0] + (lb[0] - la[0]) * us, la[1] + (lb[1] - la[1]) * us,
+                la[2] + (lb[2] - la[2]) * us, la[3] + (lb[3] - la[3]) * us,
+                la[4] + (lb[4] - la[4]) * us, la[5] + (lb[5] - la[5]) * us, 1.0]
+    sp = math.sin(math.pi * u)
+    h = min(lift * S, 0.5 * d + 0.015 * S) * sp
+    return [la[0] + (lb[0] - la[0]) * us, la[1] + (lb[1] - la[1]) * us - h,
+            la[2] + (lb[2] - la[2]) * us,
+            la[3] + (lb[3] - la[3]) * us + 28.0 * sp,
+            la[4] + (lb[4] - la[4]) * us + 0.3 * sp,
+            la[5] + (lb[5] - la[5]) * us, 0.0]
+
+
+def _girdles(A, P):
+    """World (x, y) of the withers and of the sacrum for a pose (arch ignored)."""
+    S = A.S
+    half = 0.5 * P["chord"] * A.PR["chord"] * S
+    c = math.cos(P["yaw"] * D2R)
+    xw, xs = P["x"] + c * half, P["x"] - c * half
+    return (xw, A.ground(xw) - P["hf"] * S), (xs, A.ground(xs) - P["hh"] * S)
+
+
+def _keyframes(t, frames, key, default):
+    """Smoothstep interpolation of one key through [(t, {key: value}), ...] (sorted)."""
+    prev_t, prev_v = None, None
+    for tk, d in frames:
+        v = d.get(key, default)
+        if t <= tk:
+            if prev_t is None:
+                return v
+            return prev_v + (v - prev_v) * _s01((t - prev_t) / max(tk - prev_t, 1e-6))
+        prev_t, prev_v = tk, v
+    return prev_v
+
+
+class _QPosture(_Clip):
+    """Body postures (stand, sit, lie, crouch): an eased transition from the start pose into
+    the posture over t_in, with paws that step where they must, then a living hold."""
+    kind = "posture"
+    POSTURE = "stand"
+    T_IN = 0.8
+    BREATH_AMP = 1.0
+    BREATH_PER = None
+
+    def __init__(self, A, t0, state, dur=1.0, fade=0.25, base=None, **kw):
+        _Clip.__init__(self, A, t0, state, dur, fade, base, **kw)
+        self.yaw = state["yaw"]
+        self.fac = _fac(self.yaw)
+        self.x0 = state["x"]
+        self.p0 = dict(A.STAND)
+        self.p0.update(state.get("pose") or {})
+        self.legs0 = {k: list(v) for k, v in state["legs"].items()}
+        self.post0 = state.get("posture", "stand")
+        self.t_in = min(self._t_in(), max(0.2, self.dur))
+        K, x1, legs1, sched, stage = self._targets()
+        self.T = dict(A.STAND)
+        self.T.update(K)
+        self.x1, self.legs1, self.sched, self.stage = x1, legs1, sched, stage
+        self.end_state = dict(x=x1, yaw=self.yaw, legs={k: list(v) for k, v in legs1.items()},
+                              pose=dict(self.T), posture=self.POSTURE)
+
+    def _t_in(self):
+        return self.T_IN
+
+    def _targets(self):
+        raise NotImplementedError
+
+    def _live(self, P, t, u):
+        pass
+
+    STEP_LIFT = 0.07
 
     def pose(self, t):
-        A = self.A
-        st = self.start
-        P = A._base_params(st["x"], st["yaw"], t)
-        if self.head_o is not None:
-            P["head"] = self.head_o
-        if self.neck_o is not None:
-            P["neck"] = self.neck_o
-        if self.tail_o is not None:
-            P["tail"] = self.tail_o
-        if self.ears_o is not None:
-            P["ears"] = self.ears_o
-        P["hturn"] = self.look
-        if self.low:
-            P["hf"] -= 0.12 * self.low
-            P["hh"] -= 0.08 * self.low
-            P["neck"] -= 20 * self.low
-        A._idle(P, t, self.t0)
-        P["legs"] = {k: list(v) for k, v in st["legs"].items()}
+        A, S = self.A, self.A.S
+        u = clamp((t - self.t0) / self.t_in) if self.t_in > 0 else 1.0
+        sx = self.stage.get("x", (0.1, 0.9))
+        x = self.x0 + (self.x1 - self.x0) * _ss(sx[0], sx[1], u)
+        P = A._base_params(x, self.yaw, t)
+        p0, T, stage = self.p0, self.T, self.stage
+        for key in _POSE_KEYS:
+            a, b = p0.get(key, 0.0), T.get(key, 0.0)
+            if a == b:
+                P[key] = b
+            else:
+                s0, s1 = stage.get(key, (0.0, 1.0))
+                P[key] = a + (b - a) * _ss(s0, s1, u)
+        self._live(P, t, u)
+        A._idle(P, t, self.t0, amp=self.BREATH_AMP, period=self.BREATH_PER)
+        legs = {}
+        for k in LEGS:
+            s0, s1 = self.sched.get(k, (0.0, 1.0))
+            legs[k] = _step_leg(self.legs0[k], self.legs1[k], (u - s0) / max(s1 - s0, 1e-6), S,
+                                self.STEP_LIFT)
+        P["legs"] = legs
         return P
+
+    def _front_x(self):
+        return 0.5 * (self.legs0["LF"][0] + self.legs0["RF"][0])
+
+    def _hind_x(self):
+        return 0.5 * (self.legs0["LH"][0] + self.legs0["RH"][0])
+
+
+class _QStand(_QPosture):
+    """Idle stand: breathing, tail sway, small head drift, ear flicks. Paws stay planted
+    (after a sit / lie / crouch the wolf first gets up, stepping the hind paws back)."""
+    kind = "stand"
+    POSTURE = "stand"
+
+    def __init__(self, A, t0, state, dur=1.0, fade=0.25, base=None, look=0.0, head=None,
+                 neck=None, tail=None, ears=None, low=0.0, **kw):
+        self.look, self.head_o, self.neck_o, self.tail_o, self.ears_o = look, head, neck, tail, ears
+        self.low = low
+        _QPosture.__init__(self, A, t0, state, dur, fade, base, **kw)
+
+    def _t_in(self):
+        return {"crouch": 0.4, "sit": 0.8, "lie": 1.1}.get(self.post0, 0.5)
+
+    def _targets(self):
+        A, S, fac = self.A, self.A.S, self.fac
+        st = A.STAND
+        K = dict(hturn=self.look)
+        for key, v in (("head", self.head_o), ("neck", self.neck_o), ("tail", self.tail_o),
+                       ("ears", self.ears_o)):
+            if v is not None:
+                K[key] = v
+        if self.low:
+            K["hf"] = st["hf"] - 0.12 * self.low
+            K["hh"] = st["hh"] - 0.08 * self.low
+            K["neck"] = K.get("neck", st["neck"]) - 20 * self.low
+        if self.post0 == "stand":
+            legs1 = {k: list(v) for k, v in self.legs0.items()}
+            for v in legs1.values():
+                v[3] = v[4] = v[5] = 0.0
+            return K, self.x0, legs1, {}, {"x": (0.0, 1.0)}
+        # getting up: front paws stay, the body rises over them, the hind paws step back
+        PR = A.PR
+        x1 = self._front_x() - fac * (0.5 * PR["chord"] + PR["toe_f"] + 0.012) * S
+        legs1 = A._stand_legs(x1, self.yaw)
+        for k in ("LF", "RF"):
+            legs1[k] = [self.legs0[k][0], self.legs0[k][1], legs1[k][2], 0.0, 0.0, 0.0, 1.0]
+        sched = {"LH": (0.12, 0.6), "RH": (0.28, 0.76), "LF": (0.0, 0.5), "RF": (0.0, 0.5)}
+        stage = {"x": (0.0, 0.75), "hh": (0.0, 0.7), "hf": (0.0, 0.55), "chord": (0.0, 0.7),
+                 "neck": (0.0, 0.6), "head": (0.0, 0.6), "tail": (0.2, 1.0)}
+        if self.post0 == "lie":
+            sched = {"LH": (0.3, 0.7), "RH": (0.42, 0.82), "LF": (0.0, 0.3), "RF": (0.0, 0.3)}
+            stage.update({"hf": (0.0, 0.5), "hh": (0.25, 0.85), "x": (0.0, 0.8)})
+        return K, x1, legs1, sched, stage
+
+
+class _QSit(_QPosture):
+    """Sit: the rump drops onto the folded hind legs (hocks on the ground), chest upright,
+    forelegs straight under the withers, tail along the ground."""
+    kind = "sit"
+    POSTURE = "sit"
+    T_IN = 0.95
+    STEP_LIFT = 0.025
+
+    def __init__(self, A, t0, state, dur=2.0, fade=0.25, base=None, look=0.0, **kw):
+        self.look = look
+        _QPosture.__init__(self, A, t0, state, dur, fade, base, **kw)
+
+    def _targets(self):
+        A, S, fac, PR = self.A, self.A.S, self.fac, self.A.PR
+        K = dict(hf=0.90, hh=0.32, chord=0.64, arch=-0.012, neck=46.0, head=-18.0, tail=-100.0,
+                 tcurve=0.5, ears=0.45, tsway=0.35, sit=1.0, hturn=self.look)
+        xf = self._front_x()
+        if self.post0 == "lie":     # sitting up from lying: the front paws come back
+            xf = self._hind_x() + fac * 0.47 * S
+        x1 = xf - fac * (0.5 * 0.64 * PR["chord"] + 0.05) * S
+        legs1 = {}
+        for k in LEGS:
+            l0 = self.legs0[k]
+            if _FRONT[k]:
+                xx = xf + fac * (0.012 if k == "LF" else -0.012) * S
+                legs1[k] = [xx, A.ground(xx), l0[2], 0.0, 0.0, 0.0, 1.0]
+            else:
+                xx = xf - fac * (0.44 + (0.02 if k == "LH" else -0.02)) * S
+                legs1[k] = [xx, A.ground(xx), l0[2] * 1.3, 0.0, 0.0, 80.0, 1.0]
+        sched = {"LH": (0.22, 0.66), "RH": (0.32, 0.76), "LF": (0.0, 0.5), "RF": (0.05, 0.55)}
+        stage = {"x": (0.1, 0.85), "hh": (0.12, 0.95), "chord": (0.12, 0.9), "hf": (0.2, 0.95),
+                 "neck": (0.0, 0.7), "head": (0.0, 0.7), "tail": (0.35, 1.0)}
+        return K, x1, legs1, sched, stage
+
+    def _live(self, P, t, u):
+        P["hh"] -= 0.025 * math.sin(math.pi * _ss(0.72, 1.0, u))       # settle onto the haunches
+
+
+class _QLie(_QPosture):
+    """Lie down (sphinx): hind legs folded, forelegs flat forward. head_down 0..1 lowers the
+    chin to the snow; eyes 0..1 opens the eyes; breath > 1 gives the heavy, fast breathing
+    of a wounded animal."""
+    kind = "lie"
+    POSTURE = "lie"
+    T_IN = 1.3
+    STEP_LIFT = 0.035
+
+    def __init__(self, A, t0, state, dur=2.0, fade=0.25, base=None, head_down=0.0, eyes=1.0,
+                 breath=1.0, **kw):
+        self.hd, self.eyes = clamp(head_down), clamp(eyes)
+        self.BREATH_AMP = float(breath)
+        self.BREATH_PER = A.BREATH / (1.0 + 0.45 * max(0.0, breath - 1.0))
+        _QPosture.__init__(self, A, t0, state, dur, fade, base, **kw)
+
+    def _targets(self):
+        A, S, fac, PR = self.A, self.A.S, self.fac, self.A.PR
+        hd = self.hd
+        K = dict(hf=0.46 - 0.03 * hd, hh=0.36, chord=0.96, arch=0.03, neck=30.0 - 58.0 * hd,
+                 head=-14.0 + 10.0 * hd, tail=-100.0, tcurve=0.5, ears=0.35 - 0.5 * hd,
+                 tsway=0.25, lie=1.0, eopen=self.eyes)
+        chord = 0.96 * PR["chord"]
+        xh = self._hind_x()
+        if self.post0 == "sit":
+            xh += fac * 0.06 * S
+        x1 = xh + fac * (0.5 * chord - 0.08) * S
+        legs1 = {}
+        for k in LEGS:
+            l0 = self.legs0[k]
+            if _FRONT[k]:
+                xx = x1 + fac * (0.5 * chord + 0.60 + (0.03 if k == "LF" else -0.02)) * S
+                legs1[k] = [xx, A.ground(xx), l0[2], 0.0, 0.0, 78.0, 1.0]
+            else:
+                xx = xh + fac * (0.02 if k == "LH" else -0.02) * S
+                legs1[k] = [xx, A.ground(xx), l0[2] * 1.25, 0.0, 0.0, 80.0, 1.0]
+        if self.post0 == "sit":
+            sched = {"LH": (0.0, 0.3), "RH": (0.05, 0.35), "LF": (0.1, 0.55), "RF": (0.3, 0.75)}
+            stage = {"hh": (0.0, 0.4), "hf": (0.1, 0.9), "chord": (0.1, 0.8), "x": (0.05, 0.9),
+                     "neck": (0.4, 1.0), "head": (0.4, 1.0), "eopen": (0.6, 1.0)}
+        else:
+            sched = {"LH": (0.02, 0.40), "RH": (0.10, 0.48), "LF": (0.38, 0.75), "RF": (0.50, 0.87)}
+            stage = {"hh": (0.0, 0.55), "hf": (0.3, 1.0), "chord": (0.2, 0.9), "x": (0.15, 0.95),
+                     "neck": (0.4, 1.0), "head": (0.4, 1.0), "eopen": (0.6, 1.0)}
+        return K, x1, legs1, sched, stage
+
+
+class _QCrouch(_QPosture):
+    """Crouch: low on loaded haunches, head low and forward, ears pricked, hackles up, a fine
+    tremble - the anticipation before a lunge."""
+    kind = "crouch"
+    POSTURE = "crouch"
+    T_IN = 0.45
+
+    def _targets(self):
+        A, S, fac = self.A, self.A.S, self.fac
+        K = dict(hf=0.63, hh=0.70, chord=0.93, arch=0.05, neck=-12.0, head=-8.0, ears=0.9,
+                 ruff=0.7, tail=-16.0, tcurve=2.0, tsway=0.15, snarl=0.25, tremble=0.35)
+        legs1 = {k: list(v) for k, v in self.legs0.items()}
+        for k in ("LH", "RH"):
+            xx = self.legs0[k][0] + fac * 0.10 * S
+            legs1[k] = [xx, A.ground(xx), self.legs0[k][2], 0.0, 0.0, 0.0, 1.0]
+        for k in ("LF", "RF"):
+            legs1[k][3] = legs1[k][4] = legs1[k][5] = 0.0
+        sched = {"LH": (0.05, 0.6), "RH": (0.18, 0.75), "LF": (0.0, 0.5), "RF": (0.0, 0.5)}
+        stage = {"hf": (0.0, 0.8), "hh": (0.1, 1.0), "x": (0.0, 1.0)}
+        return K, self.x0 - fac * 0.03 * S, legs1, sched, stage
+
+    def _live(self, P, t, u):
+        sink = _s01((t - self.t0 - self.t_in) / max(0.6, self.dur))
+        P["hh"] -= 0.015 * sink
+        P["hf"] -= 0.01 * sink
+
+
+class _QTurn(_Clip):
+    """Turn around in place (yaw +-180): the head leads, the forequarters swing first, then
+    the hindquarters; every paw steps twice around the root."""
+    kind = "turn"
+
+    def __init__(self, A, t0, state, dur=0.9, fade=0.2, base=None, via="front", **kw):
+        _Clip.__init__(self, A, t0, state, max(0.4, dur), fade, base)
+        y0 = state["yaw"]
+        f0 = _fac(y0)
+        self.y0 = y0
+        self.dy = 180.0 * (f0 if via == "front" else -f0)
+        y1 = y0 + self.dy
+        y1 = (y1 + 180.0) % 360.0 - 180.0
+        if y1 == -180.0:
+            y1 = 180.0
+        self.y1 = y1
+        self.x0 = state["x"]
+        self.p0 = dict(A.STAND)
+        self.p0.update(state.get("pose") or {})
+        self.legs0 = {k: list(v) for k, v in state["legs"].items()}
+        self.legs1 = A._stand_legs(self.x0, y1)
+        sch = {"LF": ((0.04, 0.34), (0.40, 0.70)), "RF": ((0.12, 0.42), (0.48, 0.78)),
+               "LH": ((0.26, 0.56), (0.60, 0.90)), "RH": ((0.33, 0.63), (0.68, 0.98))}
+        self.sch = sch
+        self.mid = {}
+        for k, (a, b) in sch.items():
+            yF, yH = self._yaws(a[1])
+            self.mid[k] = self._ideal(k, yF if _FRONT[k] else yH)
+        self.end_state = dict(x=self.x0, yaw=y1, legs={k: list(v) for k, v in self.legs1.items()},
+                              pose=dict(A.STAND), posture="stand")
+
+    def _yaws(self, u):
+        wF = _s01(u / 0.72)
+        wH = _s01((u - 0.24) / 0.76)
+        return self.y0 + self.dy * wF, self.y0 + self.dy * wH
+
+    def _ideal(self, k, yaw):
+        A, S = self.A, self.A.S
+        f = A._neutral_f(k)
+        l = _LEFT[k] * A.PR["lw_f" if _FRONT[k] else "lw_h"]
+        c, s = math.cos(yaw * D2R), math.sin(yaw * D2R)
+        x = self.x0 + (f * c + l * s) * S
+        return [x, A.ground(x), (f * s - l * c) * S, 0.0, 0.0, 0.0, 1.0]
+
+    def pose(self, t):
+        A, S = self.A, self.A.S
+        u = clamp((t - self.t0) / self.dur)
+        yF, yH = self._yaws(u)
+        P = A._base_params(self.x0, 0.5 * (yF + yH), t)
+        P["bend"] = 0.5 * (yF - yH)
+        w = _s01(u / 0.5)
+        for key in _POSE_KEYS:
+            a, b = self.p0.get(key, 0.0), A.STAND.get(key, 0.0)
+            if a != b:
+                P[key] = a + (b - a) * w
+        sp = math.sin(math.pi * u)
+        lead = 38.0 * math.sin(math.pi * min(1.0, u / 0.85)) * (1.0 if self.dy > 0 else -1.0)
+        P["hturn"] += lead * (1.0 if math.cos(yF * D2R) >= 0 else -1.0)
+        P["hf"] -= 0.035 * sp
+        P["hh"] -= 0.02 * sp
+        P["neck"] -= 8.0 * sp
+        P["tsway"] = 0.4
+        A._idle(P, t, self.t0)
+        legs = {}
+        for k in LEGS:
+            (a0, a1), (b0, b1) = self.sch[k]
+            if u < b0:
+                legs[k] = _step_leg(self.legs0[k], self.mid[k], (u - a0) / (a1 - a0), S, 0.09)
+            else:
+                legs[k] = _step_leg(self.mid[k], self.legs1[k], (u - b0) / (b1 - b0), S, 0.09)
+        P["legs"] = legs
+        return P
+
+
+class _QRecoil(_Clip):
+    """Flinch backward: the forequarters rear, head jerks back, ears pin, a quick hop back,
+    then a low defensive snarl (held until the next action)."""
+    kind = "recoil"
+
+    def __init__(self, A, t0, state, dur=0.9, fade=0.08, base=None, dist=None, **kw):
+        _Clip.__init__(self, A, t0, state, max(0.5, dur), fade, base)
+        S = A.S
+        self.yaw = state["yaw"]
+        self.fac = fac = _fac(self.yaw)
+        self.x0 = state["x"]
+        self.dist = 0.45 * S if dist is None else float(dist)
+        self.x1 = self.x0 - fac * self.dist
+        self.p0 = dict(A.STAND)
+        self.p0.update(state.get("pose") or {})
+        self.legs0 = {k: list(v) for k, v in state["legs"].items()}
+        legs1 = A._stand_legs(self.x1, self.yaw)
+        for k in ("LF", "RF"):
+            legs1[k][0] += fac * 0.06 * S
+            legs1[k][1] = A.ground(legs1[k][0])
+        self.legs1 = legs1
+        pd = dict(A.STAND)
+        pd.update(hf=0.80, hh=0.82, neck=4.0, head=-20.0, ears=-0.8, ruff=1.0, snarl=0.9,
+                  jaw=0.22, tail=-64.0, tcurve=3.0, tsway=0.2, tremble=0.4)
+        self.pd = pd
+        self.end_state = dict(x=self.x1, yaw=self.yaw, legs={k: list(v) for k, v in legs1.items()},
+                              pose=dict(pd), posture="stand")
+
+    def pose(self, t):
+        A, S = self.A, self.A.S
+        tau = max(0.0, t - self.t0)
+        st = _ss(0.0, 0.07, tau) * (1.0 - _ss(0.22, 0.5, tau))      # the startle
+        settle = _ss(0.18, 0.55, tau)
+        x = self.x0 + (self.x1 - self.x0) * _ss(0.03, 0.36, tau)
+        P = A._base_params(x, self.yaw, t)
+        for key in _POSE_KEYS:
+            a, b = self.p0.get(key, 0.0), self.pd.get(key, 0.0)
+            P[key] = a + (b - a) * settle
+        P["hf"] += 0.11 * st
+        P["hh"] -= 0.03 * st
+        P["neck"] += 30.0 * st
+        P["head"] += 24.0 * st
+        P["ears"] = P["ears"] * (1 - st) - 0.95 * st
+        P["jaw"] += 0.4 * st
+        P["snarl"] = max(P["snarl"], 0.7 * st)
+        P["tail"] -= 20.0 * st
+        A._idle(P, t, self.t0)
+        legs = {}
+        for k in LEGS:
+            a, b = {"LF": (0.02, 0.30), "RF": (0.04, 0.32), "LH": (0.07, 0.34), "RH": (0.11, 0.38)}[k]
+            legs[k] = _step_leg(self.legs0[k], self.legs1[k], (tau - a) / (b - a), S,
+                                0.24 if _FRONT[k] else 0.08)
+        P["legs"] = legs
+        return P
+
+
+class _QLunge(_Clip):
+    """Lunge / leap to root x `to`: load on the haunches, drive (forequarters rise first),
+    a ballistic flight (body follows its path: nose up, level, nose down), land fore then
+    hind, absorb, recover with a step. bite=True snaps the jaws at the landing."""
+    kind = "lunge"
+
+    def __init__(self, A, t0, state, dur=None, fade=0.15, base=None, to=None, height=None,
+                 big=False, bite=False, **kw):
+        _Clip.__init__(self, A, t0, state, 1.0, fade, base)
+        S = A.S
+        self.yaw = state["yaw"]
+        self.fac = fac = _fac(self.yaw)
+        self.x0 = x0 = state["x"]
+        self.p0 = dict(A.STAND)
+        self.p0.update(state.get("pose") or {})
+        self.legs0 = {k: list(v) for k, v in state["legs"].items()}
+        post0 = state.get("posture", "stand")
+        self.big, self.bite = bool(big), bool(bite)
+        to = x0 + fac * (3.0 if big else 1.6) * S if to is None else float(to)
+        dist = max(0.5 * S, (to - x0) * fac)
+        g = self.g = 3600.0 * S / 330.0
+        H = height if height is not None else (0.85 * S if big else 0.30 * S)
+        l_lo, l_td = 0.12 * S, 0.02 * S
+        H = max(H, l_lo + 0.05 * S)
+        T_up = math.sqrt(2 * (H - l_lo) / g)
+        T_dn = math.sqrt(2 * (H - l_td) / g)
+        T_fl = T_up + T_dn
+        self.l_lo, self.l_td, self.v_up, self.v_dn = l_lo, l_td, g * T_up, g * T_dn
+        self.T_load = 0.12 if post0 == "crouch" else 0.26
+        self.T_push = 0.20
+        self.lift_load = (-0.03 if post0 == "crouch" else -0.11) * S
+        T_abs = 0.4
+        for _ in range(8):
+            v = (dist + 0.04 * S) / (0.5 * self.T_push + T_fl + 0.5 * T_abs)
+            T_abs = clamp(1.6 * S / v, 0.28, 0.6)
+        self.v, self.T_abs, self.T_fl = v, T_abs, T_fl
+        self.ta = t0 + self.T_load
+        self.t_lo = self.ta + self.T_push
+        self.t_td = self.t_lo + T_fl
+        self.t_ab = self.t_td + T_abs
+        self.x_a = x0 - fac * 0.04 * S
+        self.x_lo = self.x_a + fac * 0.5 * v * self.T_push
+        self.x_td = self.x_lo + fac * v * T_fl
+        self.x1 = self.x_td + fac * 0.5 * v * T_abs
+        t_end = self.t_ab + 0.6
+        if dur:
+            t_end = max(t_end, self.t0 + dur)
+        self.t1 = t_end
+        self.dur = t_end - self.t0
+        st = A.STAND
+        nk = 16.0 if big else 6.0
+        self.frames = [
+            (self.t0, self.p0),
+            (self.ta, dict(st, neck=-14.0, head=-6.0, ears=0.9, ruff=0.5, tail=-16.0, chord=0.93,
+                           arch=0.05, tsway=0.1, snarl=0.3 if bite else 0.0)),
+            (self.t_lo, dict(st, neck=nk - 4, head=-4.0, ears=-0.3, chord=1.07, arch=-0.03,
+                             tail=-6.0, wind=0.6, tsway=0.1, snarl=0.5 if bite else 0.0)),
+            (self.t_lo + 0.45 * T_fl, dict(st, neck=nk, head=-8.0, ears=-0.5, chord=1.10,
+                                           arch=-0.045, tail=0.0, wind=1.0, tsway=0.1,
+                                           snarl=0.9 if bite else 0.0)),
+            (self.t_td, dict(st, neck=20.0, head=-22.0, ears=0.1, chord=0.95, arch=0.05,
+                             tail=-18.0, wind=0.8, tsway=0.2, snarl=0.9 if bite else 0.0)),
+            (self.t_td + 0.6 * T_abs, dict(st, neck=12.0, head=-24.0, chord=0.97, arch=0.03,
+                                           tail=-30.0, wind=0.3, snarl=0.5 if bite else 0.0)),
+            (self.t_ab + 0.45, dict(st)),
+        ]
+        legs_end = A._stand_legs(self.x1, self.yaw)
+        self.legs_end = legs_end
+        land = {}
+        for k in LEGS:
+            if _FRONT[k]:
+                tl = self.t_td + (0.0 if k == "LF" else 0.035)
+                Pl = self._body(tl)
+                (xw, _), _s = _girdles(A, Pl)
+                xl = xw + fac * (0.38 + (0.04 if k == "LF" else -0.02)) * S
+            else:
+                tl = self.t_td + 0.10 + (0.0 if k == "LH" else 0.03)
+                Pl = self._body(tl)
+                _w, (xs, _) = _girdles(A, Pl)
+                xl = xs + fac * (0.30 + (0.03 if k == "LH" else -0.02)) * S
+            lnd = [xl, A.ground(xl), legs_end[k][2], 0.0, 0.0, 0.0, 1.0]
+            # one recovery step onto the final stance if the landing is far from it
+            rec = None
+            if abs(legs_end[k][0] - xl) > 0.06 * S:
+                r0 = self.t_td + 0.55 * T_abs + {"LF": 0.0, "RF": 0.08, "LH": 0.16, "RH": 0.24}[k]
+                rec = (r0, r0 + 0.24)
+            land[k] = (tl, lnd, rec)
+        self.land = land
+        self.end_state = dict(x=self.x1, yaw=self.yaw, legs={k: list(v) for k, v in legs_end.items()},
+                              pose=dict(st), posture="stand")
+
+    # root path --------------------------------------------------------------
+    def _x(self, t):
+        fac, v = self.fac, self.v
+        if t <= self.ta:
+            return self.x0 + (self.x_a - self.x0) * _ss(self.t0, self.ta, t)
+        if t <= self.t_lo:
+            tau = t - self.ta
+            return self.x_a + fac * 0.5 * v * tau * tau / self.T_push
+        if t <= self.t_td:
+            return self.x_lo + fac * v * (t - self.t_lo)
+        if t <= self.t_ab:
+            tau = t - self.t_td
+            return self.x_td + fac * (v * tau - 0.5 * v * tau * tau / self.T_abs)
+        return self.x1
+
+    def _lift(self, t):
+        S = self.A.S
+        if t <= self.ta:
+            return self.lift_load * _ss(self.t0, self.ta, t)
+        if t <= self.t_lo:          # Hermite: from rest at the load depth to the take-off velocity
+            u = (t - self.ta) / self.T_push
+            p0, p1, m1 = self.lift_load, self.l_lo, self.v_up * self.T_push
+            h01 = u * u * (3 - 2 * u)
+            h11 = u * u * (u - 1)
+            return p0 + (p1 - p0) * h01 + m1 * h11
+        if t <= self.t_td:
+            tau = t - self.t_lo
+            return self.l_lo + self.v_up * tau - 0.5 * self.g * tau * tau
+        tau = t - self.t_td
+        T1 = 0.17
+        dip = -0.10 * S * (1.6 if self.big else 1.0)
+        if tau <= T1:
+            u = tau / T1
+            m0 = -self.v_dn * T1
+            h00 = 2 * u ** 3 - 3 * u * u + 1
+            h10 = u ** 3 - 2 * u * u + u
+            h01 = -2 * u ** 3 + 3 * u * u
+            return self.l_td * h00 + m0 * h10 + dip * h01
+        return dip * (1.0 - _ss(T1, T1 + self.T_abs + 0.25, tau))
+
+    def _pitch(self, t):
+        if t <= self.ta:
+            return -5.0 * _ss(self.t0, self.ta, t)
+        if t <= self.t_lo:
+            return -5.0 + 25.0 * _s01((t - self.ta) / self.T_push)
+        if t <= self.t_td:
+            vy = self.v_up - self.g * (t - self.t_lo)
+            path = 0.55 * math.degrees(math.atan2(vy, self.v))
+            return 20.0 + (path - 20.0) * _ss(0.0, 0.12, t - self.t_lo)
+        tau = t - self.t_td
+        vy = -self.v_dn
+        p_td = 0.55 * math.degrees(math.atan2(vy, self.v))
+        return p_td * (1.0 - _ss(0.0, 0.2, tau)) - 6.0 * math.sin(math.pi * _ss(0.0, 0.35, tau))
+
+    def _body(self, t):
+        A, S = self.A, self.A.S
+        P = A._base_params(self._x(t), self.yaw, t)
+        for key in _POSE_KEYS:
+            if key in ("hf", "hh"):
+                continue
+            P[key] = _keyframes(t, self.frames, key, A.STAND.get(key, 0.0))
+        lift = self._lift(t) / S
+        sp = math.sin(self._pitch(t) * D2R)
+        base_f = _keyframes(t, self.frames, "hf", A.STAND["hf"])
+        base_h = _keyframes(t, self.frames, "hh", A.STAND["hh"])
+        P["hf"] = base_f + lift + 0.42 * sp
+        P["hh"] = base_h + lift - 0.42 * sp
+        if self.bite:
+            # jaws open through the flight and snap shut on the landing
+            P["jaw"] = 0.75 * _ss(self.t_lo + 0.2 * self.T_fl, self.t_lo + 0.6 * self.T_fl, t) * \
+                (1.0 - _ss(self.t_td - 0.03, self.t_td + 0.05, t))
+        return P
+
+    def _air(self, k, t, P):
+        """Airborne paw target (body-relative keys) at time t."""
+        A, S, fac = self.A, self.A.S, self.fac
+        (xw, yw), (xs, ys) = _girdles(A, P)
+        T_fl = self.T_fl
+        if _FRONT[k]:
+            u = (t - self.t_lo) / T_fl
+            w = _ss(0.25, 0.75, u)
+            reach = (0.50, -0.80) if self.big else (0.42, -0.76)
+            fx = 0.12 + (reach[0] - 0.12) * w
+            fy = -0.50 + (reach[1] + 0.50) * w
+            fold = 0.8 * (1 - w)
+            pa = 95.0 * (1 - w) + 35.0 * w
+            gx, gy = xw, yw
+        else:
+            u = (t - self.t_lo) / T_fl
+            w = _ss(0.3, 0.95, u)
+            fx = -0.48 + 0.66 * w
+            fy = -0.70 + 0.12 * w
+            fold = 0.55 * w
+            pa = 70.0 - 10.0 * w
+            gx, gy = xs, ys
+        return [gx + fac * fx * S, gy - fy * S, self.legs_end[k][2], pa, fold, 0.0, 0.0]
+
+    def pose(self, t):
+        A, S = self.A, self.A.S
+        t = max(t, self.t0)
+        P = self._body(t)
+        A._idle(P, t, self.t0, moving=1.0 if self.ta < t < self.t_ab else 0.0)
+        legs = {}
+        for k in LEGS:
+            l0 = self.legs0[k]
+            tl, lnd, rec = self.land[k]
+            front = _FRONT[k]
+            t_off = (self.ta + 0.04) if front else self.t_lo
+            if t <= t_off:
+                lg = list(l0)
+                lg[6] = 1.0
+                if not front:      # the hind paws peel as the legs extend
+                    lg[3] = 50.0 * _ss(self.ta, self.t_lo, t)
+                legs[k] = lg
+            elif t < tl:
+                air = self._air(k, t, P)
+                w0 = _ss(t_off, t_off + 0.12, t)          # leaving the ground
+                if w0 < 1.0:
+                    air = [a + (b - a) * w0 for a, b in zip(l0, air)]
+                    air[6] = 0.0
+                w1 = _ss(tl - 0.30 * self.T_fl, tl, t)    # reaching for the landing spot
+                if w1 > 0.0:
+                    air = [a + (b - a) * w1 for a, b in zip(air, lnd)]
+                    air[1] -= 0.05 * S * math.sin(math.pi * w1) * (1 - w1)
+                    air[6] = 0.0
+                legs[k] = air
+            elif rec is None or t <= rec[0]:
+                legs[k] = list(lnd)
+            else:
+                legs[k] = _step_leg(lnd, self.legs_end[k], (t - rec[0]) / (rec[1] - rec[0]), S, 0.08)
+        P["legs"] = legs
+        return P
+
+
+class _QHead(_Clip):
+    """Head acts layered over the body action (chained) or at absolute times (overlay)."""
+    overlay = True
+    kind = "head"
+    FIN, FOUT = 0.3, 0.4
+
+    def __init__(self, A, t0, state, dur=2.0, fade=0.0, base=None, **kw):
+        _Clip.__init__(self, A, t0, state, dur, 0.0, base, **kw)
+        self.inside = state is not None
+        if self.inside and base is None:
+            base = A.CLIPS["stand"](A, t0, state, dur=max(dur, 0.1))
+        self.base = base
+        self.fade_in, self.fade_out = self.FIN, self.FOUT
+        self.end_state = state if base is None else base.end_state
+
+    def pose(self, t):
+        return self.apply(self.base.pose(t), t)
+
+    def env(self, t):
+        if self.inside:
+            return _env(t, self.t0, self.t1, self.fade_in, self.fade_out)
+        return _env(t, self.t0 - self.fade_in, self.t1 + self.fade_out, self.fade_in, self.fade_out)
+
+    def apply(self, P, t):
+        e = self.env(t)
+        if e <= 0.0:
+            return P
+        P = dict(P)
+        self._act(P, t, e)
+        return P
+
+    def _act(self, P, t, e):
+        raise NotImplementedError
+
+
+class _QSnarl(_QHead):
+    """Snarl / growl: head low, lips back over the teeth, hackles up, a growl tremor."""
+    kind = "snarl"
+    FIN, FOUT = 0.25, 0.45
+
+    def _act(self, P, t, e):
+        a = clamp(self.kw.get("amount", 1.0))
+        ears = self.kw.get("ears", 0.9)
+        sd = self.A.seed
+        q = math.sin(2 * math.pi * 11.0 * t) * (0.6 + 0.4 * noise1(t * 3.0, sd + 61))
+        P["neck"] += e * (-14.0 - 4.0 * a)
+        P["head"] += e * (-6.0 + 0.8 * q)
+        P["hf"] -= e * 0.035
+        P["snarl"] = max(P["snarl"], e * a)
+        P["jaw"] = max(P["jaw"], e * (0.30 * a * a + 0.035 * q * a))
+        P["ruff"] = max(P["ruff"], e * a)
+        P["ears"] += (ears - P["ears"]) * e
+        P["tail"] += (-14.0 - P["tail"]) * e * 0.6
+
+
+class _QHowl(_QHead):
+    """Howl: the head rises to the sky, the mouth opens round, a long sustain with vibrato."""
+    kind = "howl"
+    FIN, FOUT = 0.8, 0.7
+
+    def _act(self, P, t, e):
+        tau = t - self.t0
+        dur = max(self.dur, 0.5)
+        m = _ss(0.35, 0.8, tau) * (1.0 - _ss(dur - 0.25, dur + 0.25, tau))
+        arc = math.sin(math.pi * clamp(tau / dur))
+        vib = math.sin(2 * math.pi * 5.5 * t) * 0.6
+        P["neck"] += (74.0 - P["neck"]) * e
+        P["head"] += (50.0 + 4.0 * arc + vib - P["head"]) * e
+        P["hf"] += 0.008 * e
+        P["jaw"] = max(P["jaw"], m * e * (0.30 + 0.06 * arc + 0.02 * vib))
+        P["ears"] += (0.0 - P["ears"]) * e
+        P["eopen"] *= 1.0 - 0.45 * e
+        P["tail"] += (-50.0 - P["tail"]) * e * 0.5
+        P["puff"] = max(P.get("puff", 0.0), m * e)
+
+
+class _QLook(_QHead):
+    """Look: turn the head toward the camera by `turn` deg (negative: away)."""
+    kind = "look"
+    FIN, FOUT = 0.35, 0.35
+
+    def _act(self, P, t, e):
+        P["hturn"] += (self.kw.get("turn", 55.0) - P["hturn"]) * e
+        if self.kw.get("head") is not None:
+            P["head"] += (self.kw["head"] - P["head"]) * e
+        if self.kw.get("neck") is not None:
+            P["neck"] += (self.kw["neck"] - P["neck"]) * e
+
+
+class _QBite(_QHead):
+    """Bite: n fast snaps (head darts forward, jaws open wide and slam shut)."""
+    kind = "bite"
+    FIN, FOUT = 0.06, 0.12
+
+    def _act(self, P, t, e):
+        n = max(1, int(self.kw.get("n", 1)))
+        per = max(self.dur, 0.2) / n
+        ph = ((t - self.t0) / per) % 1.0 if t >= self.t0 else 0.0
+        op = _ss(0.0, 0.55, ph) * (1.0 - _ss(0.62, 0.78, ph))
+        dart = math.sin(math.pi * _ss(0.2, 0.85, ph))
+        P["jaw"] = max(P["jaw"], e * 0.95 * op)
+        P["snarl"] = max(P["snarl"], e * 0.9)
+        P["neck"] += e * (-12.0 * dart)
+        P["head"] += e * (-6.0 * dart + 10.0 * op)
+        P["ears"] += (-0.6 - P["ears"]) * e
+        P["ruff"] = max(P["ruff"], e)
+
+
+class _QEyes(_QHead):
+    """Eyes: open (or close) the eyes to `open` 0..1 over the fade."""
+    kind = "eyes"
+    FIN, FOUT = 0.6, 0.4
+
+    def _act(self, P, t, e):
+        P["eopen"] += (self.kw.get("open", 1.0) - P["eopen"]) * e
 
 
 class _QRun(_Clip):
@@ -868,12 +1586,18 @@ class Quadruped(_Actor):
         return legs
 
     def _pre_run(self, t0, state, segs, last_body):
-        """Insert a quick turn when the first segment heads behind the actor."""
+        """Get up first if sitting / lying / crouching; turn first if the run heads behind."""
+        out = []
+        post = state.get("posture", "stand")
+        if post != "stand":
+            c = self.CLIPS["stand"](self, t0, state, base=last_body,
+                                    dur={"crouch": 0.3, "sit": 0.75, "lie": 1.05}.get(post, 0.5))
+            out.append(c)
+            state, t0 = c.end_state, c.t1
         fac = 1.0 if math.cos(state["yaw"] * D2R) >= 0 else -1.0
         if (segs[0]["to"] - state["x"]) * fac < -1e-6:
-            c = self.CLIPS["turn"](self, t0, state, dur=0.6, base=last_body)
-            return [c]
-        return []
+            out.append(self.CLIPS["turn"](self, t0, state, dur=0.8, base=last_body))
+        return out
 
     def _make_run(self, t0, state, segs):
         return _QRun(self, t0, state, segs)
@@ -919,16 +1643,23 @@ class Quadruped(_Actor):
         P["phase"] = 0.0
         return P
 
-    def _idle(self, P, t, t0, moving=0.0):
-        """Breathing, tail sway, head drift, ear flicks (fade out while moving)."""
+    def _idle(self, P, t, t0, moving=0.0, amp=1.0, period=None):
+        """Breathing, tail sway, head drift, ear flicks (fade out while moving); tremble."""
         sd = self.seed
         still = 1.0 - moving
-        br = math.sin(2 * math.pi * (t / self.BREATH + hash01(sd, 3)))
-        P["breath"] = br
-        P["hf"] += 0.006 * br * still
-        P["head"] += still * (3.0 * fbm1(t * 0.23, sd + 5) + 1.2 * br)
-        P["neck"] += still * 2.5 * fbm1(t * 0.17, sd + 9)
+        br = math.sin(2 * math.pi * (t / (period or self.BREATH) + hash01(sd, 3)))
+        P["breath"] = br * amp
+        P["hf"] += 0.006 * br * still * amp
+        hk = still * (1.0 - 0.85 * clamp(P.get("lie", 0.0)) * clamp(-P["neck"] / 25.0))
+        P["head"] += hk * (3.0 * fbm1(t * 0.23, sd + 5) + 1.2 * br)
+        P["neck"] += hk * 2.5 * fbm1(t * 0.17, sd + 9)
         P["ears"] += still * 0.25 * max(0.0, noise1(t * 0.9, sd + 11)) ** 3 * 4
+        tr = P.get("tremble", 0.0)
+        if tr:
+            q = math.sin(2 * math.pi * 12.0 * t + 1.3 * math.sin(2 * math.pi * 3.1 * t))
+            P["head"] += 1.6 * tr * q
+            P["neck"] += 0.8 * tr * q
+            P["hf"] += 0.004 * tr * q
 
     def _limp(self, P, phi, m):
         pass
@@ -1042,21 +1773,32 @@ class Wolf(Quadruped):
         """Sit: rump drops onto the hocks, chest upright, front legs straight."""
         return self._add("sit", dur=dur, look=look)
 
-    def lie(self, dur=2.0, head_down=0.0):
-        """Lie down (sphinx): forelegs flat forward, hind legs folded; head_down 0..1 rests it."""
-        return self._add("lie", dur=dur, head_down=head_down)
+    def lie(self, dur=2.0, head_down=0.0, eyes=1.0, breath=1.0):
+        """Lie down (sphinx): forelegs flat forward, hind legs folded. head_down 0..1 rests the
+        chin on the snow; eyes 0..1; breath > 1 = heavy fast breathing (wounded, e.g. 2.5)."""
+        return self._add("lie", dur=dur, head_down=head_down, eyes=eyes, breath=breath)
 
     def crouch(self, dur=1.0):
         """Crouch low on loaded haunches, head low and forward: the lunge anticipation."""
         return self._add("crouch", dur=dur)
 
-    def lunge(self, to, dur=None, height=None):
-        """Spring forward to root x `to`: load, launch, flight, land front-then-hind, absorb."""
-        return self._add("lunge", to=float(to), dur=dur, height=height)
+    def lunge(self, to, dur=None, height=None, bite=False):
+        """Spring forward to root x `to`: load, drive, flight, land fore-then-hind, absorb,
+        recovery step. height: apex rise in px (default 0.3 S). bite=True snaps on landing.
+        Lunges from a crouch skip most of the load."""
+        return self._add("lunge", to=float(to), dur=dur, height=height, bite=bite)
 
     def leap(self, to, height=None, dur=None):
-        """A big leap (higher, longer flight than a lunge)."""
+        """A big leap (default apex 0.85 S, stretched flight) - e.g. over the girl."""
         return self._add("lunge", to=float(to), dur=dur, height=height, big=True)
+
+    def bite(self, dur=0.5, n=1):
+        """n fast snaps of the jaws (head act, layers over the body action)."""
+        return self._add("bite", dur=dur, n=n)
+
+    def eyes(self, dur=1.0, open=1.0):
+        """Open (open=1) or close (open=0) the eyes (head act; lie(eyes=0) starts closed)."""
+        return self._add("eyes", dur=dur, open=open)
 
     def snarl(self, dur=2.0, ears=0.9):
         """Head low, jaw open with teeth, lips back, hackles up, growl tremor."""
@@ -1376,8 +2118,12 @@ _HIND_SPEC = [(0, -0.15, 0.09, 0.12), (0, 0.30, 0.122, 0.15), (0, 0.72, 0.095, 0
               (2, 1.0, 0.027, 0.026)]
 
 
-def _wolf_leg(ctx, R, L, S, PR, thin, pr_fn, paws):
-    """Add one leg's outline as its own sub-path; the paw goes to `paws`."""
+_LEG_R = {True: (0.0, 0.07, 0.042, 0.03, 0.03), False: (0.10, 0.055, 0.03, 0.03)}
+
+
+def _wolf_leg(ctx, R, L, S, PR, thin, pr_fn, paws, caps=None):
+    """Add one leg's outline as its own sub-path; the paw goes to `paws`. When the girdle is
+    yawed, capsules giving the leg its lateral thickness go to `caps`."""
     js = L["j"]
     lg, lt = L["lg"], L["lt"]
     n = len(js)
@@ -1393,6 +2139,14 @@ def _wolf_leg(ctx, R, L, S, PR, thin, pr_fn, paws):
     _smooth(ctx, out, 0.5)
     ps = PR["paw"] / 0.115
     paws.append(_paw_shape(js[-1], L["pa"], S, ps, pr_fn, lt))
+    sa = abs(L["s"])
+    if caps is not None and sa > 0.04:
+        rr = _LEG_R[L["front"]]
+        w = [pr_fn(p, lg + (lt - lg) * clamp((u0 - p[1]) / span) ** 2) for p in js]
+        for i in range(len(js) - 1):
+            r = rr[i] * S * thin * sa
+            if r > 0.5:
+                caps.append((w[i], w[i + 1], r * 1.1, r))
 
 
 def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=False):
@@ -1417,16 +2171,20 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
     seed = A.seed * 131
     locks = []          # local-space fur, projected with the mid projector
     # depth order of the legs: z = -l*cos(yaw); far legs first
-    order = sorted(LEGS, key=lambda k: -R["legs"][k]["lg"] * R["legs"][k]["c"])
+    order = sorted(LEGS, key=lambda k: P["legs"][k][2])
     far_col = lerp(ink, pal.fog_at(0.5), clamp(far_shade)) if (far_shade > 0 and pal is not None) else ink
     for i, k in enumerate(order):
         L = R["legs"][k]
         paws = []
-        _wolf_leg(ctx, R, L, S, PR, thin, prF if L["front"] else prH, paws)
+        caps = []
+        _wolf_leg(ctx, R, L, S, PR, thin, prF if L["front"] else prH, paws, caps)
         draw.fill(ctx, far_col if i < 2 else ink)
         for pw in paws:
             _poly(ctx, pw)
         draw.fill(ctx, far_col if i < 2 else ink)
+        for a_, b_, ra_, rb_ in caps:
+            draw.capsule(ctx, a_, b_, ra_, rb_)
+            draw.fill(ctx, far_col if i < 2 else ink)
         # feathering behind the forearm / hock
         js = L["j"]
         if L["front"]:
@@ -1449,12 +2207,21 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
         tor[2] = body(0.27, 0.055 - 0.016 * old)      # sunken loin
     _smooth(ctx, [prM(p) for p in tor], 0.5)
     draw.fill(ctx, ink)
-    if side_w > 0.03:          # lateral mass while turning
-        for s_, up, dn, wd, sy in ((1.0, 0.09, -0.45, 0.21, "F"), (0.6, 0.06, -0.43, 0.20, "F"),
-                                   (0.25, 0.06, -0.30, 0.15, "H"), (-0.05, 0.07, -0.30, 0.18, "H")):
+    if side_w > 0.03:          # lateral mass while turning (shaggy edged)
+        for j_, (s_, up, dn, wd, sy) in enumerate(((1.0, 0.09, -0.45, 0.21, "F"), (0.6, 0.06, -0.43, 0.20, "F"),
+                                                   (0.25, 0.06, -0.30, 0.15, "H"), (-0.05, 0.07, -0.30, 0.18, "H"))):
             pa_, pb_ = body(s_, up), body(s_, dn)
             ctr = prM(((pa_[0] + pb_[0]) * 0.5, (pa_[1] + pb_[1]) * 0.5))
-            draw.ellipse(ctx, ctr, wd * S * abs(R["s" + sy]) + 1.0, abs(pa_[1] - pb_[1]) * 0.5)
+            rx_, ry_ = wd * S * abs(R["s" + sy]) + 1.0, abs(pa_[1] - pb_[1]) * 0.5
+            draw.ellipse(ctx, ctr, rx_ * 0.92, ry_ * 0.95)
+            draw.fill(ctx, ink)
+            if rx_ > 0.04 * S:
+                ring = [(ctr[0] + rx_ * 0.9 * math.cos(a_), ctr[1] + ry_ * 0.92 * math.sin(a_))
+                        for a_ in [-2 * math.pi * q / 14 for q in range(15)]]
+                for q in _locks(ring, 12, seed + 70 + j_, 0.07 * S * min(1.0, rx_ / (0.12 * S)), 0.09 * S,
+                                0.6, t, side=1.0):
+                    _poly(ctx, q)
+                draw.fill(ctx, ink)
     # ---------------------------------------------------------------- neck
     nb, H0 = R["neck0"], R["H0"]
     vx, vy = H0[0] - nb[0], H0[1] - nb[1]
@@ -1464,11 +2231,12 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
         nnx, nny = -nnx, -nny
     ctrl = ((nb[0] + H0[0]) * 0.5 + nnx * 0.04 * S, (nb[1] + H0[1]) * 0.5 + nny * 0.04 * S)
     ntop, nbot, naxis = [], [], []
+    nflat = clamp(-P["neck"] / 35.0)
     for i in range(6):
         v = i / 5.0
         p = _bez2(nb, ctrl, H0, v)
         naxis.append(p)
-        wt = (0.225 - 0.13 * v + 0.02 * math.sin(math.pi * v)) * S
+        wt = (0.225 - 0.13 * v + 0.02 * math.sin(math.pi * v) + 0.06 * nflat * (1 - v)) * S
         wb = (0.215 - 0.10 * v) * S
         ntop.append((p[0] + nnx * wt, p[1] + nny * wt))
         nbot.append((p[0] - nnx * wb, p[1] - nny * wb))
@@ -1539,7 +2307,11 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
         wav = sw * 5.0 * D2R * math.sin(2 * math.pi * (t * 0.37 + ph) - 1.3 * v) * v
         wav += wind * 6.0 * D2R * math.sin(2 * math.pi * (t * 2.2 + ph) - 2.6 * v) * v
         p = pts[-1]
-        pts.append((p[0] + math.cos(a_i + wav) * seg, p[1] + math.sin(a_i + wav) * seg))
+        q = (p[0] + math.cos(a_i + wav) * seg, p[1] + math.sin(a_i + wav) * seg)
+        ug = R["ry"] - A.ground(R["rx"] + q[0] * R["cH"]) + 0.035 * S
+        if q[1] < ug:        # resting on the snow: the rest of the tail lies along it
+            q = (p[0] - 0.985 * seg * (1.0 if R["cH"] * R["cH"] > 0.0 else 1.0), max(ug, p[1] - 0.17 * seg))
+        pts.append(q)
     wid = []
     for i in range(len(pts)):
         v = i / (len(pts) - 1)
@@ -1562,15 +2334,18 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
         _poly(ctx, [prH(p) for p in q])
     # ---------------------------------------------------------------- fur
     hk = 1.0 + 0.8 * ruff
+    flat = clamp(-P["neck"] / 35.0)          # neck down (lying, stalking): the mane lies flat
+    mk = (1 + 0.25 * ruff) * (1.0 - 0.8 * flat) * (1.0 - 0.15 * wind)
     locks += _locks(ntop, 8, seed + 1,
-                    lambda v: (0.07 + 0.06 * math.sin(math.pi * min(1.0, v * 1.1))) * S * rag * (1 + 0.5 * ruff),
-                    0.15 * S, -1.7 - 1.3 * wind + 0.7 * ruff, t, side=1.0, u0=0.2, u1=4.6, skip=skip)
-    locks += _locks(nbot, 6, seed + 2, lambda v: (0.05 + 0.06 * (1 - v)) * S * rag * (1 + 0.3 * ruff),
+                    lambda v: (0.065 + 0.05 * math.sin(math.pi * min(1.0, v * 1.1))) * S * rag * mk,
+                    0.15 * S, -1.8 - 1.3 * wind + 0.45 * ruff - 0.6 * flat, t, side=1.0, u0=0.2, u1=4.6,
+                    skip=skip)
+    locks += _locks(nbot, 6, seed + 2, lambda v: (0.05 + 0.05 * (1 - v)) * S * rag * (1 + 0.1 * ruff),
                     0.12 * S, -1.5 - 0.3 * wind, t, side=-1.0, u0=0.5, u1=4.8, skip=skip)
     top = tor[0:6]
     locks += _locks(top, 7, seed + 3,
-                    lambda v: (0.018 + 0.016 * v + 0.08 * ruff * _ss(0.45, 0.95, v)) * S * rag,
-                    0.10 * S, -2.2 - 0.5 * wind + 1.2 * ruff, t, side=1.0, u0=0.4, u1=5.0, skip=skip)
+                    lambda v: (0.018 + 0.016 * v + 0.04 * ruff * _ss(0.45, 0.95, v)) * S * rag,
+                    0.10 * S, -2.2 - 0.5 * wind + 0.6 * ruff, t, side=1.0, u0=0.4, u1=5.0, skip=skip)
     locks += _locks(tor[9:16], 6, seed + 4, lambda v: (0.045 - 0.02 * v) * S * rag, 0.10 * S,
                     1.7 + 0.4 * wind, t, side=1.0, u0=0.6, u1=5.4, skip=skip)
     locks += _locks(tor[7:10], 3, seed + 5, 0.05 * S * rag, 0.10 * S, 1.2, t, side=1.0, skip=skip)
@@ -1582,7 +2357,7 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
     for x_, y_ in cheek:
         chk.append((H0[0] + (x_ * hc - y_ * hs) * Lh, H0[1] + (x_ * hs + y_ * hc) * Lh))
     locks += _locks(chk, 6, seed + 7,
-                    lambda v: (0.05 + 0.045 * math.sin(math.pi * v)) * S * rag * (1 + 0.4 * ruff),
+                    lambda v: (0.05 + 0.045 * math.sin(math.pi * v)) * S * rag * (1 + 0.15 * ruff),
                     0.09 * S, 1.1, t, side=-1.0, u0=0.3, u1=3.9, skip=skip)
     for q in locks:
         _poly(ctx, [prM(p) for p in q])
@@ -1659,4 +2434,6 @@ def _breath_puffs(f, R, P, A, ctx, Lh):
         ctx.fill()
 
 
-Wolf.CLIPS = {"stand": _QStand}
+Wolf.CLIPS = {"stand": _QStand, "sit": _QSit, "lie": _QLie, "crouch": _QCrouch, "turn": _QTurn,
+              "recoil": _QRecoil, "lunge": _QLunge, "snarl": _QSnarl, "howl": _QHowl,
+              "look": _QLook, "bite": _QBite, "eyes": _QEyes}

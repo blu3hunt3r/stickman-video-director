@@ -75,7 +75,8 @@ class Room3D:
         )
 
     # ------------------------------------------------------------------ per-pixel light
-    def light_map(self, f, lights, par=1.0, ds=4, albedo=None, ambient=0.0, blur=1.2, gain=1.0, holes=()):
+    def light_map(self, f, lights, par=1.0, ds=4, albedo=None, ambient=0.0, blur=1.2, gain=1.0, holes=(),
+                  bounce=0.3):
         """Light the room's surfaces: for every low-res pixel, cast the eye ray into the box,
         find the wall / floor / ceiling point it hits, and sum the lights. ADDED to the frame.
 
@@ -90,7 +91,9 @@ class Room3D:
           area   dict(kind='area', pos, normal, color, power, r0)            glowing sheet
         albedo: dict(back, walls, floor, ceiling) reflectances.
         holes:  openings that reflect nothing (the window, a doorway):
-                ('back', X0, Y0, X1, Y1) | ('left' / 'right', Z0, Y0, Z1, Y1)."""
+                ('back', X0, Y0, X1, Y1) | ('left' / 'right', Z0, Y0, Z1, Y1).
+        bounce: one-bounce fill: this fraction of the mean light on the walls lights every
+                surface again (so the box still reads where no light falls directly)."""
         alb = dict(back=0.5, walls=0.45, floor=0.30, ceiling=0.55)
         if albedo:
             alb.update(albedo)
@@ -204,6 +207,9 @@ class Room3D:
             else:
                 continue
             acc += E[..., None] * col[None, None, :]
+        if bounce > 0:
+            fill = acc.reshape(-1, 3).mean(axis=0) * bounce
+            acc += fill[None, None, :]
         acc *= A[..., None] * gain
         if ambient > 0:
             acc += ambient * A[..., None]
@@ -342,7 +348,7 @@ class Apartment9:
             center = C
         else:
             center = (C[0] + Ax / (1 - m), C[1] + Ay / (1 - m))
-        bulb_r = 0.035
+        bulb_r = 0.012                    # a clear bulb: the filament is the source
         pen = 2 * bulb_r * abs(zs - caster_z) / max(abs(caster_z - lz), 1e-3)
         soft = pen * r.ppm(zs) * 0.5
         return center, m, soft
@@ -376,9 +382,10 @@ class Apartment9:
                           power=1.1 * sheet_glow, r0=0.6))
         if hall > 0.01 and door_open > 0.01:
             z0, z1 = self.DOOR_Z
-            zo = z1 - (z1 - z0) * clamp(door_open * 1.2)
-            L.append(dict(kind="door", src=(-self.room.hw - 2.2, 2.5, (z0 + z1) / 2 - 0.3), z0=z0, z1=z1,
-                          top=self.DOOR_H, color=mix(AMBER, HOT, 0.3), power=3.0 * hall,
+            # the hallway bulb hangs just outside, toward the stairs: the light comes through
+            # the doorway at a slant and lies across the floor as a long wedge
+            L.append(dict(kind="door", src=(-self.room.hw - 1.1, 2.75, z0 - 0.7), z0=z0, z1=z1,
+                          top=self.DOOR_H, color=mix(AMBER, HOT, 0.3), power=2.6 * hall,
                           mask=self._door_mask(door_open, door_mask)))
         for fl in flashlights:
             L.append(dict(kind="spot", pos=fl["pos"], dir=fl["dir"], cone=fl.get("cone", 9.0), soft=fl.get("soft", 7.0),

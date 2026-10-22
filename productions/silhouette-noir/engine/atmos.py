@@ -21,6 +21,11 @@ Conventions
     * Light objects (Cone, Glow, Shaft) returned by beam()/lamp()/window_light() describe
       where light is; pass them as `lit=` to particles so rain, dust and marine snow light
       up inside beams.
+    * On bright palettes (RED's daylight fog) added light only bleaches toward white, so
+      lamp(), light_pool(), flames() and burning() lay ~75% of their glow OVER as a colored
+      veil (tint=None -> auto_tint(f); pass tint=0 for pure ADD, 1 for pure veil).
+    * Fire, particles and glints are depth-honest only in call order; f.emit() glows (lamp
+      halos, fire, moon) are added at finish() over everything - keep them on near layers.
 
     cone = atmos.beam(f, apex=(540, 400), angle=80, length=1100, half_angle=13,
                       stop=((0, 1600), (1080, 1600)), occluder=draw_diver, dust=1.0)
@@ -194,10 +199,10 @@ def _bgra(I, rgb, gain=1.0):
 def _over(f, img, X0, Y0, ds=1):
     """Composite a premultiplied BGRA uint8 image (1/ds res) OVER the frame (cairo fast path)."""
     img = np.ascontiguousarray(img)
+    if not img.flags.writeable:
+        img = img.copy()
     h, w = img.shape[:2]
-    surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
-    surf_array(surf)[...] = img
-    surf.mark_dirty()
+    surf = cairo.ImageSurface.create_for_data(memoryview(img), cairo.FORMAT_ARGB32, w, h, w * 4)   # no copy
     c = f.ctx
     c.save()
     c.identity_matrix()
@@ -208,6 +213,39 @@ def _over(f, img, X0, Y0, ds=1):
     c.rectangle(X0, Y0, w * ds, h * ds)
     c.fill()
     c.restore()
+
+
+def _sprite(r, c0, c1):
+    """Cached additive spark sprite (BGRA uint8): a white-hot core c0 inside a c1 halo, radius r px."""
+    key = ("atmos_sprite", int(round(r * 4)), tuple(np.round(c0, 3)), tuple(np.round(c1, 3)))
+
+    def make():
+        R = max(1, int(math.ceil(r)))
+        y, x = np.mgrid[-R:R + 1, -R:R + 1].astype(np.float32)
+        d = np.sqrt(x * x + y * y) / max(r, 0.5)
+        core = np.exp(-(d / 0.3) ** 2)
+        halo = 0.5 * np.clip(1.0 - d, 0.0, 1.0) ** 2
+        ch = [np.clip(255.0 * (core * c0[i] + halo * c1[i]), 0, 255).astype(np.uint8) for i in (2, 1, 0)]
+        return cv2.merge(ch + [np.zeros_like(ch[0])])
+    return cached(key, make)
+
+
+def _add_sprites(f, par, xs, ys, r, c0, c1, gain=1.0):
+    """ADD a spark sprite (radius r world px) at each world point (whole-pixel positions)."""
+    if not len(xs):
+        return
+    rp = max(0.8, r * _zoom(f, par))
+    spr = _sprite(rp, tuple(min(1.0, v * gain) for v in c0), tuple(min(1.0, v * gain) for v in c1))
+    R = spr.shape[0] // 2
+    X, Y = _xf(_M(f, par), np.asarray(xs, float), np.asarray(ys, float))
+    dst = surf_array(f.surf)
+    H, W = dst.shape[:2]
+    for x, y in zip(np.rint(X - 0.5).astype(int).tolist(), np.rint(Y - 0.5).astype(int).tolist()):
+        xa, ya, xb, yb = max(0, x - R), max(0, y - R), min(W, x + R + 1), min(H, y + R + 1)
+        if xb > xa and yb > ya:
+            d = dst[ya:yb, xa:xb]
+            cv2.add(d, spr[ya - y + R:yb - y + R, xa - x + R:xb - x + R], dst=d)
+    f.surf.mark_dirty()
 
 
 _SCR = {}
@@ -230,6 +268,17 @@ def _canvas(f, box, ds=1):
     if X0 == 0 and Y0 == 0 and X1 == f.pw and Y1 == f.ph:
         return _scratch(h, w)
     return np.zeros((h, w, 4), np.uint8)
+
+
+def _px_polys(cm, polys):
+    """World polylines -> list of int32 cv2 point arrays (sub-pixel shift _SH) through matrix cm,
+    transformed in one batch."""
+    if not polys:
+        return []
+    U = np.concatenate(polys)
+    X, Y = _xf(cm, U[:, 0], U[:, 1])
+    Q = np.rint(np.stack([X, Y], -1) * _SK).astype(np.int32)
+    return np.split(Q, np.cumsum([len(q) for q in polys])[:-1])
 
 
 def _canvas_matrix(f, par, box, ds):
@@ -433,7 +482,9 @@ def lit_sum(*lights):
             return out
 
         def bbox(self):
-            bbs = [l.bbox() for l in ls if hasattr(l, "bbox")]
+            bbs = [l.bbox() if hasattr(l, "bbox") else None for l in ls]
+            if not bbs or any(b is None for b in bbs):
+                return None          # a plain callable has no extent: unbounded
             return (min(b[0] for b in bbs), min(b[1] for b in bbs), max(b[2] for b in bbs), max(b[3] for b in bbs))
     return _Sum()
 
@@ -1598,7 +1649,9 @@ def dust(f, region, density=1.0, t=None, seed=0, color=None, alpha=1.0, size=1.0
     if isinstance(region, (list, tuple)):
         region = lit_sum(*region)
     col = _rgb(color) if color is not None else _rgb(getattr(region, "color", f.pal.light))
-    bb = region.bbox()
+    bb = region.bbox() if hasattr(region, "bbox") else None
+    if bb is None:
+        bb = f.lcam(par).view_rect(40)
     tile = 512.0
     nt = int(round(42 * density))
     if nt <= 0:
@@ -2295,31 +2348,44 @@ FLAME_LAYERS = ((1.0, 1.0, 0.0, 0.9), (0.62, 0.6, 0.45, 0.92), (0.34, 0.3, 0.9, 
 BURN_LAYERS = ((1.0, 1.0, 0.0, 0.85), (0.6, 0.62, 0.4, 0.92), (0.3, 0.4, 0.8, 1.0))
 
 
-def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emit=0.5, ramp=None, ribbon=None):
+def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emit=0.5, ramp=None, ribbon=None,
+                  under=()):
     """Composite flame tongues (rows of T = bx, by, hw, h, lean, wig, ph, bright) OVER the frame:
     nested outer/mid/core bands (each overwrites the last, so brightness never piles up), a
     little blur, plus an emissive glow. ramp=(base_y, height): fade toward the tips.
     ribbon=(polylines, alphas, width_px): lines the tongues stand on, drawn in every band (width
-    scaled like the band) so a row of tongues reads as one burning strand, plus a hot thread."""
-    if not len(T):
+    scaled like the band) so a row of tongues reads as one burning strand, plus a hot thread.
+    under=[(polylines, rgb, alpha, width_px), ...]: lines drawn first, beneath the flames (char)."""
+    T = np.asarray(T, float).reshape(-1, 8) if len(T) else np.zeros((0, 8))
+    under = [u for u in under if len(u[0])]
+    if not len(T) and not under:
         return
-    T = np.asarray(T, float)
-    pad = float(T[:, 3].max()) * 0.5 + float(T[:, 2].max()) * 2 + 8
-    bb = (T[:, 0].min() - pad, (T[:, 1] - T[:, 3]).min() - pad, T[:, 0].max() + pad, T[:, 1].max() + pad)
-    box = _pxbox(f, par, bb, pad=4 + 3 * soft)
+    xs, ys = [], []
+    if len(T):
+        pad = float(T[:, 3].max()) * 0.5 + float(T[:, 2].max()) * 2 + 8
+        xs += [T[:, 0].min() - pad, T[:, 0].max() + pad]
+        ys += [(T[:, 1] - T[:, 3]).min() - pad, T[:, 1].max() + pad]
+    for polys, _, _, w in under:
+        U = np.concatenate(polys)
+        xs += [U[:, 0].min() - w - 2, U[:, 0].max() + w + 2]
+        ys += [U[:, 1].min() - w - 2, U[:, 1].max() + w + 2]
+    box = _pxbox(f, par, (min(xs), min(ys), max(xs), max(ys)), pad=4 + 3 * soft)
     if box is None:
         return
     img = _canvas(f, box, 1)
     cm = _canvas_matrix(f, par, box, 1)
-    br = T[:, 7] if T.shape[1] > 7 else np.ones(len(T))
+    for polys, c, a, w in under:
+        Ps = _px_polys(cm, polys)
+        cv2.polylines(img, Ps, False, (255 * c[2] * a, 255 * c[1] * a, 255 * c[0] * a, 255 * a),
+                      max(1, int(round(w * _zoom(f, par)))), _AA, _SH)
+    br = T[:, 7]
     rib = []
     if ribbon is not None:
         polys, ral, rw = ribbon
         ral = np.asarray(ral, float)
         rq = np.minimum((np.clip(ral, 0, 1) * 4).astype(int), 3)
-        rib = [(lv, [np.rint(np.stack(_xf(cm, q[:, 0], q[:, 1]), -1) * _SK).astype(np.int32)
-                     for q, ok in zip(polys, rq == lv) if ok]) for lv in np.unique(rq)]
-    for (sw, sh, hot, a) in layers + (((0.12, 0.0, 0.95, 1.0),) if rib else ()):
+        rib = [(lv, _px_polys(cm, [q for q, ok in zip(polys, rq == lv) if ok])) for lv in np.unique(rq)]
+    for (sw, sh, hot, a) in (layers if len(T) else ()) + (((0.12, 0.0, 0.95, 1.0),) if rib else ()):
         P = _tongue_polys(T[:, 0], T[:, 1], T[:, 2] * sw, T[:, 3] * sh, T[:, 4] * sh, T[:, 5] * sh, T[:, 6], n)
         X, Y = _xf(cm, P[..., 0], P[..., 1])
         P = np.rint(np.stack([X, Y], -1) * _SK).astype(np.int32)
@@ -2330,7 +2396,7 @@ def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emi
             al = clamp(a * k * (lv + 1) / 4.0)
             if sh > 0:
                 cv2.fillPoly(img, list(P[sel]), (255 * c[2] * al, 255 * c[1] * al, 255 * c[0] * al, 255 * al), _AA, _SH)
-        for lv, Ps in rib:
+        for lv, Ps in (rib if (sw == 1.0 or sh == 0.0) else ()):    # outer band + hot thread only
             al = clamp(a * k * (lv + 1) / 4.0)
             cv2.polylines(img, Ps, False, (255 * c[2] * al, 255 * c[1] * al, 255 * c[0] * al, 255 * al),
                           max(1, int(round(rw * sw * f.scale))), _AA, _SH)
@@ -2341,14 +2407,17 @@ def _draw_tongues(f, par, T, col, k=1.0, soft=1.5, layers=FLAME_LAYERS, n=7, emi
         wy = _xf(im, np.full_like(rows, img.shape[1] * 0.5), rows)[1]
         r = 1.0 - 0.7 * _ss(by - 0.25 * hh, by - 1.05 * hh, wy)
         img = (img * r[:, None, None].astype(np.float32)).astype(np.uint8)
-    if soft > 0.3:
-        img = cv2.GaussianBlur(img, (0, 0), soft * f.scale)
+    if soft * f.scale >= 1.0:
+        sg = soft * f.scale
+        kk = 2 * int(math.ceil(2.0 * sg)) + 1
+        img = cv2.GaussianBlur(img, (kk, kk), sg)
     _over(f, img, box[0], box[1], 1)
-    if emit > 0:
-        P = _tongue_polys(T[:, 0], T[:, 1], T[:, 2] * 0.7, T[:, 3] * 0.55, T[:, 4] * 0.55, T[:, 5] * 0.5, T[:, 6], 5)
+    if emit > 0 and len(T):
+        Te = T[::2] if len(T) < 120 else T[::3]
+        P = _tongue_polys(Te[:, 0], Te[:, 1], Te[:, 2] * 0.7, Te[:, 3] * 0.55, Te[:, 4] * 0.55, Te[:, 5] * 0.5, Te[:, 6], 4)
         with f.emit(par) as G:
-            for poly in P[::2]:
-                draw.poly(G, poly.tolist())
+            for poly in P.tolist():
+                draw.poly(G, poly)
             G.set_source_rgba(col[0], col[1], col[2], clamp(emit * k))
             G.fill()
 
@@ -2527,123 +2596,127 @@ def burning(f, fuses, t=None, burn=0.8, height=30.0, char=1.4, embers_rate=1.0, 
     """Draw fire travelling along Fuses at time t: a white-hot spark at each front, a continuous
     ribbon of flame tongues along the burning stretch (each point burns `burn` s: flares up,
     then dies) over a white-hot thread, a char line that cools from amber to ink for `char` s
-    and then breaks, a soft light halo and rising embers (embers_rate x). height px is the flame
-    height. Batched: pass all strands of a web in one call. Returns [intact polylines per fuse]
-    (Fuse.intact) to draw the standing strands in ink."""
+    and breaks up, a soft light halo and rising embers (embers_rate x). height px is the flame
+    height. Batched and vectorized: pass all strands of a web in one call. Returns [intact
+    polylines per fuse] (Fuse.intact) to draw the standing strands in ink."""
     t = _now(f, t)
     col = _rgb(color) if color is not None else _rgb(f.pal.light)
     if isinstance(fuses, Fuse):
         fuses = [fuses]
+    fuses = [fu for fu in fuses if len(fu.pts)]
+    if not fuses:
+        return []
     fl = fire_light(t, seed) * intensity
     tint = auto_tint(f, tint)
-    TT, sparks, segs, threads, th_a, chars = [], [], [[], [], []], [], [], [[], [], [], []]
-    hp = []     # (x, y, weight) of burning points for the halo
-    for fi, fu in enumerate(fuses):
-        age = t - fu.times
-        if not (age >= 0).any():
-            continue
-        step = float(np.median(np.hypot(*np.diff(fu.pts, axis=0).T))) if len(fu.pts) > 1 else 8.0
-        on = (age >= 0) & (age < burn)
-        a = np.clip(age / burn, 0.0, 1.0)
-        env = np.where(on, _ss(0.0, 0.08, a) * (1.0 - a) ** 0.8, 0.0)
-        idx = np.flatnonzero(on)
-        if idx.size:
-            e = env[idx]
-            nz = 0.5 + 0.5 * _vnoise(t * 3.1 + idx * 0.37, seed + fi)          # flicker
-            tall = 0.5 + 0.5 * _vnoise(t * 1.3 + idx * 0.23, seed + 11 + fi)    # clusters of tall licks
-            hh = height * e * (0.45 + 0.3 * nz + 0.65 * tall ** 2)
-            keep = (hh > 1.2) & (_vhash(seed + 3, fi, idx) < 0.6)            # irregular spacing
-            i2, hh, e2 = idx[keep], hh[keep], e[keep]
-            if i2.size:
-                lean = (wind * 0.006 + 0.22 * _vnoise(t * 1.5 + 0.3 * i2, seed + 7)) * hh
-                hw = max(0.95 * step, 0.2 * height) * (0.5 + 0.5 * e2) * (0.8 + 0.4 * _vhash(seed + 4, fi, i2))
-                TT.append(np.stack([fu.pts[i2, 0], fu.pts[i2, 1], hw, hh, lean, hh * 0.11, t * 8.0 + 1.7 * i2 + fi,
-                                    0.55 + 0.45 * e2], 1))
-                hp.append(np.stack([fu.pts[i2, 0], fu.pts[i2, 1], e2], 1))
-            # glow + hot thread: runs of burning segments, bucketed by heat
-            se = 0.5 * (env[:-1] + env[1:])
-            key = np.where(on[:-1] & on[1:], np.minimum((se * 3).astype(int), 2), -1)
-            for lv, i0, i1 in _runs(key):
-                segs[lv].append(fu.pts[i0:i1 + 1])
-                threads.append(fu.pts[i0:i1 + 1])
-                th_a.append(0.55 + 0.15 * lv)
-        front = np.flatnonzero((age >= 0) & (age < 0.12))
-        for i in front:
-            nb = [j for j in (i - 1, i + 1) if 0 <= j < len(age)]
-            if len(nb) < 2 or any(age[j] < 0 for j in nb):
-                sparks.append((fu.pts[i, 0], fu.pts[i, 1]))
-        ch = (age >= burn * 0.5) & (age < burn + char)
-        if ch.any():
-            cool = np.clip((age - burn * 0.5) / (burn * 0.5 + char), 0.0, 1.0)
-            # the char breaks up as it cools: drop pieces by a per-point hash
-            brk = _vhash(seed + 31 + fi, np.arange(len(age))) > 1.1 - cool * 1.1
-            q = np.minimum((cool * 4).astype(int), 3)
-            sc = ch[:-1] & ch[1:] & ~brk[:-1]
-            for lv, i0, i1 in _runs(np.where(sc, q[:-1], -1)):
-                chars[lv].append(fu.pts[i0:i1 + 1])
-    if any(segs):
-        P = np.concatenate([p for bucket in segs for p in bucket])
-        pad = height * 3
-        bb = (P[:, 0].min() - pad, P[:, 1].min() - pad, P[:, 0].max() + pad, P[:, 1].max() + pad)
-        with light(f, par=par, blur=height * 0.9, bbox=bb, tint=tint) as A:
-            A.set_line_join(cairo.LINE_JOIN_ROUND)
-            A.set_line_cap(cairo.LINE_CAP_ROUND)
-            for lv, bucket in enumerate(segs):
-                if not bucket:
-                    continue
-                for run in bucket:
-                    A.move_to(run[0, 0], run[0, 1] - height * 0.3)
-                    for x, y in run[1:]:
-                        A.line_to(x, y - height * 0.3)
-                A.set_line_width(height * 1.6)
-                A.set_source_rgba(col[0], col[1], col[2], clamp(0.055 * (lv + 1) * fl * glow))
-                A.stroke()
-    if hp and halo > 0:
-        H = np.concatenate(hp)
-        w = H[:, 2].sum()
+    lens = np.array([len(fu.pts) for fu in fuses])
+    P = np.concatenate([fu.pts for fu in fuses])
+    age = t - np.concatenate([fu.times for fu in fuses])
+    N = len(P)
+    fid = np.repeat(np.arange(len(fuses)), lens)
+    ends = np.cumsum(lens)
+    loc = np.arange(N) - np.repeat(ends - lens, lens)
+    last = np.zeros(N, bool)
+    last[ends - 1] = True
+    seg = np.hypot(*np.diff(P, axis=0).T)
+    step = np.array([float(np.median(seg[e - n:e - 1])) if n > 1 else 8.0 for n, e in zip(lens, ends)])[fid]
+    on = (age >= 0) & (age < burn)
+    a = np.clip(age / burn, 0.0, 1.0)
+    env = np.where(on, _ss(0.0, 0.08, a) * (1.0 - a) ** 0.8, 0.0)
+    TT = np.zeros((0, 8))
+    hp = None
+    idx = np.flatnonzero(on)
+    if idx.size:
+        e, li, fi = env[idx], loc[idx], fid[idx]
+        nz = 0.5 + 0.5 * _vnoise(t * 3.1 + li * 0.37, seed + 101 * fi)        # flicker
+        tall = 0.5 + 0.5 * _vnoise(t * 1.3 + li * 0.23, seed + 11 + 101 * fi)  # clusters of tall licks
+        hh = height * e * (0.45 + 0.3 * nz + 0.65 * tall ** 2)
+        keep = (hh > 1.2) & (_vhash(seed + 3, fi, li) < 0.6)                   # irregular spacing
+        i2, hh, e2, l2, f2 = idx[keep], hh[keep], e[keep], li[keep], fi[keep]
+        if i2.size:
+            lean = (wind * 0.006 + 0.22 * _vnoise(t * 1.5 + 0.3 * l2, seed + 7 + 101 * f2)) * hh
+            hw = np.maximum(0.95 * step[i2], 0.2 * height) * (0.5 + 0.5 * e2) * (0.8 + 0.4 * _vhash(seed + 4, f2, l2))
+            TT = np.stack([P[i2, 0], P[i2, 1], hw, hh, lean, hh * 0.11, t * 8.0 + 1.7 * l2 + f2, 0.55 + 0.45 * e2], 1)
+            hp = (P[i2], e2)
+    # burning segments (never across strands), bucketed by heat: glow + the ribbon / hot thread
+    sok = on[:-1] & on[1:] & ~last[:-1]
+    se = 0.5 * (env[:-1] + env[1:])
+    runs = _runs(np.where(sok, np.minimum((se * 3).astype(int), 2), -1))
+    hal = None
+    if hp is not None and halo > 0:
+        H, w_ = hp
+        w = w_.sum()
         if w > 0:
-            cx, cy = (H[:, 0] * H[:, 2]).sum() / w, (H[:, 1] * H[:, 2]).sum() / w - height * 0.5
-            sd = math.sqrt(max(((H[:, 0] - cx) ** 2 * H[:, 2]).sum() / w + ((H[:, 1] - cy) ** 2 * H[:, 2]).sum() / w, 1.0))
+            cx, cy = (H[:, 0] * w_).sum() / w, (H[:, 1] * w_).sum() / w - height * 0.5
+            sd = math.sqrt(max(((H[:, 0] - cx) ** 2 * w_).sum() / w + ((H[:, 1] - cy) ** 2 * w_).sum() / w, 1.0))
             R = sd * 1.6 + height * 6
-            I = clamp(0.2 * halo * fl * min(1.0, w / 25.0) ** 0.6)
-            with light(f, par=par, blur=0, ds=_ds(f, 6), bbox=(cx - R, cy - R, cx + R, cy + R), tint=tint) as A:
+            hal = (cx, cy, R, clamp(0.2 * halo * fl * min(1.0, w / 25.0) ** 0.6))
+    if runs or hal:
+        # one soft light layer: glow hugging the burning stretches + a broad halo in the air
+        bx = []
+        if runs:
+            pad = height * 3
+            Q = P[np.concatenate([[i0, i1] for _, i0, i1 in runs])]
+            bx.append((Q[:, 0].min() - pad, Q[:, 1].min() - pad, Q[:, 0].max() + pad, Q[:, 1].max() + pad))
+        if hal:
+            cx, cy, R, _ = hal
+            bx.append((cx - R, cy - R, cx + R, cy + R))
+        bb = (min(b_[0] for b_ in bx), min(b_[1] for b_ in bx), max(b_[2] for b_ in bx), max(b_[3] for b_ in bx))
+        with light(f, par=par, blur=height * 0.9, bbox=bb, tint=tint) as A:
+            if hal:
+                cx, cy, R, I = hal
                 draw.radial(A, (cx, cy), 0, R, [(0, col, I), (0.25, col, I * 0.55), (0.6, col, I * 0.15), (1, col, 0.0)])
                 A.arc(cx, cy, R, 0, TAU)
                 A.fill()
-    if any(chars):
-        with _main(f, par) as C:
-            C.set_line_width(max(1.0, height * 0.065))
-            C.set_line_join(cairo.LINE_JOIN_ROUND)
-            for lv, bucket in enumerate(chars):
-                if not bucket:
-                    continue
-                for run in bucket:
-                    C.move_to(*run[0])
-                    for x, y in run[1:]:
-                        C.line_to(x, y)
+            for lv in range(3):
+                any_ = False
+                for l_, i0, i1 in runs:
+                    if l_ != lv:
+                        continue
+                    A.move_to(P[i0, 0], P[i0, 1] - height * 0.3)
+                    for x, y in P[i0 + 1:i1 + 1].tolist():
+                        A.line_to(x, y - height * 0.3)
+                    any_ = True
+                if any_:
+                    A.set_line_width(height * 1.6)
+                    A.set_source_rgba(col[0], col[1], col[2], clamp(0.055 * (lv + 1) * fl * glow))
+                    A.stroke()
+    # char: cools amber -> deep red -> ink and breaks up into pieces
+    under = []
+    ch = (age >= burn * 0.5) & (age < burn + char)
+    if ch.any():
+        cool = np.clip((age - burn * 0.5) / (burn * 0.5 + char), 0.0, 1.0)
+        brk = _vhash(seed + 31, fid, loc) > 1.1 - cool * 1.1
+        q = np.minimum((cool * 4).astype(int), 3)
+        sc = ch[:-1] & ch[1:] & ~brk[:-1] & ~last[:-1]
+        cr = _runs(np.where(sc, q[:-1], -1))
+        wch = max(1.0, height * 0.065)
+        for lv in range(4):
+            polys = [P[i0:i1 + 1] for l_, i0, i1 in cr if l_ == lv]
+            if polys:
                 heat, al = CHAR_COLORS[lv]
                 c = _hot(col, heat) if heat >= 0 else _mix(_mix(col, (0.55, 0.12, 0.04), 0.6), f.pal.ink, -heat)
-                C.set_source_rgba(c[0], c[1], c[2], al)
-                C.stroke()
-    if TT:
-        T = np.concatenate(TT)
-        _draw_tongues(f, par, T, col, k=min(fl, 1.0), soft=0.9, n=7, emit=0.3 * (1.0 - 0.8 * tint), layers=BURN_LAYERS,
-                      ribbon=(threads, th_a, float(np.median(T[:, 2])) * 0.7))
-    if sparks:
-        with f.emit(par) as G:
-            for x, y in sparks:
-                draw.glow_disc(G, (x, y), height * 0.8, _hot(col, 0.6), clamp(0.7 * fl * (1.0 - 0.7 * tint)))
-        rs = height * 0.25
-        with _main(f, par, cairo.OPERATOR_ADD) as C:
-            for x, y in sparks:
-                draw.radial(C, (x, y), 0, rs, [(0, _hot(col, 0.95), 1.0), (0.5, _hot(col, 0.6), 0.5), (1, col, 0.0)])
-                C.arc(x, y, rs, 0, TAU)
-                C.fill()
-    if embers_rate > 0 and fuses and TT:
-        allp = np.concatenate([fu.pts for fu in fuses])
-        allt = np.concatenate([fu.times for fu in fuses])
-        order = np.argsort(allt)
-        allp, allt = allp[order], allt[order]
+                under.append((polys, c, al, wch))
+    if len(TT) or under:
+        th = [P[i0:i1 + 1] for _, i0, i1 in runs]
+        tha = [0.55 + 0.15 * lv for lv, _, _ in runs]
+        _draw_tongues(f, par, TT, col, k=min(fl, 1.0), soft=0.9, n=7, emit=0.3 * (1.0 - 0.8 * tint), layers=BURN_LAYERS,
+                      ribbon=(th, tha, float(np.median(TT[:, 2])) * 0.7) if (th and len(TT)) else None, under=under)
+    # white-hot sparks at the fronts (a burning point next to an unlit one, or a strand end)
+    front = (age >= 0) & (age < 0.12)
+    if front.any():
+        pa = np.roll(age, 1)
+        na = np.roll(age, -1)
+        pa[loc == 0] = -1.0
+        na[last] = -1.0
+        sp = np.flatnonzero(front & ((pa < 0) | (na < 0)))
+        if sp.size:
+            with f.emit(par) as G:
+                for x, y in P[sp].tolist():
+                    draw.glow_disc(G, (x, y), height * 0.8, _hot(col, 0.6), clamp(0.7 * fl * (1.0 - 0.7 * tint)))
+            _add_sprites(f, par, P[sp, 0], P[sp, 1], height * 0.25, _hot(col, 0.95), _hot(col, 0.6))
+    if embers_rate > 0 and len(TT):
+        order = np.argsort(age)[::-1]            # ignition time ascending
+        allp, allt = P[order], (t - age)[order]
 
         def samp(tk, u):
             lo = np.searchsorted(allt, tk - burn)
@@ -2651,8 +2724,7 @@ def burning(f, fuses, t=None, burn=0.8, height=30.0, char=1.4, embers_rate=1.0, 
             cnt = hi - lo
             i = np.clip(lo + (u * np.maximum(cnt, 1)).astype(int), 0, len(allt) - 1)
             return allp[i, 0], allp[i, 1] - height * 0.3, cnt > 0
-        nburn = sum(len(x) for x in TT)
-        rate = embers_rate * clamp(nburn / 5.0, 2.0, 70.0)
+        rate = embers_rate * clamp(len(TT) / 5.0, 2.0, 70.0)
         embers(f, samp, rate=rate, life=(0.8, 2.0), rise=(60.0, 150.0), spread=25.0, wind=wind, size=(0.9, 2.0),
                color=col, intensity=intensity, t=t, seed=seed + 5, par=par)
     return [fu.intact(t, burn) for fu in fuses]

@@ -134,7 +134,8 @@ class Frame:
         self.ctx = cairo.Context(self.surf)
         self.ctx.set_source_rgb(0, 0, 0)
         self.ctx.paint()
-        self.gw, self.gh = max(1, self.pw // GLOW_DS), max(1, self.ph // GLOW_DS)
+        # ceil-sized so an exact 1/GLOW_DS scale covers the frame on both axes
+        self.gw, self.gh = -(-self.pw // GLOW_DS), -(-self.ph // GLOW_DS)
         self.gsurf = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.gw, self.gh)
         self.g = cairo.Context(self.gsurf)
         self.cam = Camera()
@@ -162,7 +163,7 @@ class Frame:
     def set_camera(self, cam):
         self.cam = cam
         self.ctx.set_matrix(cam.matrix(self.scale))
-        self.g.set_matrix(cam.matrix(self.scale * self.gw / self.pw))
+        self.g.set_matrix(cam.matrix(self.scale / GLOW_DS))
         return cam
 
     def lcam(self, par=1.0):
@@ -237,12 +238,12 @@ class Frame:
                 c.restore()
             return
         k = int(clamp(round(blur_px / 3.0), 1, 8)) if blur_px >= 0.6 else 1
-        lw, lh = max(1, self.pw // k), max(1, self.ph // k)
+        lw, lh = -(-self.pw // k), -(-self.ph // k)        # ceil: exact 1/k scale on both axes
         surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lw, lh)
         c = cairo.Context(surf)
         c.set_line_cap(cairo.LINE_CAP_ROUND)
         c.set_line_join(cairo.LINE_JOIN_ROUND)
-        c.set_matrix(cam.matrix(self.scale * lw / self.pw))
+        c.set_matrix(cam.matrix(self.scale / k))
         try:
             yield c
         finally:
@@ -264,7 +265,7 @@ class Frame:
         c.identity_matrix()
         pat = cairo.SurfacePattern(surf)
         pat.set_filter(cairo.FILTER_BILINEAR if k > 1 else cairo.FILTER_FAST)
-        pat.set_matrix(cairo.Matrix(xx=surf.get_width() / self.pw, yy=surf.get_height() / self.ph))
+        pat.set_matrix(cairo.Matrix(xx=1.0 / k, yy=1.0 / k))
         if op is not None:
             c.set_operator(op)
         c.set_source(pat)
@@ -277,11 +278,11 @@ class Frame:
         cam = self.lcam(par)
         blur_px = max(0.0, blur * self.scale)
         k = int(clamp(round(blur_px / 2.5), 1, 8)) if blur_px >= 1 else 1
-        lw, lh = max(1, self.pw // k), max(1, self.ph // k)
+        lw, lh = -(-self.pw // k), -(-self.ph // k)
         surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, lw, lh)
         c = cairo.Context(surf)
         c.set_operator(cairo.OPERATOR_ADD)
-        c.set_matrix(cam.matrix(self.scale * lw / self.pw))
+        c.set_matrix(cam.matrix(self.scale / k))
         try:
             yield c
         finally:
@@ -297,7 +298,7 @@ class Frame:
         Draw the hot core on the main layer too if it must stay crisp."""
         cam = self.lcam(par)
         self.g.save()
-        self.g.set_matrix(cam.matrix(self.scale * self.gw / self.pw))
+        self.g.set_matrix(cam.matrix(self.scale / GLOW_DS))
         try:
             yield self.g
         finally:
@@ -318,7 +319,7 @@ class Frame:
         if alpha <= 0.002:
             return
         ds = 4
-        w, h = max(1, self.pw // ds), max(1, self.ph // ds)
+        w, h = -(-self.pw // ds), -(-self.ph // ds)
         ys = np.arange(h, dtype=np.float32) * ds / self.scale + ds / (2 * self.scale)   # screen y (frame px)
         xs = np.arange(w, dtype=np.float32) * ds / self.scale + ds / (2 * self.scale)
         if screen:
@@ -377,7 +378,8 @@ class Frame:
             gf = g.astype(np.float32)
             s1, s2 = P["glow_sigma"]
             gb = _blur(gf, s1) * 0.85 + _blur(gf, s2) * 1.25
-            gb = cv2.resize(gb, (self.pw, self.ph), interpolation=cv2.INTER_LINEAR)
+            gb = cv2.resize(gb, (self.gw * GLOW_DS, self.gh * GLOW_DS),
+                            interpolation=cv2.INTER_LINEAR)[:self.ph, :self.pw]
             out += gb * P["glow"]
         # bloom from bright areas
         if P["bloom"] > 0:
