@@ -228,14 +228,21 @@ LAYER_PAR = {"plane": 1.0, "web": 1.0, "near": 0.76, "mid": 0.56, "far": 0.38, "
 _S07_RED_LAYERS = ("plane", "web", "near")
 
 
-def s07_hood_targets(t=0.0, cam=None, layers=_S07_RED_LAYERS):
+def s07_hood_targets(t=0.0, cam=None, layers=_S07_RED_LAYERS, girl=True):
     """Screen positions (1080x1920 frame px) of the red hoods in s07's frame at time t:
     [dict(id, layer, x, y, h)] - x, y = the hood's centre, h = its height on screen.
-    The s06 Bass grid lands on these (s06 -> s07 is a flatten transition)."""
+    The s06 Bass grid lands on these (s06 -> s07 is a flatten transition). girl=True adds
+    the girl's own red hood and cloak as the first entry (id "girl", layer "girl"; she
+    stands still at S07_GIRL_X for t <= 1)."""
     C = S.CLEARING_SET
     cam = cam or S07_CAM0
     by_id = {h["id"]: h for h in C.hoods.items}
     out = []
+    if girl:
+        # centroid of her red silhouette (hood + cloak), measured on the rendered frame
+        gx, gy = S07_GIRL_X - 10.0, float(S.CLEARING.ground_y(S07_GIRL_X)) - 216.0
+        out.append(dict(id="girl", layer="girl", x=round((gx - cam.x) * cam.zoom + 540.0, 1),
+                        y=round((gy - cam.y) * cam.zoom + 960.0, 1), h=round(253.0 * cam.zoom, 1)))
     for hid, layer, x, y in C.hood_positions(t):
         if layer not in layers:
             continue
