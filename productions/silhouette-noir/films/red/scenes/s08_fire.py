@@ -34,12 +34,14 @@ _CAM = L.CamPath([
     (9.5, 930.0, 1150.0, 1.25),
     (10.6, 980.0, 1120.0, 1.15),
     (12.66, 1560.0, 1010.0, 0.82),
-    (13.3, 1560.0, 990.0, 0.80),
-    (15.0, 1600.0, 820.0, 0.62),
-    (16.0, 1250.0, 600.0, 0.46),
-    (17.0, 700.0, 400.0, 0.38),
-    (17.5, 650.0, 380.0, 0.37),
+    (13.3, 1580.0, 990.0, 0.80),
+    (14.3, 1800.0, 930.0, 0.68),
+    (15.4, 1820.0, 860.0, 0.60),
+    (16.2, 1480.0, 700.0, 0.50),
+    (17.0, 800.0, 470.0, 0.40),
+    (17.5, 750.0, 450.0, 0.395),
 ])
+FLASH_RGB = (1.0, 0.93, 0.85)       # the timeline's flash into s09
 SHAKES = [(0.0, 4.0, 0.25), (1.685, 2.5, 0.2), (2.385, 4.0, 0.25), (3.95, 2.0, 0.2), (5.5, 2.5, 0.2),
           (6.3, 2.0, 0.2), (8.25, 2.5, 0.2), (T_SMASH, 4.0, 0.35)]
 
@@ -57,7 +59,8 @@ def cam(t):
 
 
 def burn():
-    return C.ignite(D + T_SMASH)
+    # silk stays alight 1.6 s (default 0.75): the clearing is still burning when it flares
+    return C.ignite(D + T_SMASH, burn_time=1.6)
 
 
 def low_mist(t):
@@ -105,25 +108,61 @@ def render(f, t, T):
             _draw_lantern(f, c, t, lant)
         if fire:
             S.lantern_burst(f, c, L.C_SMASH, t7, D + T_SMASH, MOOD, S.CLEARING, size=1.2)
+    if fire:
+        _spider_fire(f, sp, t7)
     C.draw_front(f, MOOD, era="web", t=t7, burn=B, fire_strength=1.0)
     if fire:
         atmos.embers(f, L.ember_source(B), rate=70.0, life=(1.0, 2.6), rise=(110.0, 260.0), spread=40.0,
                      wind=25.0, gust=20.0, size=(1.2, 2.8), color=MOOD.lamp, t=t7, seed=11, t_start=D + T_SMASH)
-        _flare(f, t)
+        _flare(f, t, B)
 
 
-def _flare(f, t):
-    """The fire flares toward white at the end (under the flash to s09)."""
-    a = 0.42 * L.ss(16.0, 17.5, t)
-    if a <= 0.005:
+def _spider_fire(f, sp, t7):
+    """Grandmother burning: flames along the top of her abdomen and head, and on four legs."""
+    from engine.creatures import solve_spider
+    P = sp.state(t7)
+    b = float(P.get("burn", 0.0))
+    if b <= 0.02:
         return
-    import cairo
-    with S.soft_layer(f, k=8, op="add", screen=True) as A:
-        g = cairo.RadialGradient(540.0, 1150.0, 80.0, 540.0, 1100.0, 1500.0)
-        g.add_color_stop_rgba(0, *MOOD.lamp, a)
-        g.add_color_stop_rgba(1, *MOOD.lamp, 0.45 * a)
-        A.set_source(g)
-        A.paint()
+    S_ = sp.S
+    cy = math.cos(math.radians(P["yaw"]))
+    pa = math.radians(P["pitch"])
+    cp, sn = math.cos(pa), math.sin(pa)
+
+    def bw(fw, up):
+        f_, u_ = fw * S_, up * S_
+        return (P["x"] + (f_ * cp - u_ * sn) * cy, P["y"] - (f_ * sn + u_ * cp))
+    atmos.flames(f, (bw(-0.80, 0.14), bw(-0.10, 0.20)), height=0.40 * S_ * b, t=t7, seed=23, intensity=1.2 * b,
+                 color=MOOD.lamp, wind=-20.0)
+    atmos.flames(f, (bw(0.02, 0.12), bw(0.30, 0.08)), height=0.18 * S_ * b, t=t7, seed=29, intensity=b,
+                 color=MOOD.lamp, licks=False)
+    R = solve_spider(sp, P)
+    for i in (1, 2, 5, 6):
+        hip, kn, an, tip = R["legs"][i]
+        atmos.flames(f, (tuple(kn[:2]), tuple(an[:2])), height=0.09 * S_ * b, t=t7, seed=31 + i,
+                     intensity=0.8 * b, color=MOOD.lamp, licks=False, glow=0.5)
+
+
+def _flare(f, t, B):
+    """The fire flares toward white at the end: the bloom spreads, the exposure lifts, the
+    vignette opens and the frame washes toward the flash colour (the cut's flash completes it)."""
+    w1 = L.ss(15.6, 17.0, t)
+    if w1 <= 0.0:
+        return
+    w2 = L.ss(16.0, 17.0, t) ** 1.5
+    w3 = L.ss(16.3, 17.0, t) ** 2
+    P = f.post
+    P["bloom"] += 0.7 * w1
+    P["bloom_threshold"] -= 0.22 * w1
+    P["exposure"] *= 1.0 + 0.45 * w2
+    P["vignette"] *= 1.0 - 0.6 * w2
+    if 0.3 * w3 > P["flash"]:
+        P["flash"] = 0.3 * w3
+        P["flash_color"] = FLASH_RGB
+    col = tuple(L.lerp(a, b, w2) for a, b in zip(MOOD.lamp, FLASH_RGB))
+    with S.soft_layer(f, 1.0, k=8, op="add", blur=60.0) as A:
+        for (x, y, r, s_) in B.light_sources(t + D, n=4, radius=1100.0):
+            S.glow(A, (x, y), 1.6 * r, col, 0.22 * s_ * w1)
 
 
 def _draw_lantern(f, c, t, lant):
