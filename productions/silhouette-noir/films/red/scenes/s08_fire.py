@@ -28,10 +28,10 @@ T_SMASH = G8["smash"]
 
 _CAM = L.CamPath([
     (0.0, 1050.0, 990.0, 0.95),
-    (2.3, 1060.0, 1000.0, 0.95),
+    (2.4, 975.0, 1005.0, 0.97),
     (3.2, 975.0, 1395.0, 2.15),
-    (8.5, 955.0, 1430.0, 2.6),
-    (9.5, 930.0, 1150.0, 1.25),
+    (8.8, 950.0, 1432.0, 2.62),
+    (9.7, 850.0, 1170.0, 1.25),
     (10.6, 980.0, 1120.0, 1.15),
     (12.66, 1560.0, 1010.0, 0.82),
     (13.3, 1580.0, 990.0, 0.80),
@@ -209,4 +209,38 @@ def _draw_basket_spill(f, c, t, bk):
 
 
 def cues(T):
-    return []
+    return [
+        Cue(0.0, "wolf slams into the spider's face: heavy body impact, snarl", gain_db=-1, pan=0.1),
+        Cue(0.25, "wolf jaws snapping at the spider's eyes", gain_db=-6, pan=0.15),
+        Cue(F8["dodge"], "wolf scrabbles back in the snow, snarl", gain_db=-7, pan=0.1),
+        Cue(F8["stabA"] + 0.385, "spider leg spears into the snow: thud, crunch", gain_db=-3, pan=0.15),
+        Cue(1.85, "wolf bites the stuck leg: chitin crack, spider hiss", gain_db=-3, pan=0.2),
+        Cue(F8["knock"], "spider leg slams down by the girl: impact, her cry, she is thrown flat", gain_db=-2,
+            pan=-0.45),
+        Cue(F8["fly"], "basket flung away: wicker creak, whoosh", gain_db=-10, pan=-0.2),
+        Cue(2.88, "basket thumps down in the snow", gain_db=-8, pan=0.0),
+        Cue(3.5, "wolf lands from its lunge, snarling", gain_db=-5, pan=0.35),
+        Cue(F8["roll"], "spider leg stabs the snow beside the basket", gain_db=-4, pan=0.3),
+        Cue(T.at("basket"), "basket tips over: wicker thump, things shifting inside", gain_db=-6, pan=0.05),
+        Cue(F8["bread"], "spider leg strikes the wolf: wolf yelps", gain_db=-4, pan=0.5),
+        Cue(T.at("Bread"), "loaf tumbles out onto the snow: soft thump", gain_db=-9, pan=-0.05),
+        Cue(F8["wine"], "spider leg stabs the snow", gain_db=-5, pan=0.3),
+        Cue(T.at("Wine"), "wine bottle slides out: clink on the wicker, glass rolling on snow", gain_db=-8,
+            pan=-0.15, dur=0.8),
+        Cue(7.41, "wolf lunges again, snarling", gain_db=-5, pan=0.5),
+        Cue(F8["lantern"], "spider leg stab, close", gain_db=-5, pan=0.4),
+        Cue(T.at("lantern"), "lantern rolls out: tin rattle, glass, the flame flutters up", gain_db=-6,
+            pan=0.0, dur=0.7),
+        Cue(G8["up0"], "girl scrambles up in the snow, quick breaths", gain_db=-12, pan=-0.3, dur=0.9),
+        Cue(F8["pin"], "spider pins the wolf: legs slam down, wolf yelps", gain_db=-3, pan=0.6),
+        Cue(10.0, "pinned wolf snarling and snapping", gain_db=-8, pan=0.55, dur=2.6),
+        Cue(G8["grab"], "her hand closes on the lantern's ring: tin clink", gain_db=-10, pan=-0.05),
+        Cue(10.82, "running footsteps in snow, the lantern rattling", gain_db=-8, pan=-0.1, dur=1.5),
+        Cue(T.at("fire"), "lantern smashed on the silk: glass shatter, oil fire WHOOSH", gain_db=0, pan=0.15),
+        Cue(T_SMASH + 0.15, "fire racing along the silk: crackling roar building", gain_db=-3, pan=0.1,
+            dur=4.0),
+        Cue(F8["burnt"], "spider screeches, rearing off the wolf", gain_db=-2, pan=0.6),
+        Cue(F8["burn1"], "the fire reaches the spider: shriek, sizzle", gain_db=-1, pan=0.7),
+        Cue(15.0, "spider death rattle: legs clattering, burning", gain_db=-4, pan=0.6, dur=2.0),
+        Cue(15.8, "the fire roar swells into the flash", gain_db=0, pan=0.0, dur=1.2),
+    ]

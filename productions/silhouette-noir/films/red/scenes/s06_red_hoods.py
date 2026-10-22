@@ -1,6 +1,6 @@
 """s06 · RED HOODS: the valley view (14.5 s).
 
-IN  (hard cut from s05): VALLEY_VIEW.camera("start") = Camera(540, 1480, 1.25), DUSK. She
+IN  (hard cut from s05): VALLEY_VIEW.camera("start") = Camera(540, 1480, 1.25) exactly, DUSK. She
     stands on the crest at x = 540 (feet on crest_y + 8: screen ~(540, 1376)), back to camera,
     hood up (look_up), the basket hanging from her right hand; light snow (density 0.5).
 Beats (scene-local s; L9 0.60-3.12, L10 4.00-6.69, L11 7.60-10.69):
@@ -18,25 +18,27 @@ Beats (scene-local s; L9 0.60-3.12, L10 4.00-6.69, L11 7.60-10.69):
                     copied down, row after row, faster and faster: counting winters
     ~12.8           the last slot is hers: her triangle flies up into it (the next winter)
     ~13.1           the grid pulses once (a wave out from her slot)
-    13.3-14.15      the triangles drift and snap onto s07's hoods (s07_hood_targets) while
-                    s07's forest assembles round them as cut-paper ink bars
-OUT (flatten, 1.0 s, 14.0-15.0): from 14.1 the frame is exactly s07's opening (t = 0)
-    flattened to 2 inks: ink forest on PAPER, a red triangle on each of s07's 39 red hoods
-    (centre / height from s07_hood_targets) and hers on the girl (670.5, 1312.2, h 113.9).
+    13.17-14.06     the triangles drift and snap onto s07's hoods (s07_hood_targets) while
+                    s07's forest assembles round them as cut-paper ink bars (13.46-14.08)
+OUT (flatten, 1.0 s, 14.0-15.0): from 14.08 the frame is s07's opening (t = 0) flattened to
+    2 inks exactly as the flatten shows it: ink forest on PAPER, a red triangle on each red
+    hood s07 really shows (s07_hood_targets, each fitted to its visible red; hoods hidden
+    behind trunks in that frame are skipped so nothing vanishes at the swap) and hers on the
+    girl (~(671, 1307), h 114). s07's frame is rendered here (once per process) for that.
 """
 import math
 from functools import lru_cache
 
 import cairo
+import cv2
 import numpy as np
 
 from engine import bass, draw
-from engine.core import clamp, ease, lerp, hash01, noise1
-from engine.frame import Camera, Frame
+from engine.core import clamp, ease, lerp, hash01
+from engine.frame import Frame
 from engine.motion import Actor
 from engine.palette import PAPER, RED
 from engine.timing import Cue
-from films.red import cast
 from films.red import sets as S
 from films.red.scenes import _lib_s02_s06 as L26
 
@@ -85,7 +87,7 @@ def _mood(t):
 @lru_cache(maxsize=4)
 def _campath(house):
     st, ho, hd, wd = V.camera("start"), V.camera("house"), V.camera("hoods"), V.camera("wide")
-    keys = [(-1.0, st.x, st.y, st.zoom), (0.55, st.x, st.y - 2.0, st.zoom * 1.004),
+    keys = [(0.0, st.x, st.y, st.zoom), (0.55, st.x, st.y - 2.0, st.zoom * 1.004),
             (1.55, 548.0, 1190.0, 1.31),                      # rising over her: she drops away
             (2.40, 566.0, 862.0, 1.44),                       # out over the valley: the path's end
             (3.45, 596.0, 905.0, 2.30),                       # gliding down it
@@ -213,8 +215,43 @@ def _tri(c, h, seed, ratio=TRI_R, rot=0.0, sx=1.0):
 
 
 @lru_cache(maxsize=None)
+def _s07_blobs():
+    """The red of s07's opening frame as the flatten shows it, measured once at scale 0.5:
+    (red mask, blob labels, blob stats), or None if s07 cannot render."""
+    flat = _s07_flat(0.5)
+    if flat is None:
+        return None
+    m = _red_mask(flat)
+    _, lab, st, _ = cv2.connectedComponentsWithStats(m.astype(np.uint8), connectivity=8)
+    return m, lab, st
+
+
+def _fit(d, M, girl=False):
+    """A target's red as s07 really shows it: (x, y, h, ratio) of its visible blob's box (the
+    nominal hood if the blob is merged with a neighbour), or None if the hood is (nearly)
+    hidden behind ink there: a triangle landing on it would vanish at the swap."""
+    x, y, h = d["x"], d["y"], d["h"]
+    nom = (x, y, h, 0.42 if girl else HOOD_R)
+    if M is None:
+        return nom
+    m, lab, st = M
+    s = 0.5
+    ys = slice(max(0, int((y - 0.5 * h) * s)), int((y + 0.5 * h) * s) + 1)
+    xs = slice(max(0, int((x - 0.3 * h) * s)), int((x + 0.3 * h) * s) + 1)
+    if m[ys, xs].size == 0 or m[ys, xs].mean() < 0.15:
+        return None
+    ids, cnt = np.unique(lab[ys, xs][m[ys, xs]], return_counts=True)
+    k = int(ids[np.argmax(cnt)])
+    bw, bh = st[k, 2] / s, st[k, 3] / s
+    if bh > 1.35 * h or bw > (0.8 if girl else 1.0) * h:
+        return nom
+    return (st[k, 0] + 0.5 * st[k, 2]) / s, (st[k, 1] + 0.5 * st[k, 3]) / s, bh, clamp(bw / bh, 0.34, 0.8)
+
+
+@lru_cache(maxsize=None)
 def _targets():
-    """s07's hood targets (the girl first) and the grid -> target assignment."""
+    """s07's hood targets (the girl first; hidden hoods dropped, each fitted to its visible
+    red) and the grid -> target assignment."""
     try:
         from films.red.scenes._lib_s04_s08 import s07_hood_targets
         tg = s07_hood_targets()
@@ -222,15 +259,17 @@ def _targets():
         tg = []
     if not tg:
         tg = [dict(id="girl", x=670.5, y=1312.2, h=113.9)]
+    blobs = _s07_blobs()
+    girl = _fit(tg[0], blobs, girl=True) or (tg[0]["x"], tg[0]["y"], tg[0]["h"], 0.42)
+    hoods = [h for h in (_fit(d, blobs) for d in tg[1:]) if h is not None]
     L = _layout()
-    girl, hoods = tg[0], tg[1:]
     slots = L["slots"]
     n = len(slots) - 1
     assign = [0] * n
     if hoods:
         cap = int(math.ceil(n / float(len(hoods))))
         load = [0] * len(hoods)
-        pairs = sorted(((slots[i][0] - h["x"]) ** 2 + (slots[i][1] - h["y"]) ** 2, i, j)
+        pairs = sorted(((slots[i][0] - h[0]) ** 2 + (slots[i][1] - h[1]) ** 2, i, j)
                        for i in range(n) for j, h in enumerate(hoods))
         done = [False] * n
         for d, i, j in pairs:
@@ -332,12 +371,12 @@ def _bass(f, t, w, clip=None):
             s = _pulse(t, pc)
             td = _drift(i, pc)
             if t > td:
-                hd = hoods[assign[i]] if hoods else girl
+                hx, hy, hh_, hr_ = hoods[assign[i]] if hoods else girl
                 u = _k(t, td, DRIFT, "inout3")
                 ug = _k(t, td + DRIFT * 0.5, DRIFT * 0.5, "out3")
-                pc = (lerp(pc[0], hd["x"], u), lerp(pc[1], hd["y"], u))
-                h = lerp(h, hd["h"], ug)
-                ratio = lerp(ratio, HOOD_R, ug)
+                pc = (lerp(pc[0], hx, u), lerp(pc[1], hy, u))
+                h = lerp(h, hh_, ug)
+                ratio = lerp(ratio, hr_, ug)
                 rot = rot * (1.0 - u)
             polys.append(_tri(pc, h * s, i, ratio, rot))
         # hers: the last one counted; then the girl standing in the clearing (s07)
@@ -347,9 +386,9 @@ def _bass(f, t, w, clip=None):
             td = _drift(len(L["slots"]), hc) + 0.05
             if t > td:
                 u = _k(t, td, DRIFT + 0.1, "inout3")
-                hc = (lerp(hc[0], girl["x"], u), lerp(hc[1], girl["y"], u))
-                hh = lerp(hh, girl["h"], u)
-                hr = lerp(hr, 0.6, u)
+                hc = (lerp(hc[0], girl[0], u), lerp(hc[1], girl[1], u))
+                hh = lerp(hh, girl[2], u)
+                hr = lerp(hr, girl[3], u)
             hh *= s
         polys.append(_tri(hc, hh, 999, hr, 0.0))
         if clip:
@@ -364,25 +403,39 @@ def _bass(f, t, w, clip=None):
 
 
 # ----------------------------------------------------------------------------- s07's forest
+def _red_mask(img):
+    """flatten_image's own red test (its reds are flat RED)."""
+    b, g, r = [img[..., i].astype(np.int16) for i in range(3)]
+    return (r > 90) & (r > g * 2.2) & (r > b * 2.2)
+
+
 @lru_cache(maxsize=4)
-def _s07_ink(scale):
+def _s07_flat(scale):
     """s07's opening frame (t = 0) flattened to 2 inks exactly as the flatten transition will
-    show it; returned as an ink-on-transparent cairo surface (device px) or None."""
+    show it at the swap (uint8 BGRA), or None if s07 cannot render."""
     try:
         from engine.render import render_scene
         from engine import transitions as TR
         img = render_scene("red", "s07", 0.0, scale)
         tones, _ = bass.poster_tones("red")
-        flat = TR.flatten_image(img, tones, 2, "auto", True, 5)
+        return TR.flatten_image(img, tones, 2, "auto", True, 5)
     except Exception:                                        # noqa: BLE001 - s07 not renderable
         return None
+
+
+@lru_cache(maxsize=4)
+def _s07_ink(scale):
+    """The ink of s07's flattened opening frame on transparent (reds left out): a cairo
+    surface in device px, or None."""
+    flat = _s07_flat(scale)
+    if flat is None:
+        return None
     b, g, r = [flat[..., i].astype(np.float32) for i in range(3)]
-    red = (r > 90) & (r > g * 2.2) & (r > b * 2.2)
     lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
     lo = 0.2126 * INK[0] + 0.7152 * INK[1] + 0.0722 * INK[2]
     hi = 0.2126 * PAPER[0] + 0.7152 * PAPER[1] + 0.0722 * PAPER[2]
     a = np.clip((hi - lum) / (hi - lo), 0.0, 1.0)
-    a[red] = 0.0
+    a[_red_mask(flat)] = 0.0
     h, wd = a.shape
     arr = np.zeros((h, wd, 4), np.uint8)
     A = (a * 255.0 + 0.5).astype(np.uint8)
@@ -440,8 +493,8 @@ def _paper_bars(f, t):
     with f.screen() as c:
         rects = bass.bar_rects((0.0, 0.0, 1080.0, 1920.0), 8, "h", None, 0.0, 5, irregular=0.35)
         for i, (x0, y0, x1, y1) in enumerate(rects):
-            st = BARS[0] + (BARS[1] - 0.2) * hash01(i, 77)
-            u = _k(t, st, 0.2, "out3")
+            st = BARS[0] + (BARS[1] - 0.17) * hash01(i, 77)
+            u = _k(t, st, 0.17, "out5")
             if u <= 0:
                 continue
             side = -1.0 if i % 2 == 0 else 1.0

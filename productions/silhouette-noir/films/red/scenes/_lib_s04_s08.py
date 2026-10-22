@@ -653,8 +653,8 @@ class Stepper:
 
 # where things are in s08 (world x)
 X_LIE = 720.0                     # her pelvis, knocked flat
-X_UP = X_LIE + 0.19 * GH          # standing up (and squatting for the lantern)
-LANTERN_X = 952.0                 # where the lantern comes to rest (its centre)
+X_UP = X_LIE + 0.29 * GH          # standing up (and squatting for the lantern)
+LANTERN_X = 990.0                 # where the lantern comes to rest (its centre), against the handle
 X_SMASH = 1328.0                  # her pelvis when she smashes it on the strand
 SMASH_HAND = (1392.0, 1334.0)     # her hand at the impact (the lantern hits C.smash_point)
 RUN_SPEED = 2.4                   # body heights per second
@@ -849,9 +849,8 @@ def basket_mouth(t):
 
 
 # the spill: (start, end) of each item's way out; rest x of its centre. Left to right on the
-# snow: the bottle (rolled up to her boots), the lantern, the loaf just out of the mouth, inside
-# the handle (backlit by the lantern's glow in the basket).
-SPILL = dict(bread=(5.62, 6.05, 1000.0), bottle=(6.38, 7.2, 893.0), lantern=(8.3, 8.95, LANTERN_X))
+# snow: the bottle (rolled up to her boots), the loaf, the lantern against the basket's handle.
+SPILL = dict(bread=(5.62, 6.05, 938.0), bottle=(6.38, 7.2, 890.0), lantern=(8.3, 8.95, LANTERN_X))
 ITEM_SCALE = dict(bread=1.1, bottle=1.15)      # loose items drawn a little large (close-up legibility)
 
 
@@ -900,7 +899,7 @@ def item_state(name, t):
     if name == "bread":
         # tumbles out of the mouth, a hop and one roll, and settles dome up
         x = lerp(m[0] + 6.0, xr, ease("out", u))
-        y = lerp(m[1] - 4.0, gy - half, ss(0.0, 0.5, u)) - 14.0 * math.sin(math.pi * clamp(u / 0.5))
+        y = lerp(m[1] - 4.0, gy - half, ss(0.0, 0.5, u)) - 26.0 * math.sin(math.pi * clamp(u / 0.5))
         ang = -360.0 * ease("out", u) + 6.0 * math.sin(2 * math.pi * clamp((u - 0.7) / 0.3)) * (u > 0.7)
         return x, y, ang
     if name == "bottle":

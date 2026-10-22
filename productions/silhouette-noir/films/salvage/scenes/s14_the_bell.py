@@ -8,8 +8,9 @@ IN  (scroll 'down' from s13 = an ascent, 1.0 s): split composition, waterline at
     (the camera still rising, settled by ~0.9). Above: the stern of the boat, the client bent
     over the winch crank at screen x ~335 (fedora, trench, cigar ember), the davit and lantern,
     the moon (screen (430, 140)). Below: the pale line drops at x ~690 to the load, a dark,
-    silt-shrouded mass at ~(690, 1800); the diver rises at left-centre ~(360, 1470), lamp beam
-    up, the cut red hose trailing below him out of frame.
+    silt-shrouded mass at ~(700, 1800) (it must not read as a bell until it breaks the surface);
+    the diver rises at left-centre ~(430, 1400) (s13 hands him over at ~470), lamp beam up, the
+    cut red hose trailing below him out of frame.
 
 Beats (scene-local s):
   0-6.4      the client cranks steadily (bobbing with the crank); diver and load rise in
@@ -22,10 +23,12 @@ Beats (scene-local s):
   9.75       the winch stops; the bell is at its outboard extreme: TOLL (1); the client freezes
              (the ember dies down); a 3 px shake
   10.90      it swings back over the stern toward him: TOLL (2), he flinches
-OUT (hard cut on the second toll's echo): wide on the stern, the bell just past its inboard
-    extreme and swinging right: crown loop ~(625, 830), lip centre ~(600, 1000) at zoom 0.66;
-    the client straightening up at the winch (screen x ~225); the diver's helmet ~40 px under
-    the surface by the ladder (screen ~(560, 1230)), lamp on.
+OUT (hard cut on the second toll's echo; last frame t = 10.958): camera (-165, -418) zoom 0.86,
+    wide on the stern. The bell just past its inboard extreme (theta -21.7 deg) and swinging
+    right (outboard, +11 deg/s): crown loop at screen (660, 816), lip centre (580, 1020). The
+    client straightening up at the winch, head at screen (226, 736), ember dying. The diver under
+    the ladder, helmet top ~36 px under the surface, head at screen (633, 1411), lamp on;
+    waterline at screen y 1321.
 
 The bell, the davit and the swell run on one clock shared with s15 (_lib: bell_state).
 """
@@ -205,6 +208,17 @@ def _ember(t, b):
     return e * (1.0 - 0.7 * smoothstep(T_STOP - 0.1, T_STOP + 0.9, t))
 
 
+def _ember_flare(f, sk, t, b):
+    """The cigar's own ember is a few px at this zoom: on [safe] (and the eager crank) a warm
+    halo blooms round it so the draw reads."""
+    k = 0.85 * LIB.bump(t, b["safe"] - 0.25, b["safe"] + 0.05, b["safe"] + 0.45, b["safe"] + 1.6) \
+        + 0.3 * LIB.bump(t, 7.2, 7.5, 7.7, 8.3)
+    if k <= 0.01 or sk.side_w > 0.85:
+        return
+    p = F.head_point(sk, 0.86, 0.22, front_x=0.16, front_y=0.20)
+    atmos.lamp(f, p, radius=5.0, intensity=k, halo=7.0, core=0.0, flicker="ember", t=t, seed=21)
+
+
 def _client_look(t, b):
     lk = cast.client(ember=_ember(t, b), coat_flow=0.18 + 0.1 * noise1(t * 0.5, 4))
     return lk
@@ -238,7 +252,8 @@ def _top_depth(t):
 
 
 def _dv_x(t):
-    return -560.0 + 290.0 * smoothstep(-0.5, 6.6, t) + 220.0 * smoothstep(8.2, 9.9, t)
+    # starts ~screen x 430 (s13 hands him over rising at ~470) and drifts in under the stern
+    return -420.0 + 150.0 * smoothstep(-0.5, 6.6, t) + 220.0 * smoothstep(8.2, 9.9, t)
 
 
 def _dv_path(t):
@@ -333,36 +348,94 @@ def _lamp_head(f, t):
 
 
 # ============================================================================= the bell
+# The load must NOT read as a bell until it breaks the surface (bible s11/s14): under water it is
+# wrapped in a lumpy shroud of silt that hides the crown loop and the flare. Each lump rides with
+# the bell until it reaches the surface, where it is scraped off and spreads, thinning, under the
+# skin, so the bell comes out of its own murk: crown first (8.30), the mouth last (~8.8).
+_SHROUD = (  # (x, y, r) bell-local at s = 1 (crown-loop top = (0, 0), lip ~ y 141, half-width 66)
+    (0, 8, 30), (-34, 18, 26), (34, 20, 27),
+    (-52, 46, 30), (0, 44, 36), (50, 50, 32),
+    (-62, 84, 34), (-14, 80, 40), (30, 86, 40), (68, 92, 30),
+    (-70, 122, 30), (-30, 124, 36), (16, 128, 36), (58, 130, 34),
+    (-44, 156, 28), (6, 160, 30), (46, 158, 26),
+)
+_D0 = 40.0                                   # a lump lets go this far under the skin
+_GT = np.arange(4.0, T_STOP, 1.0 / 120.0)
+
+
+def _crown_depth(tt):
+    top = LIB.bell_state(tt, BOAT, _probe=True)["top"]
+    return top[1] - S.sea_y(top[0], tt)
+
+
+_GV = np.array([_crown_depth(float(x)) for x in _GT])
+
+
+def _let_go(ly):
+    """When the lump at bell-local y reaches _D0 under the surface (scene s)."""
+    hit = np.nonzero(_GV <= _D0 - LIB.BELL_S * ly)[0]
+    return float(_GT[hit[0]]) if len(hit) else T_STOP
+
+
+_LET_GO = tuple(_let_go(ly) for (_, ly, _) in _SHROUD)
+
+
+def _blob(L, p, rx, ry, a):
+    L.save()
+    L.translate(p[0], p[1])
+    L.scale(max(rx, 0.1), max(ry, 0.1))
+    L.new_path()
+    L.arc(0, 0, 1.0, 0, 2 * math.pi)
+    L.restore()
+    L.set_source_rgba(INK[0], INK[1], INK[2], clamp(a))
+    L.fill()
+
+
+def _lump_local(i, tt):
+    x, y, r = _SHROUD[i]
+    h1, h2, h3 = hash01(81, i, 1), hash01(81, i, 2), hash01(81, i, 3)
+    return ((x + 3.0 * math.sin(0.9 * tt + 6.283 * h1), y + 3.0 * math.sin(0.7 * tt + 6.283 * h2)),
+            r * (1.0 + 0.06 * math.sin(1.1 * tt + 6.283 * h3)))
+
+
+def _shroud(L, st, t):
+    s = LIB.BELL_S
+    for i, (lx, ly, r0) in enumerate(_SHROUD):
+        td = _LET_GO[i]
+        if t < td:
+            loc, r = _lump_local(i, t)
+            p = LIB.bell_point(st, loc)
+            _blob(L, p, r * s * 1.08, r * s, 0.93)
+            continue
+        age = t - td
+        if age > 1.6:
+            continue
+        loc, r = _lump_local(i, td)
+        p = LIB.bell_point(LIB.bell_state(td, BOAT), loc)
+        side = 1.0 if lx > 4.0 else (-1.0 if lx < -4.0 else (1.0 if hash01(82, i, 1) > 0.5 else -1.0))
+        k = 1.0 - math.exp(-age / 0.5)
+        x = p[0] + side * ((70.0 + 60.0 * hash01(82, i, 2)) * k + 12.0 * age)
+        y = p[1] - 520.0 * 0.05 * (1.0 - math.exp(-age / 0.05)) + 14.0 * age
+        g = 1.0 + 1.1 * k
+        _blob(L, (x, y), r * s * 1.08 * g * 1.3, r * s * g * 0.8, 0.93 * math.exp(-age / 0.45))
+
+
 def _silt(L, st, t, k):
-    """Silt and weed shed by the load as it is hauled up: a few clots clinging round its
-    mouth and a trail left behind in the water (where it was), spreading and thinning."""
+    """The trail of silt the load sheds as it is hauled up, left behind in the water (where it
+    was), spreading and thinning."""
     if k <= 0.0:
         return
-    def blob(p, rx, ry, a):
-        L.save()
-        L.translate(p[0], p[1])
-        L.scale(rx, ry)
-        L.new_path()
-        L.arc(0, 0, 1.0, 0, 2 * math.pi)
-        L.restore()
-        L.set_source_rgba(INK[0], INK[1], INK[2], clamp(a))
-        L.fill()
-    for i in range(7):                      # clinging round the mouth
-        u = (hash01(78, i, 1) - 0.5) * 2.0
-        p = LIB.bell_point(st, (u * 70.0, 112.0 + 30.0 * hash01(78, i, 2)))
-        r = 26.0 + 22.0 * hash01(78, i, 3)
-        blob(p, r * 1.3, r * 0.8, 0.5 * k)
-    for j in range(1, 17):                  # the trail
+    for j in range(1, 17):
         age = 0.16 * j + 0.05 * hash01(79, j, 1)
         te = t - age
         if te > 7.9:
             continue
         sp = LIB.bell_state(te, BOAT)
         u = (hash01(79, j, 2) - 0.5) * 2.0
-        p = LIB.bell_point(sp, (u * 50.0, 150.0))
+        p = LIB.bell_point(sp, (u * 60.0, 170.0))
         p = (p[0] + 18.0 * age + 30.0 * u * age, p[1] - 10.0 * age)
         r = (34.0 + 46.0 * age) * (0.8 + 0.4 * hash01(79, j, 3))
-        blob(p, r * 1.5, r * 0.75, 0.55 * k * math.exp(-age / 1.3))
+        _blob(L, p, r * 1.5, r * 0.75, 0.55 * k * math.exp(-age / 1.3))
 
 
 def _sea_clip(c, x0, x1, t, below=True):
@@ -380,19 +453,21 @@ def _sea_clip(c, x0, x1, t, below=True):
 
 def _bell_under(f, t, st):
     """The load below the surface: a fogged, blurred dark mass shrouded in silt."""
-    if st["lip_sea"] > 40.0:
+    if t > T_CLEAR + 1.7:
         return
     top_d = st["top"][1]
     depth = max(0.0, top_d + 150.0)
     fog = (0.22 + 0.16 * smoothstep(0.0, 1600.0, depth) + 0.2 * (1.0 - smoothstep(7.7, 8.3, t))) \
         * (1.0 - 0.5 * smoothstep(7.9, 8.6, t))
-    blur = lerp(3.0, 11.0, smoothstep(0.0, 1400.0, depth)) * f.cam.zoom / 0.5
+    blur = lerp(6.0, 13.0, smoothstep(0.0, 1400.0, depth)) * f.cam.zoom / 0.5
     wc = S.water_at(depth, BRIGHT)
     x0, y0, x1, y1 = f.cam.view_rect(300)
     with f.layer(blur=blur, fog=fog, fog_color=wc) as L:
         L.save()
         _sea_clip(L, x0, x1, t, below=True)
-        LIB.draw_bell_lit(L, st, (0.0, -1.0), f.cam.zoom, color=INK)
+        if st["lip_sea"] <= 40.0:
+            LIB.draw_bell_lit(L, st, (0.0, -1.0), f.cam.zoom, color=INK)
+        _shroud(L, st, t)
         _silt(L, st, t, 1.0 - smoothstep(7.9, 8.4, t))
         L.restore()
 
@@ -493,6 +568,7 @@ def render(f, t, T):
         _bell_air(L, f, t, st, md)
     S.water_front(f, t, alpha=0.08, bright=BRIGHT)
     BOAT.draw_lights(f, t, lantern=1.0, window=0.5, masthead=1.0)
+    _ember_flare(f, sk, t, b)
     _bell_water(f, t, st)
     atmos.bubbles(f, _VALVE, rate=2.6, t=t, seed=33, rise=(240.0, 380.0), size=(1.5, 5.5), spread=8.0,
                   current=12.0, surface=6.0, height=2400.0, alpha=0.8)

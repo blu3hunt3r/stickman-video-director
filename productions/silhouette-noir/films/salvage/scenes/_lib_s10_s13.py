@@ -215,6 +215,25 @@ def port_eyes(f, ctx, sk, look=(0.0, 0.0), open_=1.0, glow=1.0, color=(1.0, 1.0,
                 draw.glow_disc(G, e, r * halo_r, color, 0.5 * g * clamp(open_) * halo)
 
 
+def port_glint(f, sk, a=0.3, color=None, arc=(196.0, 252.0)):
+    """A thin curved highlight on the helmet's port glass (upper rim), additive: glass, not a
+    hole. Keep it faint; it must not sit on the eyes."""
+    if a <= 0.004:
+        return
+    (pc, pr) = port_center(sk)
+    col = color or mix(PAL.surface, (1.0, 1.0, 1.0), 0.5)
+    with f.light(blur=1.5) as A:
+        A.new_path()
+        A.arc(pc[0], pc[1], pr * 0.80, math.radians(arc[0]), math.radians(arc[1]))
+        A.set_line_width(pr * 0.09)
+        A.set_line_cap(cairo.LINE_CAP_ROUND)
+        A.set_source_rgba(col[0], col[1], col[2], clamp(a))
+        A.stroke()
+        draw.circle(A, (pc[0] + pr * 0.42, pc[1] + pr * 0.50), pr * 0.05)
+        A.set_source_rgba(col[0], col[1], col[2], clamp(a * 0.7))
+        A.fill()
+
+
 # ----------------------------------------------------------------------------- arm solver
 _ARM_KEYS = ("sh", "abd", "elbow")
 _ARM_LIM = {"sh": (-80.0, 200.0), "abd": (-12.0, 95.0), "elbow": (0.0, 150.0)}
