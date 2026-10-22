@@ -31,16 +31,17 @@ class Body:
         p = dict(
             hip=0.530, thigh=0.245, shin=0.246, ankle_h=0.039,
             heel_back=0.040, ball=0.104, toe=0.046,
-            spine=(0.092, 0.100, 0.098), neck=0.050, head=0.130,
-            shoulder_w=0.130, hip_w=0.088, shoulder_drop=0.016,
+            spine=(0.092, 0.100, 0.098), neck=0.048, head=0.134,
+            shoulder_w=0.106, hip_w=0.052, shoulder_drop=0.016,
             upper_arm=0.186, forearm=0.146, hand=0.108,
             # radii (fraction of height)
             r_thigh=(0.060, 0.038), r_shin=(0.038, 0.021), calf=0.044,
             r_upper=(0.036, 0.027), r_fore=(0.028, 0.019), r_neck=0.031,
-            # torso half-thickness in PROFILE: (front, back) at pelvis, waist, chest, neck
-            torso_front=(0.048, 0.050, 0.066, 0.036), torso_back=(0.064, 0.042, 0.058, 0.036),
-            # torso half-width in FRONT view at pelvis, waist, chest, neck
-            torso_w=(0.094, 0.080, 0.100, 0.050),
+            # torso half-thickness in PROFILE (front of body, back of body) and half-width in
+            # FRONT view, at six levels: seat, pelvis, waist, chest, shoulder, neck base
+            torso_front=(0.034, 0.050, 0.050, 0.066, 0.050, 0.034),
+            torso_back=(0.074, 0.066, 0.044, 0.058, 0.054, 0.036),
+            torso_w=(0.100, 0.098, 0.084, 0.104, 0.130, 0.056),
             head_len=0.84, head_w=0.68, foot_scale=1.0, hand_scale=1.0,
         )
         p.update(kw)
@@ -59,8 +60,9 @@ class Body:
 
     @staticmethod
     def adult_f(height=590.0, **kw):
-        d = dict(shoulder_w=0.118, hip_w=0.090, torso_w=(0.100, 0.072, 0.090, 0.046),
-                 torso_front=(0.046, 0.044, 0.066, 0.034), torso_back=(0.066, 0.040, 0.052, 0.034),
+        d = dict(shoulder_w=0.096, hip_w=0.058, torso_w=(0.110, 0.104, 0.074, 0.094, 0.116, 0.050),
+                 torso_front=(0.034, 0.046, 0.042, 0.076, 0.048, 0.032),
+                 torso_back=(0.078, 0.068, 0.040, 0.052, 0.050, 0.034),
                  r_upper=(0.031, 0.023), r_fore=(0.024, 0.016), r_thigh=(0.062, 0.036),
                  r_shin=(0.035, 0.019), calf=0.040, r_neck=0.027, foot_scale=0.9, hand_scale=0.9)
         d.update(kw)
@@ -71,11 +73,12 @@ class Body:
         """About seven years old: big head, short legs, slim limbs."""
         d = dict(hip=0.470, thigh=0.215, shin=0.219, ankle_h=0.036,
                  spine=(0.090, 0.098, 0.090), neck=0.040, head=0.165,
-                 shoulder_w=0.115, hip_w=0.080, upper_arm=0.170, forearm=0.135, hand=0.100,
+                 shoulder_w=0.098, hip_w=0.054, upper_arm=0.170, forearm=0.135, hand=0.100,
                  r_thigh=(0.058, 0.036), r_shin=(0.036, 0.022), calf=0.040,
                  r_upper=(0.033, 0.026), r_fore=(0.027, 0.020), r_neck=0.034,
-                 torso_front=(0.050, 0.056, 0.062, 0.040), torso_back=(0.058, 0.046, 0.056, 0.040),
-                 torso_w=(0.090, 0.086, 0.094, 0.052), head_w=0.74, head_len=0.86,
+                 torso_front=(0.036, 0.052, 0.058, 0.060, 0.050, 0.040),
+                 torso_back=(0.062, 0.058, 0.046, 0.056, 0.054, 0.040),
+                 torso_w=(0.092, 0.090, 0.088, 0.096, 0.128, 0.060), head_w=0.74, head_len=0.86,
                  foot_scale=1.05, hand_scale=1.05)
         d.update(kw)
         return Body(height, **d)
@@ -83,13 +86,14 @@ class Body:
     @staticmethod
     def old_f(height=540.0, **kw):
         b = Body.adult_f(height, **kw)
-        b.torso_back = (0.066, 0.044, 0.066, 0.040)     # rounded upper back
+        b.torso_back = (0.074, 0.066, 0.046, 0.066, 0.064, 0.044)     # rounded upper back
         return b
 
     @staticmethod
     def heavy_m(height=630.0, **kw):
-        d = dict(shoulder_w=0.140, hip_w=0.095, torso_w=(0.115, 0.115, 0.120, 0.060),
-                 torso_front=(0.060, 0.085, 0.080, 0.040), torso_back=(0.068, 0.050, 0.062, 0.040),
+        d = dict(shoulder_w=0.116, hip_w=0.058, torso_w=(0.112, 0.116, 0.118, 0.124, 0.142, 0.064),
+                 torso_front=(0.040, 0.064, 0.088, 0.082, 0.056, 0.040),
+                 torso_back=(0.078, 0.070, 0.052, 0.064, 0.060, 0.042),
                  r_thigh=(0.068, 0.042), r_shin=(0.042, 0.024), r_upper=(0.042, 0.032),
                  r_fore=(0.033, 0.023), r_neck=0.040)
         d.update(kw)
@@ -111,8 +115,8 @@ class Pose:
         self.head = 0.0                           # head pitch (+ nod forward/down)
         self.head_yaw = 0.0                       # head turn relative to the body
         self.head_roll = 0.0
-        self.arms = {"L": dict(sh=6.0, abd=8.0, elbow=12.0, wrist=0.0, grip=0.3),
-                     "R": dict(sh=-4.0, abd=8.0, elbow=10.0, wrist=0.0, grip=0.3)}
+        self.arms = {"L": dict(sh=6.0, abd=5.0, elbow=12.0, wrist=0.0, grip=0.3),
+                     "R": dict(sh=-4.0, abd=5.0, elbow=10.0, wrist=0.0, grip=0.3)}
         self.legs = {"L": dict(hip=0.0, abd=3.0, knee=2.0, ankle=0.0, toe=0.0),
                      "R": dict(hip=0.0, abd=3.0, knee=2.0, ankle=0.0, toe=0.0)}
         self.eyes = dict(open=1.0, glow=1.0, look=0.0)   # look: -1..1 gaze shift
@@ -388,7 +392,7 @@ class Look:
     def __init__(self, ink=None, hair=None, hat=None, coat=None, dress=None, hood=None,
                  cape=None, scarf=None, shoes="shoe", eyes=True, eye_color=(1.0, 1.0, 0.97),
                  eye_size=1.0, gloves=False, colors=None, helmet=None, extras=None,
-                 limb_scale=1.0, belly=0.0, beard=False, skirt_len=0.0):
+                 limb_scale=1.0, belly=0.0, beard=False, skirt_len=0.0, opts=None, paper=False):
         self.ink = ink
         self.hair, self.hat, self.coat, self.dress = hair, hat, coat, dress
         self.hood, self.cape, self.scarf = hood, cape, scarf
@@ -400,15 +404,20 @@ class Look:
         self.belly = belly
         self.beard = beard
         self.skirt_len = skirt_len
+        self.opts = opts or {}              # costume options (see costume.py)
+        self.paper = paper                  # paper-doll puppet: cut-paper edges, pin joints
 
     def col(self, part, default):
         return self.colors.get(part, self.ink if self.ink is not None else default)
 
 
 # ----------------------------------------------------------------------------- drawing
-def _torso_outline(sk, look):
-    """Torso outline in WORLD space: projected spine + screen-space offsets that blend
-    profile thickness (chest forward, back/buttocks behind) into frontal width."""
+def _torso_outline(sk, look, pad=0.0):
+    """Torso outline in WORLD space. Six levels along the projected spine (seat, pelvis,
+    waist, chest, shoulder, neck base); at each, screen-space offsets on the facing side and
+    the opposite side blend from profile thickness (chest ahead, back/buttocks behind) to
+    frontal half-width by how much the body is turned toward/away from the camera.
+    pad: extra thickness (fraction of height) all round, for coats."""
     body, pose = sk.body, sk.pose
     H = sk.H
     w = sk.side_w
@@ -416,51 +425,32 @@ def _torso_outline(sk, look):
     tf, tb, tw = body.torso_front, body.torso_back, body.torso_w
     belly = look.belly if look else 0.0
     bulk = (look.limb_scale - 1.0) * 0.6 + 1.0 if look else 1.0
-    pts = [J["pelvis"], J["waist"], J["chest"], J["neck"]]
-    # forward direction on screen (profile) = facing side
+    sp = [J["pelvis"], J["waist"], J["chest"], J["neck"]]
+    # spine tangent (pointing up the spine) at the pelvis, for the seat level below it
+    tx, ty = sp[1][0] - sp[0][0], sp[1][1] - sp[0][1]
+    L = math.hypot(tx, ty) or 1.0
+    ux, uy = tx / L, ty / L
+    seat = (sp[0][0] - ux * 0.058 * H, sp[0][1] - uy * 0.058 * H)
+    shoulder = lerp(sp[2], sp[3], 0.62)
+    centers = [seat, sp[0], sp[1], sp[2], shoulder, sp[3]]
+    # tangents for the normals: use the spine segment around each level
+    seg = [(sp[0], sp[1]), (sp[0], sp[1]), (sp[0], sp[2]), (sp[1], sp[3]), (sp[2], sp[3]), (sp[2], sp[3])]
     fwd_x = math.cos(pose.yaw * D2R)
-    n = len(pts)
-    front_side, back_side, normals = [], [], []
-    for i, p in enumerate(pts):
-        a = pts[max(i - 1, 0)]
-        b = pts[min(i + 1, n - 1)]
-        tx, ty = b[0] - a[0], b[1] - a[1]
-        L = math.hypot(tx, ty) or 1.0
-        nx, ny = -ty / L, tx / L
+    front_side, back_side = [], []
+    for i, p in enumerate(centers):
+        a, b = seg[i]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        Ls = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / Ls, dx / Ls
         if nx * fwd_x < 0 or (abs(fwd_x) < 1e-6 and nx < 0):
             nx, ny = -nx, -ny
-        normals.append((nx, ny, tx / L, ty / L))
-        ff = tf[i] + (belly if i == 1 else belly * 0.6 if i == 0 else 0.0)
-        fw = lerp(ff, tw[i], w) * bulk * H
-        bw = lerp(tb[i], tw[i], w) * bulk * H
+        ff = tf[i] + (belly if i == 2 else belly * 0.6 if i in (1, 3) else 0.0)
+        fw = (lerp(ff, tw[i], w) * bulk + pad) * H
+        bw = (lerp(tb[i], tw[i], w) * bulk + pad) * H
         front_side.append((p[0] + nx * fw, p[1] + ny * fw))
         back_side.append((p[0] - nx * bw, p[1] - ny * bw))
-    # seat / groin below the pelvis (spine tangent points up, so "down" = -tangent)
-    nx, ny, ux, uy = normals[0]
-    p0 = pts[0]
-    seat = lerp(0.070, 0.055, w) * bulk * H
-    groin = lerp(0.030, 0.055, w) * bulk * H
-    drop = 0.075 * H
-    bottom_f = (p0[0] - ux * drop + nx * groin, p0[1] - uy * drop + ny * groin)
-    bottom_b = (p0[0] - ux * drop * 0.9 - nx * seat, p0[1] - uy * drop * 0.9 - ny * seat)
-    loop = [bottom_f, bottom_b] + back_side
-    # shoulders: in front/back view the outline widens to the shoulder joints
-    if w > 0.02:
-        nxt, nyt, uxt, uyt = normals[-1]
-        sa, sb = J["shoulder_L"], J["shoulder_R"]
-        da = (sa[0] - pts[-1][0]) * nxt + (sa[1] - pts[-1][1]) * nyt
-        back_sh, front_sh = (sa, sb) if da < 0 else (sb, sa)
-        r = body.r_upper[0] * H * look.limb_scale * 1.05
-        neck_top = pts[-1]
-        for shp, sgn in ((back_sh, -1.0), (front_sh, 1.0)):
-            pass
-        bs = (lerp(back_side[-1][0], back_sh[0] - nxt * r * 0.6, w), lerp(back_side[-1][1], back_sh[1] - uyt * r * 0.4, w))
-        fs = (lerp(front_side[-1][0], front_sh[0] + nxt * r * 0.6, w), lerp(front_side[-1][1], front_sh[1] - uyt * r * 0.4, w))
-        loop += [bs, (neck_top[0], neck_top[1] - 0.012 * H), fs]
-    else:
-        loop += [(pts[-1][0], pts[-1][1] - 0.012 * H)]
-    loop += front_side[::-1]
-    return loop
+    crotch = (seat[0] - ux * 0.012 * H, seat[1] - uy * 0.012 * H)
+    return [crotch] + back_side + front_side[::-1]
 
 
 def _limb(ctx, a, b, ra, rb):
@@ -592,22 +582,35 @@ def _torso_path(ctx, sk, look):
 
 def draw_figure(f, sk, look=None, ctx=None, color=None, eyes=True, alpha=1.0):
     """Draw a solved Skeleton as a filled silhouette on `ctx` (a layer context) with its
-    costume, plus glowing Limbo eyes on the emissive layer.
+    costume, plus glowing Limbo eyes (dots on ctx, halo on f.emit()).
 
     Paint order (far to near): back costume -> far leg/arm -> behind costume -> torso ->
-    near leg -> coat/dress -> head -> hair/hat/hood -> near arm -> capelet -> top."""
+    near leg -> coat/dress -> head -> hair/hood/hat -> near arm -> capelet -> top.
+    alpha < 1 fades the whole figure as one shape (no darker overlaps)."""
     from . import costume
     look = look or Look()
     pal = f.pal if f is not None else None
     ink = color or look.ink or (pal.ink if pal is not None else (0, 0, 0))
     ctx = ctx if ctx is not None else f.ctx
     slots = costume.pieces(sk, look)
+    grouped = alpha < 0.999
+    if grouped:
+        ctx.push_group()
+    seed = [0]
 
     def paint(fn, col, even_odd=False):
         if even_odd:
             ctx.set_fill_rule(1)       # cairo.FILL_RULE_EVEN_ODD
         fn(ctx)
-        draw.fill(ctx, col or ink, alpha)
+        if look.paper:
+            polys = draw.flatten_path(ctx)
+            ctx.new_path()
+            for poly in polys:
+                if len(poly) >= 3:
+                    seed[0] += 1
+                    draw.poly(ctx, draw.cut_paper(poly, seed=seed[0] * 13 + 5, amp=1.2 * sk.H / 600.0,
+                                                  seg=(9.0 * sk.H / 600.0, 22.0 * sk.H / 600.0)))
+        draw.fill(ctx, col or ink, 1.0)
         if even_odd:
             ctx.set_fill_rule(0)
 
@@ -637,8 +640,11 @@ def draw_figure(f, sk, look=None, ctx=None, color=None, eyes=True, alpha=1.0):
     slot("top")
     for ex in look.extras:
         ex(ctx, sk, f, look)
-    if eyes and look.eyes and not look.helmet:
-        draw_eyes(f, sk, look, ctx)
+    if grouped:
+        ctx.pop_group_to_source()
+        ctx.paint_with_alpha(clamp(alpha))
+    if eyes and look.eyes:
+        draw_eyes(f, sk, look, ctx, alpha=alpha)
 
 
 def eye_points(sk, look=None):
@@ -653,7 +659,7 @@ def eye_points(sk, look=None):
     return e1, e2, r, w, math.sin(yaw)
 
 
-def draw_eyes(f, sk, look, ctx, emit=True):
+def draw_eyes(f, sk, look, ctx, emit=True, alpha=1.0):
     """Limbo eyes: two small bright dots with a soft halo. Hidden when the back is turned."""
     e1, e2, r, w, front = eye_points(sk, look)
     pose = sk.pose
@@ -661,7 +667,7 @@ def draw_eyes(f, sk, look, ctx, emit=True):
         return
     vis = clamp((front + 0.35) / 0.35) if front < 0 else 1.0
     op = clamp(pose.eyes.get("open", 1.0))
-    glow = pose.eyes.get("glow", 1.0) * vis
+    glow = pose.eyes.get("glow", 1.0) * vis * alpha
     if op <= 0.02 or glow <= 0.01:
         return
     col = look.eye_color
