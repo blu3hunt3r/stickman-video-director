@@ -390,11 +390,12 @@ def _window_lights(dur, p, rng):
 def _binocular_lift(dur, p, rng):
     """Her 7x50 binoculars lifted to the eyes: hands on the rubber armour, sleeve rustle, the
     leather strap creaking, eyecups meeting the brow, the knurled focus wheel ticking.
-    lower=1: the reverse (rub, strap swings back, a buckle tick, the hands settle)."""
+    lower=1: the reverse (rub, strap swings back, a buckle tick, the hands settle). length s:
+    the motion (the brow contact lands at 0.95 length)."""
     lower = bool(p.get("lower", 0))
-    n = _N(1.05)
+    L = float(p.get("length", 0.6))                 # the eyecups meet the brow at 0.95 L
+    n = _N(L + 0.45)
     t = t_axis(n)
-    L = 0.6
     u = np.clip(t / L, 0, 1)
     mot = np.sin(np.pi * u) ** 1.2 * (t < L)
     rub = bandpass(white(n, rng), 700, 3800, 2) * (0.5 + 0.5 * smooth_noise(n, 18, rng)) * mot * 0.3
@@ -415,29 +416,34 @@ def _binocular_lift(dur, p, rng):
 def _coat_flare(dur, p, rng):
     """Her heavy wool trench coat pulled off its hook and swung on: the collar loop scraping off
     the cast-iron hook, a big cloth whoosh whose flutter quickens as it flares at the top of the
-    swing (with a low flap), arms into the sleeves, the coat settling on her shoulders, a buckle
-    clink."""
-    n = _N(1.55)
+    swing (with a low flap), the coat dropping on her shoulders, arms into the sleeves, a buckle
+    clink. Times from the start (s): flare (the flap, default 0.42), land (on the shoulders,
+    1.02), sleeves (start, 0.64) + sleeve_len (0.36); hook 0/1 (the scrape off the hook at 0)."""
+    fl = float(p.get("flare", 0.42))
+    land = float(p.get("land", 1.02))
+    s0, sl = float(p.get("sleeves", 0.64)), float(p.get("sleeve_len", 0.36))
+    n = _N(max(land, s0 + sl) + 0.55)
     t = t_axis(n)
     out = np.zeros(n)
-    m = _N(0.09)
-    hk = friction(m, 260, rng, jitter=0.3, body=[(1900, 10, 1.0), (3300, 14, 0.5)]) * np.hanning(m)
-    _place(out, hk, 0.0, 0.6)
-    _place(out, _hit(rng, [1650, 2900], [0.05, 0.03], click=0.5, n=_N(0.08)), 0.085, 0.25)
-    e = _bell(t, 0.42, 0.14, 0.12)
+    if p.get("hook", 1):
+        m = _N(0.09)
+        hk = friction(m, 260, rng, jitter=0.3, body=[(1900, 10, 1.0), (3300, 14, 0.5)]) * np.hanning(m)
+        _place(out, hk, 0.0, 0.6)
+        _place(out, _hit(rng, [1650, 2900], [0.05, 0.03], click=0.5, n=_N(0.08)), 0.085, 0.25)
+    e = _bell(t, fl, 0.14 * fl / 0.42 + 0.02, 0.12)
     flut = _flutter(n, 8 + 10 * e, rng, 0.5)
     cloth = bandpass(white(n, rng), 160, 2400, 2) * flut
     air = sos(pink(n, rng), "lowpass", 480, 2)
     out += (cloth * 0.75 + air * 1.0) * e
-    _place(out, _burst(_N(0.09), rng, 110, 1600, t60=0.045, attack=0.0015), 0.45, 0.9)
-    _place(out, _thump(_N(0.15), 120, 70, 0.01, 0.06), 0.45, 0.45)
-    m = _N(0.36)
+    _place(out, _burst(_N(0.09), rng, 110, 1600, t60=0.045, attack=0.0015), fl + 0.03, 0.9)
+    _place(out, _thump(_N(0.15), 120, 70, 0.01, 0.06), fl + 0.03, 0.45)
+    m = _N(sl)
     w = np.sin(np.pi * np.linspace(0, 1, m)) ** 1.3
     slv = bandpass(crackle(m, 700, rng), 700, 4500, 2) * w * 0.9 + bandpass(pink(m, rng), 250, 1400, 2) * 0.2 * w
-    _place(out, slv, 0.64, 1.0)
-    _place(out, _burst(_N(0.07), rng, 120, 1100, t60=0.03, attack=0.003), 1.02, 0.55)
-    _place(out, _hit(rng, [3100, 4700, 6900], [0.06, 0.05, 0.03], click=0.5, n=_N(0.1)), 1.05, 0.12)
-    u = np.clip(t / 1.1, 0, 1)
+    _place(out, slv, s0, 1.0)
+    _place(out, _burst(_N(0.07), rng, 120, 1100, t60=0.03, attack=0.003), land, 0.55)
+    _place(out, _hit(rng, [3100, 4700, 6900], [0.06, 0.05, 0.03], click=0.5, n=_N(0.1)), land + 0.03, 0.12)
+    u = np.clip(t / max(land + 0.08, 0.2), 0, 1)
     return _pan_sweep(out, -0.45, 0.35, u)
 
 
@@ -512,16 +518,18 @@ def _sheet_rip(dur, p, rng):
     """The knife through the taut sheet: the punch (blade through stretched cotton - a 'thup' with
     the sheet's membrane boom and a fibre crack), then the rip: a coarse, buzzy run of breaking
     threads (lower and rougher than paper: 300 Hz-3 kHz grain with a 120-200 Hz zip), slowing as
-    the blade drags down; the torn flap flutters. size 0..1 (rip length 0.2-0.6 s)."""
+    the blade drags down; the torn flap flutters. size 0..1 (rip length 0.2-0.6 s, or length);
+    punch=0: the rip alone (the blade already through, dragged down)."""
     s = float(np.clip(p.get("size", 0.6), 0, 1))
-    L = 0.2 + 0.4 * s
+    L = float(p.get("length", 0.2 + 0.4 * s))
     n = _N(L + 0.55)
     out = np.zeros(n)
-    _place(out, _burst(_N(0.05), rng, 180, 1400, t60=0.022, attack=0.0005), 0.0, 1.0)
-    memb = modal(np.array([92, 148, 211, 302]) * rng.uniform(0.95, 1.05), [0.09, 0.07, 0.05, 0.04], [1.0, 0.7, 0.5, 0.3],
-                 _N(0.15), phases=rng.uniform(0, 6, 4))
-    _place(out, memb, 0.0, 0.7)
-    _place(out, _click(rng, 2200, 0.002, _N(0.008)), 0.0015, 0.6)
+    if p.get("punch", 1):
+        _place(out, _burst(_N(0.05), rng, 180, 1400, t60=0.022, attack=0.0005), 0.0, 1.0)
+        memb = modal(np.array([92, 148, 211, 302]) * rng.uniform(0.95, 1.05), [0.09, 0.07, 0.05, 0.04], [1.0, 0.7, 0.5, 0.3],
+                     _N(0.15), phases=rng.uniform(0, 6, 4))
+        _place(out, memb, 0.0, 0.7)
+        _place(out, _click(rng, 2200, 0.002, _N(0.008)), 0.0015, 0.6)
     m = _N(L)
     tr = t_axis(m)
     u = tr / L
@@ -662,7 +670,8 @@ def _doll_clamp(dur, p, rng):
 def _curtain_rings(dur, p, rng):
     """The curtain drawn along its rod: a row of brass rings scraping and chattering along the
     metal pole (bunching with little clinks at the end) over the swish of heavy fabric.
-    part=1: her fingers parting it a crack (two rings, a whisper of cloth). length s."""
+    part=1: her fingers parting it a crack (two rings, a whisper of cloth). length s; pan0 ->
+    pan1 the direction it is drawn."""
     part = bool(p.get("part", 0))
     L = float(p.get("length", 0.35 if part else 0.95))
     n = _N(L + 0.35)
@@ -685,7 +694,7 @@ def _curtain_rings(dur, p, rng):
     sw = tv_bandpass(pink(n, rng), 500 + 1700 * np.sin(np.pi * u), q=0.7, block=64)
     sw *= np.sin(np.pi * u) ** 1.2 * (t < L) * (0.22 if part else 0.5)
     out += sw
-    return _pan_sweep(out, -0.3 if part else -0.5, 0.0 if part else 0.4)
+    return _pan_sweep(out, float(p.get("pan0", -0.3 if part else -0.5)), float(p.get("pan1", 0.0 if part else 0.4)))
 
 
 # ============================================================================ the trap
@@ -729,7 +738,8 @@ def _door_panel(rng, n, scale=1.0):
 def _door_burst(dur, p, rng):
     """The door flung open: the latch tongue ripping out of the strike (wood splinter crack +
     metal clank), a slab of air, the hinge shrieking, the door slamming back into the wall (or
-    her) with a deep panel boom, then everything on it rattling."""
+    her) with a deep panel boom, then everything on it rattling. ti: s from the crack to the
+    boom (the leaf hitting its stop)."""
     n = _N(1.9)
     out = np.zeros((n, 2))
     cr = _sum(sos(crackle(_N(0.12), 700, rng, amp_spread=1.0), "bandpass", (800, 6500), 2) * exp_env(_N(0.12), 0.08) * 2.5,
@@ -744,7 +754,7 @@ def _door_burst(dur, p, rng):
     tm = t_axis(m)
     hs = friction(m, 900 - 500 * tm / 0.2, rng, jitter=0.08, body=[(2200, 20, 1.0), (3400, 22, 0.4)]) * np.sin(np.pi * tm / 0.2)
     mix_into(out, pan_mono(hs, -0.3), n_of(0.02), 0.35)
-    ti = 0.2
+    ti = float(p.get("ti", 0.2))
     boom = _sum(_thump(_N(0.6), 115, 52, 0.02, 0.3), _door_panel(rng, _N(0.9)) * 0.7,
                 _burst(_N(0.1), rng, 60, 1600, t60=0.05, attack=0.0005))
     mix_into(out, pan_mono(boom, 0.45), n_of(ti), 1.25)
@@ -777,27 +787,34 @@ def _door_slam(dur, p, rng):
 
 @_sfx("key_lock", space=0.7, hit=True, trim=-2.0)
 def _key_lock(dur, p, rng):
-    """The key turned in the lock: teeth ratcheting over the pins as it goes in, the turn (a dry
-    metal creak), the deadbolt thrown home - 'ka-CHUNK' - and the key ring's small jingle."""
-    n = _N(1.1)
+    """The key turned in the lock: teeth ratcheting over the pins as it goes in (insert=1), the
+    turn (a dry metal creak), the cam's click and the deadbolt thrown home - 'ka-CHUNK' - at
+    bolt_at (s from the start), the key ring's small jingle."""
+    ins = bool(p.get("insert", 1))
+    c0 = 0.17 if ins else 0.0
+    bolt_at = float(p.get("bolt_at", c0 + 0.35))
+    n = _N(bolt_at + 0.6)
     out = np.zeros(n)
-    tt, gap = 0.0, 0.024
-    for k in range(6):
-        _place(out, _hit(rng, [rng.uniform(3000, 4200), rng.uniform(5200, 7200)], [0.01, 0.007], click=0.8, n=_N(0.025)), tt, 0.35)
-        tt += gap
-        gap *= 0.85
-    m = _N(0.13)
-    _place(out, bandpass(white(m, rng), 2000, 7000, 2) * np.hanning(m) * 0.15, 0.0)
-    m = _N(0.28)
+    if ins:
+        tt, gap = 0.0, 0.024
+        for k in range(6):
+            _place(out, _hit(rng, [rng.uniform(3000, 4200), rng.uniform(5200, 7200)], [0.01, 0.007], click=0.8, n=_N(0.025)), tt, 0.35)
+            tt += gap
+            gap *= 0.85
+        m = _N(0.13)
+        _place(out, bandpass(white(m, rng), 2000, 7000, 2) * np.hanning(m) * 0.15, 0.0)
+    Lc = max(0.08, bolt_at - c0 - 0.07)
+    m = _N(Lc)
     tm = t_axis(m)
-    cr = friction(m, 150 + 160 * tm / 0.28, rng, jitter=0.2, body=[(2100, 12, 1.0), (3400, 15, 0.5)]) * np.sin(np.pi * tm / 0.28)
-    _place(out, cr, 0.17, 0.5)
-    _place(out, _hit(rng, [1300, 2400, 3600], [0.05, 0.04, 0.03], click=0.9), 0.45, 0.7)
+    cr = friction(m, 150 + 160 * tm / Lc, rng, jitter=0.2, body=[(2100, 12, 1.0), (3400, 15, 0.5)]) * np.sin(np.pi * tm / Lc)
+    _place(out, cr, c0, 0.5)
+    _place(out, _hit(rng, [1300, 2400, 3600], [0.05, 0.04, 0.03], click=0.9), bolt_at - 0.07, 0.7)
     bolt = _sum(_thump(_N(0.2), 165, 92, 0.01, 0.08), _hit(rng, [600, 1100, 1900, 2900], [0.09, 0.07, 0.05, 0.03], click=0.6))
-    _place(out, sos(bolt, "lowpass", 7000, 2), 0.52, 1.0)        # a 'chunk', not a digital tick
+    _place(out, sos(bolt, "lowpass", 7000, 2), bolt_at, 1.0)        # a 'chunk', not a digital tick
     for k in range(int(rng.integers(5, 9))):
         f = rng.uniform(3000, 7500)
-        _place(out, _hit(rng, [f, f * 1.37, f * 2.1], [0.08, 0.05, 0.03], click=0.2, n=_N(0.12)), 0.56 + rng.uniform(0, 0.3), rng.uniform(0.06, 0.15))
+        _place(out, _hit(rng, [f, f * 1.37, f * 2.1], [0.08, 0.05, 0.03], click=0.2, n=_N(0.12)), bolt_at + 0.04 + rng.uniform(0, 0.3),
+               rng.uniform(0.06, 0.15))
     return out
 
 
@@ -817,18 +834,31 @@ def _hammer_blow(rng, strength=1.0):
 def _door_hammer(dur, p, rng):
     """Fists pounding the locked door from the other side, heard from the hallway: each blow a
     heavy panel boom with the bolt and latch chattering, in desperate irregular groups. rate =
-    blows per second inside a group."""
+    blows per second inside a group; or times = the exact blow offsets (s). rattle 0..1: the
+    lever handle rattling in its rose after each blow."""
     n = _N(dur)
     out = np.zeros(n)
-    rate = float(p.get("rate", 3.4))
-    tt = 0.0
-    while tt < dur - 0.3:
-        for j in range(int(rng.integers(2, 5))):
-            if tt >= dur - 0.3:
-                break
-            _place(out, _hammer_blow(rng), tt, rng.uniform(0.7, 1.0) * (1.0 if j == 0 else 0.88))
-            tt += (1.0 / rate) * rng.uniform(0.8, 1.2)
-        tt += rng.uniform(0.18, 0.45)
+    rattle = float(p.get("rattle", 0.0))
+    if p.get("times") is not None:
+        blows = [(float(v), rng.uniform(0.85, 1.0)) for v in p["times"]]
+    else:
+        rate = float(p.get("rate", 3.4))
+        blows, tt = [], 0.0
+        while tt < dur - 0.3:
+            for j in range(int(rng.integers(2, 5))):
+                if tt >= dur - 0.3:
+                    break
+                blows.append((tt, rng.uniform(0.7, 1.0) * (1.0 if j == 0 else 0.88)))
+                tt += (1.0 / rate) * rng.uniform(0.8, 1.2)
+            tt += rng.uniform(0.18, 0.45)
+    for tt, g in blows:
+        _place(out, _hammer_blow(rng), tt, g)
+        if rattle > 0:
+            m = _N(0.16)
+            tm = t_axis(m)
+            r = friction(m, 140 + 60 * rng.uniform(), rng, jitter=0.6, body=[(2300, 9, 1.0), (3700, 11, 0.6), (5600, 14, 0.3)])
+            r *= np.exp(-tm / 0.05) * np.clip(tm / 0.004, 0, 1)
+            _place(out, r, tt + 0.006, 0.35 * rattle)
     out = reverb(out, "hallway", wet_db=-10.0)[:n]
     return fade(out, 0.0, 0.08)
 
@@ -1240,17 +1270,22 @@ def _scream_pull(dur, p, rng):
 @_sfx("glint", space=0.0)
 def _glint(dur, p, rng):
     """A cold glint off a lens: a high glassy ping (inharmonic bar partials beating slowly, a
-    shade different in each ear) with a fleck of sparkle. pitch multiplies the partials."""
-    n = _N(1.9)
+    shade different in each ear) with a fleck of sparkle. pitch multiplies the partials, decay
+    scales the ring, attack (s) softens the strike (a lens ring rather than a glint)."""
+    dk = float(p.get("decay", 1.0))
+    n = _N(0.4 + 1.5 * dk)
     t = t_axis(n)
     f1 = 2637.0 * float(p.get("pitch", 1.0)) * rng.uniform(0.995, 1.005)
     x = np.zeros((n, 2))
     for ratio, a, t60 in ((1.0, 1.0, 1.5), (2.32, 0.38, 0.9), (4.25, 0.18, 0.5), (5.4, 0.08, 0.3)):
+        if f1 * ratio > 17000:
+            continue
         for ch in range(2):
             beat = 0.7 + 0.5 * ch
             x[:, ch] += a * 0.5 * (np.sin(TWO_PI * (f1 * ratio - beat) * t + rng.uniform(0, 6))
-                                   + np.sin(TWO_PI * (f1 * ratio + beat) * t + rng.uniform(0, 6))) * np.power(10.0, -3 * t / t60)
-    x[:_N(0.0015)] *= np.linspace(0, 1, _N(0.0015))[:, None]
+                                   + np.sin(TWO_PI * (f1 * ratio + beat) * t + rng.uniform(0, 6))) * np.power(10.0, -3 * t / (t60 * dk))
+    ka = _N(max(0.0015, float(p.get("attack", 0.0015))))
+    x[:ka] *= (np.linspace(0, 1, ka) ** 1.5)[:, None]
     sp = bandpass(white(_N(0.2), rng), 6000, 14000, 2) * exp_env(_N(0.2), 0.12) * 0.25
     x[:len(sp)] += sp[:, None]
     return fade(x, 0.0, 0.4)
@@ -1318,7 +1353,8 @@ def _paper_slide(dur, p, rng):
 @_sfx("paper_splash", space=0.4)
 def _paper_splash(dur, p, rng):
     """The red cut-paper splash bursting onto the sheet on the last stab (outback, 0.13 s): a
-    card flap snapping open, a spray of paper flecks settling, a soft low pat under it."""
+    card flap snapping open, a spray of paper flecks settling, a soft low pat under it. tear
+    0..1: a short wet tear under it (s03's third stab)."""
     n = _N(0.5)
     t = t_axis(n)
     out = np.zeros(n)
@@ -1328,6 +1364,13 @@ def _paper_splash(dur, p, rng):
     _place(out, _thump(_N(0.12), 150, 85, 0.004, 0.05), 0.012, 0.7)
     for k in range(3):
         _place(out, _hit(rng, [rng.uniform(2500, 5000)], [0.01], click=0.6, n=_N(0.02)), 0.11 + 0.05 * k + rng.uniform(0, 0.02), 0.12)
+    if p.get("tear", 0):                     # the wet tear: a short soggy rip under the flap
+        m = _N(0.2)
+        tm = t_axis(m)
+        rate = 1800 * (1 - 0.6 * tm / 0.2)
+        tr = bandpass(_imp_train(rate, m, rng, 0.7), 500, 3800, 2) * np.clip(tm / 0.01, 0, 1) * (1 - tm / 0.2) ** 0.7
+        sq = bandpass(white(m, rng), 300, 1300, 2) * np.exp(-tm / 0.05) * 0.5
+        _place(out, (tr * 1.2 + sq), 0.004, 0.8 * float(p.get("tear", 1)))
     return out
 
 
@@ -1488,11 +1531,13 @@ def _iris_close(dur, p, rng):
 @_sfx("bars_wipe", space=0.0)
 def _bars_wipe(dur, p, rng):
     """Two horizontal panels sliding in from opposite sides (the split screen): two card slides,
-    the top one from the left, the bottom one from the right, each ending in a thock."""
-    n = _N(1.1)
+    the top one from the left, the bottom one from the right (t2 s later), each sliding for
+    length s and ending in a thock."""
+    L = float(p.get("length", 0.5))
+    t2 = float(p.get("t2", 0.18))
+    n = _N(t2 + L + 0.6)
     out = np.zeros((n, 2))
-    for k, (t0, pan0, pan1) in enumerate(((0.0, -0.8, 0.0), (0.18, 0.8, 0.0))):
-        L = 0.5
+    for k, (t0, pan0, pan1) in enumerate(((0.0, -0.8, 0.0), (t2, 0.8, 0.0))):
         m = _N(L + 0.1)
         tm = t_axis(m)
         um = np.clip(tm / L, 0, 1)
@@ -1524,3 +1569,759 @@ def _tear_big(dur, p, rng):
     flap = bandpass(white(m, rng), 200, 2500, 2) * _flutter(m, 12, rng, 0.6) * np.sin(np.pi * np.clip(tm / 0.4, 0, 1)) ** 1.5
     mix_into(out, _pan_sweep(flap, 0.0, 0.7), n_of(L), 0.5)
     return _pan_sweep(dsp.mono(out), -0.4, 0.4, np.clip(t_axis(len(out)) / L, 0, 1))
+
+
+# ============================================================================ voices (far, muffled)
+# Formant targets (F1, F2, F3 Hz) for the babble: never words, only the shape of speech.
+_VOWELS = dict(a=(800, 1250, 2500), e=(500, 1850, 2600), i=(330, 2250, 2950), o=(520, 900, 2450),
+               u=(360, 820, 2300), ax=(560, 1450, 2500), ae=(700, 1650, 2550))
+
+
+def _voice(f0, F, A, n, rng, bw=(90.0, 120.0, 170.0), breath=0.12, tilt=1.1, fmax=6500.0, amps=(1.0, 0.7, 0.35)):
+    """Additive voice: harmonics of f0 (Hz per sample, with jitter and shimmer) under a three-
+    formant envelope F (3, n) (Hz per sample) and a glottal roll-off k^-tilt, plus aspiration
+    noise through the same formants (breath); A: amplitude per sample. Mono, peak 1."""
+    f0 = np.broadcast_to(np.asarray(f0, dtype=np.float64), (n,)) * (1.0 + 0.005 * smooth_noise(n, 25.0, rng))
+    ph = np.cumsum(f0) / SR
+    F = np.asarray(F, dtype=np.float64)
+    out = np.zeros(n)
+    K = int(fmax / max(60.0, float(np.min(f0))))
+    for k in range(1, K + 1):
+        fk = k * f0
+        g = np.zeros(n)
+        for j in range(3):
+            g += amps[j] / (1.0 + ((fk - F[j]) / bw[j]) ** 2)
+        g *= k ** (-tilt) * (fk < fmax)
+        out += g * np.sin(TWO_PI * k * ph + rng.uniform(0, TWO_PI))
+    out /= np.max(np.abs(out)) + 1e-9
+    if breath > 0:
+        nz = white(n, rng)
+        asp = np.zeros(n)
+        for j in range(3):
+            asp += amps[j] * tv_bandpass(nz, np.clip(F[j], 80, 9000), q=4.0, block=64)
+        asp /= np.max(np.abs(asp)) + 1e-9
+        out = out + breath * asp
+    out *= np.asarray(A, dtype=np.float64) * (1.0 + 0.06 * smooth_noise(n, 18.0, rng))
+    return out / (np.max(np.abs(out)) + 1e-9)
+
+
+def _glass(x, lp=1100.0, hp=140.0):
+    """A closed window between us and a voice: the top gone, the bottom thin."""
+    y = sos(x, "lowpass", lp, 4)
+    return sos(y, "highpass", hp, 2)
+
+
+@_sfx("chatter", kind="sustained", norm="int", default_dur=1.8, space=0.0)
+def _chatter(dur, p, rng):
+    """The old woman in window 12 chatting to her cat, through her glass and across the street:
+    one voice (additive, about 205 Hz, a little tremulous), syllables at about five a second in
+    little words, an accent here and there, a question rising at the end - never a word you
+    could make out. dist 0..1."""
+    n = _N(dur)
+    t = t_axis(n)
+    F = np.tile(np.array(_VOWELS["ax"], dtype=np.float64)[:, None], (1, n))
+    A = np.zeros(n)
+    acc = np.zeros(n)
+    tt = 0.06
+    while tt < dur - 0.18:
+        for k in range(int(rng.integers(1, 4))):
+            L = rng.uniform(0.11, 0.2)
+            i0, i1 = n_of(tt), min(n, n_of(tt + L))
+            if i1 - i0 > 8:
+                w = np.sin(np.pi * np.linspace(0, 1, i1 - i0)) ** 0.6
+                strong = rng.uniform() < 0.3
+                A[i0:i1] = np.maximum(A[i0:i1], w * (1.0 if strong else rng.uniform(0.55, 0.8)))
+                F[:, i0:i1] = np.array(_VOWELS[str(rng.choice(list(_VOWELS)))], dtype=np.float64)[:, None]
+                if strong:
+                    acc[i0:i1] = np.maximum(acc[i0:i1], w)
+            tt += L + rng.uniform(0.0, 0.03)
+        tt += rng.uniform(0.07, 0.2)
+    F = np.stack([onepole_lp(F[j], 22.0) for j in range(3)])
+    A = onepole_lp(A, 45.0)
+    u = t / dur
+    f0 = 228.0 - 40.0 * u + 30.0 * np.clip((u - 0.82) / 0.18, 0, 1) ** 1.5      # declining, a question at the end
+    f0 = f0 * (1.0 + 0.12 * onepole_lp(acc, 12.0)) * (1.0 + 0.02 * np.sin(TWO_PI * 5.6 * t))
+    x = _voice(f0, F, A, n, rng, breath=0.18, tilt=1.15)
+    x = reverb(_glass(x, 1150.0, 150.0), "her_room", wet_db=-9.0)[:n]
+    return _distance(x, float(p.get("dist", 0.75)), rng)
+
+
+@_sfx("cat_meow", space=0.0)
+def _cat_meow(dur, p, rng):
+    """The cat on window 12's sill answering her, behind the glass across the street: 'mi-aow' -
+    a voiced cry rising 520 -> 760 Hz and falling to 470, the mouth opening from a nasal 'm' to a
+    bright 'e-a' and rounding to 'ow'. length s, dist 0..1."""
+    L = float(p.get("length", 0.62))
+    n = _N(L + 0.05)
+    t = t_axis(n)
+    u = np.clip(t / L, 0, 1)
+    k = rng.uniform(0.93, 1.07)
+    f0 = np.interp(u, [0, 0.12, 0.35, 0.7, 1.0], [520, 600, 760, 620, 470]) * k * (1 + 0.012 * np.sin(TWO_PI * 6.5 * t))
+    F = np.stack([np.interp(u, [0, 0.12, 0.3, 0.6, 1.0], [350, 700, 950, 750, 600]),
+                  np.interp(u, [0, 0.12, 0.3, 0.6, 1.0], [1300, 2000, 1700, 1250, 1000]),
+                  np.full(n, 3200.0)])
+    A = (np.clip(u / 0.06, 0, 1) ** 1.5 * np.clip((1 - u) / 0.25, 0, 1) ** 1.2 * (t < L)
+         * np.interp(u, [0, 0.12, 0.3, 1.0], [0.4, 0.9, 1.0, 0.8]))
+    x = _voice(f0, F, A, n, rng, bw=(120.0, 160.0, 250.0), breath=0.08, tilt=0.8, fmax=9000.0)
+    x = reverb(_glass(x, 1700.0, 260.0), "her_room", wet_db=-10.0)
+    return _distance(x, float(p.get("dist", 0.75)), rng)
+
+
+@_sfx("sobbing", kind="sustained", norm="int", default_dur=1.6, space=0.0)
+def _sobbing(dur, p, rng):
+    """The woman crying on the end of her bed (window 30), through her glass across the street:
+    shuddering catch-breaths (two to four quick sharp intakes) and a wavering, breathy whimper
+    falling away, again. dist 0..1."""
+    n = _N(dur)
+    out = np.zeros(n)
+    tt = rng.uniform(0.0, 0.12)
+    while tt < dur - 0.25:
+        for k in range(int(rng.integers(2, 5))):
+            m = _N(0.075)
+            tm = t_axis(m)
+            c = tv_bandpass(white(m, rng), 1800.0 + 900.0 * tm / 0.075, q=2.0, block=32) + 0.5 * bandpass(white(m, rng), 400, 1200, 2)
+            c *= np.sin(np.pi * tm / 0.075) ** 0.7
+            _place(out, c, tt, 0.35 + 0.08 * k)
+            tt += rng.uniform(0.085, 0.13)
+        L = rng.uniform(0.45, 0.8)
+        m = _N(L)
+        tm = t_axis(m)
+        u = tm / L
+        f0 = (335.0 - 75.0 * u) * rng.uniform(0.92, 1.08) * (1 + 0.035 * np.sin(TWO_PI * 7.0 * tm))
+        F = np.stack([np.interp(u, [0, 1], [520, 430]), np.interp(u, [0, 1], [1150, 860]), np.full(m, 2600.0)])
+        A = np.sin(np.pi * u) ** 0.8 * (1 + 0.3 * np.sin(TWO_PI * 7.0 * tm))
+        _place(out, _voice(f0, F, A, m, rng, breath=0.5, tilt=1.4, fmax=5000.0), tt, 0.7)
+        tt += L + rng.uniform(0.18, 0.4)
+    x = reverb(_glass(out, 1300.0, 180.0), "her_room", wet_db=-9.0)[:n]
+    return _distance(x, float(p.get("dist", 0.8)), rng)
+
+
+def _breath_unit(kind, L, rng, nasal=True, trem=0.0, catches=0):
+    """One breath: noise through nose / mouth resonances under its envelope. kind 'in' | 'out'.
+    trem: tremor depth (6-9 Hz); catches: stutters in an intake."""
+    n = _N(L + 0.05)
+    t = t_axis(n)
+    u = np.clip(t / L, 0, 1)
+    src = white(n, rng)
+    if nasal:
+        fs, qs, gs = [620, 1250, 2500, 3600], [4, 6, 9, 11], [1.0, 0.5, 0.25, 0.12]
+    else:
+        fs, qs, gs = ([680, 1180, 2550, 3450], [6, 8, 10, 12], [1.0, 0.6, 0.32, 0.18]) if kind == "out" else \
+            ([420, 1900, 2700, 3600], [5, 9, 11, 12], [0.8, 0.7, 0.4, 0.25])
+    v = dsp.resonator_bank(src, fs, qs, gs) + (0.05 if nasal else 0.12) * bandpass(src, 1200, 4500, 2)
+    if kind == "in":
+        env = np.clip(u / 0.25, 0, 1) ** 1.2 * np.clip((1 - u) / 0.12, 0, 1)
+    else:
+        env = np.clip(u / 0.1, 0, 1) ** 0.8 * (1 - u) ** 1.6
+    if trem > 0:
+        env = env * (1 + trem * np.sin(TWO_PI * np.cumsum(7.0 + 1.5 * smooth_noise(n, 2.0, rng)) / SR))
+    if catches:
+        gate = np.ones(n)
+        for k in range(catches):
+            a = (k + 1) / (catches + 1)
+            gate *= 1 - 0.85 * np.exp(-0.5 * ((u - a) / 0.035) ** 2)
+        env = env * gate
+    return sos(v * env * (t < L), "lowpass", 2600 if nasal else 5200, 4)
+
+
+@_sfx("breathing", kind="sustained", norm="int", default_dur=3.0, space=0.6)
+def _breathing(dur, p, rng):
+    """Her breathing, close. mode 'calm' (slow nose breaths: in ~1.4 s, out ~2 s), 'held' (tiny,
+    shallow, uneven nose breaths she is trying to stifle), 'shaky' (after the trap: shuddering
+    intakes, long trembling exhales through the mouth). The first breath starts at `phase`
+    ('in' | 'out')."""
+    mode = p.get("mode", "calm")
+    n = _N(dur)
+    out = np.zeros(n)
+    tt = float(p.get("start", 0.0))
+    nxt = p.get("phase", "in")
+    while tt < dur - 0.1:
+        if mode == "calm":
+            L = rng.uniform(1.2, 1.5) if nxt == "in" else rng.uniform(1.7, 2.2)
+            x = _breath_unit(nxt, L, rng, nasal=True) * (0.8 if nxt == "in" else 0.6)
+            gap = rng.uniform(0.05, 0.15) if nxt == "in" else rng.uniform(0.4, 0.8)
+        elif mode == "held":
+            L = rng.uniform(0.25, 0.4) if nxt == "in" else rng.uniform(0.3, 0.5)
+            x = _breath_unit(nxt, L, rng, nasal=True) * rng.uniform(0.4, 0.7)
+            gap = rng.uniform(0.02, 0.08) if nxt == "in" else rng.uniform(0.5, 1.1)
+        else:
+            L = rng.uniform(0.45, 0.65) if nxt == "in" else rng.uniform(0.9, 1.3)
+            x = _breath_unit(nxt, L, rng, nasal=False, trem=0.45 if nxt == "out" else 0.25,
+                             catches=int(rng.integers(2, 4)) if nxt == "in" else 0)
+            gap = rng.uniform(0.0, 0.06) if nxt == "in" else rng.uniform(0.15, 0.35)
+        _place(out, x, tt)
+        tt += L + gap
+        nxt = "out" if nxt == "in" else "in"
+    return fade(out, 0.05, 0.1)
+
+
+@_sfx("breath_catch", space=0.6)
+def _breath_catch(dur, p, rng):
+    """Her breath catching on the first blow: a sharp, short mouth intake with a glottal hitch."""
+    x = _breath_unit("in", float(p.get("length", 0.2)), rng, nasal=False)
+    _place(x, _hit(rng, [480, 1300], [0.01, 0.008], click=0.3, n=_N(0.02)), 0.0, 0.25)
+    return x
+
+
+@_sfx("grunt", space=0.6)
+def _grunt(dur, p, rng):
+    """A man's short effort grunt (the cop raising his torch): a glottal catch, a voiced 'hn'
+    falling 125 -> 95 Hz through a half-closed mouth, a puff of breath. dist 0..1."""
+    L = 0.3
+    n = _N(L + 0.1)
+    t = t_axis(n)
+    u = np.clip(t / L, 0, 1)
+    f0 = (125.0 - 30.0 * u) * rng.uniform(0.94, 1.06)
+    F = np.stack([np.full(n, 430.0), np.full(n, 1250.0), np.full(n, 2450.0)])
+    A = np.clip(t / 0.015, 0, 1) * (1 - u) ** 1.5 * (t < L)
+    x = _voice(f0, F, A, n, rng, bw=(110.0, 140.0, 200.0), breath=0.35, tilt=1.3, fmax=4500.0)
+    m = _N(0.03)
+    _place(x, bandpass(white(m, rng), 300, 2000, 2) * exp_env(m, 0.015), 0.0, 0.3)
+    return _distance(x, float(p.get("dist", 0.0)), rng)
+
+
+# ============================================================================ the window people & the camera
+@_sfx("music_box", kind="sustained", norm="int", default_dur=3.0, space=0.0)
+def _music_box(dur, p, rng):
+    """The dancer's music box in window 4 (behind her glass, across the street): the little waltz
+    on a steel comb - tines with a bright pin pluck, the cantilever's high partial and a warm
+    fundamental - the cylinder's soft whirr under it. dist 0..1."""
+    beat = 60.0 / 176.0
+    n = _N(dur)
+    out = np.zeros(n)
+    melody = [(88, 3), (91, 2), (89, 1), (88, 3), (86, 2), (84, 1), (86, 3), (89, 2), (88, 1), (86, 6),
+              (88, 3), (91, 2), (89, 1), (88, 3), (93, 2), (91, 1), (89, 3), (88, 2), (86, 1), (84, 6)]
+    bass = [72, 67, 67, 72, 72, 69, 67, 72]
+    tt = -float(p.get("offset", 0.0))                    # where in the tune we come in
+    beats_done = 0
+    notes = []
+    for midi, beats in melody * 2:
+        if tt >= dur:
+            break
+        notes.append((tt, midi, 1.0))
+        for b in range(beats):
+            bt = tt + b * beat
+            pos = (beats_done + b) % 3
+            root = bass[((beats_done + b) // 3) % len(bass)]
+            if pos == 0:
+                notes.append((bt, root, 0.55))
+            else:
+                notes.append((bt, root + (7 if pos == 1 else 12), 0.3))
+        tt += beats * beat
+        beats_done += beats
+    for tt, mm, a in notes:
+        if tt < -1.6:
+            continue
+        f = float(_hz(mm)) * rng.uniform(0.998, 1.002)
+        m = _N(1.6)
+        tm = t_axis(m)
+        note = np.sin(TWO_PI * f * tm) * np.power(10.0, -3 * tm / 1.4) + 0.35 * np.sin(TWO_PI * 2.0 * f * tm) * np.power(10.0, -3 * tm / 0.5)
+        if 6.27 * f < 18000:
+            note += 0.25 * np.sin(TWO_PI * 6.27 * f * tm) * np.power(10.0, -3 * tm / 0.08)
+        note[:_N(0.0015)] *= np.linspace(0, 1, _N(0.0015))
+        pin = _hit(rng, [f * 3.1, f * 4.7], [0.006, 0.004], click=0.6, n=_N(0.015))
+        note[:len(pin)] += 0.12 * pin
+        mix_into(out, note, n_of(tt), a * rng.uniform(0.85, 1.0))
+    t = t_axis(n)
+    whirr = bandpass(white(n, rng), 250, 900, 2) * (0.6 + 0.4 * np.sin(TWO_PI * 13.0 * t)) * 0.03
+    out = dsp.pad_to(out, n) + whirr
+    out = reverb(_glass(out, 3600.0, 300.0), "her_room", wet_db=-8.0)[:n]
+    y, extra = _distance(out, float(p.get("dist", 0.8)), rng)
+    return fade(y, 0.25, 0.4), extra
+
+
+@_sfx("swish", space=0.6)
+def _swish(dur, p, rng):
+    """A short swish of cloth or air - a skirt in a pirouette, a cat's tail, a coat whipped round,
+    a match shaken out: band-passed noise under a bell, its centre gliding f0 -> f1; flutter
+    (Hz, 0 = smooth air) for cloth; weight 0..1 adds the low body of a heavy garment. length s,
+    peak (0..1 of length), dist 0..1."""
+    L = float(p.get("length", 0.3))
+    n = _N(L + 0.08)
+    t = t_axis(n)
+    u = np.clip(t / L, 0, 1)
+    f0, f1 = float(p.get("f0", 700.0)), float(p.get("f1", 2200.0))
+    pk = float(p.get("peak", 0.5))
+    env = _bell(u, pk, pk / 2.2, (1 - pk) / 2.2) * (t < L)
+    x = tv_bandpass(white(n, rng), f0 * (f1 / f0) ** u, q=float(p.get("q", 0.9)), block=32)
+    fl = float(p.get("flutter", 0.0))
+    if fl > 0:
+        x = x * _flutter(n, fl * (0.8 + 0.4 * env), rng, 0.5)
+    w = float(p.get("weight", 0.2))
+    x = x + w * 1.5 * sos(pink(n, rng), "lowpass", 420, 2)
+    return _distance(x * env, float(p.get("dist", 0.0)), rng)
+
+
+@_sfx("pull_whoosh", kind="sustained", norm="max", default_dur=1.9, space=0.0)
+def _pull_whoosh(dur, p, rng):
+    """The camera pulled back across the street through the rain: a long low air movement
+    swelling and leaving, the rain's hiss rising with it, drops streaking past close (glassy
+    ticks flicking left and right)."""
+    n = _N(dur)
+    t = t_axis(n)
+    u = np.clip(t / dur, 0, 1)
+    sw = _bell(u, 0.45, 0.22, 0.3)
+    out = np.zeros((n, 2))
+    for ch in range(2):
+        air = tv_bandpass(pink(n, rng), 160 + 500 * sw, q=0.7, block=128) * 1.3 + sos(dsp.brown(n, rng), "lowpass", 140, 2)
+        hiss = bandpass(pink(n, rng), 1800, 9000, 2) * 0.35
+        out[:, ch] = (air + hiss) * sw
+    for tt in np.sort(rng.uniform(0.1, dur - 0.1, int(dur * 16))):
+        d = _drop(rng, rng.uniform(1800, 4200), rng.uniform(0.003, 0.006), 0.3) * sw[min(n - 1, n_of(tt))]
+        mix_into(out, pan_mono(d, rng.uniform(-0.9, 0.9)), n_of(tt), rng.uniform(0.05, 0.16))
+    return fade(out, 0.2, 0.4)
+
+
+@_sfx("pane_through", space=0.0)
+def _pane_through(dur, p, rng):
+    """The camera passing through a pane of her window. dir 'in' (from the rain into the room: the
+    hiss sucked down to a dull hush with a soft pressure 'whump', a few drops tapping the glass
+    right at us) or 'out' (from the room into the night: a wet rush opening up, a gust)."""
+    d = p.get("dir", "in")
+    n = _N(0.9)
+    t = t_axis(n)
+    out = np.zeros(n)
+    if d == "in":
+        e = np.exp(-np.maximum(t - 0.05, 0) / 0.12) * np.clip(t / 0.05, 0, 1)
+        out += tv_bandpass(pink(n, rng), 3000 * np.exp(-t / 0.08) + 300, q=0.8, block=64) * e * 0.8
+        _place(out, _thump(_N(0.2), 90, 55, 0.01, 0.09), 0.05, 0.6)
+        for k in range(4):
+            f = rng.uniform(2400, 4800)
+            _place(out, _hit(rng, [f, f * 1.47], [0.02, 0.014], click=0.5, n=_N(0.04)), 0.12 + 0.11 * k + rng.uniform(0, 0.05), rng.uniform(0.12, 0.25))
+    else:
+        u = np.clip(t / 0.5, 0, 1)
+        e = u ** 1.6 * np.exp(-np.maximum(t - 0.5, 0) / 0.15)
+        out += tv_bandpass(pink(n, rng), 400 * 12.0 ** u, q=0.7, block=64) * e
+        out += bandpass(white(n, rng), 2500, 9000, 2) * e * 0.4
+        out += sos(pink(n, rng), "lowpass", 300, 2) * e * 0.6
+    return _wide(out, rng, 0.4)
+
+
+@_sfx("focus_click", space=0.0)
+def _focus_click(dur, p, rng):
+    """The binoculars' knurled focus wheel turned a notch: two or three tiny detent ticks and a
+    rub of the thumb."""
+    n = _N(0.25)
+    out = np.zeros(n)
+    m = _N(0.1)
+    _place(out, bandpass(white(m, rng), 1500, 6000, 2) * np.hanning(m) * 0.05, 0.0)
+    for k in range(int(rng.integers(2, 4))):
+        f = rng.uniform(3600, 5200)
+        _place(out, _hit(rng, [f, f * 1.6], [0.006, 0.004], click=0.7, n=_N(0.015)), 0.02 + 0.032 * k + rng.uniform(0, 0.006), 1.0 - 0.2 * k)
+    return out
+
+
+@_sfx("stab_thud", space=0.0)
+def _stab_thud(dur, p, rng):
+    """A knife blow on the far side of the street, through two panes: a muffled body thud (a
+    dull low thump and the flat slap of cloth), the street's air on it. dist 0..1."""
+    n = _N(0.5)
+    out = np.zeros(n)
+    _place(out, _thump(_N(0.3), 105, 55, 0.008, 0.11), 0.0, 1.0)
+    _place(out, _burst(_N(0.06), rng, 120, 900, t60=0.03, attack=0.001), 0.0, 0.7)
+    out = sos(out, "lowpass", 700, 2)
+    return _distance(out, float(p.get("dist", 0.7)), rng)
+
+
+# ============================================================================ rooms, doors, lamps
+@_sfx("board_creak", space=0.9)
+def _board_creak(dur, p, rng):
+    """A bare floorboard creaking under a shifted weight (no step): a slow stick-slip groan
+    through the board's modes. length s, pitch, dist 0..1."""
+    L = float(p.get("length", 0.35))
+    n = _N(L + 0.1)
+    t = t_axis(n)
+    sw = np.sin(np.pi * np.clip(t / L, 0, 1)) ** 0.8 * (t < L)
+    k = float(p.get("pitch", 1.0)) * rng.uniform(0.85, 1.15)
+    cr = friction(n, (40 + 65 * sw) * k, rng, jitter=0.3,
+                  body=[(rng.uniform(240, 340) * k, 6, 1.0), (rng.uniform(600, 800) * k, 8, 0.7), (rng.uniform(1300, 1700) * k, 10, 0.35)])
+    return _distance(cr * sw, float(p.get("dist", 0.0)), rng)
+
+
+@_sfx("hook_creak", space=0.8)
+def _hook_creak(dur, p, rng):
+    """Her hand closing on the coat's collar on its cast-iron hook: a fistful of wool, the hook
+    creaking in its screws as the coat's weight shifts."""
+    n = _N(0.55)
+    out = np.zeros(n)
+    m = _N(0.18)
+    w = np.sin(np.pi * np.linspace(0, 1, m)) ** 1.2
+    _place(out, (bandpass(crackle(m, 650, rng), 700, 4500, 2) * 0.9 + bandpass(pink(m, rng), 200, 1400, 2) * 0.3) * w, 0.0, 1.0)
+    m = _N(0.32)
+    tm = t_axis(m)
+    sq = friction(m, 90 + 70 * tm / 0.32, rng, jitter=0.25, body=[(1450, 12, 1.0), (2650, 16, 0.6), (820, 6, 0.4)])
+    _place(out, sq * np.sin(np.pi * tm / 0.32) ** 0.9, 0.12, 0.7)
+    return out
+
+
+@_sfx("body_hit", space=0.5, hit=True)
+def _body_hit(dur, p, rng):
+    """His whole weight thrown into the locked door from inside, right at us: a deep shoulder
+    thump through the panel (lower and longer than a fist), the bolt and the frame jarring."""
+    n = _N(1.0)
+    out = np.zeros(n)
+    _place(out, _thump(_N(0.5), 95, 44, 0.02, 0.24), 0.0, 1.0)
+    _place(out, _door_panel(rng, _N(0.8), 0.92), 0.0, 0.85)
+    _place(out, _burst(_N(0.1), rng, 50, 1100, t60=0.05, attack=0.001), 0.0, 1.0)
+    for j in range(5):
+        _place(out, _hit(rng, [rng.uniform(900, 1900), rng.uniform(2200, 4200)], [0.04, 0.03], click=0.5, n=_N(0.06)),
+               0.01 + 0.022 * j + rng.uniform(0, 0.01), 0.22)
+    out = reverb(out, "hallway", wet_db=-10.0)[:n]
+    return fade(out, 0.0, 0.2)
+
+
+@_sfx("heel_pivot", space=0.8)
+def _heel_pivot(dur, p, rng):
+    """She whips round on bare boards: a heel twisting on the wood (a short leather squeak), the
+    knock of the heel as the weight lands, the coat swinging after her."""
+    n = _N(0.5)
+    out = np.zeros(n)
+    m = _N(0.11)
+    tm = t_axis(m)
+    _place(out, friction(m, 380 + 300 * tm / 0.11, rng, jitter=0.12, body=[(1900, 14, 1.0), (3100, 18, 0.5)]) * np.sin(np.pi * tm / 0.11), 0.0, 0.5)
+    _place(out, _hit(rng, np.array([1650, 2900, 4400]) * rng.uniform(0.95, 1.05), [0.025, 0.02, 0.014], click=1.0), 0.1, 0.8)
+    _place(out, _burst(_N(0.05), rng, 200, 2500, t60=0.02, attack=0.001), 0.1, 0.4)
+    m = _N(0.3)
+    tm = t_axis(m)
+    sw = bandpass(white(m, rng), 300, 2400, 2) * _flutter(m, 14, rng, 0.5) * np.sin(np.pi * tm / 0.3) ** 1.5
+    _place(out, sw, 0.06, 0.35)
+    return out
+
+
+@_sfx("lamp_lift", space=0.8)
+def _lamp_lift(dur, p, rng):
+    """She grabs the show lamp and lifts it: the tripod's steel feet scraping off the boards, the
+    stand's joints knocking, the cord dragging, and the hot bulb's filament ringing - a thin
+    metallic shimmer that wavers as it swings."""
+    n = _N(1.0)
+    t = t_axis(n)
+    out = np.zeros(n)
+    for k in range(3):
+        m = _N(rng.uniform(0.1, 0.18))
+        tm = t_axis(m)
+        sc = friction(m, rng.uniform(160, 260), rng, jitter=0.35, body=[(rng.uniform(1800, 2600), 9, 1.0), (rng.uniform(3800, 5200), 12, 0.5)])
+        _place(out, sc * np.sin(np.pi * tm / (m / SR)) ** 1.2, 0.03 + 0.04 * k + rng.uniform(0, 0.02), 0.45)
+    _place(out, _hit(rng, np.array([700, 1650, 2900]) * rng.uniform(0.95, 1.05), [0.06, 0.04, 0.03], click=0.6, n=_N(0.1)), 0.02, 0.5)
+    fil = np.zeros(n)
+    for f, a, t60 in ((5320, 1.0, 0.7), (7810, 0.5, 0.5), (10260, 0.25, 0.35)):
+        ff = f * rng.uniform(0.97, 1.03) * (1 + 0.004 * np.sin(TWO_PI * 5.5 * t))
+        fil += a * np.sin(TWO_PI * np.cumsum(ff) / SR + rng.uniform(0, 6)) * np.power(10.0, -3 * t / t60)
+    fil *= 1 + 0.5 * np.sin(TWO_PI * 3.3 * t)
+    _place(out, fil, 0.05, 0.08)
+    m = _N(0.6)
+    _place(out, friction(m, 60, rng, jitter=0.5, body=[(800, 3, 1.0), (1800, 4, 0.4)]) * np.hanning(m), 0.15, 0.25)
+    return out
+
+
+@_sfx("pins_rasp", space=0.8)
+def _pins_rasp(dur, p, rng):
+    """The sheet pulled across on its wire: the wooden clothes pins and their springs rasping and
+    knocking along the steel wire (a scraping run with little catches), the wire singing faintly,
+    the sheet's cloth swishing over the lamp. length s."""
+    L = float(p.get("length", 1.15))
+    n = _N(L + 0.3)
+    t = t_axis(n)
+    u = np.clip(t / L, 0, 1)
+    mot = np.sin(np.pi * u) ** 0.6 * (t < L)
+    out = np.zeros(n)
+    for k in range(int(rng.integers(5, 8))):
+        a = rng.uniform(0.0, L * 0.3)
+        m = _N(L - a)
+        tm = t_axis(m)
+        sc = friction(m, rng.uniform(70, 130) * (1 + 0.3 * smooth_noise(m, 3, rng)), rng, jitter=0.4,
+                      body=[(rng.uniform(1100, 1600), 8, 1.0), (rng.uniform(2400, 3300), 10, 0.6), (rng.uniform(4300, 5600), 14, 0.3)])
+        _place(out, sc * np.sin(np.pi * np.clip(tm / (m / SR), 0, 1)) ** 0.7, a, rng.uniform(0.12, 0.22))
+    for k in range(int(rng.integers(6, 11))):
+        _place(out, _hit(rng, np.array([1300, 2600, 4100]) * rng.uniform(0.85, 1.2), [0.03, 0.02, 0.015], click=0.7, n=_N(0.05)),
+               rng.uniform(0.05, L), rng.uniform(0.15, 0.35))
+    wire = sum(a * np.sin(TWO_PI * f * rng.uniform(0.98, 1.02) * t + rng.uniform(0, 6)) for f, a in ((610, 1.0), (1225, 0.5), (1850, 0.25)))
+    out += wire * mot * 0.03
+    out += tv_bandpass(pink(n, rng), 500 + 1300 * mot, q=0.7, block=64) * mot * 0.35
+    return _pan_sweep(out, float(p.get("pan0", 0.35)), float(p.get("pan1", -0.25)), u)
+
+
+@_sfx("wall_bump", space=0.8)
+def _wall_bump(dur, p, rng):
+    """Her back meeting the plaster wall: a soft, low body thud, the coat's wool crushed against
+    it, a grain of plaster ticking."""
+    n = _N(0.5)
+    out = np.zeros(n)
+    _place(out, _thump(_N(0.25), 115, 62, 0.012, 0.09), 0.0, 1.0)
+    _place(out, _burst(_N(0.06), rng, 120, 1300, t60=0.03, attack=0.002), 0.0, 0.6)
+    m = _N(0.25)
+    _place(out, bandpass(crackle(m, 700, rng), 600, 4000, 2) * np.sin(np.pi * np.linspace(0, 1, m)) * 0.5, 0.01, 1.0)
+    _place(out, _hit(rng, [rng.uniform(3000, 5000)], [0.01], click=0.4, n=_N(0.02)), 0.05 + rng.uniform(0, 0.05), 0.1)
+    return out
+
+
+@_sfx("timer_switch", space=0.6)
+def _timer_switch(dur, p, rng):
+    """The hallway's push-button timer light: the button pressed home (a heavy bakelite clunk),
+    the clockwork catching and starting to whirr, the lamp's contact ticking on."""
+    n = _N(0.8)
+    t = t_axis(n)
+    out = np.zeros(n)
+    _place(out, _hit(rng, [900, 2100, 3400], [0.05, 0.035, 0.025], click=0.8), 0.0, 1.0)
+    _place(out, _thump(_N(0.08), 220, 150, 0.006, 0.03), 0.0, 0.45)
+    m = _N(0.6)
+    tm = t_axis(m)
+    wr = bandpass(_imp_train(np.full(m, 38.0), m, rng, 0.3, polarity=False), 2000, 6000, 2) * np.exp(-tm / 0.35) * 0.6
+    _place(out, wr, 0.03, 0.5)
+    _place(out, _hit(rng, [4100, 6300], [0.01, 0.008], click=0.6, n=_N(0.02)), 0.07, 0.3)
+    return out
+
+
+@_sfx("pins_pop", space=0.8, hit=True)
+def _pins_pop(dur, p, rng):
+    """The torn sheet tearing its pins off the wire one after another: each a sprung wooden pin
+    snapping off ('tock') and clattering on the boards, the wire twanging, and the sheet slumping
+    down - a heavy cloth fall ending soft on the floor at `slump` s."""
+    slump = float(p.get("slump", 0.42))
+    n = _N(slump + 0.6)
+    t = t_axis(n)
+    out = np.zeros(n)
+    tt, gap = 0.0, 0.085
+    for k in range(int(rng.integers(5, 8))):
+        if tt > slump:
+            break
+        f = rng.uniform(0.85, 1.2)
+        _place(out, _hit(rng, np.array([1200, 2500, 3900]) * f, [0.035, 0.025, 0.018], click=1.0, n=_N(0.06)), tt, 0.9 - 0.06 * k)
+        _place(out, _hit(rng, np.array([1500, 3100]) * rng.uniform(0.9, 1.1), [0.03, 0.02], click=0.6, n=_N(0.05)),
+               tt + rng.uniform(0.12, 0.25), rng.uniform(0.15, 0.3))
+        tt += gap * rng.uniform(0.8, 1.2)
+        gap *= 0.82
+    tw = dsp.karplus_strong(96.0 * rng.uniform(0.95, 1.05), 0.8, t60=0.7, brightness=0.35, rng=rng)
+    _place(out, sos(tw[:_N(0.8)], "bandpass", (80, 1800), 2) / (np.max(np.abs(tw)) + 1e-9), 0.01, 0.12)
+    e = _bell(t, slump * 0.6, slump * 0.35, 0.08) * (t < slump + 0.05)
+    out += (tv_bandpass(pink(n, rng), 900 - 500 * np.clip(t / slump, 0, 1), q=0.7, block=64) * 0.6
+            + bandpass(white(n, rng), 300, 2200, 2) * _flutter(n, 11, rng, 0.5) * 0.3) * e
+    _place(out, _sum(_thump(_N(0.2), 110, 60, 0.012, 0.08), _burst(_N(0.07), rng, 100, 1200, t60=0.035, attack=0.003)), slump, 0.55)
+    return out
+
+
+@_sfx("electric_fizz", space=0.5)
+def _electric_fizz(dur, p, rng):
+    """The smashed lamp's filament arcing on the floor: an electric fizz, 120 Hz buzz and crackle
+    stuttering on and off, until it stops dead at `length`."""
+    L = float(p.get("length", 0.55))
+    n = _N(L + 0.02)
+    t = t_axis(n)
+    gate = np.zeros(n)
+    tt = 0.0
+    while tt < L:
+        on = rng.uniform(0.02, 0.07)
+        gate[n_of(tt):min(n, n_of(tt + on))] = rng.uniform(0.5, 1.0)
+        tt += on + rng.uniform(0.01, 0.06)
+    gate = onepole_lp(gate, 400.0) * (t < L)
+    buzz = sos(saturate(np.sin(TWO_PI * 120 * t) + 0.3 * np.sin(TWO_PI * 60 * t), 5.0, asym=0.3), "bandpass", (100, 5000), 2)
+    arc = bandpass(crackle(n, 900, rng, amp_spread=1.0), 1500, 9000, 2)
+    x = (0.6 * buzz + 0.8 * arc) * gate
+    k = _N(0.004)
+    x[-k:] *= np.linspace(1, 0, k)
+    return x
+
+
+@_sfx("fuse_click", space=0.3, hit=True)
+def _fuse_click(dur, p, rng):
+    """The fuse going: a hard, dry 'tock' of the breaker / fuse holder with a tiny electric snap -
+    and nothing after it."""
+    n = _N(0.12)
+    out = np.zeros(n)
+    _place(out, _hit(rng, [1150, 2600, 4300, 6900], [0.02, 0.015, 0.01, 0.007], spread=0.02, click=1.0, n=_N(0.06)), 0.0, 1.0)
+    _place(out, _thump(_N(0.04), 300, 200, 0.004, 0.012), 0.0, 0.3)
+    m = _N(0.012)
+    _place(out, sos(saturate(np.sin(TWO_PI * 120 * t_axis(m)), 6.0), "highpass", 2000, 2) * np.linspace(1, 0, m), 0.0, 0.25)
+    return out
+
+
+@_sfx("dolls_rustle", kind="sustained", norm="max", default_dur=1.6, space=0.8)
+def _dolls_rustle(dur, p, rng):
+    """A draught through the open door running over forty paper dolls pinned to his wall: a wave
+    of stiff little card flutters passing left to right, pins ticking here and there."""
+    n = _N(dur)
+    out = np.zeros((n, 2))
+    for k in range(40):
+        col = k % 5
+        row = k // 5
+        x = col / 4.0
+        tt = (0.08 + 0.72 * x + 0.03 * row) * (dur / 1.6) + rng.uniform(-0.05, 0.05)
+        L = rng.uniform(0.18, 0.35)
+        m = _N(L)
+        tm = t_axis(m)
+        flaps = _imp_train(np.full(m, rng.uniform(16, 26)), m, rng, 0.4, polarity=False)
+        f = dsp.resonator_bank(flaps, np.array([900, 1700, 3100]) * rng.uniform(0.85, 1.2), [3, 4, 5], [1.0, 0.7, 0.4])
+        f = f + bandpass(crackle(m, 700, rng), 1500, 7000, 2) * 0.4
+        f *= np.sin(np.pi * tm / L) ** 1.3
+        f /= np.max(np.abs(f)) + 1e-9
+        mix_into(out, pan_mono(f, -0.8 + 1.6 * x), n_of(max(0.0, tt)), rng.uniform(0.25, 0.5))
+        if rng.uniform() < 0.25:
+            mix_into(out, pan_mono(_hit(rng, [rng.uniform(3500, 6500)], [0.02], click=0.5, n=_N(0.03)), -0.8 + 1.6 * x),
+                     n_of(max(0.0, tt + rng.uniform(0, L))), 0.08)
+    return fade(out, 0.1, 0.3)
+
+
+@_sfx("flashgun", space=0.5, hit=True)
+def _flashgun(dur, p, rng):
+    """The press photographer's flashgun: the shutter's 'click-clack' (at 0) and, `pop` s later,
+    the flashbulb firing - a bright foil 'pff' with a crack and a low puff - then the flash unit's
+    thin whine climbing as it recharges, fading off."""
+    pop = float(p.get("pop", 0.0))
+    n = _N(pop + 2.0)
+    t = t_axis(n)
+    out = np.zeros(n)
+    _place(out, _hit(rng, [2100, 3700, 5600], [0.012, 0.01, 0.007], click=0.9, n=_N(0.03)), 0.0, 0.5)
+    _place(out, _hit(rng, [1700, 2900, 4800], [0.015, 0.012, 0.008], click=0.8, n=_N(0.03)), 0.035, 0.4)
+    m = _N(0.09)
+    tm = t_axis(m)
+    pf = bandpass(white(m, rng), 800, 9000, 2) * np.exp(-tm / 0.025) + bandpass(crackle(m, 4000, rng), 2000, 10000, 2) * np.exp(-tm / 0.03) * 0.6
+    _place(out, pf, pop, 1.0)
+    _place(out, _thump(_N(0.12), 170, 90, 0.004, 0.05), pop, 0.5)
+    _place(out, _click(rng, 3000, 0.002, _N(0.008)), pop, 0.5)
+    tw = np.clip((t - pop - 0.05) / 1.8, 0, 1)
+    fw = 1800.0 * (4.2 ** tw)
+    wh = np.sin(TWO_PI * np.cumsum(fw) / SR) + 0.25 * np.sin(TWO_PI * 2 * np.cumsum(fw) / SR)
+    wh *= np.clip((t - pop - 0.05) / 0.2, 0, 1) * np.clip((pop + 1.95 - t) / 0.6, 0, 1) * 0.035
+    return out + wh
+
+
+@_sfx("bulb_eject", space=0.8)
+def _bulb_eject(dur, p, rng):
+    """The spent flashbulb thumbed out of the reflector: the ejector's click, then the hot little
+    glass bulb hitting the floorboards and bouncing - light glassy tinks with a woody knock,
+    each lower and closer together - and a short roll."""
+    n = _N(1.2)
+    out = np.zeros(n)
+    _place(out, _hit(rng, [2600, 4300], [0.012, 0.008], click=0.8, n=_N(0.025)), 0.0, 0.45)
+    tt, gap, a = 0.22, 0.17, 1.0
+    for k in range(5):
+        f = rng.uniform(4200, 5600) * (1 - 0.03 * k)
+        _place(out, _hit(rng, [f, f * 1.52, f * 2.3], [0.06, 0.04, 0.025], click=0.5, n=_N(0.1)), tt, a)
+        _place(out, _hit(rng, [820, 1700], [0.02, 0.015], click=0.3, n=_N(0.04)), tt, 0.3 * a)
+        tt += gap * rng.uniform(0.85, 1.1)
+        gap *= 0.62
+        a *= 0.62
+    m = _N(0.3)
+    _place(out, friction(m, 110, rng, jitter=0.6, body=[(4300, 18, 1.0), (6600, 20, 0.4)]) * np.hanning(m), tt, 0.06)
+    return out
+
+
+@_sfx("bino_set", space=0.8)
+def _bino_set(dur, p, rng):
+    """Her binoculars set down on the wooden sill: the rubber armour's dull knock on the wood, a
+    tiny metal tick of the strap's buckle, the strap settling."""
+    n = _N(0.5)
+    out = np.zeros(n)
+    _place(out, _sum(_thump(_N(0.12), 260, 180, 0.006, 0.04), _hit(rng, [340, 760, 1300], [0.04, 0.03, 0.02], click=0.3, n=_N(0.08))), 0.0, 1.0)
+    _place(out, _thump(_N(0.1), 240, 170, 0.006, 0.03), 0.045 + rng.uniform(0, 0.02), 0.35)
+    _place(out, _hit(rng, [4100, 6300], [0.02, 0.015], click=0.5, n=_N(0.03)), 0.09 + rng.uniform(0, 0.04), 0.15)
+    m = _N(0.25)
+    _place(out, bandpass(crackle(m, 400, rng), 800, 4000, 2) * np.hanning(m) * 0.3, 0.1, 1.0)
+    return out
+
+
+@_sfx("rings_home", space=0.8)
+def _rings_home(dur, p, rng):
+    """The curtain's brass rings knocking home against the end of the rod: a bunched clatter of
+    ring on ring and on the wooden finial, a little ringing after."""
+    n = _N(0.7)
+    out = np.zeros(n)
+    tt = 0.0
+    for k in range(int(rng.integers(5, 8))):
+        f = rng.uniform(2800, 5200)
+        _place(out, _hit(rng, [f, f * 1.43, f * 2.07], [0.12, 0.08, 0.05], click=0.6, n=_N(0.2)), tt, rng.uniform(0.4, 1.0))
+        tt += rng.uniform(0.008, 0.025)
+    _place(out, _hit(rng, [620, 1350, 2400], [0.04, 0.03, 0.02], click=0.6, n=_N(0.08)), 0.004, 0.5)
+    return out
+
+
+@_sfx("lamp_die", space=0.0)
+def _lamp_die(dur, p, rng):
+    """The street lamp below going out: its tired buzz dropping and cut, the filament's cooling
+    tick. Far (dist 0..1)."""
+    n = _N(0.5)
+    t = t_axis(n)
+    f = 120.0 * (1 - 0.06 * np.clip(t / 0.12, 0, 1))
+    b = sos(saturate(np.sin(TWO_PI * np.cumsum(f) / SR), 4.0), "bandpass", (110, 3500), 2)
+    b *= np.clip(1 - t / 0.12, 0, 1) ** 1.5
+    out = b * 0.5
+    _place(out, _hit(rng, [6200, 8900], [0.03, 0.02], click=0.2, n=_N(0.05)), 0.16 + rng.uniform(0, 0.05), 0.15)
+    return _distance(out, float(p.get("dist", 0.8)), rng)
+
+
+@_sfx("glass_tick", space=0.4)
+def _glass_tick(dur, p, rng):
+    """The faintest glass tick - a hot bulb's glass catching a match flame: one tiny, very high
+    glassy ping."""
+    n = _N(0.3)
+    f = rng.uniform(5200, 6600)
+    return _hit(rng, [f, f * 1.38, f * 2.12], [0.12, 0.07, 0.04], click=0.2, n=n)
+
+
+@_sfx("pull_chain", space=0.0)
+def _pull_chain(dur, p, rng):
+    """A lamp's pull-chain switch: the little bead chain rattling, the socket's ratchet snapping
+    over (the click), the chain swinging back against the brass. dist 0..1."""
+    n = _N(0.45)
+    out = np.zeros(n)
+    for k in range(6):
+        _place(out, _hit(rng, [rng.uniform(4500, 7500)], [0.008], click=0.5, n=_N(0.015)), rng.uniform(0.0, 0.05), rng.uniform(0.1, 0.25))
+    ts = 0.05
+    _place(out, _hit(rng, [2300, 3900, 6100], [0.02, 0.015, 0.01], spread=0.02, click=1.0), ts, 1.0)
+    _place(out, _thump(_N(0.04), 400, 260, 0.004, 0.015), ts, 0.3)
+    for k in range(4):
+        _place(out, _hit(rng, [rng.uniform(5000, 8000)], [0.01], click=0.4, n=_N(0.02)), ts + 0.04 + 0.05 * k + rng.uniform(0, 0.02), 0.12)
+    return _distance(out, float(p.get("dist", 0.0)), rng)
+
+
+@_sfx("beacon_hum", kind="sustained", norm="int", default_dur=5.0, space=0.0)
+def _beacon_hum(dur, p, rng):
+    """The police car's rotating beacon down in the street, heard through apartment 9's glass:
+    the little motor's hum swelling and fading as the lamp turns (about 1.3 turns a second)."""
+    n = _N(dur)
+    t = t_axis(n)
+    f = 180.0 * (1 + 0.004 * smooth_noise(n, 0.5, rng))
+    ph = np.cumsum(f) / SR
+    x = np.sin(TWO_PI * ph) + 0.5 * np.sin(2 * TWO_PI * ph + 1.0) + 0.3 * np.sin(3 * TWO_PI * ph + 2.0) + 0.15 * np.sin(5 * TWO_PI * ph)
+    x *= 0.65 + 0.35 * np.sin(TWO_PI * 1.3 * t) ** 2
+    x += 0.15 * bandpass(white(n, rng), 300, 1500, 2)
+    return fade(_glass(x, 900.0, 120.0), 0.3, 0.3)
+
+
+@_sfx("far_radio", kind="sustained", norm="int", default_dur=3.0, space=0.0)
+def _far_radio(dur, p, rng):
+    """A radio playing high up in a lit window as the camera cranes past: a little dance band
+    (muted trumpet line, piano comping, brushes, a walking bass) through a tinny speaker and an
+    open window, far."""
+    n = _N(dur)
+    out = np.zeros(n)
+    beat = 60.0 / 128.0
+    walk = [45, 48, 52, 55, 57, 55, 52, 48, 50, 53, 57, 60, 52, 55, 59, 62]
+    tune = [(69, 1.5), (72, 0.5), (76, 1.0), (74, 1.0), (72, 2.0), (69, 1.0), (67, 1.0), (69, 2.0), (64, 2.0)]
+    tt = 0.0
+    k = 0
+    while tt < dur:
+        f = float(_hz(walk[k % len(walk)] + 12))
+        _place(out, lib._felt_piano_note(f, _N(beat * 1.1), 0.6, rng) * 0.5, tt)
+        if k % 2 == 1:
+            m = _N(0.12)
+            _place(out, bandpass(white(m, rng), 2500, 7000, 2) * np.hanning(m) * 0.3, tt, 1.0)
+            for c in (64, 67, 71):
+                _place(out, lib._felt_piano_note(float(_hz(c)), _N(0.25), 0.4, rng) * 0.15, tt)
+        tt += beat
+        k += 1
+    tt = 0.25
+    for mm, b in tune * 2:
+        if tt >= dur:
+            break
+        L = b * beat
+        m = _N(L + 0.1)
+        tm = t_axis(m)
+        f = float(_hz(mm)) * (1 + 0.006 * np.sin(TWO_PI * 5.5 * tm) * np.clip(tm / 0.2, 0, 1))
+        tr = saw(f, m) * np.clip(tm / 0.03, 0, 1) * np.clip((L - tm) / 0.05, 0, 1)
+        _place(out, biquad(tr, "peak", 1800, 2.0, 9.0) * 0.12, tt)
+        tt += L
+    out = bandpass(out, 380, 2800, 3)
+    out = saturate(out / (np.max(np.abs(out)) + 1e-9) * 2.0, 1.8) * 0.5
+    out += 0.02 * bandpass(white(n, rng), 800, 4000, 2)
+    y, extra = _distance(reverb(out, "small_room", wet_db=-8.0)[:n], float(p.get("dist", 0.9)), rng)
+    return fade(y, 0.4, 0.5), extra

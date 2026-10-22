@@ -1,34 +1,39 @@
 """s02 · CASH: the evening of the dive. He takes the money from a man who never asks his name.
-(15.0 s, surface at late dusk, the moon over the stern: (612, 598 above the horizon) as in s03.)
+(15.0 s, surface at late dusk; the moon over the stern exactly as in s03: (612, 598 above the
+horizon), r 74, veil 0.3.)
 
-IN  (scroll 'down' from s01, 1.5 s): the same water and the same camera as s01's rise, one
-    screen higher (an exact seam): the red hose and the bubbles run up through x ~520-640,
-    the bubbles burst at the waterline, the hull's underside is dark against the bright
-    skin of the surface, the hose climbs to the stern.
+IN  (scroll 'down' from s01, 1.5 s, -0.75..0.75): s01's rising camera one screen higher
+    (s01.camera(10 + t) shifted up by H/zoom), so the seam is exact: the red hose and the
+    bubbles run up through x ~520-640 and burst at the waterline (screen y ~619 at -0.75,
+    ~521 at 0.75), the hull's underside dark against the bright skin of the surface.
 Beats (scene-local s; words from the timeline):
-  0.0-2.05   the camera keeps rising through the waterline (split) and swings out to a wide of
-             the salvage boat on the swell; the hose and bubbles of the present fade away
-             (this is the evening before)
-  2.05-3.2   push in on the stern working deck: the diver (suited, bare-headed, the helmet
-             bonnet in his lap) sits on the pump box; the client stands at the winch, cigar
-  [paid]     the client draws an envelope from his coat and holds it out
-  [Cash]     the diver takes it, holds it up in his glove, tucks it into the suit
-  7.0-8.0    L4: the client turns away from him to the sea (his back to us on the way round);
-             the camera finds his profile on the moon; the diver gets up with the bonnet
-  [name]     the client draws on the cigar: the ember flares; smoke drifts off
-  8.3-10.9   the diver walks aft behind him (lead boots), the red hose paying out off the coil
-  11.2-12.8  forward of the davit he lifts the bonnet over his head (it eclipses the moon)
-             and lowers it on; the wind off the sea presses the client's coat back
-  12.0-13.5  [plan] the slow push-in to the client's belt: the knife handle against the last
-             light over the horizon, between the two men; [using] a glint
-  13.3-[it]  the client reaches over and turns the bonnet home: CLANK on [it]; the port glass
-             darkens, then the diver's eyes glow inside
-  14.2-14.8  the diver swings round the davit post onto the ladder while the camera pulls back
-             and tilts down toward the water (into s03's composition)
-OUT (scroll 'up' into s03, 1.25 s): from 15.0 the camera is s03's own (s03.camera(t - 15)),
-    and from ~14.8 the diver and the hose are s03's (s03.DIVER, s03.HOSE): the diver on the
-    ladder at screen x ~620, the moon behind his helmet, waterline 771 at 15.0 sinking toward
-    760. The client still stands at the winch (screen x ~280; s03 does not draw him).
+  0.0-2.05    the camera keeps rising through the waterline and swings out to a wide of the
+              boat on the swell; the present's hose and bubbles dissolve (0.9-1.9): this is
+              the evening before
+  2.05-3.2    push in on the stern working deck: the diver (suited, bare-headed, the bonnet
+              in his lap) sits on the pump box; the client stands at the winch, cigar
+  2.52-[paid 3.02]  the client's hand goes into his coat, the envelope comes out, held out
+  4.54-[Cash 5.26]  the diver reaches and takes it; holds it up; 6.12-6.44 tucks it away
+  [L4 7.0]-8.0  the client turns away to the sea; the camera finds his profile on the moon
+              (8.1); 7.9-8.62 the diver gets up with the bonnet
+  [name 8.50] the client draws on the cigar: the ember flares; smoke drifts off
+  8.62-11.26  the diver walks aft behind him (lead boots), the hose paying out off the coil,
+              to forward of the davit post (headroom)
+  11.56-12.34 he lifts the bonnet over his head (it eclipses the moon to a crescent,
+              ~12.2-12.6); 12.34-13.19 lowers it on; the wind presses the client's coat
+              back from 11.6
+  12.39-13.49 [plan] the push-in to the client's belt (knife pommel at screen (470, 840),
+              zoom 1.55); [using 13.59] the glint
+  13.28-[it 14.08] the client reaches over with both hands (13.28) and turns the bonnet home
+              (13.86): CLANK on [it] with a camera jolt; the port glass darkens (14.11-14.25)
+              and the diver's eyes glow behind it (14.24-14.38)
+  14.22-14.84 the diver swings round the davit post onto the ladder; the camera pulls back
+              and tilts down (14.30-15.5) into s03's composition
+OUT (scroll 'up' into s03, 1.25 s, 14.375..15.625): from 14.84 the diver and the hose are
+    s03's own (s03.DIVER.pose(t - 15), s03.HOSE.points(t - 15)) and from 15.5 the camera is
+    s03's (s03.camera(t - 15)), so the last frames ARE s03's composition: the diver on the
+    ladder (helmet at screen ~(654, 206) at 15.5, on the moon at (612, 162)), waterline 760.
+    The client still stands at the winch (head at screen ~(244, 119); s03 does not draw him).
 """
 import functools
 import math
@@ -136,7 +141,7 @@ FEET_SEAT = {"R": (-724.0, deck_rest(-724.0) - 27.0), "L": (-750.0, deck_rest(-7
 X_UP = -812.0                    # where he stands up
 X_STOP = -318.0                  # where he puts the bonnet on: forward of the davit post (headroom)
 CLIENT_X = -530.0                # the client stands at the winch
-ENV_T = (-664.0, -600.0)         # where the envelope is held out (rest frame)
+ENV_T = (-632.0, -552.0)         # where the envelope is held out (rest frame)
 CARRY = (84.0, -104.0)           # bonnet centre relative to the pelvis while carried (facing +x)
 
 
@@ -362,9 +367,10 @@ def rig(T):
 WIDE = (-760.0, 150.0, 0.50)
 MW = (-660.0, -430.0, 0.95)
 MW_ENV = (-716.0, -470.0, 1.10)
-Z_PRO, Z_TWO, Z_BELT, Z_CLANK = 1.20, 1.0, 1.9, 1.36
+Z_PRO, Z_TWO_W, Z_TWO, Z_BELT, Z_CLANK = 1.20, 1.08, 1.25, 1.55, 1.4
 T_IN = 0.75
 T_WIDE = 2.05
+T_S03 = 15.5                   # from here on the camera is s03's own (s03.camera(t - 15))
 
 
 def _cam_in(t):
@@ -391,16 +397,23 @@ def _cam_keys_for(key):
     rg = _rig_for(key)
     b = rg.b
     s03 = _s03()
-    c15, c15b = s03.camera(0.0), s03.camera(0.02)
+    c15, c15b = s03.camera(T_S03 - 15.0), s03.camera(T_S03 - 15.0 + 0.02)
     v15 = ((c15b.x - c15.x) / 0.02, (c15b.y - c15.y) / 0.02, 0.0)
+    end = _lz((c15.x, c15.y, c15.zoom))
     a, z = _cam_in(T_IN - 0.02), _cam_in(T_IN)
     v_in = ((z[0] - a[0]) / 0.02, (z[1] - a[1]) / 0.02, (math.log(z[2]) - math.log(a[2])) / 0.02)
     drift = (6.0, -5.0, 0.008)
     hz = H / 2 - MOON[1]                                  # the moon's screen y (eye level at mid frame)
     pro = _frame_on(rg.head_pro, MOON[0] + 4.0, hz + 8.0, Z_PRO)          # his profile on the moon
-    two = _frame_on(rg.over_pt, MOON[0], hz, Z_TWO)                       # the bonnet eclipses it
-    belt = _frame_on(rg.knife_pt, 560.0, H / 2 - 70.0, Z_BELT)            # the knife over the horizon
-    clank = _frame_on(rg.helm_pt, 660.0, 640.0, Z_CLANK)
+    two_w = _frame_on(rg.over_pt, MOON[0] + 26.0, hz + 22.0, Z_TWO_W)     # the two of them, wider
+    two = _frame_on(rg.over_pt, MOON[0] + 26.0, hz + 22.0, Z_TWO)         # the bonnet eclipses it
+    belt = _frame_on(rg.knife_pt, 470.0, H / 2 - 120.0, Z_BELT)           # the knife over the horizon
+    clank = _frame_on(rg.helm_pt, 650.0, 600.0, Z_CLANK)                  # the lock, the eyes
+    t_two, t_belt, t_clank = rg.t_lift1 + 0.05, b["using"] - 0.1, b["it"] + 0.22
+    lt, lb, lc = _lz(two), _lz(belt), _lz(clank)
+    v_two = tuple(0.55 * (q - p) / (t_belt - t_two) for p, q in zip(lt, lb))
+    v_clank = tuple(0.35 * (q - p) / (T_S03 - t_clank) for p, q in zip(lc, end))
+    v_w = tuple(0.5 * (q - p) / (t_two - rg.t_arrive) for p, q in zip(_lz(two_w), lt))
     return [
         (T_IN, _lz(z), v_in),
         (T_WIDE, _lz(WIDE), (40.0, -90.0, 0.06)),
@@ -410,11 +423,13 @@ def _cam_keys_for(key):
         (rg.t_turn0 + 0.1, _lz(_nudge(MW_ENV, 8.0, -4.0)), (8.0, 0.0, 0.0)),
         (rg.t_turn1 + 0.1, _lz(pro), (4.0, -2.0, 0.004)),
         (b["name"] + 0.35, _lz(_nudge(pro, 3.0, -2.0, 1.005)), (8.0, 0.0, 0.0)),
-        (b["name"] + 1.05, _lz(_nudge(two, -26.0, 6.0, 0.985)), (14.0, -2.0, 0.004)),
-        (rg.t_lift1 + 0.05, _lz(two), (6.0, -14.0, 0.06)),
-        (b["using"] - 0.12, _lz(belt), (4.0, 2.0, 0.008)),
-        (b["it"] + 0.05, _lz(clank), (30.0, 160.0, -0.12)),
-        (15.0, _lz((c15.x, c15.y, c15.zoom)), v15),
+        (b["name"] + 1.2, _lz(_nudge(two_w, -26.0, 6.0, 0.99)), (10.0, -2.0, 0.004)),
+        (rg.t_arrive, _lz(two_w), v_w),
+        (t_two, lt, v_two),
+        (t_belt, lb, (-4.0, 2.0, 0.01)),
+        (b["using"] + 0.12, _lz(_nudge(belt, -1.0, 1.0, 1.002)), (0.0, 0.0, 0.0)),
+        (t_clank, lc, v_clank),
+        (T_S03, end, v15),
     ]
 
 
@@ -422,7 +437,7 @@ def camera_at(t, rg):
     if t <= T_IN:
         x, y, z = _cam_in(t)
         cam = Camera(x, y, z)
-    elif t >= 15.0:
+    elif t >= T_S03:
         c = _s03().camera(t - 15.0)
         cam = Camera(c.x, c.y, c.zoom)
     else:
@@ -816,9 +831,17 @@ def _in_hose_bubbles(f, t, a_in):
 
 # ============================================================================= extras
 def motion_blur(t, T):
-    if t < 1.2 or 14.15 < t:
-        return 2
-    return 1
+    """Sub-frames by how fast the frame moves (px per frame at the corners)."""
+    rg = rig(T)
+    c0, c1 = camera_at(t - 1.0 / 48.0, rg), camera_at(t + 1.0 / 48.0, rg)
+    v = 0.0
+    for sx in (0.0, W):
+        for sy in (0.0, H):
+            wx, wy = c0.x + (sx - W / 2) / c0.zoom, c0.y + (sy - H / 2) / c0.zoom
+            v = max(v, math.hypot((wx - c1.x) * c1.zoom + W / 2 - sx, (wy - c1.y) * c1.zoom + H / 2 - sy))
+    if rg.t_sw0 < t < rg.t_sw1:              # the swing itself is fast
+        v = max(v, 30.0)
+    return 1 if v < 10.0 else 2 if v < 24.0 else 3 if v < 45.0 else 4
 
 
 def cues(T):

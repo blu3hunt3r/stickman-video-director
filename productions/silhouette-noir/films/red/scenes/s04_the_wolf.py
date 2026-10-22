@@ -14,13 +14,20 @@ Beats (scene-local s):
                  in the thicket: a shoulder, a ruff, a tail
     [girls] 6.49 she RUNS (child_run, ~800 px/s); the camera tracks
     7.2-10.4     the eyes pace her on the left
-    10.4-11.2    they surge past her and vanish ahead
-    11.6-12.3    the WOLF steps onto the path ahead out of the fog: huge, backlit, head low
-    12.06-12.5   she skids to a stop at its nose (snow spray), the settle; it growls
-OUT (whip "left" to s05, 0.5 s, from 13.75): she bolts off the path to the right, toward
-    camera, ducking past its jaws (it snaps at her); it wheels after her (turn via the front,
-    13.45-13.90, the same turn s05 finishes); the camera pushes in to zoom 1.0 and accelerates
-    right into the whip. Mood DEEP.
+    10.0-11.35   they surge past her and vanish ahead into the thicket
+    11.3-12.6    the WOLF steps onto the path ahead out of the fog: huge, backlit (a fog glow
+                 behind it, a pale halo round it), head low; snow starts falling again (8.6 on)
+    12.06-12.46  she skids to a stop before its nose (heel slide, snow spray, skid marks); it
+                 snarls (12.40); she pulls the basket back behind her, a hand up, sits back
+    12.46-12.80  the settle: momentum carries her over her feet, she recoils and sinks to spring;
+                 her eyes dart to the way out (toward us) just before she goes
+OUT (whip "left" to s05, 0.5 s, from 13.75): on 12.80 she bolts off the path to the right,
+    toward camera (yaw 24, onto the snow bank in front of the trail), right across its nose;
+    its jaws slam shut on the air just behind her (13.36); it wheels after her on its forehand
+    (13.45-13.90, the same timing as s05's turn) and gallops. The camera pushes in to zoom 1.0
+    and accelerates right (763 px/s at 13.75, 910 from 14.0) into the whip.
+    At 13.75 (= s05 -0.25): her feet at screen (696, 1437), running at 780 px/s; the wolf's
+    root at screen x 325, mid-wheel (yaw 38), its muzzle beside her. Mood DEEP; snow 0.3.
 """
 import math
 from functools import lru_cache
@@ -55,9 +62,9 @@ DZ = 86.0                               # how far toward camera (down the screen
 HURRY = L.WALK.but(speed=1.2, step=0.40, lean=6.0, arm_swing=24.0, bob=0.016, crouch=0.04)
 JOG = GAITS["child_run"].but(speed=1.6, step=0.58, duty=0.42, lean=9.0)
 RUN = GAITS["child_run"]
-BOLT = GAITS["child_run"].but(speed=2.35, step=0.82, lean=17.0, arm_swing=52.0, ramp_in=(0.62, 0.86))
+BOLT = GAITS["child_run"].but(speed=2.25, step=0.82, lean=17.0, arm_swing=52.0, ramp_in=(0.95,))   # 780 px/s = s05
 RUN_CARRY = dict(sh=24.0, elbow=70.0, abd=10.0, wrist=-8.0, grip=0.95)     # = s05's run carry
-CLUTCH = dict(sh=6.0, elbow=118.0, abd=14.0, wrist=-24.0, grip=0.95)       # the basket held to her chest
+BEHIND = dict(sh=-34.0, elbow=22.0, abd=16.0, wrist=-6.0, grip=0.95)       # the basket hidden behind her
 
 
 @lru_cache(maxsize=None)
@@ -203,8 +210,8 @@ class Skid:
         fl = smoothstep(ts, ts + 0.14, t) * (1.0 - smoothstep(te + 0.02, te + 0.22, t))
         draw_in = smoothstep(te + 0.02, te + 0.22, t) * (1.0 - smoothstep(tb - 0.14, tb, t))
         drive = smoothstep(tb - 0.14, tb, t)
-        p.arms["L"] = dict(sh=72.0 * fl + 28.0 * draw_in - 26.0 * drive, abd=10.0,
-                           elbow=30.0 * fl + 92.0 * draw_in + 70.0 * drive, wrist=4.0, grip=0.4 + 0.3 * draw_in)
+        p.arms["L"] = dict(sh=72.0 * fl + 34.0 * draw_in - 26.0 * drive, abd=10.0,
+                           elbow=30.0 * fl + 118.0 * draw_in + 70.0 * drive, wrist=4.0, grip=0.4 + 0.5 * draw_in)
         p.arms["R"] = dict(RUN_CARRY)
         return p
 
@@ -239,10 +246,11 @@ def girl():
     a.key("head_yaw", [(2.58, 0.0), (2.86, 112.0, "out3"), (3.16, 106.0), (3.44, 0.0, "inout")], fade=0.12)
     a.key("head", [(2.58, 0.0), (2.86, -6.0), (3.16, -4.0), (3.44, 0.0)], fade=0.12)
     a.key("yaw", [(2.6, 0.0), (2.9, 20.0), (3.16, 18.0), (3.46, 0.0)], fade=0.12)
-    # the face-off: she clutches the basket to her chest; her eyes dart to the way out (toward
-    # us) a beat before her body goes
+    # the face-off: she pulls the basket back behind her (and keeps it there, away from the
+    # jaws, until she is past them); her eyes dart to the way out (toward us) a beat before
+    # her body goes
     te = T_SKID + SKID
-    a.arm("R", te - 0.12, T_BOLT + 0.06, fade=0.12, **CLUTCH)
+    a.arm("R", te - 0.12, W_SNAP, fade=0.14, **BEHIND)
     a.key("head_yaw", [(T_BOLT - 0.16, 0.0), (T_BOLT - 0.06, 38.0, "out3"), (T_BOLT + 0.12, 26.0),
                        (T_BOLT + 0.34, 0.0, "inout")], fade=0.06)
     a.key("yaw", [(T_BOLT - 0.12, 0.0), (T_BOLT + 0.04, 12.0), (T_BOLT + 0.22, YAW_BOLT)], fade=0.06,
@@ -312,7 +320,7 @@ CAM_KEYS = [
     (12.50, 400.0, 1345.0, 0.76),
     (13.00, 400.0, 1345.0, 0.76),
 ]
-# the face-off and the bolt: the camera holds on the two of them (her at screen x ~384, the
+# the face-off and the bolt: the camera holds on the two of them (her at screen x ~400, the
 # wolf filling the right of the frame), pushes in to zoom 1.0 as she bolts and accelerates
 # right after her, into the whip
 FACE_SX, FACE_Z = 400.0, 0.78
@@ -574,6 +582,7 @@ def draw_bw_eyes(f, t, mood):
 W_GAP = 525.0                           # its root is this far past where she stops (her face at its nose)
 W_OUT = (11.45, 12.45)                  # it steps out of the fog onto the path
 W_TURN = (13.45, 0.45)                  # it wheels after her (s05 finishes the same turn at its -0.10)
+W_SNAP = 13.36                          # its jaws slam shut on the air just behind her
 W_PIVOT = 1.3                           # ... swinging its hindquarters round its forehand (1: withers fixed)
 
 
@@ -638,17 +647,154 @@ def pw():
     w.wheel(dur=W_TURN[1], via="front", pivot=W_PIVOT)
     w.gallop(to=X + 2400.0, dur=3.0)
     w.overlay("snarl", 12.40, dur=0.62, ears=-0.4, amount=0.75)
-    w.overlay("bite", 13.02, dur=0.30, n=1)
+    w.overlay("look", 12.92, dur=0.50, turn=36.0)          # its head follows her across its nose ...
+    w.overlay("bite", W_SNAP - 0.20, dur=0.28, n=1)          # ... and the jaws slam shut behind her
     return w
 
 
+W_SHOW = 11.30                          # it is drawn from here (the thicket wolf is gone)
+
+
 def pw_fog(t):
-    """How deep in the fog the wolf on the path still is (it steps out of it)."""
-    return 0.78 * (1.0 - smoothstep(W_OUT[0] + 0.1, W_OUT[1] - 0.15, t))
+    """How deep in the fog the wolf on the path still is: it steps out of it, but some fog
+    stays on it (it is backlit by the fog, and a little farther than she is)."""
+    return lerp(0.9, 0.12, ease("inout", (t - W_SHOW) / 1.35))
 
 
-def draw_pw(f, c, t, mood):
-    pw().draw(f, t, c, color=mood.ink, breath=True)
+def pw_light(t):
+    """The backlight behind the wolf: up as it comes out of the fog, held through the face-off."""
+    return L.k(t, W_SHOW, 1.0) * (1.0 - 0.35 * L.k(t, 13.3, 0.8))
+
+
+def draw_pw(f, c, t, mood, eyes=True):
+    pw().draw(f, t, c, color=mood.ink, eyes=eyes, breath=True)
+
+
+def _halo_col(mood):
+    return S.mix(mood.fog_at(1.0), S.SNOW, 0.45)
+
+
+def glow_at(t, cam):
+    """Screen position of the backdrop's hot spot: drifts behind the wolf as it appears."""
+    k_ = L.k(t, 10.9, 1.4)
+    if k_ <= 0.0:
+        return (560.0, 820.0)
+    x = x_wolf() + 80.0
+    sx, sy = cam.to_screen((x, float(PATH.ground_y(x)) - 300.0))
+    return (lerp(560.0, sx, k_), lerp(820.0, sy, k_))
+
+
+def draw_backlight(f, t, mood):
+    """Fog glowing behind the wolf (light from beyond it, scattered): additive, world-anchored."""
+    k_ = pw_light(t)
+    if k_ <= 0.01:
+        return
+    x = x_wolf() + 60.0
+    c0 = (x, float(PATH.ground_y(x)) - 250.0)
+    col = _halo_col(mood)
+    with f.light(par=1.0, blur=30.0) as c:
+        S.glow(c, c0, 640.0, col, 0.20 * k_)
+        S.glow(c, (c0[0] - 60.0, c0[1] + 40.0), 300.0, col, 0.16 * k_)
+
+
+def halo(f, fn, col, alpha, blur):
+    """A soft glow of `col` around a silhouette, drawn before it: fn(c) draws the shape."""
+    if alpha <= 0.01:
+        return
+    with f.layer(par=1.0, blur=blur, fog=1.0, fog_color=col, alpha=alpha) as c:
+        fn(c)
+
+
+def draw_path_wolf(f, t, mood):
+    if t < W_SHOW:
+        return
+    fog = pw_fog(t)
+    a_in = L.k(t, W_SHOW, 0.3)
+    halo(f, lambda c: draw_pw(f, c, t, mood, eyes=False), _halo_col(mood), 0.55 * pw_light(t) * a_in, 16.0)
+    with S.depth_layer(f, mood, 1.0, fog, blur=1.0 + 7.0 * smoothstep(0.15, 0.9, fog), alpha=a_in) as c:
+        draw_pw(f, c, t, mood)
+
+
+# ----------------------------------------------------------------------------- snow kicked up
+PUFF = {
+    "step": dict(n=5, up=(40.0, 150.0), spread=130.0, life=(0.25, 0.5), size=(4.0, 9.0), alpha=0.7, drift=-40.0),
+    "skid": dict(n=9, up=(60.0, 220.0), spread=200.0, life=(0.3, 0.7), size=(5.0, 13.0), alpha=0.85, drift=260.0),
+    "stop": dict(n=16, up=(80.0, 280.0), spread=260.0, life=(0.4, 0.9), size=(6.0, 15.0), alpha=0.9, drift=150.0),
+    "foot": dict(n=8, up=(80.0, 260.0), spread=180.0, life=(0.3, 0.7), size=(5.0, 13.0), alpha=0.85, drift=-90.0),
+    "paw": dict(n=7, up=(90.0, 300.0), spread=220.0, life=(0.35, 0.75), size=(6.0, 14.0), alpha=0.85, drift=0.0),
+    "wheel": dict(n=10, up=(100.0, 340.0), spread=300.0, life=(0.4, 0.85), size=(6.0, 16.0), alpha=0.85,
+                  drift=-120.0),
+}
+
+
+@lru_cache(maxsize=None)
+def _puffs():
+    """[(t0, x, y, kind)]: every burst of snow (her steps from the run on, the skid, the bolt,
+    the wolf's paws)."""
+    ev = []
+    a = girl()
+    for seg in a.segs:
+        if type(seg).__name__ != "_Walk":
+            continue
+        for side, plants in seg.plants.items():
+            for (x, tl, _lift, _g) in plants[1:]:
+                run = 6.3 <= tl < T_SKID and seg.t0 < T_SKID
+                bolt = seg.t0 >= T_BOLT and tl <= 14.6
+                if run or bolt:
+                    ev.append((tl, x, ground(x), "foot" if bolt else "step"))
+    sk = _skid()
+    for i in range(6):                  # the slide: spray off the lead heel
+        tp = T_SKID + 0.02 + i * (SKID - 0.06) / 5.0
+        lx = a.skeleton(tp).j["ankle_" + sk.lead][0] + 0.06 * a.H
+        ev.append((tp, lx, ground(lx), "skid"))
+    ev.append((T_SKID + SKID - 0.02, sk.lead_x + 0.05 * a.H, ground(sk.lead_x), "stop"))
+    ev.append((T_BOLT + 0.02, sk.trail_x, ground(sk.trail_x), "foot"))     # the push-off
+    w = pw()
+    for (tau, _leg, x, _y, _z) in w.footprints(W_SHOW, 14.6):
+        ev.append((tau, x, float(PATH.ground_y(x)), "paw"))
+    for i, tp in enumerate((13.58, 13.70, 13.80, 13.88)):                  # the wheel: hindquarters slew
+        pz = w.paws(tp)
+        for leg in ("LH", "RH") if i % 2 == 0 else ("LF", "RF"):
+            x = pz[leg][0]
+            ev.append((tp, x, float(PATH.ground_y(x)), "wheel" if leg[1] == "H" else "paw"))
+    return tuple(sorted(ev))
+
+
+def draw_puffs(f, t, mood):
+    col = S.mix(mood.snow, S.SNOW, 0.45)
+    with S.plane(f, 1.0) as c:
+        for i, (t0, x, y, kind) in enumerate(_puffs()):
+            if t0 <= t <= t0 + 1.0:
+                L.snow_puff(c, x - 14.0, x + 18.0, y + 4.0, t, t0, 400 + i, col, **PUFF[kind])
+
+
+def draw_skid_marks(f, t, mood):
+    """The two grooves her feet plough in the trail (the lead heel's long one)."""
+    if t < T_SKID:
+        return
+    a, sk = girl(), _skid()
+    col = S.mix(mood.snow_dark, mood.ink, 0.12)
+    te = min(t, T_SKID + SKID)
+    with S.plane(f, 1.0) as c:
+        for side, x_end, yo, w_ in ((sk.lead, sk.lead_x, 7.0, 8.0), (sk.trail, sk.trail_x, 4.5, 6.0)):
+            x0 = sk.f0[side][0] if side == sk.lead else sk.trail_x - 0.10 * a.H
+            x1 = a.skeleton(te).j["ankle_" + side][0] + 0.05 * a.H if t < T_SKID + SKID else x_end + 0.05 * a.H
+            if x1 - x0 < 6.0:
+                continue
+            n = 10
+            top, bot = [], []
+            for j in range(n + 1):
+                x = lerp(x0, x1, j / n)
+                y = float(PATH.snow_y(x)) + yo
+                hh = w_ * 0.5 * (0.35 + 0.65 * j / n)
+                top.append((x, y - hh))
+                bot.append((x, y + hh))
+            draw.poly(c, top + bot[::-1])
+            draw.fill(c, col, 0.5)
+            # the snow pushed up in front of the heel
+            y1 = float(PATH.snow_y(x1)) + yo
+            draw.ellipse(c, (x1 + 8.0, y1 - 2.0), 13.0, 5.0)
+            draw.fill(c, mood.snow, 0.9)
 
 
 # ----------------------------------------------------------------------------- light
@@ -658,6 +804,11 @@ def mood_at(t):
     m = copy.copy(m)
     m.shaft_a = 0.0                     # the hush goes on: no light shafts
     return m
+
+
+def snow_density(t):
+    """Snow begins to fall again as she runs, and is falling as s05 opens (0.3)."""
+    return 0.3 * L.k(t, 8.6, 4.6)
 
 
 # ----------------------------------------------------------------------------- render
@@ -670,6 +821,21 @@ def _draw_girl(f, c, t, mood):
     L.draw_basket(c, grip, ang, mood.ink)
 
 
+def her_halo(t):
+    """The fog between her and the wolf: a pale glow round her while she is in front of it."""
+    return 0.32 * L.k(t, 12.86, 0.2) * (1.0 - L.k(t, 14.1, 0.3))
+
+
+@lru_cache(maxsize=None)
+def x_lip():
+    """Where her ground leaves the trail's surface by the lip's sink (6 px): past here she is
+    in front of the trail's snow bank, so the lip is drawn under her, not over her feet."""
+    xb = x_bolt()
+    xs = np.linspace(xb, xb + 380.0, 400)
+    d = np.array([ground(x) - float(PATH.ground_y(x)) for x in xs])
+    return float(xs[int(np.argmax(d >= 6.0))])
+
+
 def render(f, t, T):
     cam = camera(t)
     f.set_camera(cam)
@@ -679,29 +845,69 @@ def render(f, t, T):
         if i == 3:
             draw_bw_body(f_, t, mood)
 
-    FOREST.draw_back(f, mood, shafts=False, hook=hook)
+    FOREST.draw_back(f, mood, glow=glow_at(t, cam), shafts=False, hook=hook)
     TH.draw_thicket(f, mood)
     draw_bw_eyes(f, t, mood)
     FOREST.draw_plane(f, mood)
     prints().draw(f, PATH, t, mood)
-    fog = pw_fog(t)
-    if t >= W_OUT[0] - 0.3:
-        if fog > 0.01:
-            with S.depth_layer(f, mood, 1.0, fog, blur=6.0 * fog) as c:
-                draw_pw(f, c, t, mood)
-        else:
-            with f.layer() as c:
-                draw_pw(f, c, t, mood)
+    draw_skid_marks(f, t, mood)
+    draw_backlight(f, t, mood)
+    draw_path_wolf(f, t, mood)
+    xl = x_lip()
+    PATH.draw_front(f, mood, x0=xl - 4.0, sink=6.0)          # the bank she runs out onto
+    hk = her_halo(t)
+    if hk > 0.01:
+        halo(f, lambda c: _draw_girl(f, c, t, mood), _halo_col(mood), hk, 15.0)
     with f.layer() as c:
         _draw_girl(f, c, t, mood)
+    PATH.draw_front(f, mood, x1=xl, sink=6.0)                # the trail's lip (her feet sink)
+    draw_puffs(f, t, mood)
     sx = cam.to_screen((ref_x(t), 0.0))[0]
     hw = 230.0 * cam.zoom + 60.0
-    FOREST.draw_front(f, mood, keep_clear=(sx - hw, sx + hw))
+    clear = (sx - hw, sx + hw)
+    if W_SHOW <= t:                     # keep the wolf on the path clear of foreground trunks too
+        wx = cam.to_screen((pw().state(t)["x"], 0.0))[0]
+        clear = (min(clear[0], wx - 1.2 * hw), max(clear[1], wx + 1.2 * hw))
+    FOREST.draw_front(f, mood, lip=False, keep_clear=clear)
+    L.snow(f, mood, density=snow_density(t), wind=30.0, gust=12.0, t=t, seed=41)
 
 
 def motion_blur(t, T):
-    return 2 if 6.4 < t < 14.3 else 1
+    """Sub-frames for the run, and more for the bolt, the wheel and the pan into the whip."""
+    if 12.85 < t < 14.3:
+        return 3
+    return 2 if 6.4 < t <= 12.85 else 1
 
 
 def cues(T):
-    return []
+    W = _W()
+    return [
+        Cue(-0.5, "forest hush (continues from s03): near silence, a breath of wind high up", -24, dur=9.0),
+        Cue(0.5, "her footsteps in snow, steady walk (continuing s03's), stopping at 2.5", -15, dur=2.05),
+        Cue(W["wolf"], "SYNC: the eyes open: a low cello/bass sting, a faint breathy shimmer", -10, pan=-0.6,
+            dur=2.0),
+        Cue(1.6, "something pacing her in the thicket: soft bramble rustle and snow crunch", -19, pan=-0.6,
+            dur=1.0),
+        Cue(2.55, "she stops and looks back: held breath; one far branch creak", -20, pan=-0.3, dur=0.9),
+        Cue(T_GO, "her footsteps again, faster, quickening into a jog", -14, dur=3.04),
+        Cue(4.1, "glimpses: heavy paws padding in the thicket, a low huff, a twig snaps", -15, pan=-0.6,
+            dur=2.2),
+        Cue(5.95, "the eyes flare again: a short low sting", -13, pan=-0.6),
+        Cue(W["girls"], "SYNC: she RUNS: timpani hits, quick running feet in snow, panting breath", -8,
+            dur=5.57),
+        Cue(7.2, "the wolf pacing her: heavy bounding paws through brambles, low huffs", -13, pan=-0.6,
+            dur=2.8),
+        Cue(8.6, "the snow begins again: a soft rise of wind", -22, dur=5.4),
+        Cue(10.0, "the wolf surges past her in the thicket: crashing brush, paws (pan left -> right)", -10,
+            pan=-0.4, dur=1.3),
+        Cue(11.45, "the wolf steps out onto the path ahead: heavy paw falls, a deep growl building", -11,
+            pan=0.4, dur=1.0),
+        Cue(T_SKID, "SYNC: the skid: a scraping slide in snow, a spray of snow, her gasp", -7, pan=-0.05,
+            dur=SKID),
+        Cue(12.40, "the snarl: a deep rumbling growl, lips peeling back", -8, pan=0.3, dur=0.62),
+        Cue(T_BOLT, "she bolts: a sharp intake of breath, feet kicking snow", -10, pan=0.0),
+        Cue(W_SNAP, "SYNC: the snap: jaws slam shut on air just behind her (a hard wet clack)", -5, pan=0.1),
+        Cue(W_TURN[0], "the wolf wheels after her: paws scrabbling, snow thrown up", -10, pan=-0.1,
+            dur=W_TURN[1]),
+        Cue(13.75, "whip pan into s05: a fast whoosh; the chase music hits", -8, pan=0.3, dur=0.5),
+    ]

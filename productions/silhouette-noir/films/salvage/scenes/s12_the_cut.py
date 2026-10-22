@@ -94,7 +94,7 @@ T_OUTK = 5.43                       # the blade clears the sheath
 T_GLINT = 5.47                      # the knife's second and last glint
 T_HOLD = 5.70                       # his left hand closes on the hose at the rail
 T_LIFT = 5.92                       # ...and has lifted a bight of it clear of the winch
-T_LETGO = 6.24                      # he lets the hissing pump end drop
+T_LETGO = T_CUT + 0.10              # he lets the hissing pump end drop
 T_CRANK = 6.62                      # the first turn of the crank
 T_TILT = 7.30                       # the camera starts down over the side
 T_A = -0.625                        # first handle frame
@@ -515,8 +515,8 @@ def _client():
     A.look_at(4.0, 4.75, lambda t: _rail_pt(CIGAR_X, t), fade=0.25, amount=0.9)
     A.look_at(5.10, 5.36, lambda t: (_c_path(t)[0] + 48.0, _c_path(t)[1] - 40.0), fade=0.15, amount=0.7)
     A.look_at(5.44, 5.72, lambda t: BOAT.to_world(GRAB_L, t), fade=0.15, amount=1.0)
-    A.look_at(5.76, 6.26, lambda t: _cut_world(t), fade=0.12, amount=1.0)
-    A.look_at(6.32, 6.62, lambda t: BOAT.to_world((560.0, deck_l(560.0)), t), fade=0.12, amount=0.7)
+    A.look_at(5.76, 6.18, lambda t: _cut_world(t), fade=0.12, amount=1.0)
+    A.look_at(6.24, 6.62, lambda t: BOAT.to_world((560.0, deck_l(560.0)), t), fade=0.12, amount=0.7)
     A.look_at(6.86, 16.0, lambda t: (BOAT.sheave(t)[0], BOAT.sheave(t)[1] + 380.0), fade=0.5, amount=0.6)
     A.blink(2.62)
     A.blink(T_TIGHT + 0.12, dur=0.12)
@@ -746,6 +746,42 @@ def _hose_pre(t):
     return _w(inner, t), outer + _hose_water(t, outer[-1])
 
 
+# --- the diver's end at the cut: the weight of the hose below snatches it back along its own
+# path, over the rail and down the side (kinematic), then it falls free (physics, below)
+T_REL = T_CUT + 0.36                # the end is down the side of the hull: physics takes over
+SLIDE_V0 = 300.0                    # px/s: the recoil at the cut
+SLIDE_A = 2600.0                    # px/s^2: the hanging hose drags it over the rail
+
+
+def _slide(t):
+    tau = max(0.0, t - T_CUT)
+    return SLIDE_V0 * tau + 0.5 * SLIDE_A * tau * tau
+
+
+def _slide_v(t):
+    return SLIDE_V0 + SLIDE_A * max(0.0, t - T_CUT)
+
+
+@functools.lru_cache(maxsize=1)
+def _out_l():
+    """The outboard piece as it lay when cut (boat-local): the cut point -> down to the rail
+    -> over -> down the hull to under the waterline."""
+    return _bight_l(T_CUT)[1]
+
+
+def _slid(t, r):
+    """The outboard piece at time t with its first r px gone back over the rail (world, the
+    end first)."""
+    pts = _w(_out_l(), t)
+    P = np.asarray(pts + _hose_water(t, pts[-1]), np.float64)
+    seg = np.hypot(P[1:, 0] - P[:-1, 0], P[1:, 1] - P[:-1, 1])
+    s = np.concatenate([[0.0], np.cumsum(seg)])
+    i = int(np.clip(np.searchsorted(s, r, side="right"), 1, len(P) - 1))
+    u = clamp((r - s[i - 1]) / max(seg[i - 1], 1e-9))
+    p0 = P[i - 1] + (P[i] - P[i - 1]) * u
+    return [tuple(p0)] + [tuple(p) for p in P[i:]]
+
+
 def _resample(pts, n):
     P = np.asarray(pts, np.float64)
     seg = np.linalg.norm(P[1:] - P[:-1], axis=1)
@@ -760,16 +796,17 @@ class _MediumRope(Rope):
     (gravity, drag and current that differ in air and water; the jet of air out of an open
     hose end), and an optional HOLD: node `hold[0]` pinned to hold[1](t) until hold[2]."""
 
-    def __init__(self, n, length, a, b=None, accel=None, hold=None, **kw):
+    def __init__(self, n, length, a, b=None, accel=None, hold=None, v0=None, **kw):
         Rope.__init__(self, n, length, a, b, **kw)
         self.accel = accel
         self.hold = hold
+        self.v0 = v0                    # (n, 2) initial node velocities (default: at rest)
 
     def _simulate(self):
         n, dt = self.n, self.dt
         steps = int(math.ceil((self.t1 - self.t0) / dt)) + 2
         P = np.array(self.init(self.t0), np.float64)
-        prev = P.copy()
+        prev = P.copy() if self.v0 is None else P - np.asarray(self.v0, np.float64) * dt
         frames = np.empty((steps, n, 2), np.float64)
         for k in range(steps):
             t = self.t0 + k * dt
@@ -903,18 +940,27 @@ def _water_accel(t, P, V):
 
 @functools.lru_cache(maxsize=1)
 def _water_rope():
-    inner, out = _hose_pre(T_CUT)
-    pts = list(reversed(out))                     # the deep end (pinned) -> the cut end (free)
+    """From T_REL: the slid piece, the deep end pinned, the free end falling with the speed
+    it was snatched at (that speed fades out with depth: the slack piles in below)."""
+    pts = list(reversed(_slid(T_REL, _slide(T_REL))))     # the deep end (pinned) -> the free end
     P0, L, s = _resample(pts, WATER_N)
+    tan = np.zeros_like(P0)
+    tan[1:-1] = P0[:-2] - P0[2:]
+    tan[-1] = P0[-2] - P0[-1]
+    tan /= (np.linalg.norm(tan, axis=1)[:, None] + 1e-9)
+    depth = P0[:, 1] - _sea_np(P0[:, 0], T_REL)
+    v0 = tan * (_slide_v(T_REL) * (1.0 - _ssv(250.0, 2600.0, depth)))[:, None]
     a = tuple(P0[0])
-    return _MediumRope(WATER_N, L, lambda t: a, None, accel=_water_accel, t0=T_CUT, t1=T_END + 0.4,
-                       dt=1.0 / 180.0, iters=10, stiffness=0.3, init=lambda t0: P0)
+    return _MediumRope(WATER_N, L, lambda t: a, None, accel=_water_accel, t0=T_REL, t1=T_END + 0.4,
+                       dt=1.0 / 180.0, iters=10, stiffness=0.3, init=lambda t0: P0, v0=v0)
 
 
 def hose_end(t):
     """World point of the severed (diver's) end."""
     if t < T_CUT:
         return _hose_pre(t)[1][0]
+    if t < T_REL:
+        return _slid(t, _slide(t))[0]
     return tuple(_water_rope().points(t)[-1])
 
 
@@ -927,6 +973,8 @@ def _hose_in_pts(t):
 def _hose_out_pts(t):
     if t < T_CUT:
         return _hose_pre(t)[1]
+    if t < T_REL:
+        return _slid(t, _slide(t))
     return [tuple(p) for p in reversed(_water_rope().points(t))]
 
 

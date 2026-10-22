@@ -1,9 +1,8 @@
-"""s15 · MY NAME: night, high moon. The diver comes up the ladder out of the sea, drops the cut
-hose, climbs onto the deck and takes off his helmet in front of the client. He says his name.
-The bell tolls (9.0 s).
+"""s15 · MY NAME: night, high moon. The diver comes up the ladder out of the sea, lets the cut
+hose go, climbs onto the deck and takes his helmet off in front of the client. He tells him his
+name. The bell tolls (9.0 s).
 
-IN  (hard cut from s14, its toll echo carrying): the s14 framing and states continue.
-    (Filled in at the end of the work.)
+(Beats, handoff states and cues: see the report; filled in below once final.)
 
 The bell, the davit, the boat and the swell run on s14's clock: tau = t + LIB.S15_OFFSET.
 """
@@ -11,6 +10,7 @@ import bisect
 import functools
 import math
 
+import cairo
 import numpy as np
 
 from engine import atmos, costume, draw
@@ -37,11 +37,14 @@ MOON_R = LIB.NIGHT_MOON_R
 BRIGHT = LIB.NIGHT_BRIGHT
 T_TOLL = LIB.TOLLS[2][0] - OFF       # 6.80: the third toll (the loudest)
 
+# L22 "He never asked my name." 1.60-3.62 (name 2.97); L23 "So I told him." 5.20-6.49
+# (I 5.50, told 5.68, him 6.06)
 T_REL = 2.40                         # the hose coupling comes off the helmet
 T_TWIST = (5.30, 5.58)               # the helmet's quarter-turn (unlock)
-T_LIFT = (5.62, 6.10)                # lifted off over the head
+T_LIFT = (5.62, 6.10)                # lifted off over his head
 T_LOWER = (6.10, 6.45)               # lowered to his side
-T_HAT = 7.32                         # the gust takes the client's hat
+T_HAT = 7.15                         # the gust gets under the client's hat
+T_FLY = 7.24                         # ... and takes it
 
 
 def _tau(t):
@@ -76,21 +79,27 @@ def _pchip(xs, ys, m0=None, m1=None):
     return f
 
 
-def _keys(keys, col):
-    return _pchip([k[0] for k in keys], [k[col] for k in keys])
+def _keys(keys, col, **kw):
+    return _pchip([k[0] for k in keys], [k[col] for k in keys], **kw)
+
+
+def _rot(v, ang):
+    a = ang * D2R
+    ca, sa = math.cos(a), math.sin(a)
+    return (v[0] * ca - v[1] * sa, v[0] * sa + v[1] * ca)
 
 
 # ============================================================================= camera
 _CAM = [  # (t, x, y, zoom)
     (0.0, -165.0, -420.0, 0.86),
-    (1.25, -60.0, -265.0, 1.30),
-    (1.75, -95.0, -300.0, 1.26),
-    (3.35, -330.0, -440.0, 1.06),
-    (4.45, -420.0, -452.0, 1.08),
-    (5.60, -452.0, -458.0, 1.14),
-    (6.80, -480.0, -462.0, 1.20),
-    (8.00, -498.0, -470.0, 1.24),
-    (10.0, -512.0, -476.0, 1.27),
+    (1.25, -60.0, -215.0, 1.35),
+    (1.75, -90.0, -245.0, 1.31),
+    (3.35, -320.0, -430.0, 1.08),
+    (4.45, -410.0, -462.0, 1.10),
+    (5.60, -432.0, -472.0, 1.15),
+    (6.80, -450.0, -480.0, 1.20),
+    (8.00, -462.0, -486.0, 1.24),
+    (10.0, -472.0, -490.0, 1.27),
 ]
 _CX = _keys(_CAM, 1)
 _CY = _keys(_CAM, 2)
@@ -98,7 +107,7 @@ _CZ = _pchip([k[0] for k in _CAM], [math.log(k[3]) for k in _CAM])
 
 
 def _shake(t):
-    """Shudders on the tolls (s14's two decaying, the third here), <= 4 px."""
+    """Shudders on the tolls (s14's two, decaying; the third here), <= 4 px."""
     tau = _tau(t)
     a = 0.0
     for tk, s in LIB.TOLLS:
@@ -175,21 +184,20 @@ def _limb(segs, t):
 # ============================================================================= the diver
 DV_LOOK = cast.diver(helmet=True, weights=False, boots=False)
 DV_BARE = cast.diver(helmet=False, weights=False, boots=False)
-DVH = cast.DIVER.height
 
-# pelvis (boat-local) - the s14 rise at the cut, the hang, the climb, over onto the deck
+# pelvis (boat-local): s14's rise at the cut, the hang, the climb, over onto the deck
 _DV_P = [
     (0.00, 1020.0, 303.0),
-    (0.45, 1018.0, 252.0),
-    (0.90, 1017.0, 204.0),
-    (1.25, 1016.0, 170.0),
-    (1.62, 1011.0, 100.0),
-    (1.94, 1005.0, 30.0),
-    (2.55, 1003.0, 20.0),
-    (2.85, 997.0, -60.0),
-    (3.15, 989.0, -160.0),
-    (3.45, 979.0, -262.0),
-    (3.80, 905.0, -410.0),
+    (0.45, 1018.0, 248.0),
+    (0.90, 1017.0, 202.0),
+    (1.20, 1016.0, 196.0),
+    (1.62, 1011.0, 141.0),
+    (1.94, 1005.0, 4.0),
+    (2.55, 1003.0, 0.0),
+    (2.85, 997.0, -82.0),
+    (3.15, 989.0, -195.0),
+    (3.45, 979.0, -282.0),
+    (3.80, 905.0, -412.0),
     (4.10, 818.0, -484.0),
     (4.40, 752.0, -490.0),
     (4.75, 728.0, -488.0),
@@ -198,27 +206,28 @@ _DV_P = [
     (7.10, 684.0, -488.0),
     (10.0, 684.0, -488.0),
 ]
-_DVX = _pchip([k[0] for k in _DV_P], [k[1] for k in _DV_P], m0=-15.0)
-_DVY = _pchip([k[0] for k in _DV_P], [k[2] for k in _DV_P], m0=-120.0)
-
-_DV_YAW = _pchip([0.0, 0.40, 0.80, 1.30, 1.62, 3.45, 3.95, 10.0], [81.4, 102.0, 126.0, 136.0, 176.0, 178.0, 180.0, 180.0])
-_DV_HEAD = _pchip([0.0, 0.45, 0.85, 1.35, 1.62, 1.95, 2.10, 2.42, 2.62, 3.40, 3.75, 4.10, 4.50, 10.0],
-                  [-42.5, -26.0, -6.0, -8.0, -22.0, -14.0, 16.0, 16.0, -18.0, -10.0, 12.0, 2.0, -3.0, -3.0])
-_DV_PITCH = _pchip([0.0, 0.6, 1.25, 1.65, 3.40, 3.65, 3.95, 4.30, 10.0],
-                   [-3.0, 2.0, 5.0, 7.0, 7.0, 20.0, 12.0, 3.0, 2.0])
+_DVX = _keys(_DV_P, 1, m0=-12.0)
+_DVY = _keys(_DV_P, 2, m0=-120.0)
+_DV_YAW = _pchip([0.0, 0.40, 0.85, 1.30, 1.62, 3.45, 3.95, 10.0], [81.4, 104.0, 122.0, 132.0, 172.0, 178.0, 180.0, 180.0])
+_DV_HEAD = _pchip([0.0, 0.45, 0.85, 1.35, 1.62, 1.95, 2.08, 2.40, 2.62, 3.40, 3.72, 4.10, 4.50, 5.20, 5.60, 6.10, 6.45,
+                   10.0],
+                  [-42.5, -24.0, -6.0, -8.0, -20.0, -12.0, 14.0, 16.0, -16.0, -10.0, 10.0, 2.0, -3.0, -3.0, 2.0, -4.0,
+                   -3.0, -3.0])
+_DV_PITCH = _pchip([0.0, 0.6, 1.25, 1.65, 3.40, 3.65, 3.95, 4.30, 5.20, 5.55, 5.95, 6.45, 10.0],
+                   [-3.0, 1.0, 4.0, 6.0, 6.0, 18.0, 12.0, 3.0, 2.0, 3.0, -2.0, 2.0, 2.0])
 
 # feet: (t0, t1, from, to, arc lift (dx, dy)) - local ankle targets
 _FL = [
-    (0.55, 1.05, _foot_rung(10.6), _foot_rung(9), (6.0, -10.0)),
-    (1.62, 1.94, _foot_rung(9), _foot_rung(7), (34.0, -20.0)),
+    (0.50, 1.00, (1060.0, 560.0), _foot_rung(10), (10.0, -20.0)),
+    (1.62, 1.94, _foot_rung(10), _foot_rung(7), (36.0, -24.0)),
     (2.85, 3.15, _foot_rung(7), _foot_rung(4), (36.0, -30.0)),
     (3.45, 3.80, _foot_rung(4), _foot_deck(850.0), (40.0, -150.0)),
     (4.10, 4.40, _foot_deck(850.0), _foot_deck(715.0), (0.0, -34.0)),
     (6.45, 6.72, _foot_deck(715.0), _foot_deck(668.0), (0.0, -26.0)),
 ]
 _FR = [
-    (0.65, 1.15, _foot_rung(11.4), _foot_rung(10), (6.0, -10.0)),
-    (1.30, 1.62, _foot_rung(10), _foot_rung(8), (34.0, -20.0)),
+    (0.60, 1.10, (985.0, 580.0), _foot_rung(11), (10.0, -20.0)),
+    (1.30, 1.62, _foot_rung(11), _foot_rung(8), (36.0, -24.0)),
     (2.55, 2.85, _foot_rung(8), _foot_rung(5), (36.0, -30.0)),
     (3.15, 3.45, _foot_rung(5), _foot_rung(2), (36.0, -30.0)),
     (3.80, 4.10, _foot_rung(2), _foot_deck(785.0), (10.0, -110.0)),
@@ -227,67 +236,24 @@ _FR = [
 ]
 
 
-def _dv_inlet_local(t):
-    """The helmet's air inlet (hose end), local (the arms don't move the head)."""
-    p = costume.helmet_inlet(_dv_skel_body(t))
-    return BOAT.to_local(p, _tau(t))
-
-
-# hands: wrist targets (local); weight of the IK = contact
-_HL = [
-    (0.10, 0.55, None, _hand_rung(2), (30.0, -20.0)),
-    (1.45, 1.70, _hand_rung(2), H_HOOK, (20.0, -20.0)),
-    (3.50, 3.82, H_HOOK, H_RAIL_IN, (10.0, -40.0)),
-]
-_HR = [
-    (0.55, 0.95, None, _hand_rung(3), (30.0, -20.0)),
-    (1.65, 1.92, _hand_rung(3), _hand_rung(1), (24.0, -20.0)),
-    (2.02, 2.20, _hand_rung(1), "inlet", (30.0, -20.0)),
-    (2.42, 2.66, "inlet", H_RAIL, (30.0, -30.0)),
-]
-
-
-def _ik_w_L(t):
-    return smoothstep(0.05, 0.50, t) * (1.0 - smoothstep(3.85, 4.20, t))
-
-
-def _ik_w_R(t):
-    return smoothstep(0.45, 0.85, t) * (1.0 - smoothstep(3.70, 4.05, t))
-
-
-def _hand_plan(segs, t, start):
-    """Resolve 'inlet' and None (= where the hand starts) placeholders."""
-    out = []
-    for (t0, t1, a, b, lift) in segs:
-        def res(q):
-            if q is None:
-                return start
-            if q == "inlet":
-                return _inlet_grip
-            return q
-        out.append((t0, t1, res(a), res(b), lift))
-    return _limb(out, t)
-
-
-def _inlet_grip(t):
-    p = _dv_inlet_local(min(t, T_REL))
-    return (p[0] + 14.0, p[1] + 16.0)
-
-
 def _dv_s14(t):
     """s14's diver, continued (valid to t = 1.0)."""
     return S14.DIVER.pose(_tau(min(t, 1.0)))
 
 
-@functools.lru_cache(maxsize=4)
-def _s14_hand_local(side):
-    sk = F.solve(_dv_s14(0.0), cast.DIVER)
-    p = sk.j["wrist_" + side]
-    return BOAT.to_local(p, _tau(0.0))
+def _twist(t):
+    """head_yaw of the helmet's quarter-turn (the head is hidden inside it)."""
+    k = smoothstep(T_TWIST[0], T_TWIST[1], t) * (1.0 - smoothstep(T_LIFT[0], T_LIFT[0] + 0.2, t))
+    return -40.0 * k
+
+
+def _speak(t):
+    """The unheard words: two small dips of the head (his name)."""
+    return 3.5 * LIB.bump(t, 6.50, 6.55, 6.56, 6.63) + 3.0 * LIB.bump(t, 6.64, 6.69, 6.70, 6.78)
 
 
 def _dv_body(t):
-    """Base body pose (no arms IK): root, yaw, spine, head, legs."""
+    """Base body pose: root, yaw, spine, head, legs (arms relaxed)."""
     tau = _tau(t)
     pb = BOAT.pose(tau)
 
@@ -295,22 +261,24 @@ def _dv_body(t):
         return BOAT.to_world(q, tau, pb)
     x, y = Wd((_DVX(t), _DVY(t)))
     p = F.Pose(x, y, _DV_YAW(t))
-    p.pitch = _DV_PITCH(t) + 1.5 * noise1(t * 0.4, 21)
+    p.pitch = _DV_PITCH(t) + 1.2 * noise1(t * 0.4, 21)
     climb = smoothstep(1.2, 1.6, t) * (1.0 - smoothstep(3.8, 4.3, t))
     p.spine = [1.0 + 1.5 * climb, 1.0 + 1.5 * climb, 0.0]
-    p.head = _DV_HEAD(t) + 2.0 * noise1(t * 0.3, 22)
-    # breathing (shoulders / chest) once he is out of the water
-    br = math.sin(2 * math.pi * t / 2.6) * smoothstep(0.9, 1.4, t)
+    p.head = _DV_HEAD(t) + 1.5 * noise1(t * 0.3, 22) + _speak(t)
+    p.head_yaw = _twist(t)
+    br = math.sin(2 * math.pi * t / 2.6) * smoothstep(0.9, 1.4, t)       # breathing
     p.spine[2] += 1.2 * br
-    # legs: on the rungs / the deck (IK), still kicking in the water before he finds them
     fl, ml = _limb(_FL, t)
     fr, mr = _limb(_FR, t)
     for s, f_, m_ in (("L", fl, ml), ("R", fr, mr)):
-        a = Wd(f_)
-        p.legs[s] = {"ik": a, "pitch": -6.0 * m_, "toe": 0.0, "abd": 4.0}
-    p.eyes = dict(open=1.0, glow=1.0, look=0.0)
+        p.legs[s] = {"ik": Wd(f_), "pitch": -6.0 * m_, "toe": 0.0, "abd": 4.0}
+    glow = 1.0 - 0.65 * _moon_k(t) + 0.35 * LIB.bump(t, T_TOLL - 0.02, T_TOLL + 0.05, T_TOLL + 0.2, T_TOLL + 1.2)
+    p.eyes = dict(open=1.0, glow=glow, look=0.0)
+    for tb in (4.62,):
+        if tb - 0.06 < t < tb + 0.16:
+            p.eyes["open"] = min(1.0, abs(t - tb - 0.05) / 0.11)
     kick_w = 1.0 - smoothstep(0.55, 1.05, t)
-    if kick_w > 0.0:
+    if kick_w > 0.0:          # still kicking (s14) before the feet find the rungs
         q = p.copy()
         for s, ph in (("L", 0.0), ("R", math.pi)):
             k = math.sin(2 * math.pi * tau / 1.9 + ph)
@@ -319,58 +287,270 @@ def _dv_body(t):
     return p
 
 
-@functools.lru_cache(maxsize=512)
-def _dv_skel_body(t):
-    """The body alone (arms relaxed), blended out of s14's: for the head / inlet."""
+@functools.lru_cache(maxsize=1024)
+def _dv_body_pose(t):
     p = _dv_body(t)
     w = smoothstep(0.0, 0.65, t)
     if w < 1.0:
         p = F.blend(_dv_s14(t), p, w, cast.DIVER)
+    return p
+
+
+@functools.lru_cache(maxsize=1024)
+def _dv_skel_body(t):
+    """The body alone (arms don't move the head): for the helmet, its inlet and lamp."""
+    return F.solve(_dv_body_pose(t), cast.DIVER)
+
+
+def _inlet_world(t):
+    """Where the hose is fixed on the helmet. costume puts the inlet at the helmet's side in a
+    front view, mirrored as the yaw crosses 90 deg (a jump); slide it across instead."""
+    p = _dv_body_pose(t)
+    if 84.0 < p.yaw < 112.0:
+        a = p.copy()
+        a.yaw = 84.0
+        b = p.copy()
+        b.yaw = 112.0
+        ia = costume.helmet_inlet(F.solve(a, cast.DIVER))
+        ib = costume.helmet_inlet(F.solve(b, cast.DIVER))
+        u = smoothstep(84.0, 112.0, p.yaw)
+        return (lerp(ia[0], ib[0], u), lerp(ia[1], ib[1], u))
+    return costume.helmet_inlet(_dv_skel_body(t))
+
+
+# ---------------------------------------------------------------- the helmet comes off
+@functools.lru_cache(maxsize=1)
+def _helm_ref():
+    """The worn helmet at the moment it lifts: skeleton, centre (world + boat-local),
+    the pieces of the helmet proper (not the corselet) and its lamp."""
+    sk = _dv_skel_body(T_LIFT[0])
+    c, R, vp, vr, inlet = costume.helmet_frame(sk)
+    pcs = costume.pieces(sk, DV_LOOK)["head"][2:]
+    lamp = costume.helmet_lamp(sk)
+    return dict(sk=sk, c=c, R=R, cl=BOAT.to_local(c, _tau(T_LIFT[0])), pieces=pcs, lamp=lamp)
+
+
+_LIFT = [  # (t, dx, dy, rot) from the worn position, boat-local
+    (T_LIFT[0], 0.0, 0.0, 0.0),
+    (5.70, 0.0, -12.0, 0.0),
+    (5.98, -6.0, -128.0, -5.0),
+    (T_LIFT[1], -10.0, -150.0, -7.0),
+]
+_LDX = _keys(_LIFT, 1)
+_LDY = _keys(_LIFT, 2)
+_LDR = _keys(_LIFT, 3)
+_CARRY = (-34.0, 36.0)               # near wrist from the pelvis when carrying it (local)
+_GRIP_L = (4.0, 22.0)                # near wrist from the helmet centre
+_GRIP_R = (14.0, 24.0)
+
+
+def _carry_wrist_local(t):
+    sw = 3.0 * math.sin(2 * math.pi * (t - T_LOWER[1]) / 1.7) * smoothstep(T_LOWER[1], T_LOWER[1] + 0.4, t)
+    return (_DVX(t) + _CARRY[0] + sw, _DVY(t) + _CARRY[1] + 0.4 * sw)
+
+
+def _helm_xform(t):
+    """(centre world, rotation deg) of the helmet once it is off his head (t >= T_LIFT[0])."""
+    ref = _helm_ref()
+    tau = _tau(t)
+    cl = ref["cl"]
+    if t <= T_LIFT[1]:
+        c = (cl[0] + _LDX(t), cl[1] + _LDY(t))
+        rot = _LDR(t)
+    else:
+        over = (cl[0] + _LDX(T_LIFT[1]), cl[1] + _LDY(T_LIFT[1]))
+        w = _carry_wrist_local(t)
+        carry = (w[0] - _GRIP_L[0], w[1] - _GRIP_L[1])
+        u = clamp((t - T_LOWER[0]) / (T_LOWER[1] - T_LOWER[0]))
+        e = ease("inout", u)
+        arc = math.sin(math.pi * u)
+        c = (lerp(over[0], carry[0], e) - 46.0 * arc, lerp(over[1], carry[1], e) - 10.0 * arc)
+        rot = lerp(_LDR(T_LIFT[1]), 0.0, e) + 9.0 * arc + 2.0 * math.sin(2 * math.pi * t / 1.7) * smoothstep(
+            T_LOWER[1], T_LOWER[1] + 0.4, t)
+    return BOAT.to_world(c, tau), rot
+
+
+def _helm_center(t):
+    if t < T_LIFT[0]:
+        return costume.helmet_frame(_dv_skel_body(t))[0]
+    return _helm_xform(t)[0]
+
+
+# ---------------------------------------------------------------- hands
+_ARM_REST_L = dict(sh=10.0, abd=12.0, elbow=18.0, wrist=4.0, grip=0.35)
+_ARM_REST_R = dict(sh=5.0, abd=12.0, elbow=14.0, wrist=4.0, grip=0.35)
+_ARM_UP_L = dict(sh=148.0, abd=14.0, elbow=28.0, wrist=6.0, grip=0.4)     # s14: reaching up
+
+_HL = [
+    (0.30, 0.62, "start", _hand_rung(2), (30.0, -20.0)),
+    (1.45, 1.70, _hand_rung(2), H_HOOK, (20.0, -20.0)),
+    (3.50, 3.82, H_HOOK, H_RAIL_IN, (10.0, -40.0)),
+]
+_HR = [
+    (0.55, 0.95, "start", _hand_rung(3), (30.0, -20.0)),
+    (1.65, 1.92, _hand_rung(3), _hand_rung(1), (24.0, -20.0)),
+    (2.00, 2.18, _hand_rung(1), "inlet", (30.0, -20.0)),
+    (2.42, 2.66, "inlet", H_RAIL, (30.0, -30.0)),
+]
+
+
+@functools.lru_cache(maxsize=4)
+def _s14_wrist_local(side):
+    sk = F.solve(_dv_s14(0.3), cast.DIVER)
+    return BOAT.to_local(sk.j["wrist_" + side], _tau(0.3))
+
+
+def _inlet_grip_local(t):
+    """The far hand on the hose coupling (twisting it loose), local."""
+    tc = min(t, T_REL)
+    p = BOAT.to_local(_inlet_world(tc), _tau(tc))
+    tw = 4.0 * math.sin(2 * math.pi * (tc - 2.18) / 0.11) * LIB.bump(tc, 2.16, 2.20, 2.34, 2.39)
+    return (p[0] + 12.0 + tw, p[1] + 14.0)
+
+
+def _resolve(segs, side):
+    out = []
+    for (t0, t1, a, b, lift) in segs:
+        def r(q):
+            if q == "start":
+                return _s14_wrist_local(side)
+            if q == "inlet":
+                return _inlet_grip_local
+            return q
+        out.append((t0, t1, r(a), r(b), lift))
+    return out
+
+
+_HL_R = _resolve(_HL, "L")
+_HR_R = _resolve(_HR, "R")
+
+
+def _hand_targets(t):
+    """{side: (world wrist target, weight, grip)}."""
+    tau = _tau(t)
+    pb = BOAT.pose(tau)
+    out = {}
+    # climbing
+    wl = smoothstep(0.25, 0.55, t) * (1.0 - smoothstep(3.85, 4.20, t))
+    wr = smoothstep(0.45, 0.85, t) * (1.0 - smoothstep(3.70, 4.05, t))
+    if wl > 0.0:
+        q, mv = _limb(_HL_R, t)
+        out["L"] = (BOAT.to_world(q, tau, pb), wl, 1.0 - 0.6 * mv)
+    if wr > 0.0:
+        q, mv = _limb(_HR_R, t)
+        out["R"] = (BOAT.to_world(q, tau, pb), wr, 1.0 - 0.6 * mv)
+    # the helmet: both hands up to it, the turn, the lift; the near hand carries it down
+    hl = smoothstep(5.05, 5.30, t)
+    hr = smoothstep(5.10, 5.32, t) * (1.0 - smoothstep(6.02, 6.30, t))
+    if hl > 0.0 or hr > 0.0:
+        c = _helm_center(t)
+        rot = _helm_xform(t)[1] if t >= T_LIFT[0] else 0.0
+        tw = _twist(t)
+        for side, w, g in (("L", hl, _GRIP_L), ("R", hr, _GRIP_R)):
+            if w <= 0.0:
+                continue
+            gx, gy = _rot(g, rot)
+            gx += 0.25 * tw          # the hands go round with the quarter-turn
+            out[side] = ((c[0] + gx, c[1] + gy), w, 1.0)
+    return out
+
+
+def _dv_arms(p, t):
+    up = 1.0 - smoothstep(0.35, 0.8, t)
+    p.arms["L"] = {k: lerp(_ARM_REST_L[k], _ARM_UP_L[k], up) for k in _ARM_REST_L}
+    p.arms["R"] = dict(_ARM_REST_R)
+    for side, (tgt, w, grip) in _hand_targets(t).items():
+        q = arm_ik(p.copy(), side, tgt, cast.DIVER, elbow_out=False)
+        a = p.arms[side]
+        a["sh"] = lerp(a["sh"], q.arms[side]["sh"], w)
+        a["elbow"] = lerp(a["elbow"], q.arms[side]["elbow"], w)
+        a["wrist"] = lerp(a["wrist"], 20.0, w)
+        a["grip"] = lerp(a["grip"], grip, w)
+    return p
+
+
+@functools.lru_cache(maxsize=1024)
+def dv_skel(t):
+    p = _dv_body_pose(t).copy()
+    p = _dv_arms(p, t)
+    if t < 0.65:          # the arms too come out of s14's
+        w = smoothstep(0.0, 0.65, t)
+        s14 = _dv_s14(t)
+        for s in ("L", "R"):
+            p.arms[s] = {k: lerp(s14.arms[s].get(k, 0.0), p.arms[s].get(k, 0.0), w) for k in p.arms[s]}
     return F.solve(p, cast.DIVER)
 
 
-def _dv_hands(p, t):
-    """Arms: relaxed FK, IK onto the holds while climbing; the helmet removal."""
-    tau = _tau(t)
-    pb = BOAT.pose(tau)
-    p.arms["L"] = dict(sh=8.0, abd=12.0, elbow=16.0, wrist=4.0, grip=0.35)
-    p.arms["R"] = dict(sh=4.0, abd=12.0, elbow=14.0, wrist=4.0, grip=0.35)
-    for side, plan, wfn in (("L", _HL, _ik_w_L), ("R", _HR, _ik_w_R)):
-        w = wfn(t)
-        if w <= 0.001:
-            continue
-        start = _s14_hand_local(side)
-        tgt, mv = _hand_plan(plan, t, start)
-        q = arm_ik(p.copy(), side, BOAT.to_world(tgt, tau, pb), cast.DIVER, elbow_out=False)
-        p.arms[side]["sh"] = lerp(p.arms[side]["sh"], q.arms[side]["sh"], w)
-        p.arms[side]["elbow"] = lerp(p.arms[side]["elbow"], q.arms[side]["elbow"], w)
-        p.arms[side]["wrist"] = lerp(p.arms[side]["wrist"], 20.0, w)
-        p.arms[side]["grip"] = lerp(p.arms[side]["grip"], 1.0 - 0.6 * mv, w)
-    return p
+def _eyes_vis(t, sk):
+    """The bare head's eyes once the lifted helmet has cleared them."""
+    if t < T_LIFT[0]:
+        return 0.0
+    if t >= T_LIFT[1]:
+        return 1.0
+    c, rot = _helm_xform(t)
+    R = _helm_ref()["R"]
+    e1, e2, r, w, front = F.eye_points(sk, DV_BARE)
+    ey = min(e1[1], e2[1])
+    return smoothstep(2.0, 20.0, ey - (c[1] + R * 0.95))
 
 
-def _dv_mine(t):
-    p = _dv_body(t)
-    return _dv_hands(p, t)
+def _paint(ctx, pcs, color=None):
+    for fn, col, eo in pcs:
+        if eo:
+            ctx.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+        ctx.new_path()
+        fn(ctx)
+        c = color or col or INK
+        ctx.set_source_rgb(*c[:3])
+        ctx.fill()
+        if eo:
+            ctx.set_fill_rule(cairo.FILL_RULE_WINDING)
 
 
-@functools.lru_cache(maxsize=512)
-def _dv_pose_pre(t):
-    """The diver's pose before the helmet business (blended out of s14's at the cut)."""
-    p = _dv_mine(t)
-    w = smoothstep(0.0, 0.65, t)
-    if w < 1.0:
-        p = F.blend(_dv_s14(t), p, w, cast.DIVER)
-    return p
+def _draw_helmet_off(L, t, color=None):
+    ref = _helm_ref()
+    c, rot = _helm_xform(t)
+    L.save()
+    L.translate(c[0], c[1])
+    L.rotate(rot * D2R)
+    L.translate(-ref["c"][0], -ref["c"][1])
+    _paint(L, ref["pieces"], color)
+    L.restore()
 
 
-@functools.lru_cache(maxsize=512)
-def _dv_skel_pre(t):
-    return F.solve(_dv_pose_pre(t), cast.DIVER)
+def _lamp_point(t, sk):
+    """The helmet lamp: (position, intensity)."""
+    if t < T_LIFT[0]:
+        return costume.helmet_lamp(sk)[0], 1.0
+    ref = _helm_ref()
+    c, rot = _helm_xform(t)
+    p0 = ref["lamp"][0]
+    d = _rot((p0[0] - ref["c"][0], p0[1] - ref["c"][1]), rot)
+    return (c[0] + d[0], c[1] + d[1]), 0.6
 
 
-def dv_skel(t):
-    return _dv_skel_pre(t)
+def draw_diver(f, L, t, sk=None):
+    sk = sk or dv_skel(t)
+    bare = t >= T_LIFT[0]
+    look = DV_BARE if bare else DV_LOOK
+    # he stands in front of the lantern: keep its bloom off his silhouette
+    with f.emit() as G:
+        G.save()
+        G.set_operator(cairo.OPERATOR_CLEAR)
+        F.draw_figure(None, sk, look, G, color=(0, 0, 0), eyes=False)
+        if not bare:
+            _paint(G, costume.pieces(sk, DV_LOOK)["head"], (0, 0, 0))
+        G.restore()
+    if not bare:
+        F.draw_figure(f, sk, DV_LOOK, L)
+        return sk
+    F.draw_figure(f, sk, DV_BARE, L, eyes=False)
+    _paint(L, costume.pieces(sk, DV_LOOK)["head"][:2])          # the corselet stays on
+    vis = _eyes_vis(t, sk)
+    if vis > 0.01:
+        F.draw_eyes(f, sk, DV_BARE, L, alpha=vis)
+    _draw_helmet_off(L, t)
+    return sk
 
 
 # ============================================================================= the client
@@ -404,24 +584,31 @@ def _cfoot(plan, t, x0):
     return x, 0.0
 
 
+def _start(t):
+    """His start at the toll."""
+    return LIB.bump(t, T_TOLL, T_TOLL + 0.07, T_TOLL + 0.16, T_TOLL + 0.9)
+
+
 def _cl_mine(t):
     tau = _tau(t)
     xl, ml = _cfoot(_CFL, t, -624.0)
     xr, mr = _cfoot(_CFR, t, -576.0)
     x = (xl + xr) / 2.0 - 2.0
     deck = BOAT.deck_y(x, tau)
-    p = F.Pose(x, deck - 318.0 + 4.0 * (ml + mr), 0.0)
-    p.pitch = 5.0 - 3.0 * smoothstep(1.9, 2.3, t) * (1.0 - smoothstep(3.9, 4.4, t))
-    p.spine = [0.0, 0.0, -2.0]
+    st = _start(t)
+    p = F.Pose(x, deck - 318.0 + 4.0 * (ml + mr) - 3.0 * st, 0.0)
+    p.pitch = 5.0 - 3.0 * smoothstep(1.9, 2.3, t) * (1.0 - smoothstep(3.9, 4.4, t)) - 5.0 * st
+    p.spine = [0.0, 0.0, -2.0 - 3.0 * st]
     for s, fx, m_ in (("L", xl, ml), ("R", xr, mr)):
         dy = BOAT.deck_y(fx, tau)
         p.legs[s] = {"ik": (fx, dy - 0.043 * CLH - 16.0 * m_), "pitch": -8.0 * m_, "toe": 0.0, "abd": 3.0}
     knife = smoothstep(1.6, 2.2, t)
-    p.arms["L"] = dict(sh=lerp(-6.0, 10.0, knife), abd=6.0, elbow=lerp(16.0, 40.0, knife), wrist=-10.0 * knife,
-                       grip=1.0)
-    p.arms["R"] = dict(sh=lerp(4.0, -10.0, knife), abd=7.0, elbow=lerp(16.0, 24.0, knife), wrist=0.0, grip=0.5)
-    p.head = -2.0
-    p.eyes = dict(open=1.0, glow=0.9, look=0.0)
+    p.arms["L"] = dict(sh=lerp(-6.0, 10.0, knife) + 6.0 * st, abd=6.0, elbow=lerp(16.0, 40.0, knife) + 8.0 * st,
+                       wrist=-10.0 * knife, grip=1.0)
+    p.arms["R"] = dict(sh=lerp(4.0, -10.0, knife) + 8.0 * st, abd=7.0, elbow=lerp(16.0, 24.0, knife) + 10.0 * st,
+                       wrist=0.0, grip=0.5 + 0.3 * st)
+    p.head = -2.0 - 9.0 * st
+    p.eyes = dict(open=1.0, glow=0.9 + 0.3 * smoothstep(T_TOLL, T_TOLL + 0.1, t), look=0.0)
     return p
 
 
@@ -438,20 +625,17 @@ def _look(p, body, target, amt):
     return p
 
 
-@functools.lru_cache(maxsize=512)
+@functools.lru_cache(maxsize=1024)
 def _cl_pose(t):
     p = _cl_mine(t)
-    # he watches the diver: the helmet as it comes up, then the man (not his eyes until the
-    # helmet is off)
-    dk = dv_skel(t)
-    tgt = dk.j["head"]
-    lower = 60.0 * (1.0 - smoothstep(5.7, 6.1, t))
+    # he watches the diver come: the helmet, the man - not his eyes, until the helmet is off
+    tgt = _dv_skel_body(t).j["head"]
+    lower = 70.0 * (1.0 - smoothstep(5.75, 6.05, t))
     p = _look(p, cast.CLIENT, (tgt[0], tgt[1] + lower), 0.85 * smoothstep(0.5, 1.2, t))
     w = smoothstep(0.0, 0.8, t)
     if w < 1.0:
         p = F.blend(_cl_s14(t), p, w, cast.CLIENT)
-    # blinks before the eye contact
-    for tb in (1.15, 3.95, 5.30):
+    for tb in (1.15, 3.95, 5.30):          # blinks; none once he has seen the eyes
         if tb - 0.06 < t < tb + 0.16:
             p.eyes["open"] = min(p.eyes["open"], abs(t - tb - 0.05) / 0.11)
     p.extra["vel"] = (0.0, 0.0)
@@ -459,18 +643,26 @@ def _cl_pose(t):
     return p
 
 
-@functools.lru_cache(maxsize=512)
+@functools.lru_cache(maxsize=1024)
 def cl_skel(t):
     return F.solve(_cl_pose(t), cast.CLIENT)
 
 
+def _cl_gasp(t):
+    return LIB.bump(t, T_TOLL + 0.02, T_TOLL + 0.12, T_TOLL + 0.22, T_TOLL + 1.1)
+
+
 def _cl_ember(t):
-    base = (0.55 + 0.1 * noise1(_tau(t) * 0.7, 9)) * 0.3
-    return base
+    return (0.55 + 0.1 * noise1(_tau(t) * 0.7, 9)) * 0.3 + 1.1 * _cl_gasp(t)
 
 
 def _cl_look(t):
-    return cast.client(ember=_cl_ember(t), coat_flow=0.15 + 0.08 * noise1(t * 0.5, 4))
+    lk = cast.client(ember=_cl_ember(t), coat_flow=0.12 + 0.06 * noise1(t * 0.5, 4))
+    lk.eye_size = 1.0 + 0.6 * smoothstep(T_TOLL + 0.01, T_TOLL + 0.12, t)
+    if t >= T_HAT:
+        lk.hat = None
+        lk.hair = "slick"
+    return lk
 
 
 def _knife(L, sk):
@@ -480,11 +672,105 @@ def _knife(L, sk):
     S.draw_knife(L, h[0], h[1], angle=ang, s=0.42)
 
 
+def _ember_halo(f, t, sk):
+    """The cigar's own ember is a few px: on the gasp a warm halo blooms round it (as s14)."""
+    k = 0.85 * _cl_gasp(t)
+    if k <= 0.01 or sk.side_w > 0.85:
+        return
+    p = F.head_point(sk, 0.86, 0.22, front_x=0.16, front_y=0.20)
+    atmos.lamp(f, p, radius=5.0, intensity=k, halo=7.0, core=0.0, flicker="ember", t=t, seed=21)
+
+
+def draw_client(f, L, t, sk=None):
+    sk = sk or cl_skel(t)
+    _knife(L, sk)
+    F.draw_figure(f, sk, _cl_look(t), L)
+    return sk
+
+
+# ============================================================================= the hat
+@functools.lru_cache(maxsize=1)
+def _hat_ref():
+    pts = LIB.hat_on_head(cl_skel(T_HAT))
+    return pts, LIB.centroid(pts)
+
+
+def _hat_keys():
+    c0 = _hat_ref()[1]
+    k = [  # (t, x, y, rot)
+        (T_HAT, c0[0], c0[1], 0.0),
+        (T_FLY, c0[0] + 4.0, c0[1] - 8.0, 8.0),
+        (7.40, c0[0] + 40.0, c0[1] - 80.0, 40.0),
+        (7.58, c0[0] + 110.0, c0[1] - 140.0, 95.0),
+        (7.80, c0[0] + 230.0, c0[1] - 120.0, 190.0),
+        (7.98, -270.0, -690.0, 260.0),
+        (8.12, -170.0, -420.0, 320.0),
+        (8.26, -112.0, -110.0, 352.0),
+        (8.32, -96.0, 30.0, 358.0),
+    ]
+    return k
+
+
+_HK = None
+
+
+def _hat_fn():
+    global _HK
+    if _HK is None:
+        k = _hat_keys()
+        _HK = (_keys(k, 1, m1=260.0), _keys(k, 2, m1=2300.0), _keys(k, 3, m1=100.0), k[-1][0])
+    return _HK
+
+
+def _hat_splash():
+    fx, fy, fr, t_end = _hat_fn()
+    # first time the hat's centre reaches the surface after the flight
+    for i in range(400):
+        tt = T_FLY + i * 0.005
+        x, y = fx(tt), fy(tt)
+        if y >= S.sea_y(x, _tau(tt)) - 6.0:
+            return tt, x
+    return t_end, fx(t_end)
+
+
+@functools.lru_cache(maxsize=1)
+def _hat_splash_c():
+    return _hat_splash()
+
+
+def _hat_pose(t):
+    """(outline world pts, centre) of the hat once the gust has it."""
+    pts0, c0 = _hat_ref()
+    fx, fy, fr, t_end = _hat_fn()
+    ts, xs = _hat_splash_c()
+    if t <= ts:
+        c = (fx(t), fy(t))
+        rot = fr(t)
+    else:
+        a = t - ts
+        c = (xs + 30.0 * a, S.sea_y(xs, _tau(t)) - 4.0 + 160.0 * a * a / (1.0 + a))
+        rot = fr(ts) + 8.0 * (1.0 - math.exp(-a / 0.4)) + 3.0 * math.sin(2.0 * a)
+    return LIB.rigid(pts0, c0, c, rot), c
+
+
+def _draw_hat(L, f, t, ms):
+    pts, c = _hat_pose(t)
+    md = LIB.moon_dir_world(f.cam, c, ms)
+    off = 3.0 / f.cam.zoom
+    L.new_path()
+    draw.poly(L, [(x + md[0] * off, y + md[1] * off) for x, y in pts])
+    L.set_source_rgba(*LIB.MOONLIT, 0.55)
+    L.fill()
+    L.new_path()
+    draw.poly(L, pts)
+    L.set_source_rgb(*INK)
+    L.fill()
+
+
 # ============================================================================= the cut hose
 _NH = 40
 _HDT = 1.0 / 120.0
 _HT0, _HT1 = 0.0, 10.05
-_SW = np.array(SS.SWELL, float)
 
 
 def _sea_y_np(x, tau):
@@ -495,9 +781,9 @@ def _sea_y_np(x, tau):
 
 
 class _Hose:
-    """The cut red hose from s14's state at the cut. Node 0 is on the helmet's inlet until the
-    coupling is unscrewed (T_REL), then free and heavy (brass). Above the surface it falls
-    (air), below it drifts and sinks slowly in the current (as s14)."""
+    """The cut red hose from s14's state at the cut. Node 0 is fixed on the helmet's inlet
+    until he unscrews the coupling (T_REL), then free and heavy (brass). Above the surface it
+    falls (air); below, it drifts and sinks slowly in the current (as s14)."""
 
     def __init__(self):
         self._F = None
@@ -512,38 +798,32 @@ class _Hose:
         frames = np.empty((steps, n, 2), np.float64)
         inv = np.ones((n, 1))
         inv[0] = 0.35                      # the coupling is heavy
-        i_even = [np.arange(par, n - 1, 2) for par in (0, 1)]
+        pairs = [np.arange(par, n - 1, 2) for par in (0, 1)]
         bend = [np.array([i for i in range(n - 2) if i % 4 in grp], dtype=int) for grp in ((0, 1), (2, 3))]
-        released = False
+        g_w = np.array([0.0, 70.0])
+        g_a = np.array([0.0, 2600.0])
         for k in range(steps):
             t = _HT0 + k * dt
             tau = _tau(t)
             vel = (P - prev) / dt
             sea = _sea_y_np(P[:, 0], tau)
             wet = (P[:, 1] > sea)[:, None]
-            cx = 26.0 + 10.0 * np.sin(0.37 * tau + P[:, 1] / 700.0)
-            cy = -40.0 + 30.0 * np.sin(0.5 * tau + P[:, 1] / 400.0)
-            cur = np.stack([cx, cy], axis=1)
-            g_w = np.array([0.0, 70.0])
-            acc_w = g_w - 1.6 * (vel - cur)
-            acc_a = np.array([0.0, 2600.0]) - 0.5 * vel
-            acc = np.where(wet, acc_w, acc_a)
-            if released:
-                acc[0] += np.where(wet[0], np.array([0.0, 520.0]), np.array([0.0, 0.0]))
+            cur = np.stack([26.0 + 10.0 * np.sin(0.37 * tau + P[:, 1] / 700.0),
+                            -40.0 + 30.0 * np.sin(0.5 * tau + P[:, 1] / 400.0)], axis=1)
+            acc = np.where(wet, g_w - 1.6 * (vel - cur), g_a - 0.5 * vel)
+            pin = t < T_REL
+            if not pin and wet[0, 0]:
+                acc[0, 1] += 420.0                 # brass sinks
             new = P + vel * dt + acc * dt * dt
             prev, P = P, new
-            pin = t < T_REL
-            if pin:
-                pa = np.array(BOAT.to_world(_dv_inlet_local(t), tau), np.float64)
-            elif not released:
-                released = True
             w = inv.copy()
             if pin:
+                pa = np.array(_inlet_world(t), np.float64)
                 w[0] = 0.0
             for _ in range(10):
                 if pin:
                     P[0] = pa
-                for i0 in i_even:
+                for i0 in pairs:
                     d = P[i0 + 1] - P[i0]
                     L = np.linalg.norm(d, axis=1)[:, None] + 1e-9
                     diff = (L - rest) / L
@@ -564,9 +844,8 @@ class _Hose:
             if pin:
                 P[0] = pa
             frames[k] = P
-            if released and self.splash is None:
-                if P[0, 1] > _sea_y_np(P[:1, 0], tau)[0]:
-                    self.splash = (t, float(P[0, 0]))
+            if not pin and self.splash is None and P[0, 1] > _sea_y_np(P[:1, 0], tau)[0]:
+                self.splash = (t, float(P[0, 0]))
         self._F = frames
 
     def points(self, t):
@@ -598,9 +877,142 @@ def _coupling(L, pts):
     L.fill()
 
 
+# ============================================================================= water
+@functools.lru_cache(maxsize=1)
+def _t_surface():
+    """When the helmet's crown breaks the surface (and its x)."""
+    for i in range(300):
+        t = i * 0.004
+        sk = _dv_skel_body(t)
+        c, R = costume.helmet_frame(sk)[:2]
+        if c[1] - R <= S.sea_y(c[0], _tau(t)):
+            return t, c[0]
+    return 0.3, -55.0
+
+
+def _runoff(f, t, sk):
+    """Water off the helmet and the suit as he comes out: sheets on the dome, then drips from
+    the corselet's rim, the elbows and the boots, falling back into the sea."""
+    ts, xs = _t_surface()
+    if t < ts or t > 5.0:
+        return
+    tau = _tau(t)
+    c = f.ctx
+    col = LIB.SPRAY
+    # sheets running down the dome
+    k = smoothstep(ts, ts + 0.15, t) * (1.0 - smoothstep(ts + 0.6, ts + 1.6, t))
+    if k > 0.01:
+        hc, R = costume.helmet_frame(sk)[:2]
+        c.save()
+        c.new_path()
+        draw.circle(c, hc, R)
+        c.clip()
+        for j in range(7):
+            u = (j + 0.5) / 7.0 * 2.0 - 1.0
+            ph = hash01(61, j, 1) * 6.0
+            pts = []
+            for i in range(8):
+                v = i / 7.0
+                yy = hc[1] - R * 0.95 + v * R * 1.9
+                half = math.sqrt(max(0.0, R * R - (yy - hc[1]) ** 2))
+                pts.append((hc[0] + u * half * 0.95 + 1.5 * math.sin(yy / 7.0 + ph + 9.0 * t), yy))
+            LIB.draw_hose(c, pts, 1.8 / f.cam.zoom, color=LIB.MOONLIT, alpha=0.35 * k * (0.5 + 0.5 * hash01(61, j, 2)))
+        c.restore()
+    # drips: emitted from points on the suit, then ballistic (g = 2600)
+    g = 2600.0
+    hz = 30.0
+    big = []
+    k1 = int(t * hz)
+    for kk in range(max(int(ts * hz), k1 - 18), k1 + 1):
+        te = kk / hz
+        if te > t:
+            continue
+        age_e = te - ts
+        rate = math.exp(-max(0.0, age_e) / 1.6)
+        ske = dv_skel(te)
+        srcs = (ske.j["elbow_L"], ske.j["elbow_R"], ske.j["hand_L"], ske.j["heel_L"], ske.j["heel_R"],
+                costume.helmet_frame(ske)[0])
+        for i, src in enumerate(srcs):
+            if hash01(62, kk, i) > rate * 0.55:
+                continue
+            ox = (hash01(63, kk, i) - 0.5) * 30.0
+            oy = 50.0 if i == 5 else 0.0
+            x0, y0 = src[0] + ox, src[1] + oy
+            if y0 > S.sea_y(x0, _tau(te)):
+                continue
+            dt = t - te
+            x = x0 + 10.0 * (hash01(64, kk, i) - 0.5) * dt
+            y = y0 + 0.5 * g * dt * dt
+            if y > S.sea_y(x, tau) + 4.0:
+                continue
+            r = 1.4 + 1.8 * hash01(65, kk, i)
+            big.append((x, y, r, r * (1.0 + min(g * dt / 300.0, 4.0))))
+    if big:
+        c.new_path()
+        for x, y, r, Ln in big:
+            c.save()
+            c.translate(x, y)
+            c.rotate(math.pi / 2)
+            c.scale(Ln, r)
+            c.new_sub_path()
+            c.arc(0, 0, 1.0, 0, 2 * math.pi)
+            c.restore()
+        c.set_source_rgba(col[0], col[1], col[2], 0.7)
+        c.fill()
+
+
+def _splashes(f, t):
+    tau = _tau(t)
+    ts, xs = _t_surface()
+    LIB.foam(f, tau, xs, ts + OFF - 0.02, 120.0, 41, k=0.8, life=2.6)
+    LIB.splash(f, tau, xs, ts + OFF, 26, 0.35, 42)
+    hs = HOSE.splash_at()
+    if hs:
+        LIB.splash(f, tau, hs[1], hs[0] + OFF, 22, 0.32, 43)
+        LIB.foam(f, tau, hs[1], hs[0] + OFF, 70.0, 44, k=0.6, life=2.0)
+    th, xh = _hat_splash_c()
+    LIB.splash(f, tau, xh, th + OFF, 24, 0.3, 45)
+    LIB.foam(f, tau, xh, th + OFF, 80.0, 46, k=0.7, life=2.2)
+
+
 # ============================================================================= light
 def _moon_screen(f):
     return (MOON[0], S.horizon_y(f) - MOON[1])
+
+
+def _moon_k(t):
+    """How strongly the moon shows in his port (as it clears the water, facing us)."""
+    return LIB.bump(t, 0.80, 0.98, 1.35, 1.62)
+
+
+def _moon_in_port(f, t, sk):
+    k = _moon_k(t)
+    if k <= 0.01:
+        return
+    c, R, vp, vr, inlet = costume.helmet_frame(sk)
+    fwd = 1.0 if math.cos((sk.pose.yaw + sk.pose.head_yaw) * D2R) >= 0 else -1.0
+    w = sk.side_w
+    port_c = lerp((c[0] + fwd * R * 0.98, vp[1]), vp, w)
+    g = lerp(vp, port_c, 0.5)
+    if g[1] > S.sea_y(g[0], _tau(t)) - vr * 0.6:
+        return
+    ms = _moon_screen(f)
+    sp = f.cam.to_screen(g)
+    dx, dy = ms[0] - sp[0], ms[1] - sp[1]
+    d = math.hypot(dx, dy) or 1.0
+    m = (g[0] + dx / d * vr * 0.34, g[1] + dy / d * vr * 0.34)
+    rr = vr * 0.36
+    cc = f.ctx
+    cc.save()
+    cc.new_path()
+    draw.circle(cc, g, vr)
+    cc.clip()
+    draw.circle(cc, m, rr)
+    cc.set_source_rgba(*PAL.moon, 0.92 * k)
+    cc.fill()
+    cc.restore()
+    with f.emit() as G:
+        draw.glow_disc(G, m, rr * 3.0, PAL.moon, 0.55 * k)
 
 
 def _under_light(f, t, sk):
@@ -613,10 +1025,12 @@ def _under_light(f, t, sk):
 
 
 def _beam(f, t, sk):
-    """His helmet lamp: the s14 beam up through the water, gone as the helmet surfaces."""
+    """His lamp's beam up through the water (s14), gone as the helmet surfaces."""
+    if t > 1.0:
+        return
     p, d, _ = costume.helmet_lamp(sk)
     sea = S.sea_y(p[0], _tau(t))
-    k = smoothstep(sea - 10.0, sea + 60.0, p[1])
+    k = smoothstep(sea - 10.0, sea + 70.0, p[1])
     if k <= 0.01:
         return
     ang = math.degrees(math.atan2(d[1], d[0]))
@@ -625,8 +1039,16 @@ def _beam(f, t, sk):
                fog=0.4, pool=0.0, dust=0.35, glare=0.0, t=_tau(t), seed=5)
 
 
-def _lamp_head(f, t, p, k=1.0):
+def _lamp(f, t, sk):
+    p, k = _lamp_point(t, sk)
     atmos.lamp(f, p, radius=8.0, intensity=0.9 * k, halo=4.0, core=0.3, t=_tau(t), seed=6)
+
+
+def _bubbles(f, t):
+    """s14's exhaust bubbles: the last of them, until the valve leaves the water."""
+    ts = _t_surface()[0]
+    atmos.bubbles(f, S14._VALVE, rate=2.6, t=_tau(t), seed=33, rise=(240.0, 380.0), size=(1.5, 5.5), spread=8.0,
+                  current=12.0, surface=6.0, height=2400.0, alpha=0.8, t_end=ts + OFF - 0.1)
 
 
 def _line(L, st):
@@ -638,12 +1060,11 @@ def _line(L, st):
 
 
 def _bell(L, f, t, st, md):
+    tau = _tau(t)
+    wet = 1.0 - smoothstep(S14.T_CLEAR, S14.T_CLEAR + 3.0, tau)
     ring = clamp(st["ring"])
-    LIB.draw_bell_lit(L, st, md, f.cam.zoom, rim=0.30 + 0.45 * ring, sheen=0.20 + 0.30 * ring)
-
-
-def _deck_hose(L, t):
-    S14._deck_hose(L, _tau(t))
+    LIB.draw_bell_lit(L, st, md, f.cam.zoom, rim=0.30 + 0.25 * wet + 0.45 * ring,
+                      sheen=0.18 + 0.28 * wet + 0.30 * ring)
 
 
 # ============================================================================= render
@@ -662,29 +1083,81 @@ def render(f, t, T):
     with f.layer() as L:
         BOAT.draw(L, tau, pump_angle=150.0 * tau, winch_angle=-2.0 * LIB.crank_deg(LIB.T_STOP), hose=False,
                   hook=False)
-        _deck_hose(L, t)
-        _knife(L, ck)
-        F.draw_figure(f, ck, _cl_look(t), L)
+        S14._deck_hose(L, tau)
+    BOAT.draw_lights(f, tau, lantern=1.0, window=0.5, masthead=1.0)
+    with f.layer() as L:
+        draw_client(f, L, t, ck)
         hp = HOSE.points(t)
         LIB.draw_hose(L, hp, LIB.HOSE_W)
         if t >= T_REL:
             _coupling(L, hp)
-        F.draw_figure(f, dk, DV_LOOK, L)
+        draw_diver(f, L, t, dk)
         _line(L, st)
         _bell(L, f, t, st, md)
+        if t >= T_HAT:
+            _draw_hat(L, f, t, ms)
     S.water_front(f, tau, alpha=0.08, bright=BRIGHT)
-    BOAT.draw_lights(f, tau, lantern=1.0, window=0.5, masthead=1.0)
-    p, d, _ = costume.helmet_lamp(dk)
-    _lamp_head(f, t, p)
+    _ember_halo(f, t, ck)
+    if tau > S14.T_BREAK - 0.1:
+        LIB.bell_pour(f, tau, BOAT, S14.T_CLEAR, rate=1.0, seed=5)
+    _runoff(f, t, dk)
+    _bubbles(f, t)
+    _splashes(f, t)
+    _moon_in_port(f, t, dk)
+    _lamp(f, t, dk)
+    # the toll: a breath of light off the bell
+    fl = st["ring"] if tau >= LIB.TOLLS[2][0] else 0.0
+    f.post["flash"] = max(f.post.get("flash", 0.0), 0.05 * clamp(fl) * math.exp(-(tau - LIB.TOLLS[2][0]) / 0.12))
+    f.post["flash_color"] = PAL.moon
     f.post["vignette"] = lerp(f.post["vignette"], 0.38, 0.6)
 
 
 def motion_blur(t, T):
+    if T_REL - 0.02 < t < T_REL + 0.35:
+        return 2
+    if T_TOLL - 0.02 < t < T_TOLL + 0.2:
+        return 2
+    if T_FLY < t < 8.4:
+        return 2
     return 1
 
 
 def cues(T):
+    ts = _t_surface()[0]
+    hs = HOSE.splash_at()
+    th = _hat_splash_c()[0]
     return [
+        Cue(ts, "the helmet breaks the surface: water sheets off the brass dome, a gasp of air through the "
+                "exhaust valve", gain_db=-8, pan=0.15, dur=1.2),
+        Cue(0.58, "a gloved hand slaps onto an iron ladder rung", gain_db=-12, pan=0.15),
+        Cue(1.62, "climbing the ladder: heavy wet boots on iron rungs, the suit streaming water", gain_db=-11,
+            pan=0.15, dur=0.3),
+        Cue(1.94, "boot on a rung", gain_db=-12, pan=0.1),
+        Cue(2.20, "the hose coupling unscrewed from the helmet: a gritty metal thread turning", gain_db=-14,
+            pan=0.1, dur=0.2),
+        Cue(T_REL, "the hose let go: the rubber slithers off the ladder and down the hull", gain_db=-11, pan=0.15,
+            dur=0.5),
+        Cue(hs[0] if hs else 2.9, "the brass coupling plops into the sea", gain_db=-13, pan=0.15),
+        Cue(2.85, "boot on a rung", gain_db=-12, pan=0.05),
+        Cue(3.15, "boot on a rung", gain_db=-12, pan=0.05),
+        Cue(3.45, "boot on a rung", gain_db=-12, pan=0.0),
+        Cue(3.80, "a heavy wet boot comes down on the deck", gain_db=-9, pan=0.0),
+        Cue(4.10, "the second boot on deck; water drips off the suit", gain_db=-10, pan=-0.05),
+        Cue(4.40, "a step forward on the boards, the bell swishing past behind him, the davit creaking",
+            gain_db=-12, pan=0.2, dur=0.6),
+        Cue(2.00, "the client's shoes step back on the wet deck (slow, careful)", gain_db=-16, pan=-0.4),
+        Cue(2.50, "a second step back", gain_db=-16, pan=-0.4),
+        Cue(3.05, "a third step back", gain_db=-17, pan=-0.45),
+        Cue(3.55, "his heel finds the pump frame behind him: a soft knock", gain_db=-15, pan=-0.45),
+        Cue(T_TWIST[1] - 0.03, "the helmet unlocks: a quarter-turn clunk of the interrupted thread", gain_db=-8,
+            pan=0.0),
+        Cue(5.72, "the seal pops; water spills out of the helmet and the breastplate", gain_db=-9, pan=0.0,
+            dur=0.7),
+        Cue(6.12, "his first breath of night air (a long, slow inhale)", gain_db=-14, pan=0.0, dur=0.6),
+        Cue(6.45, "the helmet comes down to his side; one step toward the client", gain_db=-12, pan=-0.05),
         Cue(T_TOLL, "THE BELL TOLLS the third time: the loudest sound in the film (tonic D), ringing on over the "
-                    "dip to black", gain_db=0, pan=0.25, dur=6.0),
+                    "dip to black and into s16", gain_db=0, pan=0.2, dur=6.0),
+        Cue(T_TOLL + 0.05, "the client's sharp intake of breath; the cigar crackles", gain_db=-16, pan=-0.3),
+        Cue(T_HAT - 0.08, "a gust off the sea", gain_db=-12, pan=-0.2, dur=1.2),
+        Cue(th, "the fedora slaps onto the water", gain_db=-14, pan=0.35),
     ]
