@@ -1269,6 +1269,35 @@ def _in_glow(f, t):
         LIB10.screen_glow(f, (600.0, H + 320.0), 1100.0, mix(PAL.moon, PAL.mid, 0.35), a, blur=40)
 
 
+# s13 (finished) opens deep by the wreck: its camera depth over our OUT window (sampled from
+# its camera()) and its backdrop's murk. Its top edge shows the far haze at cy - (H/2)/BG_SPAN.
+_S13_CY = ((9.0, 8042.1), (9.25, 8168.6), (9.5, 8262.6), (9.75, 8324.1), (10.0, 8353.3))
+S13_MURK = 0.34
+
+
+def _out_band(f, t):
+    """Going down, the water below lightens toward the haze round the diver's lamp: a band
+    rising into our bottom edge that carries s13's top-edge haze (and the soft glow at its
+    top right, deep_backdrop's (760, 160) r 760 x 0.22) by the scroll."""
+    k = ss(8.1, 9.0, t)
+    if k <= 0.0:
+        return
+    cy = float(np.interp(t, [a for a, b in _S13_CY], [b for a, b in _S13_CY]))
+    col = S.haze_at(cy - (H / 2) / S.BG_SPAN, S13_MURK)
+    with f.screen() as G:
+        draw.linear(G, (0, H * 0.40), (0, H), [(0.0, col, 0.0), (0.5, col, 0.35 * k), (0.8, col, 0.8 * k),
+                                               (1.0, col, k)])
+        G.paint()
+    gcol = S.haze_at(max(cy - 3000.0, 0.0), 0.0)
+    with f.light(par=0.0, blur=30) as A:
+        A.save()
+        A.identity_matrix()
+        A.scale(A.get_target().get_width() / W, A.get_target().get_height() / H)
+        draw.glow_disc(A, (760.0, H + 160.0), 760.0, gcol, 0.45 * 0.22 * k)
+        draw.glow_disc(A, (760.0, H + 160.0), 760.0 * 0.45, gcol, 0.30 * 0.22 * k)
+        A.restore()
+
+
 # ============================================================================= render
 def render(f, t, T):
     cam = f.set_camera(camera(t))
@@ -1282,6 +1311,7 @@ def render(f, t, T):
         S.surface_glow(f, t, bright=_bright(t))
     atmos.underwater_rays(f, surface_y=0.0, t=t, spacing=190.0, angle=95.0, fan=8.0, length=1800.0,
                           intensity=0.16, density=0.5, seed=14, blur=18, color=mix(PAL.moon, PAL.surface, 0.5))
+    _out_band(f, t)
     sk = client_sk(t)
     look = _client_look(t)
     # silhouettes keep the moon and the lamps behind them
