@@ -63,7 +63,7 @@ GAP_AT = 0.76                               # the crack: just in front of her fa
 CRACK_X = lerp(ROOM.glass[0], ROOM.glass[2], GAP_AT)
 NEW_WIN = 14                                # the window that lights up, seen through the crack
 X0 = (HX + 4.0 - 540.0) / K_ROOM            # camera starts behind her head
-Y0 = YF + 1.42
+Y0 = YF + 1.38
 X_PASS = (CRACK_X + 6.0 - 540.0) / K_ROOM   # where the camera slips through the crack
 Y_PASS = YF + 1.71
 
@@ -125,7 +125,7 @@ def _pchip(keys, t):
 
 
 # ----------------------------------------------------------------------------- camera
-_ZK = [(-0.7, -0.03), (0.0, 0.0), (1.0, 0.05), (2.9, 0.34), (4.2, 0.60), (4.9, 0.76), (7.2, 1.30),
+_ZK = [(-0.7, -0.215), (0.0, -0.19), (1.0, -0.13), (2.9, 0.22), (4.2, 0.52), (4.9, 0.70), (7.2, 1.30),
        (7.72, 2.05), (7.98, 2.62), (8.48, 5.30), (8.98, 7.62), (9.45, Z_LOCK)]
 
 
@@ -229,15 +229,15 @@ def her_skeleton(t):
     return FG.solve(p, HER_BODY)
 
 
-def _ik(sh, tgt, prefer):
+def _ik(sh, tgt, prefer, ua=UA, fa=FA):
     dx, dy = tgt[0] - sh[0], tgt[1] - sh[1]
     d = math.hypot(dx, dy)
-    d2 = clamp(d, abs(UA - FA) + 1e-3, (UA + FA) * 0.995)
+    d2 = clamp(d, abs(ua - fa) + 1e-3, (ua + fa) * 0.995)
     a = math.atan2(dy, dx)
-    b = math.acos(clamp((UA * UA + d2 * d2 - FA * FA) / (2 * UA * d2), -1.0, 1.0))
+    b = math.acos(clamp((ua * ua + d2 * d2 - fa * fa) / (2 * ua * d2), -1.0, 1.0))
     best = None
     for s in (1.0, -1.0):
-        e = (sh[0] + UA * math.cos(a + s * b), sh[1] + UA * math.sin(a + s * b))
+        e = (sh[0] + ua * math.cos(a + s * b), sh[1] + ua * math.sin(a + s * b))
         score = (e[0] - sh[0]) * prefer[0] + (e[1] - sh[1]) * prefer[1]
         if best is None or score > best[0]:
             best = (score, e)
@@ -266,9 +266,9 @@ def _arm_targets(t, sk, C):
     sideL = (shL[0] - 16.0, shL[1] + 190.0)          # arms hanging (almost straight)
     sideR = (shR[0] + 16.0, shR[1] + 190.0)
     if back:
-        L = _track([(0.45, (hc[0] - 40.0, eye_y)), (1.15, (hc[0] - 28.0, shL[1] + 92.0), "inout"),
+        L = _track([(0.45, (hc[0] - 38.0, eye_y + 34.0)), (1.15, (hc[0] - 28.0, shL[1] + 92.0), "inout"),
                     (1.55, sideL, "inout")], t)
-        R = _track([(0.45, (hc[0] + 40.0, eye_y)), (1.15, (hc[0] + 28.0, shR[1] + 92.0), "inout")], t)
+        R = _track([(0.45, (hc[0] + 38.0, eye_y + 34.0)), (1.15, (hc[0] + 28.0, shR[1] + 92.0), "inout")], t)
         if t > 1.15:
             R = _track([(1.15, R), (1.58, rest, "inout")], t)
         if t > 1.62:
@@ -310,21 +310,25 @@ def draw_her(f, t, C, color=INK, ctx=None):
     c = ctx if ctx is not None else f.ctx
     FG.draw_figure(f, sk, HER_LOOK, c, color=color, eyes=False)
     arms = _arm_targets(t, sk, C)
-    wr = {}
+    # binoculars at her eyes: the upper arms point forward, out and down (foreshortened)
+    fs = _k(t, 0.45, 0.8)
+    ua, fa = UA * lerp(0.80, 1.0, fs), FA * lerp(0.92, 1.0, fs)
+    wr, hcen = {}, {}
     for s in ("L", "R"):
         tgt, pref = arms[s]
         sh = sk.j["shoulder_" + s]
-        e, w = _ik(sh, tgt, pref)
+        e, w = _ik(sh, tgt, pref, ua, fa)
         wr[s] = w
         draw.capsule(c, sh, e, R_UA[0], R_UA[1])
         draw.capsule(c, e, w, R_FA[0], R_FA[1])
         ang = math.atan2(w[1] - e[1], w[0] - e[0])
         _hand(c, w, ang)
+        hcen[s] = (w[0] + math.cos(ang) * HAND * 0.45, w[1] + math.sin(ang) * HAND * 0.45)
         draw.fill(c, color)
     # the binoculars: at her eyes (barrels just showing past her head), lowered in both
     # hands, then carried in the right hand to the sill
     if t < 1.15:
-        mid = ((wr["L"][0] + wr["R"][0]) / 2, (wr["L"][1] + wr["R"][1]) / 2 - 6.0)
+        mid = ((hcen["L"][0] + hcen["R"][0]) / 2, (hcen["L"][1] + hcen["R"][1]) / 2 - 4.0)
         draw_binoculars(c, mid, view="front", scale=1.05, color=color)
     elif t < 1.62:
         sc = _bino_scale(t, C)

@@ -222,7 +222,7 @@ def _flock():
 def _draw_crows(f, t, mood):
     if not (3.95 <= t <= 7.2):
         return
-    col = S.fogged(mood, 0.40)
+    col = S.fogged(mood, 0.40 + 0.6 * (1.0 - smoothstep(3.95, 4.25, t)))     # out of the fog
     with S.plane(f, CROW_PAR) as c:
         _flock().draw(f, t, c, color=col)
 

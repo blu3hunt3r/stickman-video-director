@@ -860,7 +860,9 @@ def facade_lit(t, extra=None):
     return lit
 
 
-LIFE_CURTAINS = {12: "sheers_open"}     # window 12's drapes would hide the cat lady
+# window 12's drapes would hide the cat lady; window 9 always has the show's sheet (s02 and s03
+# draw it the same, so the seam holds)
+LIFE_CURTAINS = {12: "sheers_open", 9: dict(kind="sheet", soft=2.0, density=0.92)}
 
 
 def halo_for(zf):
@@ -1125,7 +1127,7 @@ def bino_lower(t, lower_t=14.75):
 def bino_hinge(t, lower_t=14.75):
     k = bino_lower(t, lower_t)
     x = lerp(0.0, 6.0, k)
-    y = lerp(9.0, 168.0, k) + 1.2 * math.sin(t * 2.0 * math.pi / 3.6) * (1.0 - k)
+    y = lerp(9.0, 168.0, k) + 1.2 * math.sin((t - 13.0) * 2.0 * math.pi / 3.6) * (1.0 - k)
     return (x, y), lerp(0.0, -7.0, k)
 
 

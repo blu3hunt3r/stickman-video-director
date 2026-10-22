@@ -45,7 +45,7 @@ ROOM = R9.r
 
 LAMP0 = APT.LAMP_FRONT                    # (0.45, 2.15) where s07 left it, lit
 LAMP_SET = (-0.55, 3.92)                  # behind the sheet: the decoy's bulb
-DECOY = (-0.55, 1.58, 3.82)               # the woman doll's pelvis (rod top), 10 cm before the bulb
+DECOY = (-0.55, 1.62, 3.82)               # the woman doll's pelvis (rod top), 10 cm before the bulb
 ROD_GRIP = 0.30                           # she holds the rod this far below the doll
 W0 = (0.02, 3.98)                         # at window 9 (between the rig's two dolls, seen from here)
 WALL = (-1.76, 2.52)                      # flat against the wall on the door's hinge side
@@ -198,12 +198,12 @@ class Her:
         hx, hy = M.transform_point(*sk.j["hand_L"])
         k = ROOM.ppm(Z)
         if t < self.t_doll_grab + 0.2:
-            # still coming off its rod: blend from the rig position to the hand
-            X0, Z0, w_, d, h = APT.TABLE
-            rx, ry = APT.RODS["woman"]
-            Zd = lerp(Z0, Z, L.k_(t, self.t_doll_grab, 0.2))
+            # still coming off its rod: blend from the rig's depth to her hand's
+            Zd = lerp(APT.TABLE[1], Z, L.k_(t, self.t_doll_grab, 0.2))
         else:
-            Zd = Z
+            # held at her side, then reached out to the clamp in front of the bulb
+            c0 = self.t_clamp - 0.42
+            Zd = lerp(Z, DECOY[2], L.k_(t, c0 - 0.28, 0.28 + 0.30))
         kk = ROOM.ppm(Zd)
         st = L.doll_stage_at((hx, hy - ROD_GRIP * k), 0.45 * kk, "woman", mirror=False)
         return "hand", st, Zd
@@ -320,10 +320,8 @@ def render(f, t, T):
 
     def her_shape(c):
         L.draw_skeleton(c, sk, plain, M, color=(0, 0, 0))
-        if kind == "hand":
-            L.doll_casters(c, dstage, "woman", mirror=False)
 
-    def decoy_shape(c):
+    def doll_shape(c):
         L.doll_casters(c, dstage, "woman", mirror=False)
 
     # what throws shadows where
@@ -331,9 +329,11 @@ def render(f, t, T):
     casters = []
     if Z < ROOM.zb - 0.05:
         wall_casters.append((Z, her_shape))
+        if kind == "hand":
+            wall_casters.append((dz, doll_shape))
     wall_casters.append((APT.TABLE[1], lambda c: R9.table_casters(c, woman=(kind == "rig"))))
-    if kind == "clamp":
-        casters.append((dz, decoy_shape))
+    if kind in ("clamp", "hand") and L.SHEET_Z < dz < lamp["Z"] - 0.012:
+        casters.append((dz, doll_shape))
     if L.SHEET_Z < Z < lamp["Z"] - 0.012:
         casters.append((Z, her_shape))
 

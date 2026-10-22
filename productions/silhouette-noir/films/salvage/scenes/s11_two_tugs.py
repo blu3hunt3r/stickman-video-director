@@ -456,22 +456,22 @@ def _backdrop(f, t, cam):
 
 
 def _night_water(f, t, cam):
-    """On the way up the column greys toward a moonlit surface; painted OVER the wreck so
-    she sinks into the murk below us."""
+    """On the way up the water greys toward a faint moonlit skin (a compressed column: the
+    colour runs ahead of the camera); painted OVER the wreck so she sinks into the murk."""
     u = _rise_u(t)
     a = ss(0.08, 0.62, u)
     if a <= 0.0:
         return
-    vy = lerp(cam.y, 500.0, ss(0.15, 1.0, u))
+    vy = lerp(1750.0, 760.0, ss(0.1, 0.95, u))
     with f.screen() as Sc:
         st = []
         for i in range(9):
             sy = -40 + (H + 80) * i / 8
-            y = vy + (sy - H / 2) / 0.22 * 0.35
-            st.append((i / 8, S.water_at(y, bright=0.42), a))
+            y = vy + (sy - H / 2) / H * 950.0
+            st.append((i / 8, S.water_at(max(y, 120.0), bright=0.55), a))
         draw.linear(Sc, (0, -40), (0, H + 40), st)
         Sc.paint()
-    LIB.screen_glow(f, (560.0, -260.0), 1300.0, mix(PAL.moon, PAL.mid, 0.45), 0.55 * ss(0.45, 1.0, u), blur=40)
+    LIB.screen_glow(f, (600.0, -320.0), 1100.0, mix(PAL.moon, PAL.mid, 0.35), 0.30 * ss(0.5, 1.0, u), blur=40)
 
 
 def _shadow(f, t, cam):

@@ -45,7 +45,7 @@ INK = MOOD.ink
 OLD_X = -40.0            # Old Red in the doorway (door x -150..150)
 WOLF_X = 398.0           # the old wolf's root: it lies at her feet, head across the lit doorway
 WOLF_OFF = 6.0           # the wolf's clock runs ahead: already lying when the scene opens
-CHILD_X0 = -1950.0       # the child, out of shot down the path until ~8.5 s
+CHILD_X0 = -2450.0       # the child, out of shot down the path until ~9 s
 CHILD_X1 = -360.0
 
 FLAT = 13.0              # the flatten begins
@@ -98,7 +98,7 @@ def _cast(T):
     r.blink(8.8)
     # ---- the child: up the lantern path toward the door
     k = Actor(cast.NEW_CHILD, cast.new_child(), x=CHILD_X0, ground=G, facing=1, seed=14, name="child")
-    k.stand(until=7.3, at=-1.0)
+    k.stand(until=6.2, at=-1.0)
     k.walk(to=CHILD_X1, gait="child_walk", speed=0.74)
     k.stand(until=30.0)
     k.look_at(10.6, 30.0, (OLD_X, 1100.0), fade=0.6, amount=0.7)

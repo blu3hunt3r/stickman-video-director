@@ -900,7 +900,7 @@ class Room9:
                     slashes(f, t, L, sh)
             if lv > 0.01:
                 if behind:
-                    slev = lv * lerp(0.3, 1.0, cover) * lerp(0.5, 1.0, hide)
+                    slev = 0.7 * lv * lerp(0.3, 1.0, cover) * lerp(0.5, 1.0, hide)
                 else:
                     slev = lv * 0.4 * lerp(0.4, 1.0, cover)
                 sh.light(f, t, hot, level=slev, back=behind)
