@@ -33,6 +33,7 @@ from engine import figure as FIG
 from engine.core import clamp, lerp, smoothstep, fbm1, hash01
 from engine.frame import Camera
 from engine.motion import Actor
+from engine.palette import RED
 from engine.timing import Cue
 from films.shadowplay import cast, sets
 from films.shadowplay.scenes import _lib_s02_s04 as L
@@ -420,16 +421,16 @@ HWR = HERS.window_rect(HW)                               # (412, 1050, 668, 1370
 HWC = HERS.window_center(HW)                             # (540, 1210)
 HERS_LIT = {2: 0.55, 7: 0.45, 17: 0.8, 24: 0.6, 29: 0.5, 31: 0.75, 38: 0.5}
 ST = sets.Street(HERS.ground_y, depth=760.0, seed=5)
-CAR_U, CAR_X0, CAR_GO = 0.62, 860.0, 9.85
+CAR_U, CAR_X0 = 0.62, 860.0
 COP_U, COP_X = 0.86, 250.0
 LAMP = sets.Streetlamp((-40.0, HERS.ground_y + 40.0), height=680.0, facing=1)
-RAISE_T, FOUND_T, LOWER_T = 7.15, 8.2, 9.6
+RAISE_T, FOUND_T, LOWER_T, CAR_GO = 7.2, 8.2, 9.75, 9.95
 DARK_TOP, DARK_BOT = (0.062, 0.070, 0.098), (0.020, 0.024, 0.037)     # the facade's dark glass
 
-street_cam = _cam_spline([(CUT_T, (540.0, 1326.0, 0.86), "hold"), (5.75, (540.0, 1326.0, 0.86)),
-                          (7.05, (600.0, 3560.0, 0.80), "hold"), (7.25, (600.0, 3560.0, 0.80), "hold"),
-                          (8.25, (546.0, 1300.0, 0.97)), (9.35, (536.0, 1236.0, 1.30), "hold"),
-                          (9.65, (536.0, 1236.0, 1.30), "hold"), (10.95, (590.0, 2900.0, 0.50)),
+street_cam = _cam_spline([(CUT_T, (540.0, 1326.0, 0.86), "hold"), (5.72, (540.0, 1326.0, 0.86)),
+                          (6.8, (600.0, 3560.0, 0.80), "hold"), (7.3, (600.0, 3560.0, 0.80), "hold"),
+                          (8.28, (546.0, 1300.0, 0.97)), (9.3, (536.0, 1236.0, 1.30), "hold"),
+                          (9.8, (536.0, 1236.0, 1.30), "hold"), (11.0, (590.0, 2900.0, 0.50)),
                           (12.2, (594.0, 2930.0, 0.49))])
 
 
@@ -447,7 +448,7 @@ def beam_target(t):
     hx, hy = HWC
     gx, gy = COP_X + 260.0, ST.lane_y(0.5)
     p = _aim_keys([(RAISE_T - 0.05, (gx, gy)), (RAISE_T + 0.4, (395.0, 2950.0), "in3"),
-                   (7.85, (548.0, 1640.0), "inout"), (FOUND_T, (hx + 4.0, hy - 6.0), "out3"),
+                   (7.93, (548.0, 1640.0), "inout"), (FOUND_T, (hx + 4.0, hy - 6.0), "out3"),
                    (LOWER_T, (hx + 2.0, hy - 4.0)), (LOWER_T + 0.38, (gx + 120.0, gy), "in3")], t)
     wob = 1.0 - 0.75 * smoothstep(FOUND_T - 0.1, FOUND_T + 0.2, t)
     return (p[0] + 12.0 * wob * fbm1(t * 1.3, 17), p[1] + 9.0 * wob * fbm1(t * 1.1, 19))
@@ -540,7 +541,7 @@ def her_window(t, dreamed):
         ctx.restore()
         # her eyes: two faint glints in the dark, wide and bright in the torch
         vis = 1.0 - smoothstep(0.15, 0.55, kb)
-        gl = (0.35 + 0.65 * lv) * vis
+        gl = (0.55 + 0.45 * lv) * vis
         if gl > 0.01:
             e1, e2, r, wgt, front = FIG.eye_points(sk, look)
             s = 1.0 - 0.10 * kb
@@ -596,7 +597,7 @@ def draw_street(f, t, T, w):
     srcs = HERS.light_sources(t, HERS_LIT) + [LAMP.light_source()] + car.light_sources(t, 1.0 - 0.4 * gone)
     ST.draw(f, t, sources=srcs, lamp_pools=[(LAMP.lantern[0], 1.0)], reflections=0.9)
     LAMP.draw(f, t)
-    car.draw(f, t, lights=1.0 - 0.4 * gone, wash=1.8 * (1.0 - 0.7 * gone))
+    car.draw(f, t, lights=1.0 - 0.4 * gone, wash=1.8 * (1.0 - 0.7 * gone), headlights=0.75)
     # the cop, his reflection, his torch
     a = street_cop()
     gy = ST.lane_y(COP_U)
@@ -608,21 +609,24 @@ def draw_street(f, t, T, w):
     tgt = beam_target(t)
     hand = sk.j["hand_R"]
     ang = math.degrees(math.atan2(tgt[1] - hand[1], tgt[0] - hand[0]))
+    b, r = car.strobe(t)
+    rim = sets.mix(sets.mix(L.COOL, sets.AMBER, 0.3), sets.BLUE, min(1.0, 1.2 * b))
+    rim = sets.mix(rim, RED, min(1.0, 1.2 * r))
     with f.layer() as Lc:
-        a.draw(f, t, Lc, eyes=False)
+        L.rimlit(f, Lc, lambda c: a.draw(None, t, c, eyes=False), rim=(rim, 0.5 + 0.4 * max(b, r)), d=2.0)
         lens = sets.flashlight(Lc, hand, ang if on > 0 else 100.0, scale=0.62 * a.H / cast.COP.height)
     cone = None
     if on > 0.01:
         dist = math.hypot(tgt[0] - lens[0], tgt[1] - lens[1])
         ux, uy = (tgt[0] - lens[0]) / dist, (tgt[1] - lens[1]) / dist
         stop = ((tgt[0] - uy * 400.0, tgt[1] + ux * 400.0), (tgt[0] + uy * 400.0, tgt[1] - ux * 400.0))
-        half = lerp(9.0, 2.7, smoothstep(RAISE_T, RAISE_T + 0.5, t)) if t < LOWER_T else \
-            lerp(2.7, 9.0, smoothstep(LOWER_T, LOWER_T + 0.4, t))
-        cone = atmos.beam(f, lens, ang, length=dist / 0.62, half_angle=half, color=TORCH, intensity=0.55 * on,
-                          falloff=0.55, soft=0.5, core=0.5, fog=0.5, stop=stop, pool=0.0, glare=0.8 * on, t=t,
+        half = lerp(9.0, 1.9, smoothstep(RAISE_T, RAISE_T + 0.5, t)) if t < LOWER_T else \
+            lerp(1.9, 9.0, smoothstep(LOWER_T, LOWER_T + 0.4, t))
+        cone = atmos.beam(f, lens, ang, length=dist / 0.62, half_angle=half, color=TORCH, intensity=0.42 * on,
+                          falloff=0.55, soft=0.5, core=0.6, fog=0.35, stop=stop, pool=0.0, glare=0.8 * on, t=t,
                           seed=7)
     f.haze(PAL.fog_at(0.85), 0.12, y0=3500.0, y1=4900.0, feather=500.0)
-    atmos.rain(f, density=1.0, angle=-8.0, t=t, seed=21, alpha=0.85, lit=cone, lit_gain=3.0, lit_color=TORCH)
+    atmos.rain(f, density=1.0, angle=-8.0, t=t, seed=21, alpha=0.65, lit=cone, lit_gain=3.5, lit_color=TORCH)
 
 
 # ============================================================================= scene
@@ -635,7 +639,7 @@ def render(f, t, T):
 
 
 def motion_blur(t, T):
-    if 0.15 < t < 0.34 or 6.0 < t < 6.9 or 7.4 < t < 8.15 or 9.9 < t < 10.7:
+    if 0.15 < t < 0.34 or 5.9 < t < 6.7 or 7.45 < t < 8.15 or 10.0 < t < 10.85:
         return 2
     return 1
 

@@ -93,7 +93,7 @@ def _diver():
     # head (+ = nod down): up at the coils, level, down at his chest, the weights, then up
     A.key("head", [(-4.0, -40.0), (0.5, -40.0), (1.7, -4.0, "inout"), (2.4, 2.0, "inout"), (T_PULL0, 2.0),
                    (7.65, 26.0, "inout"), (8.25, 28.0), (8.55, 32.0, "inout"), (8.95, 20.0, "inout"),
-                   (9.35, -10.0, "inout"), (9.95, -42.0, "inout"), (12.0, -44.0)], fade=0.0)
+                   (9.4, 14.0, "inout"), (10.05, -40.0, "inout"), (12.0, -44.0)], fade=0.0)
     A.key("spine", [(-4.0, -5.0), (0.6, -5.0), (1.8, 2.0, "inout"), (T_PULL0, 2.0), (7.65, 9.0, "inout"),
                     (8.25, 9.0), (8.65, 2.0, "inout"), (9.5, -6.0, "inout"), (12.0, -8.0)], fade=0.0)
     return A
@@ -312,39 +312,44 @@ def _marks():
     return dict(port=port, hc=hc, root=A.root(0.0))
 
 
-Z_CU0, Z_CU1 = 3.0, 4.2
+Z_CU0, Z_CU1 = 3.0, 5.0
+
+
+CU_SCREEN = (600.0, 830.0)      # where the port sits on screen through the close-up
 
 
 def camera(t):
     m = _marks()
     hc, port = m["hc"], m["port"]
-    if t < T_LIFT + 0.8:
-        x = LIB.track([(-1.0, X0 + 30.0), (0.6, X0 + 20.0, "out"), (T_PUSH0, X0 + 18.0), (T_PUSH1, port[0] - 20.0, "inout"),
-                       (T_PULL0, port[0] - 24.0, "inout"), (T_PULL1, X0 + 62.0, "inout"), (T_DROP, X0 + 64.0),
-                       (8.95, X0 + 66.0, "inout"), (12.0, X0 + 66.0)], t)
-        y = LIB.track([(-1.0, hc[1] - 820.0), (0.6, hc[1] - 156.0, "out"), (T_PUSH0, hc[1] - 150.0, "inout"),
-                       (T_PUSH1, port[1] + 40.0, "inout"), (T_PULL0, port[1] + 36.0, "inout"),
-                       (T_PULL1, 8640.0, "inout"), (T_DROP, 8650.0), (8.95, SEA0 - 260.0, "inout"),
-                       (12.0, SEA0 - 260.0)], t)
-        z = LIB.track([(-1.0, 1.0), (0.6, 1.22, "out"), (T_PUSH0, 1.25, "inout"), (T_PUSH1, Z_CU0, "inout"),
-                       (T_PULL0, Z_CU0), (T_PULL1, 2.4, "inout"), (T_DROP, 2.36), (8.95, 2.0, "inout"),
-                       (12.0, 2.0)], t)
-        if T_PUSH1 - 0.3 < t < T_PULL1:
-            k = ss(T_PUSH1 - 0.3, T_PUSH1, t) * (1.0 - ss(T_PULL0, T_PULL0 + 0.35, t))
-            z *= (Z_CU1 / Z_CU0) ** (_steps(t) * (1.0 - ss(T_PULL0, T_PULL1, t))) * (1.0 + 0.018 * k * _pulse(t))
-        cam_low = (x, y, z)
-    if t >= 9.3:
+    tl = min(t, T_LIFT + 0.8)
+    z = LIB.track([(-1.0, 1.0), (0.6, 1.22, "out"), (T_PUSH0, 1.25, "inout"), (T_PUSH1, Z_CU0, "inout"),
+                   (T_PULL0, Z_CU0), (T_PULL1, 2.4, "inout"), (T_DROP, 2.36), (8.95, 2.0, "inout"),
+                   (12.0, 2.0)], tl)
+    if T_PUSH1 - 0.3 < tl < T_PULL1:
+        # the heartbeat push: a notch in on each beat, a small thump on each lub-dub
+        k = ss(T_PUSH1 - 0.3, T_PUSH1, tl) * (1.0 - ss(T_PULL0, T_PULL0 + 0.35, tl))
+        z *= (Z_CU1 / Z_CU0) ** (_steps(tl) * (1.0 - ss(T_PULL0, T_PULL1, tl))) * (1.0 + 0.018 * k * _pulse(tl))
+    xc0 = port[0] - (CU_SCREEN[0] - W / 2) / Z_CU0
+    yc0 = port[1] - (CU_SCREEN[1] - H / 2) / Z_CU0
+    x = LIB.track([(-1.0, X0 + 30.0), (0.6, X0 + 20.0, "out"), (T_PUSH0, X0 + 18.0), (T_PUSH1, xc0, "inout"),
+                   (T_PULL0, xc0), (T_PULL1, X0 + 62.0, "inout"), (T_DROP, X0 + 64.0),
+                   (8.95, X0 + 66.0, "inout"), (12.0, X0 + 66.0)], tl)
+    y = LIB.track([(-1.0, hc[1] - 820.0), (0.6, hc[1] - 156.0, "out"), (T_PUSH0, hc[1] - 150.0, "inout"),
+                   (T_PUSH1, yc0, "inout"), (T_PULL0, yc0), (T_PULL1, 8640.0, "inout"), (T_DROP, 8650.0),
+                   (8.95, SEA0 - 260.0, "inout"), (12.0, SEA0 - 260.0)], tl)
+    # through the close-up the port stays put on screen while the zoom breathes in
+    w = ss(T_PUSH1 - 0.5, T_PUSH1, tl) * (1.0 - ss(T_PULL0, T_PULL0 + 0.45, tl))
+    if w > 0.0:
+        x = lerp(x, port[0] - (CU_SCREEN[0] - W / 2) / z, w)
+        y = lerp(y, port[1] - (CU_SCREEN[1] - H / 2) / z, w)
+    if t > 9.3:
         # rise with him: catch up, pull out, then let him drift up through the centre
-        A = _diver()
-        rx, ry = A.root(t)
+        rx, ry = _diver().root(t)
         u = ease("inout", clamp((t - 9.3) / 1.3))
-        lx, ly, lz = cam_low if t < T_LIFT + 0.8 else (X0 + 66.0, SEA0 - 260.0, 2.0)
         drift = 150.0 * ss(10.4, 11.9, t)
-        x = lerp(lx, rx + 8.0, u)
-        y = lerp(ly, ry - 110.0 + drift, u)
-        z = lerp(lz, lerp(1.25, 1.12, ss(10.5, 11.8, t)), u)
-    else:
-        x, y, z = cam_low
+        x = lerp(x, rx - 22.0, u)
+        y = lerp(y, ry - 110.0 + drift, u)
+        z = lerp(z, lerp(1.25, 1.12, ss(10.5, 11.8, t)), u)
     cam = Camera(x, y, z)
     amp = 0.6 + 1.2 * LIB.bump(t, T_DROP - 0.3, T_DROP, 9.4, 9.9)
     return cam.shaken(t, amp=amp, rot_amp=0.04, freq=0.45, seed=13)
@@ -360,8 +365,8 @@ def _aim(t):
     """Where the lamp points, relative to the lamp."""
     return LIB.track([(-4.0, (260.0, -800.0)), (0.7, (260.0, -800.0)), (1.8, (800.0, 70.0), "inout"),
                       (T_PULL0, (800.0, 130.0)), (7.7, (300.0, 700.0), "inout"), (8.3, (220.0, 760.0)),
-                      (8.9, (170.0, 800.0), "inout"), (9.25, (160.0, 640.0), "inout"),
-                      (9.95, (90.0, -900.0), "inout"), (12.0, (60.0, -1000.0))], t)
+                      (8.9, (170.0, 800.0), "inout"), (9.42, (150.0, 700.0), "inout"),
+                      (10.05, (90.0, -900.0), "inout"), (12.0, (60.0, -1000.0))], t)
 
 
 def _beam(f, t, sk):
@@ -418,10 +423,10 @@ def _lamp_glare(f, sk, t):
 def _eyes(t):
     look_x = LIB.track([(-4.0, 0.3), (0.7, 0.3), (1.5, 0.25, "inout"), (2.4, 0.1), (2.62, -0.45, "out"),
                         (2.95, 0.45, "inout"), (3.25, -0.2, "inout"), (3.5, 0.0), (T_CALM, -0.1),
-                        (7.2, -0.1), (7.6, 0.35, "inout"), (8.5, 0.3), (9.2, 0.2, "inout"), (9.7, 0.1, "inout")], t)
+                        (7.2, -0.1), (7.6, 0.35, "inout"), (8.5, 0.3), (9.4, 0.3), (9.75, 0.2, "inout"), (10.1, 0.1, "inout")], t)
     look_y = LIB.track([(-4.0, -0.9), (0.7, -0.9), (1.5, 0.15, "inout"), (2.4, 0.1), (2.62, 0.15, "out"),
                         (2.95, -0.05, "inout"), (3.25, 0.25, "inout"), (3.5, 0.3), (T_CALM, 0.05),
-                        (7.2, 0.05), (7.6, 0.9, "inout"), (8.5, 1.0), (9.2, 0.0, "inout"), (9.7, -0.9, "inout")], t)
+                        (7.2, 0.05), (7.6, 0.9, "inout"), (8.5, 1.0), (9.4, 0.8), (9.75, 0.0, "inout"), (10.1, -0.9, "inout")], t)
     shut = LIB.bump(t, T_ONE - 0.02, T_ONE + 0.16, T_CALM, T_CALM + 0.45)
     blink = LIB.bump(t, 0.92, 1.0, 1.04, 1.14)
     return (look_x, look_y), (1.0 - shut) * (1.0 - blink)
