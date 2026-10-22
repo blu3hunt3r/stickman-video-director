@@ -21,10 +21,13 @@ IN   window shape from s06 (1.0 s, centred on 0): the cut-paper window grows fro
            across it, the man doll's knife arm raised against it; her coat goes RED
 10.30-11.28 she turns from the sheet toward the window and walks round it; her shadow slides
            off the sheet
-11.28      cut: window 9 from inside (NineWindow, the sheet pushed aside on its wire): she
-           stands at the glass looking out, three-quarter back; the show lamp's warmth behind
-           her; across the rainy street her own building, her window lit
-OUT  hard cut to s08 (over her shoulder through the same window, closer).
+11.28      cut on her stride: window 9 from inside (NineWindow, the sheet pushed aside on its
+           wire). She comes in from the left, stops at the glass (11.95), turns a little and
+           lifts her eyes to her own building across the rainy street, her window lit
+           (12.3): three-quarter back, the show lamp's warmth behind her
+OUT  hard cut to s08 (over her shoulder through the same window, closer): at 12.5 she holds
+     s08's pose (yaw -50, head -5, head_yaw 10); her window 13 at screen (688, 933) here,
+     (748, 935) in s08's first frame.
 """
 import math
 from functools import lru_cache
@@ -624,5 +627,5 @@ def cues(T):
         Cue(W_["show"], "lamp switch: a hard click; the bulb's filament hum", -3, pan=0.15),
         Cue(W_["show"] + 0.04, "a low swell under the giant shadow", -10, dur=1.3),
         Cue(10.55, "her steps toward the window, boards", -16, pan=0.35, dur=0.8),
-        Cue(T_WIN, "at the glass: rain on window 9, the street below, a car hissing past", -10, dur=1.22),
+        Cue(T_WIN, "cut: her quick steps to the glass; rain on window 9, the street below", -10, dur=1.22),
     ]

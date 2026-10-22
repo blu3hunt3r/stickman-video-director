@@ -1,26 +1,31 @@
 """s11 · TWO TUGS: outside, at the bell, in the dark under her quarter (10.0 s).
 
-IN  (hard cut on action from s10): the diver walks right along the silt, the hook in his
-    right glove swinging forward (toward frame right), the pale line rising from it out of
-    the top of frame, the red hose from the back of his helmet.
+IN  (hard cut on action from s10, whose hook swings toward frame right at 10.0): the diver
+    walks right along the silt (screen x ~420 at 0.0), the hook in his right glove swinging
+    forward (toward frame right), the pale line rising from its eye out of the top of frame,
+    the red hose trailing up and left from the back of his helmet; the lamp rakes the silt.
 
-Beats (scene-local s; L16 0.84-7.31):
-  0.0-1.8          he walks right into the shadow under the wreck's quarter (heavy gait);
-                   the lamp rakes the silt ahead
-  1.6-2.09         he stops; the beam lifts... and on [something@2.09] ends on an EDGE: a
-                   warm sliver of a big curve in the dark (the bell: never seen whole)
-  2.1-2.5          he reaches up with the hook; 2.50 it bites under the lip (clink)
-  2.6-3.45         both gloves make the line fast at the hook; a hard pull to cinch it
-  3.6-4.6          he backs away two steps, the line running through his right glove: the
-                   line now comes down from above to his hands and runs on into the dark
+Beats (scene-local s; L16 tied 0.84 ... tugs 6.45-7.31):
+  0.0-1.7          he walks right into the shadow under the wreck's quarter (heavy gait)
+  1.45-2.09        he stops; the beam lifts... and on [something@2.09] ends on an EDGE: a
+                   warm crescent of a big curve in the dark (the bell: never seen whole; the
+                   bell itself is ink inside the wreck's shadow and occludes the beam)
+  2.1-2.5          he reaches up with the hook; 2.50 it bites under the near (left) lip
+  2.62-3.45        both gloves make the line fast at the hook's eye; a hard pull cinches it
+  3.62-4.62        he backs away from it (two heavy steps to frame left), the line running
+                   through his gloves: it now comes down from above to his hands and runs on,
+                   taut, to the hook
   4.7-5.8          hand over hand he takes up the slack
-  [two@6.06], [tugs@6.45]   TWO TUGS: both gloves jerk the line; the kinks run up it
-  6.6-7.3          he looks up the line; the beam swings up with his eyes
-  7.3-10.6         the camera rises along the line and the hose, faster and faster: the hull
-                   slides away, the hose crosses over the line, the water greys toward a
-                   faint moonlit surface
-OUT (scroll 'down' = ascent, window 9.375-10.625): vertical pale line at screen x 470 and
-    red hose at x 610 rising toward the light, marine snow streaming down.
+  [two@6.06], [tugs@6.45]   TWO TUGS: both gloves jerk the line down; kinks run up it
+  6.6-7.3          he looks up the line; the beam swings up past his hands with his eyes
+  7.3-10.625       the camera pulls out and rises along the line and the hose, faster and
+                   faster: the wreck slides away below, the hose crosses over the line, the
+                   water greys toward a faint moonlit surface, snow streaks down
+OUT (scroll 'down' = ascent, window 9.375-10.625; s11's top edge meets s12's bottom edge):
+    9.375: the line vertical at screen x ~476, the hose top at x ~620 curving in from the
+    helmet (bottom-left, x ~380) and crossing the line ~1/3 down the frame.
+    10.625: both vertical, the pale line at screen x ~472, the red hose at x ~600, no
+    figure, the water lighter toward the top.
 """
 import functools
 import math
