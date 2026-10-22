@@ -26,9 +26,11 @@ OUT 11.0-12.0 (bars, 2 horizontal): calm and mostly dark: her building, her wind
 import math
 from functools import lru_cache
 
+import numpy as np
+
 from engine import atmos, draw
 from engine import figure as FIG
-from engine.core import clamp, lerp, smoothstep, fbm1
+from engine.core import clamp, lerp, smoothstep, fbm1, hash01
 from engine.frame import Camera
 from engine.motion import Actor
 from engine.timing import Cue
@@ -82,8 +84,11 @@ def _hand_target(a, t, aim, reach=0.31):
 APT = sets.Apartment9(origin=(540.0, 880.0), scale=1.0)
 ROOM = APT.room
 DOOR_KEYS = [(0.15, 0.0), (0.29, 1.0, "out3"), (0.52, 0.84, "inout"), (0.95, 0.885, "inout")]
-COP1_Z, COP1_X0, COP1_X1 = 1.80, -1.80, -1.30            # steps in from the doorway
-COP2_X, COP2_Z = -2.02, 1.48                              # in the hall, framed by the doorway
+HALL_SRC = (-ROOM.hw - 1.1, 2.75, APT.DOOR_Z[0] - 0.7)      # Apartment9.lights' hallway bulb
+LEAF_Z = APT.DOOR_Z[1] - 0.01                               # the open leaf stands about here
+COP_HM = 1.84                                               # a cop is 1.84 m tall
+COP1_Z, COP1_XH, COP1_X0, COP1_X1 = 1.74, -2.15, -1.84, -1.22   # hall -> doorway -> a step in
+COP2_Z, COP2_XH, COP2_X = 2.00, -2.75, -2.10                # behind him, in the hall
 
 
 def door_open(t):
@@ -110,13 +115,13 @@ def ray_exit(pos, d):
 def torch_aims(w):
     """3D aim points of the two torches: they search, then land on nothing."""
     police, body, blood, woman, _ = w
-    t1 = [(0.27, (0.40, 2.10, 4.20)), (0.75, (0.95, 1.20, 4.20), "out3"), (1.45, (1.60, 0.0, 3.30)),
-          (2.05, (0.85, 0.0, 2.30)), (body - 0.35, (-0.40, 0.0, 2.75)), (body, (0.05, 0.0, 3.10), "out3"),
-          (woman - 0.40, (0.10, 0.0, 3.15)), (woman, (0.02, 1.62, 4.20), "out3"), (CUT_T + 0.5, (0.05, 1.66, 4.20))]
-    t2 = [(police - 0.05, (1.60, 2.90, 3.20)), (police + 0.6, (1.90, 1.50, 3.60), "out3"),
-          (2.2, (1.20, 2.10, 4.20)), (blood - 0.35, (0.55, 2.35, 4.20)), (blood, (-0.86, 1.48, 4.20), "out3"),
-          (woman + 0.15, (-0.80, 1.50, 4.20)), (woman + 0.65, (-0.16, 1.48, 4.20), "inout"),
-          (CUT_T + 0.5, (-0.12, 1.45, 4.20))]
+    t1 = [(0.27, (0.30, 2.30, 4.20)), (0.80, (1.05, 1.30, 4.20), "out3"), (1.50, (1.55, 0.0, 3.40)),
+          (2.05, (0.85, 0.0, 2.40)), (body - 0.35, (-0.45, 0.0, 2.80)), (body, (0.05, 0.0, 3.15), "out3"),
+          (woman - 0.40, (0.10, 0.0, 3.20)), (woman, (0.06, 1.62, 4.20), "out3"), (CUT_T + 0.5, (0.08, 1.66, 4.20))]
+    t2 = [(police - 0.05, (1.40, 2.90, 3.10)), (police + 0.6, (1.90, 1.55, 3.70), "out3"),
+          (2.25, (1.20, 2.15, 4.20)), (blood - 0.35, (0.65, 2.35, 4.20)), (blood, (-0.92, 1.42, 4.20), "out3"),
+          (woman + 0.15, (-0.86, 1.46, 4.20)), (woman + 0.70, (-0.18, 1.50, 4.20), "inout"),
+          (CUT_T + 0.5, (-0.14, 1.47, 4.20))]
     return t1, t2
 
 
@@ -142,29 +147,34 @@ def aim_at(i, t, w):
     return (X, Y, Z)
 
 
+def _cop(X, Z, seed, k=1.0):
+    gy = ROOM.P(0.0, 0.0, Z)[1]
+    sc = k * COP_HM * ROOM.ppm(Z) / cast.COP.height
+    return Actor(cast.COP, cast.cop(), x=ROOM.P(X, 0.0, Z)[0], ground=gy, facing=1, scale=sc, seed=seed)
+
+
 @lru_cache(maxsize=2)
 def cops(w):
-    """The two cops (Actors in world px at their depth), with the torch arms aimed."""
+    """Cop 1 kicks the door in and steps into the room; cop 2 comes up behind him and stays
+    in the doorway. Actors in world px at their depths, torch arms aimed (Actor.reach)."""
     police = w[0]
-    x0 = ROOM.P(COP1_X0, 0.0, COP1_Z)[0]
-    x1 = ROOM.P(COP1_X1, 0.0, COP1_Z)[0]
-    gy = ROOM.P(0.0, 0.0, COP1_Z)[1]
-    k1 = ROOM.ppm(COP1_Z) / sets.PX_M
-    c1 = Actor(cast.COP, cast.cop(), x=x0, ground=gy, facing=1, scale=k1, seed=41)
-    c1.stand(until=0.42, at=-1.0, idle=0.4)
-    c1.walk(to=x1, at=0.42, speed=165.0)
+    c1 = _cop(COP1_XH, COP1_Z, 41)
+    c1.stand(until=0.16, at=-1.0, idle=0.3)
+    c1.walk(to=ROOM.P(COP1_X0, 0.0, COP1_Z)[0], at=0.16, speed=380.0)
+    c1.stand(until=0.56, idle=0.4)
+    c1.walk(to=ROOM.P(COP1_X1, 0.0, COP1_Z)[0], at=0.56, speed=240.0)
     c1.stand(until=30.0, idle=0.5)
-    c1.reach("R", 0.25, 30.0, lambda t: _hand_target(c1, t, ROOM.P(*aim_at(0, t, w))), fade=0.12)
-    c1.key("head", [(0.2, 4.0), (1.4, 8.0), (2.7, 14.0), (4.4, 2.0), (6.0, 2.0)], fade=0.3)
-    x2 = ROOM.P(COP2_X, 0.0, COP2_Z)[0]
-    gy2 = ROOM.P(0.0, 0.0, COP2_Z)[1]
-    k2 = ROOM.ppm(COP2_Z) / sets.PX_M
-    c2 = Actor(cast.COP, cast.cop(), x=x2 - 140.0, ground=gy2, facing=1, scale=k2 * 0.97, seed=42)
-    c2.stand(until=police - 0.55, at=-1.0, idle=0.4)
-    c2.walk(to=x2, at=police - 0.55, speed=260.0)
+    c1.reach("R", 0.24, 30.0, lambda t: _hand_target(c1, t, ROOM.P(*aim_at(0, t, w))), fade=0.1)
+    c2 = _cop(COP2_XH, COP2_Z, 42, 0.98)
+    c2.stand(until=police - 0.45, at=-1.0, idle=0.3)
+    c2.walk(to=ROOM.P(COP2_X, 0.0, COP2_Z)[0], at=police - 0.45, speed=300.0)
     c2.stand(until=30.0, idle=0.5)
-    c2.reach("R", police - 0.2, 30.0, lambda t: _hand_target(c2, t, ROOM.P(*aim_at(1, t, w))), fade=0.15)
+    c2.reach("R", police - 0.15, 30.0, lambda t: _hand_target(c2, t, ROOM.P(*aim_at(1, t, w))), fade=0.15)
     return c1, c2
+
+
+def _cop_X(a, t, Z):
+    return to3d((a.root(t)[0], 0.0), Z)[0]
 
 
 def torches(t, w):
@@ -172,7 +182,7 @@ def torches(t, w):
     3D pos / dir / hit for the room light and the beam."""
     c1, c2 = cops(w)
     out = []
-    for i, (a, Z, t_on) in enumerate(((c1, COP1_Z, 0.27), (c2, COP2_Z + 0.02, w[0] - 0.02))):
+    for i, (a, Z, t_on) in enumerate(((c1, COP1_Z, 0.27), (c2, COP2_Z, w[0] - 0.02))):
         if t < t_on - 0.3:
             out.append(None)
             continue
@@ -192,20 +202,152 @@ def torches(t, w):
     return out
 
 
-def _doorway_clip(ctx):
-    draw.poly(ctx, APT.door.opening_quad())
+def door_blockers(t, w):
+    """Door-light blocker mask(u, v) for the light map: the cops' silhouettes seen from the
+    hallway bulb, projected onto the doorway (u 0 hinge .. 1 free edge, v 0 floor .. 1 top)."""
+    c1, c2 = cops(w)
+    z0, z1 = APT.DOOR_Z
+    sx, sy, sz = HALL_SRC
+    shapes = []
+    for a, Z in ((c1, COP1_Z), (c2, COP2_Z)):
+        X = _cop_X(a, t, Z)
+        s = (-ROOM.hw - sx) / (X - sx)
+        uc = (z1 - (sz + s * (Z - sz))) / (z1 - z0)
+        vh = (sy + s * (COP_HM - sy)) / APT.DOOR_H
+        hw = 0.17 * s / (z1 - z0)
+        shapes.append((uc, vh, hw, 0.11 * s / (z1 - z0), 0.13 * s / APT.DOOR_H))
+
+    def mask(u, v):
+        m = np.zeros_like(u)
+        for uc, vh, hw, hr, vr in shapes:
+            body = np.clip((hw - np.abs(u - uc)) / 0.03, 0, 1) * np.clip((vh - 1.6 * vr - v) / 0.02, 0, 1)
+            head = np.clip(1.0 - ((u - uc) / hr) ** 2 - ((v - (vh - vr)) / vr) ** 2, 0, 1) * 4.0
+            m = np.maximum(m, np.clip(np.maximum(body, head), 0, 1))
+        return m
+    return mask
+
+
+def _shadow_xf(ctx, Zc, Zl, src=HALL_SRC):
+    """Map a figure drawn at depth Zc to its shadow on the plane Z = Zl, cast by the point
+    light src (a uniform scale in the picture: both planes face the camera)."""
+    sx, sy, sz = src
+    s = (Zl - sz) / (Zc - sz)
+    dc, dl = Zc - ROOM.E[2], Zl - ROOM.E[2]
+    m = s * dc / dl
+    A = ROOM.ox + ROOM.F / dl * sx * (1.0 - s)
+    B = ROOM.oy - ROOM.F / dl * (sy - ROOM.E[1]) * (1.0 - s)
+    ctx.translate(A, B)
+    ctx.scale(m, m)
+    ctx.translate(-ROOM.ox, -ROOM.oy)
+
+
+def _leaf_lit_clip(ctx, op):
+    """The open leaf, below the line where the doorway's head shades it from the hall bulb."""
+    draw.poly(ctx, APT.door.leaf_quad(op))
+    ctx.clip()
+    sx, sy, sz = HALL_SRC
+    pts = []
+    for X in (-ROOM.hw, -0.9):
+        s = (-ROOM.hw - sx) / (X - sx)
+        pts.append(ROOM.P(X, sy - (sy - APT.DOOR_H) / s, LEAF_Z))
+    a, b = pts
+    draw.poly(ctx, [a, b, (b[0], b[1] + 2000.0), (a[0], a[1] + 2000.0)])
     ctx.clip()
 
 
+def _room_marks(f, t):
+    """Floorboards, skirting, picture rail, plaster cracks: ink drawn over the room light, so
+    they only show where a torch or the hall light falls (the bare room)."""
+    P = ROOM.P
+    hw, h, zb = ROOM.hw, ROOM.h, ROOM.zb
+    zn = -1.2
+    with f.layer() as K:
+        K.set_line_cap(0)
+        # floorboards (15 cm) running toward the window, with staggered butt joints
+        X = -hw + 0.15
+        i = 0
+        while X < hw - 0.05:
+            draw.poly(K, [P(X, 0, zb), P(X, 0, zn)], close=False)
+            draw.stroke(K, INK, 1.6, 0.55)
+            for j in range(4):
+                z = zb - 0.4 - 1.35 * j - 0.9 * hash01(7, i, j)
+                if z > zn:
+                    draw.poly(K, [P(X, 0, z), P(X + 0.15, 0, z)], close=False)
+                    draw.stroke(K, INK, 1.4, 0.45)
+            X += 0.15
+            i += 1
+        # skirting and picture rail round the walls (broken by the door), back corners
+        for Y, wd in ((0.12, 2.2), (2.25, 1.6)):
+            draw.poly(K, [P(-hw, Y, zb), P(hw, Y, zb)], close=False)
+            draw.poly(K, [P(hw, Y, zb), P(hw, Y, zn)], close=False)
+            draw.poly(K, [P(-hw, Y, zb), P(-hw, Y, APT.DOOR_Z[1] + 0.05)], close=False)
+            if Y > APT.DOOR_H:
+                draw.poly(K, [P(-hw, Y, APT.DOOR_Z[1] + 0.05), P(-hw, Y, zn)], close=False)
+            else:
+                draw.poly(K, [P(-hw, Y, APT.DOOR_Z[0] - 0.05), P(-hw, Y, zn)], close=False)
+            draw.stroke(K, INK, wd, 0.6)
+        for X in (-hw, hw):
+            draw.poly(K, [P(X, 0, zb), P(X, h, zb)], close=False)
+        draw.poly(K, [P(-hw, 0, zb), P(hw, 0, zb)], close=False)
+        draw.stroke(K, INK, 2.0, 0.5)
+        # plaster cracks on the back wall
+        for k, (cx, cy, ang, n) in enumerate(((-1.25, 1.95, 70.0, 5), (0.95, 1.10, 110.0, 4),
+                                               (-0.55, 0.55, 80.0, 3), (1.35, 2.15, 60.0, 4))):
+            pts = [P(cx, cy, zb)]
+            x, y = cx, cy
+            for j in range(n):
+                a = math.radians(ang + 50.0 * (hash01(11, k, j) - 0.5))
+                x += 0.11 * math.cos(a)
+                y -= 0.11 * math.sin(a)
+                pts.append(P(x, y, zb))
+            draw.poly(K, pts, close=False)
+            draw.stroke(K, INK, 1.2, 0.5)
+
+
+def _window_glare(f, t, tl):
+    """A torch on the bare window: the glass flares, the rain on it catches the light."""
+    X0, Y0, X1, Y1 = APT.WINDOW
+    zb = ROOM.zb
+    k = ROOM.ppm(zb)
+    r = APT.window_rect()
+    hits = []
+    for st in tl:
+        if st is None or st["level"] <= 0.01:
+            continue
+        hx, hy, hz = st["hit"]
+        if hz > zb - 0.02:
+            inside = smoothstep(-0.25, 0.05, min(hx - X0, X1 - hx, hy - Y0, Y1 - hy))
+            if inside > 0.01:
+                hits.append((ROOM.P(hx, hy, hz), inside * st["level"]))
+    if not hits:
+        return
+    with f.light(blur=3.0) as A:
+        for p, lv in hits:
+            sets.glow(A, p, 0.42 * k, TORCH, 0.42 * lv)
+            sets.glow(A, p, 0.12 * k, TORCH, 0.5 * lv)
+        A.save()
+        A.rectangle(r[0], r[1], r[2] - r[0], r[3] - r[1])
+        A.clip()
+        wsum = sum(lv for _, lv in hits)
+
+        def wgt(x, y):
+            return min(1.0, sum(lv * math.exp(-((x - p[0]) ** 2 + (y - p[1]) ** 2) / (0.35 * k) ** 2)
+                                for p, lv in hits))
+        sets.rain_glints(A, t, r, color=TORCH, alpha=0.9 * min(1.0, wsum), density=7.0, seed=99, speed=120.0,
+                         length=9.0, width=1.3, wind=0.0, weight=wgt)
+        A.restore()
+
+
 def draw_apartment(f, t, T, w):
-    cam = _cam_spline([(0.0, (430.0, 978.0, 0.94), "hold"), (0.9, (430.0, 978.0, 0.94)),
-                       (w[1] + 0.25, (468.0, 1000.0, 0.98)), (w[2] + 0.25, (452.0, 958.0, 1.02)),
-                       (w[3] + 0.55, (516.0, 902.0, 1.09)), (CUT_T, (522.0, 896.0, 1.12))])(t)
+    cam = _cam_spline([(0.0, (395.0, 965.0, 1.10), "hold"), (0.9, (395.0, 965.0, 1.10)),
+                       (w[1] + 0.25, (432.0, 988.0, 1.13)), (w[2] + 0.25, (440.0, 952.0, 1.17)),
+                       (w[3] + 0.55, (505.0, 905.0, 1.27)), (CUT_T, (512.0, 900.0, 1.32))])(t)
     sh = 1.6 * smoothstep(0.1, 0.4, t)
     f.set_camera(cam.copy(x=cam.x + sh * fbm1(t * 0.9, 31), y=cam.y + sh * fbm1(t * 0.9, 37)))
     tl = torches(t, w)
     c1, c2 = cops(w)
     op = door_open(t)
+    hall = 0.85
     lights = []
     extra = []
     for st in tl:
@@ -214,27 +356,59 @@ def draw_apartment(f, t, T, w):
         reach = math.sqrt(sum((a - b) ** 2 for a, b in zip(st["hit"], st["pos"])))
         lights.append(dict(pos=st["pos"], dir=st["dir"], cone=6.0, soft=5.0, color=TORCH, power=2.0 * st["level"],
                            reach=reach))
-        # the pool on the surface is brighter than the beam in the air
-        extra.append(dict(kind="spot", pos=st["pos"], dir=st["dir"], cone=5.0, soft=4.0, color=TORCH,
-                          power=7.5 * st["level"], r0=0.2))
+        # the hot spot on the surface: brighter and crisper than the beam in the air
+        extra.append(dict(kind="spot", pos=st["pos"], dir=st["dir"], cone=6.5, soft=2.5, color=TORCH,
+                          power=15.0 * st["level"], r0=0.2))
+
+    def marks(f_, t_):
+        _room_marks(f_, t_)
 
     def people(f_, t_):
-        if t_ <= 0.18:
+        if t_ <= 0.15:
             return
+        xclip = ROOM.P(-ROOM.hw, 0.0, APT.DOOR_Z[0])[0]
+        # the hall light on the open leaf, and cop 1's shadow thrown on it
+        with f_.light(blur=2.0) as A:
+            A.save()
+            _leaf_lit_clip(A, op)
+            q = APT.door.leaf_quad(op)
+            draw.linear(A, q[0], q[1], [(0, sets.mix(sets.AMBER, sets.HOT, 0.3), 0.42 * hall),
+                                        (1, sets.AMBER, 0.20 * hall)])
+            A.paint()
+            A.restore()
+        with f_.layer(blur=1.5) as S:
+            S.save()
+            _leaf_lit_clip(S, op)
+            S.save()
+            S.rectangle(xclip, -5000.0, 10000.0, 10000.0)
+            S.clip()
+            _shadow_xf(S, COP1_Z, LEAF_Z)
+            S.push_group()
+            c1.draw(None, t_, S, eyes=False)
+            st = tl[0]
+            if st is not None:
+                sets.flashlight(S, st["hand"], st["ang"], scale=st["scale"])
+            S.pop_group_to_source()
+            S.paint_with_alpha(0.85)
+            S.restore()
+            S.restore()
         with f_.layer() as Lc:
             Lc.save()
-            _doorway_clip(Lc)
+            Lc.rectangle(xclip, -5000.0, 10000.0, 10000.0)       # behind the near jamb: hidden
+            Lc.clip()
             c2.draw(f_, t_, Lc, eyes=False)
             st = tl[1]
             if st is not None and st["level"] > 0:
                 sets.flashlight(Lc, st["hand"], st["ang"], scale=st["scale"])
-            Lc.restore()
             c1.draw(f_, t_, Lc, eyes=False)
             st = tl[0]
             if st is not None:
                 sets.flashlight(Lc, st["hand"], st["ang"], scale=st["scale"])
-    APT.draw(f, t, lamp=0.0, lamp_stand=False, sheet=False, table=False, rig=False, door_open=op, hall=0.85,
-             police=1.0, street=0.3, flashlights=lights, extra_lights=extra, hooks={"after_door": people}, dust=0.8)
+            Lc.restore()
+    APT.draw(f, t, lamp=0.0, lamp_stand=False, sheet=False, table=False, rig=False, door_open=op, hall=hall,
+             door_mask=door_blockers(t, w), police=1.0, street=0.3, flashlights=lights, extra_lights=extra,
+             hooks={"after_room": marks, "after_door": people}, dust=0.8)
+    _window_glare(f, t, tl)
     f.haze(PAL.fog_at(1.0), 0.03)
 
 
