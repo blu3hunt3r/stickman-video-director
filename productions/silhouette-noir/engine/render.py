@@ -4,6 +4,7 @@
   python3 -m engine.render --film red s03 --scale 0.5     # half-res preview
   python3 -m engine.render --film red s03 --handles       # include the pre/post-roll handles
   python3 -m engine.render --film red s03 --sheet 12      # contact sheet PNG -> films/red/qa/
+  python3 -m engine.render --film red s03 --sheet 12 --window 4:6   # 12 frames between 4 s and 6 s
   python3 -m engine.render --film red s03 --times 0,2.5   # PNG stills at scene times -> films/red/qa/s03/
   python3 -m engine.render --film red --cut s03 --scale 0.5     # the transition into s03, composited
   python3 -m engine.render --film red --range 30:42 --sheet 12  # any film-time span, composited
@@ -374,6 +375,7 @@ def main():
     ap.add_argument("--scale", type=float, default=None)
     ap.add_argument("--sheet", type=int, default=0, help="contact sheet with N frames")
     ap.add_argument("--times", type=str, default="", help="comma-separated scene times for PNG stills")
+    ap.add_argument("--window", type=str, default="", help="with --sheet: scene-time window a:b")
     ap.add_argument("--frames", type=str, default="", help="frame range a:b (scene frames)")
     ap.add_argument("--handles", action="store_true", help="also render the transition handles")
     ap.add_argument("--cut", type=str, default="", help="render the transition into this scene")
@@ -415,8 +417,13 @@ def main():
         ap.error("give scene id(s), 'all', --cut or --range")
     if a.sheet:
         for sid in sids:
+            times, out = None, None
+            if a.window:
+                w0, w1 = (float(x) for x in a.window.split(":"))
+                times = [w0 + (w1 - w0) * i / max(1, a.sheet - 1) for i in range(a.sheet)]
+                out = film_dir(film, "qa", f"{sid}_sheet_{w0:g}-{w1:g}.png")
             print(contact_sheet(film, sid, a.sheet, scale=a.scale if a.scale is not None else 0.25,
-                                workers=a.workers or None))
+                                out=out, times=times, workers=a.workers or None))
         return
     if a.times:
         ts = [float(x) for x in a.times.split(",")]
