@@ -371,12 +371,13 @@ def _bw_build(shift):
     G = {k_: dict(v) for k_, v in w.GAIT.items()}
     # a prowl: the walk on the stalk's low frame (hidden in the brambles, the eyes in them)
     G["stalk"] = dict(G["walk"], k=1.0, acc=2.0, dec=2.0,
-                      pose=dict(hf=0.70, hh=0.73, neck=0.0, head=-12.0, tail=-34.0, ears=0.8, ruff=0.3, arch=0.03))
-    # walking in the glimpses: hackles up, tail raised, head down in the brambles
+                      pose=dict(hf=0.68, hh=0.72, neck=-6.0, head=-22.0, tail=-30.0, ears=0.8, ruff=0.4, arch=0.03))
+    # prowling in the glimpses: as low, hackles up, the tail out level (its back, its ruff and
+    # its tail show over the lower brambles; the head stays down in them)
     G["walk"] = dict(G["walk"], acc=2.4, dec=2.4,
-                     pose=dict(hf=0.86, hh=0.84, neck=2.0, head=-24.0, tail=-14.0, ears=0.6, ruff=0.9))
+                     pose=dict(hf=0.70, hh=0.73, neck=-10.0, head=-30.0, tail=-4.0, ears=0.7, ruff=1.0, arch=0.03))
     G["trot"] = dict(G["trot"], acc=4.0, dec=3.0,
-                     pose=dict(hf=0.83, hh=0.82, neck=4.0, head=-16.0, tail=-20.0, ears=0.4, ruff=0.6))
+                     pose=dict(hf=0.76, hh=0.77, neck=-4.0, head=-20.0, tail=-16.0, ears=0.4, ruff=0.7))
     G["gallop"] = dict(G["gallop"], acc=8.0, v=6.0)
     w.GAIT = G
     o = BW_OFF
@@ -397,7 +398,7 @@ def _bw_build(shift):
     w.stalk(to=bw_target(-1.0), dur=3.0)          # (already pacing her in s03's last seconds)
     plan.append((-1.0, bw_target(-1.0)))
     leg(-1.0, BW_STOP[0], "stalk")
-    w.stand(dur=0.2, low=1.5, head=-20.0, ears=0.9)
+    w.stand(dur=0.2, low=2.6, head=-26.0, ears=0.9)
     w.at(BW_STOP[1] + o)
     leg(BW_STOP[1], 6.3, "walk")
     leg(6.3, 10.0)
@@ -524,7 +525,7 @@ def draw_bw_eyes(f, t, mood):
             if k > 0.01:
                 draw.glow_disc(G, e, r * 6.0, col, 0.6 * k)
                 if flare > 0.02:
-                    draw.glow_disc(G, e, r * 14.0, col, 0.35 * k * flare)
+                    draw.glow_disc(G, e, r * 11.0, col, 0.28 * k * flare)
 
 
 # ----------------------------------------------------------------------------- the wolf on the path
