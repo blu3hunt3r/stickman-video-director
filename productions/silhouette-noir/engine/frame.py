@@ -292,7 +292,45 @@ class Frame:
                 arr = surf_array(surf)
                 arr[...] = _blur(arr, blur_px / k)
                 surf.mark_dirty()
-            self._composite(surf, k, alpha, cairo.OPERATOR_ADD)
+            if not self._add_array(surf, k, alpha):
+                self._composite(surf, k, alpha, cairo.OPERATOR_ADD)
+
+    def _add_array(self, surf, k, alpha=1.0):
+        """Fast path for an additive composite: cv2 upscale + saturating add straight into the
+        canvas pixels (~3 ms instead of ~14 ms for cairo's bilinear ADD paint). Only when the
+        main context draws to the canvas itself (no push_group) through no clip; returns False
+        so the caller falls back to cairo otherwise."""
+        c = self.ctx
+        if c.get_group_target() != self.surf:
+            return False
+        c.save()
+        c.identity_matrix()
+        try:
+            rects = c.copy_clip_rectangle_list()
+        except cairo.Error:
+            rects = None
+        finally:
+            c.restore()
+        if not rects or len(rects) != 1:
+            return False
+        x, y, w, h = rects[0]
+        if x > 0 or y > 0 or x + w < self.pw or y + h < self.ph:
+            return False
+        surf.flush()
+        src = surf_array(surf)
+        if k > 1:
+            lh, lw = src.shape[:2]
+            src = cv2.resize(src, (lw * k, lh * k), interpolation=cv2.INTER_LINEAR)
+        src = src[:self.ph, :self.pw]
+        self.surf.flush()
+        dst = surf_array(self.surf)
+        a = clamp(alpha)
+        if a >= 1.0:
+            cv2.add(dst, src, dst=dst)
+        elif a > 0.0:
+            cv2.addWeighted(dst, 1.0, src, a, 0.0, dst=dst)
+        self.surf.mark_dirty()
+        return True
 
     @contextmanager
     def emit(self, par=1.0):

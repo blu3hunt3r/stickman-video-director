@@ -33,6 +33,11 @@ SEQ_FAMILIES = ("step_girl", "step_wolf")
 
 # free text -> catalog sound (first match wins; more specific first)
 KEYWORDS = [
+    (r"\bpop\b|pops up", "paper_pop"),
+    (r"paper.*(thump|slam)|(thump|slam).*paper", "grid_pulse"),
+    (r"\bink\b|drawn|draws|\bdraw\b|brush", "ink_draw"),
+    (r"page turns|turns over|paper.*whoosh|whoosh.*paper", "paper_swing"),
+    (r"thicket", "thicket_grow"),
     (r"lantern.*(smash|break|shatter)|smash|shatter", "lantern_smash"),
     (r"(match|light).*(lantern|wick)|lantern.*(light|lit)|wick|light.*lantern", "lantern_light"),
     (r"lantern", "lantern_roll"),
@@ -134,6 +139,30 @@ def resolve(text):
 
 def family(name):
     return sfx_red.spec(name)["family"]
+
+
+def scene_gain(h, fam):
+    """A scene's gain_db is a placement relative to the library level (0 dB = -16 LUFS momentary);
+    0.0 is read as 'not given' (the family default), anything above +3 dB is clamped."""
+    g = float(h.get("gain_db", 0.0))
+    return FAMILY_GAIN.get(fam, -8.0) if g == 0.0 else min(g, 3.0)
+
+
+def expand_steps(h, fam):
+    """One scene cue describing a run of footsteps (with dur) -> one hint per step."""
+    text = h["text"].lower()
+    rate = 3.2 if re.search(r"\brun|running|sprint", text) else (2.2 if fam == "step_wolf" else 1.9)
+    n = max(2, int(float(h["dur"]) * rate))
+    fade = -8.0 if re.search(r"reced|away|fading|distant", text) else 0.0
+    out = []
+    for i in range(n):
+        e = dict(h)
+        e["t"] = h["t"] + i / rate
+        e["gain_db"] = (h["gain_db"] or FAMILY_GAIN.get(fam, -12.0)) + fade * i / max(n - 1, 1) - (1.0 if i % 2 else 0.0)
+        e["idx"] = h["idx"] * 100 + i
+        e["dur"] = None
+        out.append(e)
+    return out
 
 
 # ============================================================================ the designed sheet
@@ -393,7 +422,12 @@ def merge(design, hints):
         if name is None:
             rep["unknown"].append(dict(scene=h["scene"], t=round(h["t"], 3), sfx=h["text"]))
             continue
-        resolved.append((h, name, family(name)))
+        fam = family(name)
+        if fam in SEQ_FAMILIES and h.get("dur") and float(h["dur"]) >= 0.8:
+            resolved += [(e, name, fam) for e in expand_steps(h, fam)]
+            rep.setdefault("expanded_step_cues", []).append(dict(scene=h["scene"], t=round(h["t"], 3), text=h["text"]))
+            continue
+        resolved.append((h, name, fam))
     # footstep sequences from a scene replace the designed ones over their span
     for sid in sorted(set(h["scene"] for h, _, _ in resolved)):
         for fam in SEQ_FAMILIES:
@@ -405,10 +439,11 @@ def merge(design, hints):
             proto = [c for c in cues if c["sid"] == sid and family(c["sfx"]) == fam and a <= c["t"] <= b]
             cues = [c for c in cues if not (c["sid"] == sid and family(c["sfx"]) == fam and a <= c["t"] <= b
                                             and c["lock"] != "word")]
-            g = float(np.median(gains)) if gains else FAMILY_GAIN.get(fam, -10.0)
+            g = float(np.median(gains)) if gains else None
             params = dict(proto[0]["params"]) if proto else {}
             for h, nm in seq:
-                cues.append(dict(t=h["t"], sfx=proto[0]["sfx"] if proto else nm, gain_db=g + min(max(h["gain_db"], -12.0), 6.0),
+                cues.append(dict(t=h["t"], sfx=proto[0]["sfx"] if proto else nm,
+                                 gain_db=g if g is not None else scene_gain(h, fam),
                                  pan=h["pan"], dur=h["dur"], params={**params, **h["params"]}, lock="free",
                                  tag=f"{sid} scene steps", sid=sid, source="scene",
                                  seed=int(dsp.stable_seed("red-scene-cue", sid, h["idx"]) % (1 << 31))))
@@ -418,7 +453,8 @@ def merge(design, hints):
     used = set()
     for h, name, fam in resolved:
         cand = [c for c in cues if c["sid"] == h["scene"] and c["source"] == "design" and id(c) not in used
-                and family(c["sfx"]) == fam and abs(c["t"] - h["t"]) <= SNAP]
+                and family(c["sfx"]) == fam and (fam != "graphic" or c["sfx"] == name)
+                and abs(c["t"] - h["t"]) <= SNAP]
         if cand:
             c = min(cand, key=lambda c: abs(c["t"] - h["t"]))
             used.add(id(c))
@@ -432,7 +468,7 @@ def merge(design, hints):
             if h["dur"] is not None and sfx_red.spec(c["sfx"])["kind"] == "sustained":
                 c["dur"] = float(h["dur"])
             continue
-        g = FAMILY_GAIN.get(fam, -8.0) + min(max(h["gain_db"], -12.0), 6.0)
+        g = scene_gain(h, fam)
         cues.append(dict(t=round(h["t"], 4), sfx=name, gain_db=g, pan=h["pan"], dur=h["dur"], params=h["params"],
                          lock="beat", tag=f"{h['scene']}: {h['text']}", sid=h["scene"], source="scene",
                          seed=int(dsp.stable_seed("red-scene-cue", h["scene"], h["idx"]) % (1 << 31))))

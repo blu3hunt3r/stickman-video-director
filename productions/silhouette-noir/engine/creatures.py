@@ -344,12 +344,12 @@ class _Actor:
     def timeline(self):
         """[(t0, t1, kind), ...] of the resolved actions (overlays not included)."""
         clips = self._get_plan()[0]
-        return [(c.t0, c.t1, c.kind) for c in clips]
+        return [(float(c.t0), float(c.t1), c.kind) for c in clips]
 
     @property
     def end(self):
         clips = self._get_plan()[0]
-        return clips[-1].t1 if clips else 0.0
+        return float(clips[-1].t1) if clips else 0.0
 
     def state(self, t):
         """The blended pose (a dict) at time t."""
@@ -1187,6 +1187,9 @@ class _QEyes(_QHead):
         P["eopen"] += (self.kw.get("open", 1.0) - P["eopen"]) * e
 
 
+_PLANT_MID = True
+
+
 class _QRun(_Clip):
     """A locomotion run: consecutive walk/stalk/trot/gallop segments with continuous speed,
     distance-driven gait phase and event-planned paw plants (no sliding in stance)."""
@@ -1323,6 +1326,14 @@ class _QRun(_Clip):
                         swing = True
                 elif cyc > prev_cyc:
                     x, y, z = self._plant(k, tj, j)
+                    if _PLANT_MID:
+                        # centre the stance on the girdle's path (exact while the speed
+                        # changes); the quick flick-steps of a run start keep the short reach
+                        w = clamp((tj - recs[-1][1] - 0.08) / 0.12)
+                        if w > 0.0:
+                            xm = self._plant(k, tj, j, jm=self._mid_j(i, j, cyc))[0]
+                            x = x + (xm - x) * w
+                            y = self.A.ground(x)
                     recs.append([tj, _INF, x, y, z])
                     swing = False
                 prev_cyc = cyc
@@ -1392,10 +1403,26 @@ class _QRun(_Clip):
         off = A._neutral_f(k)
         return x + self.facing * off * S
 
-    def _plant(self, k, t, j):
+    def _mid_j(self, i, j, cyc):
+        """Grid index of the mid-stance of leg i's step that touches down at grid j."""
+        n = len(self.T) - 1
+        jm = j
+        while jm < n:
+            if self.phi[jm] - self.taus[jm][i] - cyc >= 0.5 * self.duty[jm]:
+                break
+            jm += 1
+        return jm
+
+    def _plant(self, k, t, j, jm=None):
+        """Plant position of a paw landing at grid j: under the girdle's position at
+        mid-stance (grid jm), so the stance is centred even while the speed changes."""
         A, S = self.A, self.A.S
-        xg = self._girdle_x(k, t, j)
-        reach = 0.5 * self.duty[j] * self.Lst[j]
+        if jm is not None:
+            xg = self._girdle_x(k, self.T[jm], jm)
+            reach = 0.0
+        else:
+            xg = self._girdle_x(k, t, j)
+            reach = 0.5 * self.duty[j] * self.Lst[j]
         if _FRONT[k]:
             acc = self._dva(t)[2] / A.pace
             reach += 0.035 * max(0.0, -acc)
@@ -1914,6 +1941,9 @@ def _locks(pts, n, seed, length, width, rake, t=0.0, side=1.0, jag=0.45, u0=0.0,
     return out
 
 
+_SLOPE_SINK = 1.0
+
+
 def solve_quadruped(A, P):
     """Pose dict -> rig dict with LOCAL (forward, up) joints and a projector. Shared by the
     wolf and the cat drawers."""
@@ -1927,8 +1957,14 @@ def solve_quadruped(A, P):
     chord = P["chord"] * PR["chord"] * S
     fW, fP = 0.5 * chord, -0.5 * chord
     xW, xP = rx + fW * cF, rx + fP * cH
-    uW = ry - A.ground(xW) + P["hf"] * S
-    uP = ry - A.ground(xP) + P["hh"] * S
+    gW, gP = A.ground(xW), A.ground(xP)
+    # on slopes each girdle sinks toward its lowest paw so the downhill leg can still reach
+    # (on flat ground the paws are at the girdle's ground level: no change)
+    lg_ = P["legs"]
+    gW += _SLOPE_SINK * max(0.0, max(lg_["LF"][1], lg_["RF"][1]) - gW)
+    gP += _SLOPE_SINK * max(0.0, max(lg_["LH"][1], lg_["RH"][1]) - gP)
+    uW = ry - gW + P["hf"] * S
+    uP = ry - gP + P["hh"] * S
     Wp, Pp = (fW, uW), (fP, uP)
     dx, dy = fW - fP, uW - uP
     L = math.hypot(dx, dy) or 1.0
@@ -2337,7 +2373,7 @@ def draw_wolf(f, P, A, ctx=None, color=None, eyes=True, far_shade=0.0, breath=Fa
     flat = clamp(-P["neck"] / 35.0)          # neck down (lying, stalking): the mane lies flat
     mk = (1 + 0.25 * ruff) * (1.0 - 0.8 * flat) * (1.0 - 0.15 * wind)
     locks += _locks(ntop, 8, seed + 1,
-                    lambda v: (0.065 + 0.05 * math.sin(math.pi * min(1.0, v * 1.1))) * S * rag * mk,
+                    lambda v: (0.065 + 0.05 * math.sin(math.pi * min(1.0, v * 1.1))) * S * (1.0 + 0.15 * old) * mk,
                     0.15 * S, -1.8 - 1.3 * wind + 0.45 * ruff - 0.6 * flat, t, side=1.0, u0=0.2, u1=4.6,
                     skip=skip)
     locks += _locks(nbot, 6, seed + 2, lambda v: (0.05 + 0.05 * (1 - v)) * S * rag * (1 + 0.1 * ruff),
@@ -2814,8 +2850,10 @@ class _SDie(_SpiderClip):
                 stand = A._body_to_world(P, A._leg_body_foot(i, 0.5))
             else:
                 stand = self.feet0[i]
-            pt = [stand[k] + (curl[k] - stand[k]) * c_i for k in range(3)]
-            feet.append([pt[0], pt[1], pt[2], 1.0 if c_i < 0.05 and not drop else 0.0, None])
+            # a planted foot stays exactly put until the curl (or a spasm) lifts it
+            c_m = clamp((c_i - 0.05) / 0.95)
+            pt = [stand[k] + (curl[k] - stand[k]) * c_m for k in range(3)]
+            feet.append([pt[0], pt[1], pt[2], 1.0 if c_m <= 0.0 and not drop else 0.0, None])
         P["feet"] = feet
         P["curl"] = cu
         return P

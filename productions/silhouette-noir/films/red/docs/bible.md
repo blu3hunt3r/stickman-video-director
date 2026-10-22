@@ -148,9 +148,9 @@ screen px.
   - **10.7–14.5.** The hoods flatten into a Bass grid of red triangles on white, row after row, counting winters. It pulses once.
 - **OUT** (flatten reverse, 1.0 s). The grid becomes live again for s07.
 
-### s07 · GRANDMOTHER · 13.0 s · the ridge edge · film 1:21
+### s07 · GRANDMOTHER · 13.0 s · the clearing's edge · film 1:21
 
-- **IN.** The girl at the edge of the trees on the ridge, small, under dark canopy. The forest goes still.
+- **IN.** The flattened hood grid of s06 comes alive as the real hoods hanging in the trees around the clearing (`S.CLEARING_SET`, era "web", NIGHT). The girl has come down: she stands at the edge of the clearing, small, under the dark canopy, the web-wrapped cottage beyond. The web's anchor lines run off toward the valley on the left. The forest goes still.
 - **Beats.**
   - **1.0–6.3.** L12: *"The village called it Grandmother. They fed it one child a year, so it would leave the rest of them alone."*
     - On [Grandmother@1.86] the first long leg descends from the canopy on a thread, then another and another. Enormous.

@@ -729,6 +729,11 @@ def render_score(S, N, seed=0):
     main = bus["main"] + bus["tick"]
     hits = bus["hits"]
     info["marks"] = sorted(plan.marks)
+    ons = [(t, kind) for (t, kind, mm, vel, layer, kw) in plan.notes] + [(t, "hit") for (t, fn, layer, sg) in plan.events]
+    ons += [(t, "strings") for (t, gate, nts, vel, att, rel, kw, layer) in plan.strings if att <= 0.03]
+    ons += [(t, "brass") for (t, dur, nts, vel, kw, layer) in plan.brass if kw.get("attack", 0.04) <= 0.06]
+    ons += [(t0, "mask") for (t0, t1, fo, fi, ls) in plan.masks] + [(t1, "mask") for (t0, t1, fo, fi, ls) in plan.masks]
+    info["onsets"] = sorted((round(float(t), 4), k) for t, k in ons)
     info["silences"] = [(round(a, 3), round(b, 3), list(ls)) for a, b, _, _, ls in plan.masks]
     return main.astype(np.float32), hits.astype(np.float32), info
 

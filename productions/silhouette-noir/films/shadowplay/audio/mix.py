@@ -281,6 +281,44 @@ def vo_music_balance(vo, music, act, tl, rate=1000):
     return res
 
 
+def explain_clicks(clicks, cues, rows, onsets, ainfo, vinfo):
+    """Attribute every detected transient to a designed onset (an SFX cue, a score note / hit /
+    silence edge, a bed event) or flag it UNEXPLAINED (a real discontinuity to fix)."""
+    lens = {(r["t"], r["name"]): r.get("len_s", 1.0) for r in rows}
+    beds = []
+    for e in ainfo.get("events", []):
+        if "@" in e:
+            try:
+                beds.append((float(e.split("@")[1].split("-")[0]), e.split("@")[0]))
+            except ValueError:
+                pass
+    out = []
+    for c in clicks:
+        t = c["t"]
+        src = None
+        for (to, kind) in onsets:
+            if -0.01 <= t - to <= 0.04:
+                src = f"score:{kind}@{to}"
+                break
+        if src is None:
+            for cu in cues:
+                if -0.01 <= t - cu["t"] <= min(2.5, lens.get((cu["t"], cu["name"]), 1.0)):
+                    src = f"sfx:{cu['name']}@{cu['t']}"
+                    break
+        if src is None:
+            for (tb, nm) in beds:
+                if -0.01 <= t - tb <= 0.4:
+                    src = f"bed:{nm}@{tb}"
+                    break
+        if src is None:
+            for e in vinfo.get("edges", []):
+                if abs(t - e["t_in"]) < 0.03 or abs(t - e["t_out"]) < 0.03:
+                    src = f"vo edge line {e['n']}"
+                    break
+        out.append(dict(c, source=src or "UNEXPLAINED"))
+    return out
+
+
 # ============================================================================ main
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
@@ -381,6 +419,8 @@ def main(argv=None):
 
     # ---- checks
     chk = qa.check_master(master, SR, N)
+    chk["clicks"] = explain_clicks(chk["clicks"], cues, rows, sinfo.get("onsets", []), ainfo, vinfo)
+    chk["clicks_unexplained"] = [c for c in chk["clicks"] if c["source"] == "UNEXPLAINED"]
     report["master"] = chk
     report["scene_loudness"] = scene_loudness(master, tl)
     report["arc_targets"] = [dict(t0=a, t1=b, target=v) for a, b, v in ARC]

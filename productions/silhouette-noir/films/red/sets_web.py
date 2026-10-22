@@ -345,16 +345,19 @@ class Web:
                     _stroke_segs(c, Ac[sel], Bc[sel], Wc[sel], col, alpha * lvl, wmin)
         # burning silk: hot cores, then flames, glow and embers
         bi = np.where(burning)[0]
-        Ab = np.concatenate([P[sa[bi]], earlier])
-        Bb = np.concatenate([P[sa[bi] + 1], pf])
-        Wb = np.concatenate([self.sw[bi], self.sw[fi]])
-        if len(Ab):
+        if len(bi) or len(fi):
+            runs = self._runs(P, bi)                       # burning silk as polylines
+            fronts = [[a, b] for a, b in zip(earlier.tolist(), pf.tolist())]
+            every = [ln for lines in runs.values() for ln in lines] + fronts
             if own and f is not None:
                 # glow hugging the burning lines (additive, low-res): lines of fire, not blobs
                 with soft_layer(f, par, k=4, op="add", blur=9.0) as Lg:
-                    _stroke_segs(Lg, Ab, Bb, Wb * 0 + 1.0, mood.lamp, 0.35 * alpha, 15.0 / zoom)
-                    _stroke_segs(Lg, Ab, Bb, Wb * 0 + 1.0, mix(mood.lamp, SNOW, 0.4), 0.3 * alpha, 5.0 / zoom)
-            _stroke_segs(c, Ab, Bb, Wb, mix(mood.lamp, SNOW, 0.7), alpha, max(2.2 / zoom, wmin), wmul=2.4)
+                    _stroke_lines(Lg, every, mood.lamp, 0.35 * alpha, 15.0 / zoom)
+                    _stroke_lines(Lg, every, mix(mood.lamp, SNOW, 0.4), 0.3 * alpha, 5.0 / zoom)
+            hot = mix(mood.lamp, SNOW, 0.7)
+            for w, lines in runs.items():
+                _stroke_lines(c, lines, hot, alpha, max(w * 2.4, 2.2 / zoom, wmin))
+            _stroke_segs(c, earlier, pf, self.sw[fi], hot, alpha, max(2.2 / zoom, wmin), wmul=2.4)
         if flames:
             vm = np.ones(self.V, bool) if not kinds else np.isin(self.vk, [KINDS.index(k) for k in kinds])
             self._flames(f, c, t, mood, burn, vm, P, par, zoom)

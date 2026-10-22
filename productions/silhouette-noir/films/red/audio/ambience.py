@@ -230,8 +230,7 @@ def automation():
     L = {}
     # s01 paper world -> s02 village (ink 8.375-9.625)
     L["cold_air"] = [(0.0, 0.0), (0.8, 1.0), (8.4, 1.0), (9.6, 0.0)]
-    L["village_wind"] = [(8.2, 0.0), (9.4, 1.0), (19.6, 1.0), (21.0, 1.25), (23.25, 1.15), (24.75, 0.0),
-                         (124.25, 0.0)]
+    L["village_wind"] = [(8.2, 0.0), (9.4, 1.0), (19.6, 1.0), (21.0, 1.25), (23.25, 1.15), (24.75, 0.0)]
     L["hearth"] = [(8.6, 0.0), (9.6, 1.0), (18.6, 1.0), (21.5, 0.25), (23.4, 0.0)]
     L["lanterns"] = [(8.6, 0.0), (9.8, 0.8), (21.0, 0.8), (23.4, 0.0)]
     # s03 forest (dissolve 23.25-24.75), darkening into 'deeper'; s04 dark (dissolve 37.5-38.5)
@@ -258,7 +257,6 @@ def automation():
     L["dusk"] = [(138.6, 0.0), (140.0, 1.0), (151.6, 1.0), (153.2, 0.0)]
     L["lanterns"] += [(138.8, 0.0), (140.2, 1.0), (151.6, 1.0), (153.0, 0.0)]
     L["silence_floor"] = [(q + 0.1, 0.0), (q + 0.7, 1.0), (37.3, 1.0), (38.0, 0.0)]
-    # village wind again in s10 (shares the generator; separate span)
     return L
 
 
@@ -295,16 +293,20 @@ def _cal(x, target, mode="int"):
 
 
 def render_beds(seed=0):
+    """-> (beds float32 (N, 2), floor float32 (N, 2), info). The floor (THE SILENCE's hush) is
+    kept apart so the mix's silence gate does not take it away."""
     out = np.zeros((N, 2))
+    floor = np.zeros((N, 2))
     info = dict(beds=[], events=[])
     auto = automation()
     for name, pts in auto.items():
         env = envelope(pts)
+        dst = floor if name == "silence_floor" else out
         for k, (a, b) in enumerate(spans(env)):
             rng = dsp.rng_for("red-amb", name, k, seed)
             x = GEN[name](b - a, rng)
             x = _cal(x, BED_LUFS[name])
-            out[a:b] += x * to_audio(env, a, b)[:, None]
+            dst[a:b] += x * to_audio(env, a, b)[:, None]
             info["beds"].append(dict(bed=name, t0=round(a / SR, 2), t1=round(b / SR, 2)))
     for (t, name, prm, sd, pan) in events():
         x = sfx_red.render(name, params=prm, seed=sd).astype(np.float64)
@@ -312,7 +314,7 @@ def render_beds(seed=0):
         x = dsp.pan_stereo(x, pan)
         dsp.mix_into(out, x, n_of(t))
         info["events"].append(dict(t=t, sfx=name))
-    return out, info
+    return out.astype(np.float32), floor.astype(np.float32), info
 
 
 if __name__ == "__main__":
@@ -320,7 +322,8 @@ if __name__ == "__main__":
     import time
     from .common import OUT
     t0 = time.time()
-    amb, info = render_beds()
+    amb, floor, info = render_beds()
+    amb = amb + floor
     print(f"beds rendered in {time.time() - t0:.1f}s; {len(info['beds'])} bed spans, {len(info['events'])} events")
     print("integrated", round(dsp.loudness_integrated(amb), 2), "TP", round(dsp.true_peak_db(amb), 2))
     os.makedirs(OUT, exist_ok=True)
