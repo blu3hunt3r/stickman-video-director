@@ -17,10 +17,13 @@ Beats (scene-local s; L8 0.80-9.54):
     9.45-12.3   she gets up and backs away up to the ridge top; ~11.0 the wolf lifts its head
                 and looks past her, over the ridge
     12.3-13.05  she turns to look where it is looking: her back to us; the camera pushes in
-OUT (hard cut to s06): mood S.DUSK; she stands still on the crest (RIDGE x = X_END), back to
-    camera (yaw -90), hood up, breathing, the basket hanging from her right hand at her side;
-    camera zoom 1.25 with her feet (footing) at screen (540, 1376), as VALLEY_VIEW.camera("start")
-    shows her in s06; snow density 0.5.
+                (to 14.05)
+OUT (0.75 s dissolve to s06; this scene renders a 0.375 s handle to t = 14.875 with the end
+    pose held): mood S.DUSK; she stands still on the crest (RIDGE x = X_END), back to camera
+    (yaw -90), hood up, breathing, the basket hanging from her right hand at her side; camera
+    zoom 1.25 with her feet (footing) at screen (540, 1376), as VALLEY_VIEW.camera("start")
+    shows her in s06 (her joints match s06's girl within ~0.2 px through the dissolve); snow
+    density 0.5.
 """
 import math
 from functools import lru_cache
@@ -795,5 +798,5 @@ def cues(T):
         Cue(BK_LAND, "the basket lands in the snow: wicker creak, muffled", -14, pan=0.2),
         Cue(W["stopped"], "the wolf stops: the paws stop, one low growl", -12, pan=-0.3, dur=1.2),
         Cue(W["waited"], "the wolf sits: snow creak; silence but wind and her breath", -16, pan=-0.3),
-        Cue(10.0, "wind across the ridge top, rising; spindrift hiss", -16, dur=4.5),
+        Cue(10.0, "wind across the ridge top, rising; spindrift hiss (through the dissolve)", -16, dur=4.875),
     ]

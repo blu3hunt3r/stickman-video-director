@@ -17,11 +17,10 @@ import cairo
 
 from engine import draw, bass
 from engine import figure as FG
-from engine.core import clamp, lerp, ease, hash01, noise1, fbm1
-from engine.figure import Look
+from engine.core import clamp, lerp, ease
 from engine.palette import RED, PAPER, SHADOWPLAY as PAL
 from films.shadowplay import cast
-from films.shadowplay.sets_base import PX_M, mix, mul, glow
+from films.shadowplay.sets_base import PX_M, mix, glow
 
 INK = PAL.ink
 AMBER = PAL.light
@@ -278,7 +277,7 @@ def knife_arm(ctx, base, tip, color=None, width=26.0, grow=1.0, seed=3, knife=Tr
 # ============================================================================= figures in a room
 from engine.motion import Actor                        # noqa: E402
 from films.shadowplay import sets as SETS              # noqa: E402
-from films.shadowplay.sets_base import shadow_screen, glow_ellipse   # noqa: E402
+from films.shadowplay.sets_base import shadow_screen                 # noqa: E402
 from films.shadowplay.sets_props import Sheet, BareLamp, lamp_light   # noqa: E402
 
 SHEET_Z = 3.55

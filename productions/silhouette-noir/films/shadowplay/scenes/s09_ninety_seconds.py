@@ -21,13 +21,13 @@ IN        (dip from black) the show lamp burns at its front place (she switched 
 11.1-14   "So I gave him a show." flat against the wall, in the dark, eyes wide.
 12.25     outside, the hall light clicks on: a line of light under the door.  Footsteps.
 13.0-13.4 two feet slide into the line and stop.  13.5- the lever handle starts to turn.
-OUT       (hard cut to s10) the lever turning (0.33 of its travel at 14.0).
+OUT       (hard cut to s10) the lever turning (0.45 of its 40 deg travel at 14.0).
 """
 import math
 from functools import lru_cache
 
 from engine import draw
-from engine.core import clamp, ease, fbm1, lerp, noise1
+from engine.core import clamp, ease, fbm1, lerp
 from engine.frame import Camera
 from engine.palette import PAPER, SHADOWPLAY as PAL
 from engine.timing import Cue

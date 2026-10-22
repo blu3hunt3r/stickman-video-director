@@ -346,10 +346,11 @@ BW_SIZE = 360.0                         # (on its plane: about her size on the s
 # where its body (root) is on the screen, relative to her: (t, dx). Its head is ~340 px ahead
 # of the root, so the eyes are ~dx + 340 from her.
 BW_KEYS = [(-1.0, -710.0), (1.0, -700.0), (2.0, -680.0), (2.80, -650.0),     # pacing her ([wolf])
-           (3.70, -650.0), (4.6, -600.0), (5.5, -540.0), (6.3, -500.0),        # the glimpses
-           (7.2, -590.0), (8.6, -560.0), (9.7, -545.0), (10.25, -540.0),       # the run
-           (11.35, 980.0)]                                                     # it surges past her
-BW_STOP = (2.80, 3.70)                  # it stops (and sinks into the brambles) when she stops
+           (3.30, -655.0), (4.1, -690.0), (5.0, -600.0), (6.3, -500.0),        # the glimpses
+           (7.2, -590.0), (8.6, -560.0), (9.4, -545.0), (10.0, -540.0),        # the run
+           (10.6, -250.0), (11.3, 420.0)]                                      # it surges past her
+BW_STOP = (2.80, 3.30)                  # it stops (and sinks into the brambles) when she stops
+BW_GONE = (11.05, 11.35)                # it dives into the thicket ahead of her: gone
 
 
 @lru_cache(maxsize=None)
@@ -376,7 +377,7 @@ def _bw_build(shift):
                      pose=dict(hf=0.86, hh=0.84, neck=2.0, head=-24.0, tail=-14.0, ears=0.6, ruff=0.9))
     G["trot"] = dict(G["trot"], acc=4.0, dec=3.0,
                      pose=dict(hf=0.83, hh=0.82, neck=4.0, head=-16.0, tail=-20.0, ears=0.4, ruff=0.6))
-    G["gallop"] = dict(G["gallop"], acc=7.0, v=6.0)
+    G["gallop"] = dict(G["gallop"], acc=8.0, v=6.0)
     w.GAIT = G
     o = BW_OFF
     plan = []                           # (scene t the segment should end, its target x)
@@ -396,11 +397,11 @@ def _bw_build(shift):
     w.stalk(to=bw_target(-1.0), dur=3.0)          # (already pacing her in s03's last seconds)
     plan.append((-1.0, bw_target(-1.0)))
     leg(-1.0, BW_STOP[0], "stalk")
-    w.stand(dur=BW_STOP[1] - BW_STOP[0], low=1.5, head=-20.0, ears=0.9)
+    w.stand(dur=0.2, low=1.5, head=-20.0, ears=0.9)
     w.at(BW_STOP[1] + o)
     leg(BW_STOP[1], 6.3, "walk")
-    leg(6.3, 10.25)
-    leg(10.25, 11.35, "gallop", dt=0.55)
+    leg(6.3, 10.0)
+    leg(10.0, 11.3, "gallop", dt=0.43)
     # its head turned to us (both eyes on her) while it paces her
     w.overlay("look", 1.2 + o, dur=1.4, turn=42.0)
     w.overlay("look", 6.0 + o, dur=4.2, turn=38.0)
@@ -454,7 +455,8 @@ def bw_eyes(t):
     return out, 0.030 * Lh, ang
 
 
-EYE_OPEN = [(1.42, 0.0), (1.53, 1.0), (2.74, 1.0), (2.82, 0.0), (5.86, 0.0), (6.0, 1.0), (11.3, 1.0)]
+EYE_OPEN = [(1.42, 0.0), (1.53, 1.0), (2.74, 1.0), (2.82, 0.0), (5.86, 0.0), (6.0, 1.0), (11.05, 1.0),
+            (11.22, 0.0)]
 
 
 def eye_open(t):
@@ -491,15 +493,21 @@ def _occlusion(f, t, sx, sy):
 
 def draw_bw_body(f, t, mood):
     """The wolf's body in the thicket (behind the brambles, in their dark)."""
-    if t > 11.4 or t < 0.8:
+    a = 1.0 - smoothstep(BW_GONE[0], BW_GONE[1], t)
+    if t < 0.8 or a <= 0.0:
         return
-    with S.plane(f, PAR) as c:
-        bw().draw(f, t + BW_OFF, c, color=S.fogged(mood, 0.24), eyes=False)
+    col = S.fogged(mood, 0.27)
+    if a >= 1.0:
+        with S.plane(f, PAR) as c:
+            bw().draw(f, t + BW_OFF, c, color=col, eyes=False)
+    else:
+        with f.layer(par=PAR, alpha=a) as c:
+            bw().draw(f, t + BW_OFF, c, color=col, eyes=False)
 
 
 def draw_bw_eyes(f, t, mood):
     op = eye_open(t)
-    if op <= 0.01 or t > 11.6:
+    if op <= 0.01:
         return
     eyes, r, ang = bw_eyes(t)
     col = (1.0, 1.0, 0.97)
@@ -521,7 +529,7 @@ def draw_bw_eyes(f, t, mood):
 
 # ----------------------------------------------------------------------------- the wolf on the path
 W_GAP = 475.0                           # its root is this far past where she stops (her face at its nose)
-W_OUT = (11.25, 12.45)                  # it steps out of the fog onto the path
+W_OUT = (11.45, 12.45)                  # it steps out of the fog onto the path
 W_TURN = (13.45, 0.45)                  # it wheels after her (s05 finishes the same turn at its -0.10)
 
 
@@ -538,8 +546,8 @@ def pw():
     G["gallop"] = dict(G["gallop"], acc=7.0)
     w.GAIT = G
     w.stand(dur=W_OUT[0])
-    w.walk(to=X, dur=W_OUT[1] - W_OUT[0])
-    w.stand(dur=W_TURN[0] - W_OUT[1] - 0.02, low=0.8, head=-16.0, ears=0.9)
+    w.walk(to=X, dur=W_OUT[1] - W_OUT[0] - 0.2)
+    w.stand(dur=0.3, low=0.8, head=-16.0, ears=0.9)
     w.at(W_TURN[0])
     w.turn(dur=W_TURN[1], via="front")
     w.gallop(to=X + 3000.0, dur=3.0)

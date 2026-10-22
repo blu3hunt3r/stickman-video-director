@@ -5,20 +5,21 @@ She slips out, slams the door, turns the key. He hammers. The lamp crashes; dark
 A  0.00-1.22  CU in the room (the s09 angle, closer): the lever turns down to its stop
               (0.61, continuing s09's move), silence; 1.00 the door BURSTS open toward us and
               its leaf sweeps over her; he fills the bright doorway, the Golden-Arm knife up.
-B  1.22-4.25  the room, wide: he runs at the woman's shadow on the sheet (the hall light
+B  1.22-4.15  the room, wide: he runs at the woman's shadow on the sheet (the hall light
               lies across the floor through the doorway); stabs 2.02 and 2.42 punch slits of
-              light through her; 2.86 a long rip; 3.02-3.62 the pins pop and the sheet slumps:
-              only the show's paper woman on her rod, burning black in front of the bare bulb.
-              He stands frozen.
-C  4.25-5.08  wide on the door: she slips from behind the leaf, rounds it, takes the outer
-              handle and runs out pulling the door after her: SLAM 5.00. He whips round
-              (4.52) and charges; his weight hits the door (5.10).
-D  5.08-5.55  insert, the hall side: the key turns, the bolt shoots home; his blows jolt it.
-E  5.55-11.5  the hallway: she holds the door with her back while it jumps under his fists
-              and the lever rattles; 6.62 the lamp CRASHES inside: the light under the door
-              whirls, stutters, and the fuse takes everything (7.25). Dark: only her eyes.
-              7.60 sirens: blue / red floods the hall window; 7.95-9.35 she slides down the
-              door to the floor, the key in her fist, eyes wide. OUT: paper tear (10.5-11.5).
+              light through her; 2.82 a long rip; 3.00-3.42 the torn piece drops off the wire and
+              the rest swings back: only the show's paper woman on her rod, burning black in
+              front of the bare bulb. He stands frozen, the knife hanging.
+C  4.15-5.08  wide on the door: she slips from behind the leaf, rounds it, takes the outer
+              handle and runs out pulling the door after her: SLAM 5.00, as he whips round.
+D  5.08-5.55  insert, the hall side: the brass key turns (5.14-5.34), the bolt shoots across
+              the bright gap; his body hits the door (5.38).
+E  5.55-11.5  the hallway: she holds the door with her back while it jumps under his fists,
+              his feet two shadows in the light under it, the lever rattling; he steps away
+              (6.50) and 6.62 the lamp CRASHES inside: the light under the door whirls,
+              stutters, and the fuse takes everything (7.25). Dark: only her eyes. 7.60 sirens:
+              blue / red through the hall window; 7.95-9.35 she slides down the door to the
+              floor, knees up, the key in her fist, eyes wide on us. OUT: paper tear (10.5-11.5).
 """
 import math
 from functools import lru_cache
@@ -33,7 +34,7 @@ from engine.motion import Actor
 from engine.palette import RED, PAPER, SHADOWPLAY as PAL
 from engine.timing import Cue
 from films.shadowplay import cast, sets
-from films.shadowplay.sets_base import PX_M, BLUE, glow, glow_ellipse
+from films.shadowplay.sets_base import BLUE, glow, glow_ellipse
 from films.shadowplay.sets_props import lock_closeup, door_swing
 from films.shadowplay.scenes import _lib_s08_s10 as L
 
@@ -1018,22 +1019,6 @@ def render(f, t, T):
         hall_scene(f, t)
 
 
-def motion_blur(t, T):
-    return 1
-
-
-def _motion_blur_unused(t, T):
-    # the burst, the stabs and the slam (never across a cut)
-    if T_BURST - 0.01 < t < T_BURST + 0.14:
-        return 2
-    for ts in T_STAB + (T_RIP[0],):
-        if ts - 0.08 < t < ts + 0.03:
-            return 2
-    if T_SLAM - 0.12 < t < T_SLAM + 0.02:
-        return 2
-    return 1
-
-
 def cues(T):
     return [
         Cue(0.0, "silence; the lever handle's slow metal creak continues", gain_db=-12, pan=-0.6),
@@ -1054,6 +1039,7 @@ def cues(T):
         Cue(T_KEY[0], "the key turns in the lock", gain_db=-8, pan=0.0),
         Cue(T_KEY[1], "the deadbolt shoots home: a hard metal clack", gain_db=-5, pan=0.0),
         Cue(BLOWS[1], "fists hammering on the door, the handle rattling (six blows to 6.45)", gain_db=-4, pan=0.0),
+        Cue(6.50, "inside, his heavy steps stride away from the door", gain_db=-12, pan=0.0),
         Cue(T_CRASH, "the lamp CRASHES inside: the bulb bursts, the stand clatters", gain_db=-3, pan=0.0),
         Cue(T_CRASH + 0.08, "an electric fizz and stutter", gain_db=-12, pan=0.0),
         Cue(T_DARK, "the fuse goes: a click, then total silence", gain_db=-10, pan=0.1),
