@@ -198,8 +198,9 @@ def check_master(x, sr=dsp.SR, expect_n=None):
 
 def overview(master, stems, scenes, path, events=None, title="SHADOW PLAY - loudness overview", arc=None):
     """Momentary (0.4 s) + short-term (3 s) loudness of the master, short-term of each stem,
-    scene boundaries / slugs, hit markers (events: [{t, label, color}]); arc: optional
-    [(t0, t1, lufs)] target segments drawn as grey bars."""
+    scene boundaries / slugs, hit markers (events: [{t, label, color}]); the M&E (music + sfx +
+    amb stems) short-term curve, which carries the dramatic arc under the constant narration;
+    arc: optional [(t0, t1, lufs)] M&E target segments drawn as grey bars."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -210,8 +211,12 @@ def overview(master, stems, scenes, path, events=None, title="SHADOW PLAY - loud
     ts, ls = dsp.loudness_curve(master, win=3.0, hop=0.1)
     ax.plot(tm, lm, color="#666", lw=0.6, label="master momentary (0.4 s)")
     ax.plot(ts, ls, color="#f0b050", lw=1.6, label="master short-term (3 s)")
-    for t0, t1, v in arc or []:
-        ax.plot([t0, t1], [v, v], color="#8a8a8a", lw=3, alpha=0.5)
+    me = [stems[k] for k in ("music", "sfx", "amb") if stems.get(k) is not None]
+    if me:
+        te, le = dsp.loudness_curve(sum(me), win=3.0, hop=0.1)
+        ax.plot(te, le, color="#80c8ff", lw=1.1, label="M&E short-term (music+sfx+amb)")
+    for k, (t0, t1, v) in enumerate(arc or []):
+        ax.plot([t0, t1], [v, v], color="#8a8a8a", lw=3, alpha=0.5, label="M&E arc target" if k == 0 else None)
     colors = dict(vo="#ffffff", music="#5090ff", sfx="#e04050", amb="#40c080")
     for k, x in stems.items():
         if x is None or not np.any(x):

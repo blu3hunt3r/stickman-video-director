@@ -1983,6 +1983,39 @@ def _sub_swell(dur, p, rng):
     return fade(x, 0.01, 0.3)
 
 
+@_sfx("silt_steps", kind="sustained", norm="int", default_dur=3.0, space=1.0)
+def _silt_steps(dur, p, rng):
+    """Heavy lead-boot steps in the silt over the cue's length (one every ~1.15 s): each a muffled
+    thud with its silt puff, a faint brass clink of the gear on every other step. params: period s."""
+    n = _N(dur)
+    out = np.zeros(n)
+    per = float(p.get("period", 1.15))
+    t, k = 0.05, 0
+    while t < dur - 0.35:
+        _place(out, _tf(render_raw("silt_step", {}, rng), 0.4, 0.25), t, rng.uniform(0.8, 1.0))
+        if k % 2 == 1:
+            _place(out, _tf(render_raw("gear_rattle", {}, rng), 0.3, 0.2), t + 0.06, 0.12)
+        t += per * rng.uniform(0.92, 1.08)
+        k += 1
+    return _tf(out, 0.2, 0.3)
+
+
+@_sfx("ray_shimmer", kind="sustained", norm="int", default_dur=2.0, space=0.3, trim=-6.0, muffle=False)
+def _ray_shimmer(dur, p, rng):
+    """The moonlit rays' high shimmer thinning away (s16): faint glassy partials in D (D6 A6 D7 F7
+    A7) trembling, a breath of high air, fading out over the cue."""
+    n = _N(dur)
+    t = t_axis(n)
+    out = np.zeros((n, 2))
+    for ch in range(2):
+        for f, a in ((1174.66, 1.0), (1760.0, 0.7), (2349.32, 0.5), (2793.83, 0.35), (3520.0, 0.2)):
+            am = 0.6 + 0.4 * smooth_noise(n, rng.uniform(2.0, 5.0), rng)
+            out[:, ch] += a * np.sin(TWO_PI * f * (1.0 + 0.0015 * ch) * t + rng.uniform(0, TWO_PI)) * am
+        out[:, ch] += 0.15 * bandpass(white(n, rng), 5000.0, 11000.0, 2)
+    env = np.clip(t / 0.3, 0, 1) * np.exp(-t / (0.45 * dur))
+    return fade(out * env[:, None] * 0.1, 0.05, min(0.5, dur / 3.0))
+
+
 def render_raw(name, params, rng):
     """A catalog sound's raw (un-normalised) mono render, using the caller's rng - for composites."""
     res = _REG[name]["fn"](_REG[name]["default_dur"], dict(params), rng)
@@ -2049,6 +2082,7 @@ PAPER_SCENES = ("s04", "s07")
 # sound words first (what the animator says it sounds like), then event words (what happens)
 PAPER_SOUND = (
     (("red line|line drawn|line draws|draws itself",), "paper_slice", {}),
+    (("strip",), "paper_slice", {}),
     (("ping|tink|ting|metallic",), "metal_ping", {}),
     (("torch",), "torch_cut", {}),
     (("bubble",), "surface_pops", {}),
@@ -2093,6 +2127,8 @@ ALIASES = (
     (("ambience|ambient|room tone|atmos",), "ambience", {}),
     (("free flow|freeflow|helmet hiss",), "helmet_hiss", {}),
     (("diver|helmet", "hiss"), "helmet_hiss", {}),
+    (("hose", "drift|sink|bubble|settle|coil|slack|trail|snak"), "hose_bubbles", {}),
+    (("chain|shackle|bracket|davit", "creak|clink|rattle|squeak|groan"), "metal_creak", {}),
     (("toll",), "meridian_bell", {}),
     (("bell", "muffl|underwater|dull"), "meridian_bell_uw", {}),
     (("bell", "pour|surface|break|emerge|water"), "bell_surface", {}),
@@ -2100,10 +2136,15 @@ ALIASES = (
     (("helmet", "unlock|off|lift|remove|open"), "helmet_unlock", {}),
     (("helmet", "clank|lock|seat|turn"), "helmet_clank", {}),
     (("clank",), "helmet_clank", {}),
+    (("sub swell|sub rise|sub hit|sub drop|sub boom|low swell",), "sub_swell", {}),
     (("lamp|light|bulb|filament", "click|switch"), "lamp_click", {}),
     (("lamp|filament|bulb", "hum|buzz|tone"), "lamp_hum", {}),
+    (("fish|school",), "fish_school", {}),
+    (("whoosh|swish|sweep|rush|surge|whip",), "uw_whoosh", {}),
     (("lamp|light switch|switch",), "lamp_click", {}),
-    (("sub swell|sub rise|sub hit|sub drop|sub boom|low swell",), "sub_swell", {}),
+    (("silt|mud|seabed|sediment|sand", "land|thud|settle|touch|puff|drop|hit"), "silt_puff", {}),
+    (("step|footstep|gait|walk|stomp|trudge", "silt|mud|seabed|sand|bottom"), "silt_steps", {}),
+    (("shimmer|glitter|sparkl",), "ray_shimmer", {}),
     (("rattle|jingle|brass gear|gear clink",), "gear_rattle", {}),
     (("tumbler",), "tumbler_click", {}),
     (("dial", "click"), "tumbler_click", {}),
@@ -2113,7 +2154,7 @@ ALIASES = (
     (("glint|gleam|sparkle",), "knife_glint", {}),
     (("slash|sever",), "hose_cut", {}),
     (("cut", "hose|rubber"), "hose_cut", {}),
-    (("hiss|escap|jet",), "air_escape", {}),
+    (("hiss|escap|jet", "air|hose|valve|pressur|pump|pipe"), "air_escape", {}),
     (("tug|jerk|yank",), "rope_tug", {}),
     (("tie|ties|tied|knot|hitch",), "rope_tie", {}),
     (("taut|tight|tension|strain",), "winch_strain", {}),
@@ -2157,6 +2198,7 @@ ALIASES = (
     (("boom|thud|thump",), "low_boom", {}),
     (("slide|swipe|slip",), "paper_slide", {}),
     (("click",), "lamp_click", {}),
+    (("hiss",), "air_escape", {}),
 )
 
 # sounds whose 'length' param a cue's dur sets (instead of truncating the one-shot)
@@ -2207,6 +2249,8 @@ def resolve(text, scene=None, dur=None):
     if key in _REG or libsfx.exists(key):
         return key, {}
     s = _norm_text(raw)
+    if any(_has(s, w) for w in ("silence", "silent", "goes dry", "drops out", "no sound")):
+        return "_silence", {}                 # an instruction (the mix's silences), not a sound
     paper = scene in PAPER_SCENES or any(_has(s, w) for w in ("paper", "card", "cut out", "cutout"))
     name, params = (None, {})
     if paper:
@@ -2243,6 +2287,8 @@ def resolve(text, scene=None, dur=None):
         params["sides"] = 2
     if name in ("uw_whoosh",) and any(w in s for w in ("deep", "big", "huge", "heavy")):
         params["size"] = 0.9
+    if name == "paper_slice" and any(_has(s, w) for w in ("slides out", "out of frame", "reverse", "mirror", "pulled out")):
+        params["reverse"] = 1
     if dur and name in LENGTH_PARAM:
         params["length"] = float(dur)
     return name, params

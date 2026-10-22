@@ -56,9 +56,13 @@ LOOKAHEAD, BRIDGE = 0.060, 0.300
 # stem balance (dB) on top of each module's own calibration
 GAIN = dict(music=6.0, music_hits=2.0, sfx=0.0, sfx_hits=0.0, amb=-2.0)
 # the loudness arc we want (short-term, master): (t0, t1, LUFS)
-ARC = [(0.0, 9.0, -20.0), (9.0, 24.0, -17.0), (33.0, 37.0, -12.0), (41.0, 52.5, -15.0), (52.5, 66.5, -16.0),
-       (66.5, 79.5, -14.0), (79.5, 106.5, -18.0), (106.5, 120.5, -15.0), (120.5, 131.5, -11.0), (131.5, 141.5, -17.0),
-       (141.5, 153.5, -20.0)]
+# the dramatic arc, as M&E (music + sfx + beds) short-term loudness: the narration sits on top at
+# a constant level for intelligibility, so the arc lives in everything under it.
+# intimate night -> the murder stabs -> procedural tension -> the second murder -> the crossing ->
+# dread -> the faster clock -> the wordless trap's peak -> the killer's room -> a quiet, open end
+ARC = [(0.0, 9.0, -20.0), (9.0, 24.0, -21.0), (33.0, 37.0, -14.0), (41.0, 52.5, -20.0), (52.5, 66.5, -19.0),
+       (66.5, 79.5, -17.0), (79.5, 106.5, -23.0), (106.5, 120.5, -21.0), (120.5, 131.5, -14.0), (131.5, 141.5, -22.0),
+       (141.5, 153.5, -24.0)]
 
 T0 = time.time()
 
@@ -252,8 +256,8 @@ def scene_loudness(master, tl):
     out = {}
     for s in tl["scenes"]:
         a, b = s["start"], s["start"] + s["duration"]
-        k = (ts + 1.5 >= a) & (ts + 1.5 < b)
-        j = (tm + 0.2 >= a) & (tm + 0.2 < b)
+        k = (ts >= a) & (ts < b)                        # t = window centre
+        j = (tm >= a) & (tm < b)
         ok = ls[k][ls[k] > -70]
         out[s["id"]] = dict(short_term_median=round(float(np.median(ok)), 1) if len(ok) else None,
                             short_term_max=round(float(np.max(ls[k])), 1) if k.any() else None,
@@ -432,6 +436,7 @@ def main(argv=None):
     chk["clicks_explained_of_total"] = [len(every) - len(chk["clicks_unexplained"]), len(every)]
     report["master"] = chk
     report["scene_loudness"] = scene_loudness(master, tl)
+    report["scene_loudness_me"] = scene_loudness(sum(stems[k] for k in ("music", "sfx", "amb")), tl)
     report["arc_targets"] = [dict(t0=a, t1=b, target=v) for a, b, v in ARC]
     log(f"master: {chk['integrated_lufs']} LUFS, TP {chk['true_peak_dbtp']} dBTP, transients explained {chk['clicks_explained_of_total']}")
     ev = [dict(t=h["t"], label=h["label"][:22], color="#e04050") for h in hits if "silence" not in h["label"] and "tick" not in h["label"]]

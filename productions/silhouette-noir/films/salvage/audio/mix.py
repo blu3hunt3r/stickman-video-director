@@ -64,7 +64,7 @@ BUS_DB = dict(music=1.5, feature=0.0, sfx=0.0, hits=0.0, layers=0.0, amb=0.0)   
 DUCK = dict(music=-8.0, feature=-4.0, sfx=-3.0, hits=-1.5, layers=-4.0, amb=-2.0)
 ATTACK, RELEASE, LOOKAHEAD, BRIDGE, RATE = 0.03, 0.25, 0.06, 0.30, 1000
 MASTER_LUFS, CEILING_DBTP, LIMIT_AT = -14.0, -1.0, -1.25
-END_GATE = (180.35, 180.95)  # every bus but the voice is gone before the last 0.55 s of black
+END_GATE = (180.6, 181.25)   # the last sounds decay into the black (from 180.7), then silence
 
 # reverb send (wet dB for a sound with spec space 1.0) per acoustic space
 SEND_DB = dict(dusk_air=-12.0, night_air=-10.0, underwater=-6.0, wreck=-4.0, paper=-16.0)

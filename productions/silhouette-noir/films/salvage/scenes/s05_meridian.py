@@ -47,7 +47,7 @@ def _beats(T):
 
 # ============================================================================= the set
 WRECK = S.Wreck()
-WORLD = S.DeepWorld(wreck=WRECK, reef=False)
+WORLD = S.DeepWorld(wreck=WRECK, reef=False, front=((-2500.0, -1300.0, 1), (1700.0, -2000.0, 2)))
 Z_PLATE = -110.0                       # the transom's plane
 TRANSOM = WRECK.transom()              # world (x, y, z)
 
@@ -56,7 +56,6 @@ X_LAND = -1150.0
 X_STOP = -650.0
 T_TD = 0.50                            # touchdown
 T_WALK = 1.45
-HD = cast.DIVER.height if hasattr(cast.DIVER, "height") else 620.0
 Y_STAND = S.seabed_y(X_LAND + 6.0) - (cast.DIVER.hip - 0.006) * 620.0
 
 
@@ -143,14 +142,16 @@ def _aim(t):
     xd = _XD(t)
     nz = 22.0 * noise1(t * 0.55, 31)
     if t < T_WALK:
-        u = ease("inout", (t + 1.0) / (T_WALK + 1.0))
-        x = xd + lerp(-300.0, 430.0, u) + nz
+        # sweeping the silt as he sinks; looking down at his landing; then ahead
+        x = xd + LIB.track([(-1.2, -420.0), (-0.35, -260.0, "inout"), (T_TD + 0.05, 190.0, "inout"),
+                            (T_TD + 0.5, 210.0, "inout"), (T_WALK, 400.0, "inout")], t) \
+            + nz * smoothstep(T_TD + 0.4, T_WALK, t)
         return "free", _silt(x)
     if t < 4.15:
-        x = xd + lerp(430.0, 860.0, smoothstep(T_WALK, 4.15, t)) + nz
+        x = xd + lerp(380.0, 600.0, smoothstep(T_WALK, 4.15, t)) + nz
         return "free", _silt(x)
     if t < 4.9:
-        a = _silt(_XD(4.15) + 860.0)
+        a = _silt(_XD(4.15) + 600.0)
         u = ease("inout", (t - 4.15) / 0.75)
         return "free", _lerp3(a, NAME_M, u)
     if t < 7.4:
@@ -235,21 +236,30 @@ def _open_cam(t):
 
 
 WIDE = (250.0, 7250.0, LN(0.30))
-BELLSHOT = (-300.0, 7880.0, LN(0.50))
+BELLSHOT = (-312.0, 8250.0, LN(0.62))
+
+
+WALL = (120.0, 8130.0, LN(0.56))        # [look]: the plates fill the upper right
 
 
 def _cam_keys(t):
     # follow while he walks
-    zf = LN(Z_OPEN) + (LN(0.80) - LN(Z_OPEN)) * ease("inout", (t - 1.0) / 3.2)
-    xf = _follow_x(t) + 150.0
+    zf = LN(Z_OPEN) + (LN(0.80) - LN(Z_OPEN)) * ease("inout", (t - 1.0) / 3.0)
+    xf = _follow_x(t) + 160.0
     yf = lerp(_open_cam(T_TD + 0.3)[1], 9066.0 - 650.0 / math.exp(zf), smoothstep(0.8, 3.8, t))
-    if t < 4.0:
+    if t < 3.6:
         return (xf, yf, zf)
     a = (xf, yf, zf)
+    # pan right with the lifting beam, easing back: the wall
+    u = ease("inout", (t - 3.6) / 1.45)
+    wl = (lerp(a[0], WALL[0], u), lerp(a[1], WALL[1], u), lerp(a[2], WALL[2], u))
+    if t < 4.75:
+        return wl
+    # crane back and up: the reveal, peaking on [deep]
+    u = ease("inout", (t - 4.75) / 1.7)
+    return_w = (lerp(wl[0], WIDE[0], u), lerp(wl[1], WIDE[1], u), lerp(wl[2], WIDE[2], u))
     if t < 6.45:
-        u = ease("inout", (t - 4.0) / 2.45)
-        uz = ease("inout", (t - 3.95) / 2.45)
-        return (lerp(a[0], WIDE[0], u), lerp(a[1], WIDE[1], u), lerp(a[2], WIDE[2], uz))
+        return return_w
     drift = (WIDE[0] - 45.0 * smoothstep(6.45, 9.4, t), WIDE[1] + 40.0 * smoothstep(6.45, 9.4, t),
              WIDE[2] + 0.05 * smoothstep(6.45, 9.4, t))
     if t < 9.4:
@@ -280,18 +290,23 @@ def _vp(t, cam):
 
 # ============================================================================= light
 def _murk(t):
-    return lerp(0.74, 0.30, smoothstep(3.6, 6.4, t)) + 0.08 * smoothstep(9.4, 12.6, t)
+    m = lerp(0.93, 0.80, smoothstep(0.5, 3.6, t))
+    return lerp(m, 0.30, smoothstep(3.9, 6.4, t)) + 0.08 * smoothstep(9.4, 12.6, t)
+
+
+def _dark(t):
+    return 0.72 * (1.0 - smoothstep(3.7, 6.2, t)) * (1.0 - 0.2 * smoothstep(0.6, 3.5, t))
 
 
 def _glow(t):
-    k = smoothstep(3.6, 6.4, t) * (1.0 - 0.25 * smoothstep(9.4, 12.6, t))
-    g = [(540.0, -60.0, 900.0, 0.30 * (1.0 - k))]
+    k = smoothstep(3.9, 6.4, t) * (1.0 - 0.25 * smoothstep(9.4, 12.6, t))
+    g = [(540.0, -60.0, 900.0, 0.16 * (1.0 - k) * smoothstep(-0.6, 2.5, t))]
     if k > 0.0:
         g += [(300.0, 560.0, 1250.0, 1.3 * k), (250.0, 1450.0, 520.0, 0.7 * k)]
     return g
 
 
-HALF = 8.5                                        # the cone's half angle
+HALF = 12.0                                       # the cone's half angle
 
 
 def _beam(f, t, view):
@@ -306,9 +321,12 @@ def _beam(f, t, view):
     if g is not None:
         hits.append((g[0], "silt", g[1]))
     poly = [view.Pp(p) for p in TRANSOM]
-    h = LIB.ray_poly(lamp, d, poly)
-    if h is not None:
-        hits.append((h[0], "wall", h[1]))
+    if kind != "bell" and LIB.inside(tgt, poly):
+        hits.append((math.hypot(tgt[0] - lamp[0], tgt[1] - lamp[1]), "wall", tgt))
+    else:
+        h = LIB.ray_poly(lamp, d, poly)
+        if h is not None:
+            hits.append((h[0], "wall", h[1]))
     b = None
     if kind == "bell":
         b = WRECK.bell_screen(view, t, *_bell_state(t))
@@ -327,16 +345,21 @@ def _beam(f, t, view):
     on = _lamp_power(t)
     if not hits:
         cone = LIB.lamp_beam(f, t, lamp, (lamp[0] + d[0] * 2600.0, lamp[1] + d[1] * 2600.0), stop=None,
-                             half=HALF, intensity=0.62 * on, reach=2600.0, dust=0.45, seed=5)
+                             half=HALF, intensity=0.66 * on, reach=2600.0, dust=0.45, seed=5)
         return cone, None, b
     s, what, p = hits[0]
     if what == "silt":
         cone = LIB.lamp_beam(f, t, lamp, p, stop=LIB.surface_line(S.seabed_y, p[0], 400.0), half=HALF,
-                             intensity=0.62 * on, pool=0.9 * on, squash=0.42, dust=0.45, seed=5)
+                             intensity=0.66 * on, pool=1.0 * on, squash=0.42, dust=0.45, seed=5)
+        if cone.hit is not None:
+            hx, hy, dist, cosi = cone.hit
+            rx = dist * cone.tanh / max(cosi, 0.25)
+            LIB.silt_detail(f, t, (hx, hy), rx * 1.1, rx * 0.42 * 1.1, on * min(1.0, 600.0 / max(dist, 1.0)),
+                            S.seabed_y, seed=3)
     elif what == "wall":
-        cone = LIB.lamp_beam(f, t, lamp, p, stop="perp", half=HALF, intensity=0.62 * on, pool=0.75 * on,
+        cone = LIB.lamp_beam(f, t, lamp, p, stop="perp", half=HALF, intensity=0.68 * on, pool=0.75 * on,
                              squash=1.35, dust=0.45, seed=5)
-        r = max(s * math.tan(HALF * D2R) * 1.6, 70.0)
+        r = max(s * math.tan(HALF * D2R) * 2.1, 90.0)
         fall = clamp(1.0 - s / 3600.0) ** 0.7 * on
         LIB.transom_lit(f, view, WRECK, p, r, fall)
     else:
@@ -352,13 +375,13 @@ def _lamp_power(t):
 
 # ============================================================================= the hose
 def _hose_top(t):
-    return (_XD(t) - 380.0, 2600.0)
+    return (_XD(t) + 160.0, 2600.0)
 
 
 def _hose_len(t):
     a = _hose_top(t)
     b = _INLET(t)
-    return math.hypot(b[0] - a[0], b[1] - a[1]) + 420.0
+    return math.hypot(b[0] - a[0], b[1] - a[1]) + 260.0
 
 
 HOSE = LIB.hose_rope(_hose_top, _INLET, 6400.0, n=64, t0=-3.0, t1=14.4, length_fn=_hose_len,
@@ -367,10 +390,10 @@ HOSE = LIB.hose_rope(_hose_top, _INLET, 6400.0, n=64, t0=-3.0, t1=14.4, length_f
 
 # ============================================================================= silt
 def _puffs():
-    out = [(X_LAND - 14.0, S.seabed_y(X_LAND - 14.0), T_TD + 0.02, 1.25, 11),
-           (X_LAND + 26.0, S.seabed_y(X_LAND + 26.0), T_TD + 0.06, 1.1, 12)]
+    out = [(X_LAND - 10.0, S.seabed_y(X_LAND - 10.0), T_TD + 0.02, 2.2, 11),
+           (X_LAND + 30.0, S.seabed_y(X_LAND + 30.0), T_TD + 0.06, 1.8, 12)]
     for i, (tf, x, s) in enumerate(LIB.footfalls("s05", 0.6, 14.0)):
-        out.append((x, S.seabed_y(x), tf, 0.75, 40 + i))
+        out.append((x, S.seabed_y(x), tf, 1.0, 40 + i))
     return out
 
 
@@ -395,10 +418,12 @@ def render(f, t, T):
     f.set_camera(cam)
     murk = _murk(t)
     S.deep_backdrop(f, t, glow=_glow(t), murk=murk)
-    LIB.far_rays(f, t, 0.16 + 0.10 * smoothstep(3.6, 6.4, t))
     view = S.View(f, murk=murk, vp=_vp(t, cam))
     wk = dict(bell_angle=_bell_state(t)[0], clapper=_bell_state(t)[1])
     WORLD.draw(f, t, view=view, wreck_kw=wk)
+    # the dark: near-black water until the reveal opens it up
+    f.darken(_dark(t), screen=True)
+    LIB.far_rays(f, t, 0.10 + 0.12 * smoothstep(3.9, 6.4, t))
     lamp = _LAMP(t)
     # warm spill of the lamp in the water around him (backlights his silhouette)
     with f.light(blur=40) as A:
@@ -407,18 +432,21 @@ def render(f, t, T):
     cone, pool, bs = _beam(f, t, view)
     if bs is not None and pool is not None and pool[0] == "bell":
         LIB.bell_lit(f, bs, lamp, _lamp_power(t) * smoothstep(11.42, 11.6, t), S.draw_bell)
-    if _PUFFS is None:
-        _PUFFS = _puffs()
-    LIB.silt_puffs(f, t, _PUFFS, _light_at_fn(t, lamp, pool))
+    # a cool backlight from the far haze behind him (keeps his silhouette reading in the dark)
+    ch = cam.to_screen(_CHEST(t))
+    LIB.screen_glow(f, (ch[0], ch[1] - 40.0), 560.0 * cam.zoom / 0.9, PAL.surface, 0.10 * (1.0 - smoothstep(4.0, 6.0, t)))
     with f.layer() as L:
         LIB.draw_hose(L, HOSE.points(t), LIB.HOSE_W)
         DIVER.draw(f, t, L)
+    if _PUFFS is None:
+        _PUFFS = _puffs()
+    LIB.silt_puffs(f, t, _PUFFS, _light_at_fn(t, lamp, pool))
     atmos.lamp(f, lamp, radius=9.0, intensity=0.95 * _lamp_power(t), halo=4.5, core=0.3, t=t, seed=6)
     # breath
-    atmos.breathing(f, _VALVE, period=4.2, phase=-1.4, n=18, t=t, seed=31, size=(1.6, 10.0), rise=(260.0, 420.0),
-                    spread=40.0, current=14.0, height=2600.0, alpha=0.85, lit=cone)
-    atmos.bubbles(f, _VALVE, rate=3.0, t=t, seed=33, rise=(240.0, 380.0), size=(1.4, 5.0), spread=8.0,
-                  current=14.0, height=2600.0, alpha=0.8, lit=cone)
+    atmos.breathing(f, _VALVE, period=4.2, phase=-1.4, n=16, t=t, seed=31, size=(1.6, 9.0), rise=(260.0, 420.0),
+                    spread=40.0, current=18.0, height=1500.0, alpha=0.6, lit=cone)
+    atmos.bubbles(f, _VALVE, rate=2.0, t=t, seed=33, rise=(240.0, 380.0), size=(1.4, 4.5), spread=8.0,
+                  current=18.0, height=1200.0, alpha=0.5, lit=cone)
     atmos.marine_snow(f, density=0.85, t=t, seed=6, sink=8.0, current=(9.0, 0.0), alpha=0.8, lit=cone)
     WORLD.draw_front(f, t, view, wreck_kw=wk)
     f.post["vignette"] = lerp(f.post["vignette"], 0.5, 0.8)

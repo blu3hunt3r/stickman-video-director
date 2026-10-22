@@ -129,6 +129,50 @@ def place_matrix(foot, k, x0=0.0, flip=False):
     return m
 
 
+# ----------------------------------------------------------------------------- drawing helpers
+def plain_look(lk):
+    """A copy of a Look with no part colours (shadows, masks, rims)."""
+    import copy
+    q = copy.copy(lk)
+    q.colors = {}
+    return q
+
+
+def draw_skeleton(ctx, sk, look, M, color=None, alpha=1.0):
+    """draw_figure through the canonical -> world map M (no eyes)."""
+    ctx.save()
+    ctx.transform(M)
+    FG.draw_figure(None, sk, look, ctx, color=color or INK, eyes=False, alpha=alpha)
+    ctx.restore()
+
+
+def occlude_figure(f, par, sk, look, M):
+    """Black out the emissive buffer under a figure (f.emit glows are added after every
+    layer, so a silhouette in front of a lit window must cut its bloom)."""
+    with f.emit(par=par) as G:
+        G.save()
+        G.set_operator(cairo.OPERATOR_SOURCE)
+        draw_skeleton(G, sk, plain_look(look), M, color=(0.0, 0.0, 0.0))
+        G.restore()
+
+
+def rim(A, sk, look, M, color, alpha, offset):
+    """A crescent of light on the figure's edge facing away from `offset` (world px): the
+    silhouette minus a copy of itself shifted by offset. A: an additive light context."""
+    if alpha <= 0.005:
+        return
+    A.push_group()
+    A.set_operator(cairo.OPERATOR_OVER)
+    draw_skeleton(A, sk, look, M, color=color)
+    A.set_operator(cairo.OPERATOR_DEST_OUT)
+    A.save()
+    A.translate(offset[0], offset[1])
+    draw_skeleton(A, sk, look, M, color=(0.0, 0.0, 0.0))
+    A.restore()
+    A.pop_group_to_source()
+    A.paint_with_alpha(clamp(alpha))
+
+
 # ----------------------------------------------------------------------------- room helpers
 class RoomMap:
     """Maps a canonical Actor (feet on y = 0, 1 m = PX_M px) into Apartment9's perspective.

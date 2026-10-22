@@ -241,7 +241,7 @@ def designed(C):
     add(cue(w("s15", "told") - 0.35, "helmet_unlock", -6, "sync", label="helmet off"))
     add(cue(g("s15", 6.25), "deck_step", -11, "fallback", params=dict(wet=1), label="steps toward him"))
     add(cue(g("s15", 6.8), "meridian_bell", 5, "story", params=dict(strike=1.0, length=24.0), label="TOLL 2 (loudest)",
-            xwater=(C.g("s16", -0.9), 2.8), fade=(C.g("s16", 11.2), C.g("s16", 15.1))))
+            xwater=(C.g("s16", -0.9), 2.8), fade=(C.g("s16", 11.0), C.g("s16", 13.3))))     # gone with the water
 
     # ---------------------------------------------------------------- s16 the sea keeps
     add(cue(w("s16", "back") - 0.4, "hull_groan", -13, "sync", params=dict(size=0.9, length=4.4), label="the wreck below"))
@@ -498,6 +498,9 @@ def merge(C, mine, theirs, have, log, breath_sync=None, heart=None):
     for sc in sorted(theirs, key=lambda x: x["t"]):
         if sc["name"] is None:
             log.append(dict(scene=sc["scene"], event="unresolved", t=sc["t"], text=sc["text"]))
+            continue
+        if sc["name"] == "_silence":
+            log.append(dict(scene=sc["scene"], event="instruction", t=sc["t"], text=sc["text"]))
             continue
         if sc["name"] in LAYER_SOUNDS:
             log.append(dict(scene=sc["scene"], event="covered_by_layer", t=sc["t"], text=sc["text"], name=sc["name"]))

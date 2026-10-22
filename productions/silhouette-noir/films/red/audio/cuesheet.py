@@ -31,6 +31,10 @@ from audio import dsp
 SNAP = 0.6
 SEQ_FAMILIES = ("step_girl", "step_wolf")
 
+# "the footsteps stop": no sound, it ends the scene's walk there (later steps of that walk are dropped)
+STOP = r"(foot)?steps? (stop|cease|end)|stops? (walking|running)|comes? to a (halt|stop)|\bhalts?\b"
+STOP_MARK = "-stop"
+
 # free text -> catalog sound (first match wins; more specific first)
 KEYWORDS = [
     (r"\bpop\b|pops up", "paper_pop"),
@@ -41,6 +45,8 @@ KEYWORDS = [
     (r"lantern.*(smash|break|shatter)|smash|shatter", "lantern_smash"),
     (r"(match|light).*(lantern|wick)|lantern.*(light|lit)|wick|light.*lantern", "lantern_light"),
     (r"lantern", "lantern_roll"),
+    (r"shriek|screech|scream", "spider_shriek"),
+    (r"(spider|grandmother).*hiss|hiss.*(spider|grandmother)", "spider_hiss"),
     (r"fire.*(whoosh|race|run|spread|catch)|whoosh.*fire|ignite|catch(es)? fire|web.*burn", "fire_whoosh"),
     (r"flare|flash", "fire_flare"),
     (r"ember|smoulder|smolder|sizzle", "embers"),
@@ -53,7 +59,7 @@ KEYWORDS = [
     (r"basket.*creak|wicker", "basket_creak"),
     (r"basket", "basket_tumble"),
     (r"ribbon|\btie|knot|tied", "ribbon_tie"),
-    (r"hood.*(fall|drift|drop|float)", "hood_fall"),
+    (r"hood.*(fall|drift|drop|float|land|pat|settle|flutter)", "hood_fall"),
     (r"hood", "hood_up"),
     (r"door|shutter", "door_wood"),
     (r"gate", "gate_creak"),
@@ -69,7 +75,6 @@ KEYWORDS = [
     (r"(spider|grandmother|body).*(drop|land)|drops", "spider_drop"),
     (r"stab|leg.*(hit|strike|touch|plant|land)|legs? touch", "leg_stab"),
     (r"skitter|scuttle|legs? (move|run|charge)|charge", "spider_skitter"),
-    (r"shriek|screech|scream", "spider_shriek"),
     (r"hiss", "spider_hiss"),
     (r"chitin|click|mandible", "chitin_click"),
     (r"eye.*(cluster|spider)|spider.*eye", "spider_eyes"),
@@ -88,7 +93,7 @@ KEYWORDS = [
     (r"wolf.*(land|step|block|appear)|lands?\b", "wolf_land"),
     (r"\bsits?\b|settle", "wolf_settle"),
     (r"paw|wolf.*(step|run|gallop)|gallop|bound", "wolf_paw"),
-    (r"skid|slide.*stop|stop.*slide", "snow_skid"),
+    (r"skid|slide.*stop|stop.*slide|stops? (short|dead)", "snow_skid"),
     (r"fall|face.?down|plunge|knocked down", "fall_deep_snow"),
     (r"scramble|crawl", "snow_scramble"),
     (r"wade|deep snow", "snow_wade"),
@@ -129,6 +134,8 @@ def resolve(text):
     tt = t.lower().replace("_", " ")
     if sfx_red.exists(tt.replace(" ", "_")):
         return tt.replace(" ", "_")
+    if re.search(STOP, tt):
+        return STOP_MARK
     for pat, name in KEYWORDS:
         if re.search(pat, tt):
             if name in ("snow_step", "girl_breath_run") and re.search(r"wolf", tt):
@@ -151,7 +158,14 @@ def scene_gain(h, fam):
 def expand_steps(h, fam):
     """One scene cue describing a run of footsteps (with dur) -> one hint per step."""
     text = h["text"].lower()
-    rate = 3.2 if re.search(r"\brun|running|sprint", text) else (2.2 if fam == "step_wolf" else 1.9)
+    running = re.search(r"\brun|running|sprint|gallop|bound", text)
+    slow = re.search(r"\bslow|hesitant|careful|creep|tiptoe", text)
+    rate = 3.2 if running else (1.4 if slow else (2.2 if fam == "step_wolf" else 1.9))
+    pace = None
+    if fam == "step_girl":
+        pace = "run" if running else ("slow" if slow else None)
+    elif running:
+        pace = "gallop"
     n = max(2, int(float(h["dur"]) * rate))
     fade = -8.0 if re.search(r"reced|away|fading|distant", text) else 0.0
     out = []
@@ -161,6 +175,9 @@ def expand_steps(h, fam):
         e["gain_db"] = (h["gain_db"] or FAMILY_GAIN.get(fam, -12.0)) + fade * i / max(n - 1, 1) - (1.0 if i % 2 else 0.0)
         e["idx"] = h["idx"] * 100 + i
         e["dur"] = None
+        e["span_end"] = h["t"] + float(h["dur"])
+        if pace and "pace" not in (h.get("params") or {}):
+            e["params"] = {**(h.get("params") or {}), "pace": pace}
         out.append(e)
     return out
 
@@ -413,18 +430,42 @@ def scene_hints():
     return sorted(hints, key=lambda h: h["t"]), status
 
 
+BED_MIN = 4.0     # sustained cues at least this long are 'beds': a scene bed matches a designed one by overlap
+
+
+def _bed_overlap(c, h, name):
+    """Designed sustained cue c and scene hint h (resolved to `name`) are the same bed: both long and
+    overlapping for at least half of the shorter one."""
+    if sfx_red.spec(c["sfx"])["kind"] != "sustained" or sfx_red.spec(name)["kind"] != "sustained":
+        return False
+    dc = float(c["dur"] or sfx_red.spec(c["sfx"])["default_dur"] or 0.0)
+    dh = float(h["dur"] or sfx_red.spec(name)["default_dur"] or 0.0)
+    if min(dc, dh) < BED_MIN:
+        return False
+    ov = min(c["t"] + dc, h["t"] + dh) - max(c["t"], h["t"])
+    return ov >= 0.5 * min(dc, dh)
+
+
 def merge(design, hints):
     cues = [dict(c) for c in design]
     rep = dict(snapped=[], kept_word_locked=[], added=[], replaced_sequences=[], unknown=[])
     resolved = []
+    stops = {}
+    for h in hints:
+        if resolve(h["text"]) == STOP_MARK:
+            stops.setdefault(h["scene"], []).append(h["t"])
+            rep.setdefault("walk_stops", []).append(dict(scene=h["scene"], t=round(h["t"], 3), text=h["text"]))
     for h in hints:
         name = resolve(h["text"])
+        if name == STOP_MARK:
+            continue
         if name is None:
             rep["unknown"].append(dict(scene=h["scene"], t=round(h["t"], 3), sfx=h["text"]))
             continue
         fam = family(name)
         if fam in SEQ_FAMILIES and h.get("dur") and float(h["dur"]) >= 0.8:
-            resolved += [(e, name, fam) for e in expand_steps(h, fam)]
+            ends = [x for x in stops.get(h["scene"], []) if x > h["t"]]
+            resolved += [(e, name, fam) for e in expand_steps(h, fam) if not ends or e["t"] < min(ends) - 0.05]
             rep.setdefault("expanded_step_cues", []).append(dict(scene=h["scene"], t=round(h["t"], 3), text=h["text"]))
             continue
         resolved.append((h, name, fam))
@@ -434,16 +475,23 @@ def merge(design, hints):
             seq = [(h, nm) for h, nm, f in resolved if h["scene"] == sid and f == fam]
             if len(seq) < 3:
                 continue
-            a, b = min(h["t"] for h, _ in seq) - 0.3, max(h["t"] for h, _ in seq) + 0.3
-            gains = [c["gain_db"] for c in cues if c["sid"] == sid and family(c["sfx"]) == fam and a <= c["t"] <= b]
-            proto = [c for c in cues if c["sid"] == sid and family(c["sfx"]) == fam and a <= c["t"] <= b]
-            cues = [c for c in cues if not (c["sid"] == sid and family(c["sfx"]) == fam and a <= c["t"] <= b
-                                            and c["lock"] != "word")]
+            a = min(h["t"] for h, _ in seq) - 0.3
+            b = max(max(h["t"], h.get("span_end", h["t"])) for h, _ in seq) + 0.3
+            inside = [c for c in cues if c["sid"] == sid and family(c["sfx"]) == fam and a <= c["t"] <= b
+                      and c["source"] == "design"]
+            # a designed walk the scene's walk overlaps is replaced whole (no stray steps after she stops)
+            tags = {c["tag"] for c in inside}
+            proto = [c for c in cues if c["sid"] == sid and family(c["sfx"]) == fam and c["source"] == "design"
+                     and c["lock"] != "word" and (a <= c["t"] <= b or c["tag"] in tags)]
+            gains = [c["gain_db"] for c in proto]
+            cues = [c for c in cues if not any(c is q for q in proto)]
             g = float(np.median(gains)) if gains else None
             params = dict(proto[0]["params"]) if proto else {}
+            ref = seq[0][0]["gain_db"] or 0.0
             for h, nm in seq:
+                # designed level, the scene's own pattern on top (alternate feet, a receding fade)
                 cues.append(dict(t=h["t"], sfx=proto[0]["sfx"] if proto else nm,
-                                 gain_db=g if g is not None else scene_gain(h, fam),
+                                 gain_db=g + ((h["gain_db"] or 0.0) - ref) if g is not None else scene_gain(h, fam),
                                  pan=h["pan"], dur=h["dur"], params={**params, **h["params"]}, lock="free",
                                  tag=f"{sid} scene steps", sid=sid, source="scene",
                                  seed=int(dsp.stable_seed("red-scene-cue", sid, h["idx"]) % (1 << 31))))
@@ -454,7 +502,7 @@ def merge(design, hints):
     for h, name, fam in resolved:
         cand = [c for c in cues if c["sid"] == h["scene"] and c["source"] == "design" and id(c) not in used
                 and family(c["sfx"]) == fam and (fam != "graphic" or c["sfx"] == name)
-                and abs(c["t"] - h["t"]) <= SNAP]
+                and (abs(c["t"] - h["t"]) <= SNAP or _bed_overlap(c, h, name))]
         if cand:
             c = min(cand, key=lambda c: abs(c["t"] - h["t"]))
             used.add(id(c))
@@ -471,7 +519,9 @@ def merge(design, hints):
         g = scene_gain(h, fam)
         cues.append(dict(t=round(h["t"], 4), sfx=name, gain_db=g, pan=h["pan"], dur=h["dur"], params=h["params"],
                          lock="beat", tag=f"{h['scene']}: {h['text']}", sid=h["scene"], source="scene",
-                         seed=int(dsp.stable_seed("red-scene-cue", h["scene"], h["idx"]) % (1 << 31))))
+                         seed=int(dsp.stable_seed("red-scene-cue", h["scene"], h["idx"]) % (1 << 31)),
+                         decay=bool(sfx_red.spec(name)["kind"] == "sustained"
+                                    and re.search(r"dying|dies away|die away|fading|fades|dwindl", h["text"].lower()))))
         rep["added"].append(dict(scene=h["scene"], t=round(h["t"], 3), text=h["text"], sfx=name, gain_db=round(g, 1)))
     return sorted(cues, key=lambda c: c["t"]), rep
 

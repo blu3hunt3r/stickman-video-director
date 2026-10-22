@@ -108,7 +108,9 @@ def _hose_a(t):
     if t < T_TD:
         tau = T_TD - t
         y = silt(X_TD) - 6.0 - 370.0 * tau + 40.0 * (1.0 - math.exp(-tau / 0.6))
-        x = X_TD - 60.0 * tau + 120.0 * math.sin(1.05 * t + 1.3) * (1.0 - math.exp(-tau / 1.2))
+        beside = X_LAND - 105.0 * (T_HAT - t) - 330.0          # ~330 px left of the hat's mean path
+        x = lerp(beside, X_TD, smoothstep(6.0, T_TD, t))
+        x += 100.0 * math.sin(1.05 * t + 1.3) * (1.0 - math.exp(-tau / 1.2))
         return (x, y)
     tau = t - T_TD
     x = X_TD - 700.0 * (1.0 - math.exp(-tau / 1.5)) - 30.0 * tau
@@ -146,40 +148,72 @@ HOSE = LIB.hose_rope(_hose_a, None, HOSE_L, n=44, t0=-4.0, t1=16.0, current=_hos
 
 
 # ============================================================================= camera
-T_BOTTOM = 8.0                  # the camera settles at eye level with the silt
-CAM_X_END = -1180.0             # the hose framed at the end
-Z_END = 1.4
+Z_TRACK = (1.0, 0.84)           # close on the hat while they sink (0 .. 5.5)
+Z_BOT = (0.5, 0.58)             # the bottom framing: eye level with the silt (T_BOT .. T_TILT0)
+Z_END = 1.4                     # on the hose at the end: 14 px thick
+T_BOT = 8.4
+T_TILT0, T_TILT1 = 12.6, 13.84
+LAND_S = (700.0, 1440.0)        # the hat's landing spot on screen in the bottom framing
+X_HOSE_C = -800.0               # the hose's straight run, framed at the end
+VP_HIGH, VP_EYE, VP_END = 250.0, 1600.0, -700.0     # the horizon: looking down / eye level / tilted down
 
 
-def _follow(t):
+def _logz(a, b, u):
+    return math.exp(lerp(math.log(a), math.log(b), u))
+
+
+def _track(t):
     (hx, hy), _, _ = hat(t)
-    z = _zoom(t)
-    sy = lerp(700.0, 560.0, smoothstep(0.0, 6.0, t))
-    sx = 640.0
-    return hx - (sx - W / 2) / z, hy - (sy - H / 2) / z
+    z = _logz(Z_TRACK[0], Z_TRACK[1], smoothstep(0.0, 5.5, t))
+    sx = lerp(620.0, 600.0, smoothstep(0.0, 5.0, t))
+    sy = lerp(780.0, 620.0, smoothstep(0.0, 5.5, t))
+    return hx - (sx - W / 2) / z, hy - (sy - H / 2) / z, z
 
 
-def _zoom(t):
-    z = lerp(0.56, 0.38, ease("inout", (t - 5.6) / 2.6))
-    z = lerp(z, 0.5, ease("inout", (t - 8.6) / 2.6))
-    z = math.exp(lerp(math.log(z), math.log(Z_END), ease("inout", (t - 12.6) / 1.24)))
-    return z
+def _bottom(t):
+    z = _logz(Z_BOT[0], Z_BOT[1], ease("inout", (t - T_BOT) / (T_TILT0 - T_BOT)))
+    sx, sy = LAND_S
+    return X_LAND - (sx - W / 2) / z, Y_LAND - (sy - H / 2) / z, z
 
 
-_BOT = (X_LAND + 130.0, silt(X_LAND + 130.0))
+def _tilt_k(t):
+    return ease("inout", (t - T_TILT0) / (T_TILT1 - T_TILT0))
+
+
+def _cam3(t):
+    """(x, y, zoom): track the hat; crane down to the bottom framing; tilt down onto the hose."""
+    w = ease("inout", (t - 5.5) / (T_BOT - 5.5))
+    if w <= 0.0:
+        return _track(t)
+    xb, yb, zb = _bottom(t)
+    if w < 1.0:
+        xt, yt, zt = _track(t)
+        z = _logz(zt, zb, w)
+        # blend the screen position of the landing spot, so the move reads as one crane
+        st = ((X_LAND - xt) * zt + W / 2, (Y_LAND - yt) * zt + H / 2)
+        sb = ((X_LAND - xb) * zb + W / 2, (Y_LAND - yb) * zb + H / 2)
+        sx, sy = lerp(st[0], sb[0], w), lerp(st[1], sb[1], w)
+        return X_LAND - (sx - W / 2) / z, Y_LAND - (sy - H / 2) / z, z
+    k = _tilt_k(t)
+    if k <= 0.0:
+        return xb, yb, zb
+    ax, ay = X_HOSE_C, silt(X_HOSE_C) - 6.0
+    s0 = ((ax - xb) * zb + W / 2, (ay - yb) * zb + H / 2)
+    z = _logz(zb, Z_END, k)
+    sx, sy = lerp(s0[0], W / 2, k), lerp(s0[1], LINE_Y, k)
+    return ax - (sx - W / 2) / z, ay - (sy - H / 2) / z, z
 
 
 def camera(t):
-    z = _zoom(t)
-    w = smoothstep(5.2, T_BOTTOM, t)
-    x = lerp(_follow(t)[0], _BOT[0], w)
-    y = lerp(_follow(t)[1], _BOT[1], ease("inout", w))
-    # the tilt down / push in onto the hose
-    k = ease("inout", (t - 12.6) / 1.24)
-    if k > 0.0:
-        x = lerp(x, CAM_X_END, k)
-        y = lerp(y, silt(CAM_X_END) - 6.0, k)
+    x, y, z = _cam3(t)
     return Camera(x, y, z)
+
+
+def _vp_y(t):
+    """Screen y of the horizon: high while we look down on the wreck, at the silt as we settle,
+    above the frame as the camera tilts down onto the hose."""
+    y = lerp(VP_HIGH, VP_EYE, ease("inout", (t - 6.0) / 2.6))
+    return lerp(y, VP_END, _tilt_k(t))
 
 
 # ============================================================================= world
@@ -192,21 +226,23 @@ def _world_a(t, b):
 
 
 def _view(f, t):
-    eye = smoothstep(6.0, T_BOTTOM, t)
-    v = S.View(f, murk=lerp(0.35, 0.5, eye), down_fog=lerp(1.6, 0.9, eye))
-    return v
+    eye = smoothstep(6.0, T_BOT, t)
+    return S.View(f, murk=lerp(0.35, 0.5, eye), down_fog=lerp(1.6, 0.9, eye), vp=(W / 2, _vp_y(t)))
 
 
 def _backdrop(f, t, b):
-    rays = 1.0 - smoothstep(b["every"], b["every"] + 1.7, t)
-    S.deep_backdrop(f, t, glow=[(560.0, 160.0, 1250.0, 0.55 + 0.45 * rays), (520.0, 900.0, 700.0, 0.25)],
-                    murk=0.42 + 0.2 * smoothstep(4.0, 9.0, t))
-    if rays > 0.0:
-        cam = f.cam
-        top = cam.y - H / 2 / cam.zoom
-        atmos.underwater_rays(f, surface_y=top - 400.0, t=t, spacing=210.0, angle=94.0, fan=9.0,
-                              length=3600.0, intensity=0.5 * rays, color=S.mix(PAL.moon, PAL.surface, 0.4),
-                              density=0.6, seed=12, blur=18)
+    rays = 1.0 - 0.72 * smoothstep(b["every"], b["every"] + 1.7, t)        # thinned, never quite gone
+    cam = f.cam
+    bot = smoothstep(6.4, T_BOT, t) * (1.0 - _tilt_k(t))
+    land = ((X_LAND - cam.x) * cam.zoom + W / 2, (Y_LAND - cam.y) * cam.zoom + H / 2)
+    glows = [(560.0, 160.0, 1250.0, 0.55 + 0.45 * rays), (520.0, 900.0, 700.0, 0.25 * (1.0 - bot))]
+    if bot > 0.0:       # moonlight reaching down: the haze behind the landing spot (backlight)
+        glows.append((land[0] - 30.0, land[1] - 240.0, 820.0, 0.8 * bot))
+    S.deep_backdrop(f, t, glow=glows, murk=0.42 + 0.2 * smoothstep(4.0, 9.0, t))
+    top = cam.y - H / 2 / cam.zoom
+    atmos.underwater_rays(f, surface_y=top - 400.0, t=t, spacing=210.0, angle=94.0, fan=9.0,
+                          length=3600.0, intensity=0.5 * rays, color=S.mix(PAL.moon, PAL.surface, 0.4),
+                          density=0.6, seed=12, blur=18)
 
 
 def _world(f, t, b):
@@ -330,7 +366,7 @@ def render(f, t, T):
         _draw_hose(f, t, k_line)
         snow = 1.0 - smoothstep(12.8, 13.4, t)
         if snow > 0.0:
-            atmos.marine_snow(f, density=0.9 * snow, t=t, seed=16, sink=8.0, current=(9.0, 0.0), alpha=0.75)
+            atmos.marine_snow(f, density=0.9 * snow, t=t, seed=16, sink=8.0, current=(-7.0, 0.0), alpha=0.75)
         f.post["vignette"] = lerp(f.post["vignette"], 0.45, smoothstep(6.0, 9.0, t))
     else:
         f.fill(INK)

@@ -167,6 +167,61 @@ def ray_ground(p, d, ground, smax=6000.0, step=24.0):
     return None
 
 
+def inside(p, poly):
+    """Point-in-polygon (even-odd)."""
+    x, y = p
+    c = False
+    n = len(poly)
+    for i in range(n):
+        x0, y0 = poly[i]
+        x1, y1 = poly[(i + 1) % n]
+        if (y0 > y) != (y1 > y):
+            if x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+                c = not c
+    return c
+
+
+def silt_detail(f, t, c, rx, ry, k, ground, seed=0, cell=34.0, crest=True):
+    """What a lamp's pool reveals on the silt around c (rx, ry = the pool's radii, k its
+    strength 0..1): ink pebbles and shell bits (they only show against the light) and pale
+    ripple crests catching it. ground(x) = the silt line."""
+    if k <= 0.02:
+        return
+    x0, x1 = c[0] - rx * 1.3, c[0] + rx * 1.3
+    i0, i1 = int(math.floor(x0 / cell)), int(math.ceil(x1 / cell))
+    with f.layer() as L:
+        for i in range(i0, i1 + 1):
+            for j in range(3):
+                h = [hash01(seed, i, j, m) for m in range(5)]
+                if h[0] > 0.55:
+                    continue
+                x = (i + h[1]) * cell
+                y = ground(x) + (h[2] - 0.35) * ry * 1.6
+                q = ((x - c[0]) / rx) ** 2 + ((y - c[1]) / ry) ** 2
+                if q > 1.6:
+                    continue
+                r = 1.6 + 5.0 * h[3] ** 2.5
+                draw.ellipse(L, (x, y), r * (1.0 + 0.8 * h[4]), r * 0.55)
+        L.set_source_rgba(*INK, 0.85)
+        L.fill()
+    if crest:
+        lit = f.pal.light
+        with f.light(blur=1.0) as A:
+            for i in range(i0, i1 + 1):
+                h = [hash01(seed + 7, i, m) for m in range(5)]
+                if h[0] > 0.6:
+                    continue
+                x = (i + h[1]) * cell
+                y = ground(x) + (h[2] - 0.4) * ry * 1.5
+                q = ((x - c[0]) / rx) ** 2 + ((y - c[1]) / ry) ** 2
+                if q > 1.2:
+                    continue
+                a = k * 0.32 * math.exp(-q * 1.8) * (0.5 + 0.5 * h[3])
+                w = 14.0 + 26.0 * h[4]
+                _line(A, [(x - w, y + 1.5), (x - w * 0.3, y - 1.0), (x + w * 0.4, y - 1.2), (x + w, y + 1.0)],
+                      1.6, _hot(lit, 0.3), a)
+
+
 def unit(dx, dy):
     L = math.hypot(dx, dy) or 1.0
     return dx / L, dy / L
@@ -296,9 +351,9 @@ def bell_lit(f, b, lamp, power, draw_bell, blur=0.8):
         A.push_group()
         draw_bell(A, X, Y, angle=ang, clapper=b["clapper"], s=s, color=(1, 1, 1))
         mask = A.pop_group()
-        hot = (c[0] + ux * 40 * s, c[1] + uy * 40 * s)
-        g = cairo.RadialGradient(hot[0], hot[1], 0, hot[0], hot[1], 105 * s)
-        for o, al in ((0.0, 0.85), (0.45, 0.42), (1.0, 0.10)):
+        hot = (c[0] + ux * 48 * s, c[1] + uy * 48 * s)
+        g = cairo.RadialGradient(hot[0], hot[1], 0, hot[0], hot[1], 92 * s)
+        for o, al in ((0.0, 0.62), (0.35, 0.34), (0.7, 0.08), (1.0, 0.0)):
             g.add_color_stop_rgba(o, lit[0], lit[1], lit[2], al * power)
         A.set_source(g)
         A.mask(mask)
@@ -310,7 +365,10 @@ def bell_lit(f, b, lamp, power, draw_bell, blur=0.8):
         A.set_source_rgba(1, 1, 1, 1)
         A.fill()
         streak = A.pop_group()
-        A.set_source_rgba(*_hot(lit), 0.9 * power)
+        sg = cairo.LinearGradient(*L(0, 30), *L(0, 140))
+        for o, al in ((0.0, 0.35), (0.5, 0.95), (1.0, 0.55)):
+            sg.add_color_stop_rgba(o, *_hot(lit, 0.45), al * power)
+        A.set_source(sg)
         A.mask(streak)
         # the lip bead and the crown loop catch it
         _line(A, [L(-66 * side, 141), L(0, 143), L(66 * side, 141)], max(4.0 * s, 1.0), _hot(lit), 0.75 * power)
@@ -323,7 +381,7 @@ def _hot(c, k=0.55):
 
 
 # ----------------------------------------------------------------------------- silt
-def silt_puffs(f, t, puffs, light_at, color=None, blur=7.0):
+def silt_puffs(f, t, puffs, light_at, color=None, blur=12.0):
     """Silt clouds kicked up by boots: puffs = [(x, y, t0, size, seed)]; each billows up and
     out, slows, sags and fades over ~3 s. light_at(x, y) -> 0..1 (how much lamp light
     reaches them: they only show where lit). Drawn as additive haze."""
@@ -345,7 +403,7 @@ def silt_puffs(f, t, puffs, light_at, color=None, blur=7.0):
                 bx = x + size * (sd * 70.0 * grow + 8.0 * tau)
                 by = y - size * (6.0 + (22.0 + 40.0 * h3) * grow - 6.0 * smoothstep(1.0, 3.4, tau))
                 r = size * (14.0 + 26.0 * h2) * (0.45 + 0.9 * grow)
-                draw.glow_disc(A, (bx, by), r, col, 0.26 * fade * k * (0.6 + 0.4 * h3))
+                draw.glow_disc(A, (bx, by), r * 1.25, col, 0.30 * fade * k * (0.6 + 0.4 * h3))
 
 
 S_SILT = (0.62, 0.55, 0.44)

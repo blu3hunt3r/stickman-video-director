@@ -192,6 +192,8 @@ def render_cues(cues):
             clamped.append(dict(t=c["t"], sfx=name, gain_db=g))
             g = MAX_CUE_GAIN_DB
         x = x.astype(np.float64) * db2lin(g)
+        if c.get("decay"):          # a scene asked for it to die away: -24 dB over its length
+            x *= db2lin(np.linspace(0.0, -24.0, len(x)))[:, None]
         if abs(c["pan"]) > 1e-6:
             x = dsp.pan_stereo(x, float(np.clip(c["pan"], -1, 1)))
         at = n_of(c["t"] - sync)
@@ -377,6 +379,7 @@ def main(argv=None):
     rep["cues"] = dict(total=len(cues), designed=crep["designed"], scene_hints=crep["hints"], snapped=crep["snapped"],
                        kept_word_locked=crep["kept_word_locked"], added_from_scenes=crep["added"],
                        replaced_sequences=crep["replaced_sequences"], expanded_step_cues=crep.get("expanded_step_cues", []),
+                       walk_stops=crep.get("walk_stops", []),
                        unknown_scene_cues=crep["unknown"], scene_status=crep["status"], render_problems=problems,
                        clamped=clamped)
 
