@@ -61,22 +61,32 @@ class Wreck:
     LINE_SBH = (1750.0, 1050.0, 2580.0 + 420.0)          # winch line enters the deckhouse here
     HOLES = ((3350.0, 560.0, 150.0), (4250.0, 760.0, 185.0), (5150.0, 600.0, 130.0))   # (s, h, radius)
 
-    def __init__(self, heading=-34.0, z0=1350.0, bell_x=None):
+    def __init__(self, heading=-34.0, z0=1350.0, bell_x=None, heel=90.0):
         th = math.radians(heading)
-        self.heading = heading
+        ph = math.radians(heel)
+        self.heading, self.heel = heading, heel
         self.Lx, self.Lz = math.sin(th), math.cos(th)
-        self.Hx, self.Hz = -math.cos(th), math.sin(th)
-        self.ycl = SEABED_Y + self.BURY - self.BEAM / 2
+        Hx, Hz = -math.cos(th), math.sin(th)          # her port side's outward direction (level)
+        cp, sp = math.cos(ph), math.sin(ph)
+        # transverse (+ starboard) and vertical (+ toward the deck) axes after heeling to port
+        self.Tx, self.Ty, self.Tz = -cp * Hx, -sp, -cp * Hz
+        self.Vx, self.Vy, self.Vz = sp * Hx, -cp, sp * Hz
+        self.ycl, self.ox, self.oz = 0.0, 0.0, 0.0
+        # rest her on the silt: the lowest point of her midship section sits BURY deep
+        low = max(self.W(9000.0, b, h)[1] for b, h in self.section(9000.0))
+        self.ycl = SEABED_Y + self.BURY - low
         bx = DIVE_X if bell_x is None else bell_x
-        s, b, h = self.BELL_SBH
-        self.ox = bx - (s * self.Lx + h * self.Hx)
+        x_b = self.W(*self.BELL_SBH)[0]
+        self.ox = bx - x_b
         self.oz = z0
         self._items_cache = None
 
     # ---------------------------------------------------------------- frame
     def W(self, s, b, h):
         """World (x, y, z) of ship point (s, b, h)."""
-        return (self.ox + s * self.Lx + h * self.Hx, self.ycl - b, self.oz + s * self.Lz + h * self.Hz)
+        return (self.ox + s * self.Lx + b * self.Tx + h * self.Vx,
+                self.ycl + b * self.Ty + h * self.Vy,
+                self.oz + s * self.Lz + b * self.Tz + h * self.Vz)
 
     def deck_h(self, s):
         if s < 3200:
