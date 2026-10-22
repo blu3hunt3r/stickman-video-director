@@ -9,3 +9,4 @@ audio/vo/*.wav
 films/*/audio/vo/*.wav
 films/*/out/
 films/*/qa/
+films/*/final/*_preview.mp4
