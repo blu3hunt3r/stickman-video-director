@@ -715,6 +715,19 @@ def _bight_l(t):
     return up + down[1:], down[-1:] + OVER[1:]
 
 
+# through the IN scroll s11's hose wanders a little at its top edge: the offset (world px, at
+# our zoom) that keeps ours on it at our bottom edge (sampled against s11's _hose_pts)
+_IN_DX = ((-0.625, 32.5), (-0.5, 16.2), (-0.375, 4.9), (-0.25, -1.4), (-0.125, -4.0), (0.0, -4.0),
+          (0.125, -2.8), (0.25, -0.1), (0.375, 5.2), (0.5, 11.8), (0.625, 18.0))
+
+
+def _in_dx(t):
+    if t >= 1.0:
+        return 0.0
+    v = float(np.interp(t, [a for a, b in _IN_DX], [b for a, b in _IN_DX]))
+    return v * (1.0 - ss(T_LOCK, 1.0, t))
+
+
 def _hose_water(t, p0):
     """World: from p0 (on the hull's side under the waterline) down under the hull, across
     under the line to its right-hand side, then on down into the dark (s11's set-up)."""
@@ -727,6 +740,7 @@ def _hose_water(t, p0):
         top = p0[0] - 24.0 * ss(y0, 860.0, y) + 7.0 * math.sin(0.5 * t + y / 310.0) * ss(y0, y0 + 300.0, y)
         x = lerp(top, _line_x0(y, t) + DX_HOSE, u)
         x += 12.0 * math.sin(0.45 * t + y / 520.0) * math.sin(math.pi * clamp((y - y0) / 2400.0))
+        x += _in_dx(t) * ss(1950.0, 2500.0, y)
         out.append((x, y))
     return out
 
@@ -1277,8 +1291,7 @@ S13_MURK = 0.34
 
 def _out_band(f, t):
     """Going down, the water below lightens toward the haze round the diver's lamp: a band
-    rising into our bottom edge that carries s13's top-edge haze (and the soft glow at its
-    top right, deep_backdrop's (760, 160) r 760 x 0.22) by the scroll."""
+    rising into our bottom edge that carries s13's top-edge haze by the scroll."""
     k = ss(8.1, 9.0, t)
     if k <= 0.0:
         return
@@ -1288,14 +1301,59 @@ def _out_band(f, t):
         draw.linear(G, (0, H * 0.40), (0, H), [(0.0, col, 0.0), (0.5, col, 0.35 * k), (0.8, col, 0.8 * k),
                                                (1.0, col, k)])
         G.paint()
-    gcol = S.haze_at(max(cy - 3000.0, 0.0), 0.0)
-    with f.light(par=0.0, blur=30) as A:
-        A.save()
-        A.identity_matrix()
-        A.scale(A.get_target().get_width() / W, A.get_target().get_height() / H)
-        draw.glow_disc(A, (760.0, H + 160.0), 760.0, gcol, 0.45 * 0.22 * k)
-        draw.glow_disc(A, (760.0, H + 160.0), 760.0 * 0.45, gcol, 0.30 * 0.22 * k)
-        A.restore()
+        # s13's right half is darker at its top (the shadow under the wreck's quarter)
+        dk = mix(INK, PAL.deep, 0.5)
+        hg = cairo.LinearGradient(0, 0, W, 0)
+        for u, a in ((0.0, 0.0), (0.31, 0.0), (0.47, 0.30), (0.86, 0.30), (1.0, 0.40)):
+            hg.add_color_stop_rgba(u, dk[0], dk[1], dk[2], a * k)
+        vg = cairo.LinearGradient(0, H * 0.55, 0, H)
+        vg.add_color_stop_rgba(0.0, 0, 0, 0, 0.0)
+        vg.add_color_stop_rgba(1.0, 0, 0, 0, 1.0)
+        G.set_source(hg)
+        G.mask(vg)
+
+
+# ...and the beam of his helmet lamp, which reaches s13's top edge from s13 time ~ -0.4:
+# (s13 time, lamp screen x, y, angle, s13 zoom, length), sampled from its _beam()
+_S13_BEAM = ((-0.5, 441.4, 1429.4, -72.0, 1.1160, 1300.0), (-0.25, 440.0, 1300.8, -72.0, 1.1579, 1300.0),
+             (0.0, 439.1, 1198.3, -72.0, 1.1891, 1300.0), (0.25, 438.6, 1128.0, -72.0, 1.2095, 1300.0),
+             (0.5, 438.3, 1093.9, -72.0, 1.2191, 1300.0))
+
+
+# ...and the slope of its hose just under its top edge (screen dx per px down), sampled
+_S13_SLOPE = ((-0.5, 0.17), (-0.25, 0.25), (0.0, 0.36), (0.25, 0.53), (0.5, 0.43))
+
+
+def _guide_out(pts, t, cam):
+    """Over the last second the hose's tail is eased (in screen space, the bottom 420 px) onto
+    the line it continues along in s13: through X_OUT_HOSE on the bottom edge, on s13's slope,
+    so the join is one loose bend and not a kink."""
+    k = ss(8.6, 9.0, t)
+    if k <= 0.0:
+        return pts
+    sl = float(np.interp(t - 9.5, [a for a, b in _S13_SLOPE], [b for a, b in _S13_SLOPE]))
+    out = []
+    for p in pts:
+        sx, sy = cam.to_screen(p)
+        w = k * ss(H - 420.0, H + 60.0, sy)
+        if w > 0.0:
+            p = cam.to_world((lerp(sx, X_OUT_HOSE + sl * (sy - H), w), sy))
+        out.append(p)
+    return out
+
+
+def _out_beam(f, t, cam):
+    """Continue s13's lamp beam up across our bottom edge during the scroll: the same cone,
+    its apex one frame height below ours."""
+    tau = t - 9.5
+    if tau < -0.5:
+        return None
+    rows = np.array(_S13_BEAM)
+    sx, sy, ang, z13, ln = (float(np.interp(tau, rows[:, 0], rows[:, i])) for i in range(1, 6))
+    apex = cam.to_world((sx, sy + H))
+    return atmos.beam(f, apex, ang - cam.rot, length=ln * z13 / cam.zoom, half_angle=11.0, color=LIGHT,
+                      intensity=0.6, falloff=0.8, soft=0.5, core=0.55, fog=0.4, dust=0.45, glare=0.0, t=t,
+                      seed=7, pool=0.0)
 
 
 # ============================================================================= render
@@ -1337,7 +1395,7 @@ def render(f, t, T):
         _draw_rail(L, t)
         if t >= T_SET:
             _draw_cigar(L, f, _cigar_rail(t), 2.0, 0.55 + 0.08 * noise1(t * 1.3, 2))
-        _stroke(L, _hose_out_pts(t), HOSE_W, RED, cap=cap)
+        _stroke(L, _guide_out(_hose_out_pts(t), t, cam), HOSE_W, RED, cap=cap)
     S.water_front(f, t, alpha=0.08, bright=_bright(t))
     BOAT.draw_lights(f, t, lantern=1.0, window=0.5, masthead=1.0)
     _ember_flare(f, sk, t)
@@ -1352,6 +1410,7 @@ def render(f, t, T):
     ts, xs = _splash_t()
     LIB.splash(f, t, xs, ts, 16, 0.5, 12)
     _end_bubbles(f, t)
+    _out_beam(f, t, cam)
     if top_y > -500:
         atmos.marine_snow(f, density=0.45 * ss(-500.0, 300.0, top_y), t=t, seed=12, sink=5.0, current=(9.0, 0.0),
                           alpha=0.55)

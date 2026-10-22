@@ -4,7 +4,9 @@ IN  (scroll 'up' from s02, 1.25 s): split composition at late dusk, waterline at
     y ~760 (the camera still tilting down, settling by 0.45). Above: the stern of the boat,
     the ladder over the transom, the davit and lantern, the moon at upper right. Below: aqua.
     The diver is on the ladder (profile, facing the boat) at screen x ~620, the red hose
-    looping from the stern to his helmet.
+    looping from the stern to his helmet. The client stands at the winch, facing aft (s02's own
+    actor on s02's clock, head at screen ~(244, 119)); he stays while the deck is in frame,
+    still but for his head, which slowly follows the diver down.
 
 Beats (scene-local s):
   0.30       he lets go of the rail and drops; 0.64 his boots hit the water: crown splash,
@@ -30,6 +32,7 @@ Depth is compressed: the camera covers ~4.4k world px, a 'virtual depth' (x ~1.8
 end) drives the water colour, and the seabed is the sets' DeepWorld drawn through a camera
 shifted down by DELTA so the real silt (~9000) sits under him at Y_S.
 """
+import functools
 import math
 
 import cairo
@@ -45,7 +48,9 @@ from engine.palette import PAPER
 from engine.timing import Cue
 from films.salvage import cast
 from films.salvage import sets as S
+from films.salvage import sets_boat as SB
 from films.salvage.scenes import _lib_s01_s03_s16 as LIB
+from films.salvage.scenes import _lib_s02_s12 as K
 
 PAL = S.PAL
 INK = PAL.ink
@@ -229,6 +234,88 @@ def _suit_src(te):
     """Where the plunge's air comes out: around his legs, never above the surface."""
     x, y = pelvis_x(te), pelvis_y(te) + 90.0
     return (x + 10.0, max(y, S.sea_y(x, te) + 40.0))
+
+
+# ============================================================================= the client
+# s02 ends with the client standing at the winch (boat rest frame x -530), facing aft toward
+# the ladder and the sea. He stays there while the deck is in frame: s02's own actor on s02's
+# clock (s02 is 15.0 s and hands its camera over as s03.camera(t - 15)), riding this scene's
+# boat, so the scroll doesn't pop. Only his head moves: a slow look down after the diver.
+T02 = 15.0                      # s02's clock = this scene's + 15
+X_CLIENT = -530.0               # s02.CLIENT_X (boat rest frame)
+
+
+@functools.lru_cache(maxsize=1)
+def _s02_client():
+    from engine.timing import SceneTiming
+    from films.salvage.scenes import s02_cash as M
+    rg = M.rig(SceneTiming("salvage", "s02"))
+    return rg.client, rg.b["it"]
+
+
+def _client_head(t):
+    """Head pitch (deg, + = down) added to s02's last 3 deg: he watches the diver go down."""
+    return 22.0 * ease("inout", clamp((t - 0.35) / 2.7)) + 5.0 * smoothstep(3.2, 5.6, t)
+
+
+def _client_in_view(f, t):
+    return f.cam.to_screen((X_CLIENT, BOAT.deck_y(X_CLIENT, t)))[1] > -20.0
+
+
+def _client(t):
+    """(skeleton, look, knife kwargs, coat-flap polygon) of the client at t."""
+    actor, it = _s02_client()
+    t2 = t + T02
+    p = actor.pose(t2)
+    w = BOAT.to_world((p.x - BOAT.x, p.y), t)          # rest frame -> this scene's swell
+    dx, dy = w[0] - p.x, w[1] - p.y
+    p.x += dx
+    p.y += dy
+    for side in ("L", "R"):
+        lg = p.legs[side]
+        if "ik" in lg:
+            lg["ik"] = (lg["ik"][0] + dx, lg["ik"][1] + dy)
+    p.head += _client_head(t)
+    sk = F.solve(p, cast.CLIENT)
+    g = 1.0 - 0.35 * smoothstep(it + 0.2, 15.5, t2)     # s02's wind and coat as it ends
+    wind = 0.95 * g + 0.10 * g * noise1(t2 * 2.1, 17)
+    ember = lerp(1.0, 0.55, smoothstep(0.8, 3.5, t)) + 0.08 * math.sin(2.7 * t2) + 0.05 * noise1(t2 * 1.3, 9)
+    look = cast.client(ember=ember, coat_flow=wind)
+    kw = K.knife_on_belt(sk)
+    flap = K.coat_flap(sk, look, 1.0 - 0.25 * smoothstep(it + 0.3, 15.5, t2), t2,
+                       cover=K.knife_points(kw)["pommel"])
+    return sk, look, kw, flap
+
+
+def _client_masks(f, c):
+    """His silhouette blacks out the glow buffer (the lantern) behind him, as in s02."""
+    sk, look, kw, flap = c
+    K.figure_mask(f, sk, look)
+    K.emit_mask(f, [lambda G: draw.poly(G, flap),
+                    lambda G: S.draw_knife(G, **dict(kw, color=(0.0, 0.0, 0.0)))])
+
+
+def _draw_client(f, L, c):
+    sk, look, kw, flap = c
+    right = math.cos(sk.pose.yaw * D2R) >= 0
+    if not right:
+        S.draw_knife(L, **kw)
+    F.draw_figure(f, sk, look, L)
+    if right:
+        S.draw_knife(L, **kw)
+    L.new_path()
+    draw.poly(L, flap)
+    L.set_source_rgb(*INK)
+    L.fill()
+
+
+def _draw_rail(L, t):
+    """The stern rail, in front of the client (as s02 layers it)."""
+    BOAT._begin(L, BOAT.pose(t))
+    L.new_path()
+    S.put(L, S.shape("boat_rail", SB._railing))
+    S.paint(L, INK)
+    L.restore()
 
 
 # ============================================================================= the hose
@@ -704,15 +791,23 @@ def render(f, t, T):
                     0.13 * under * (1.0 - 0.75 * deep_k) * (1.0 - 0.6 * smoothstep(11.2, 12.5, t)))
     _fish(f, t)
     cone = _beam(f, t, b)
-    # --- the action plane
+    # --- the action plane (layered as s02 ends: the boat, her lights, the client behind the
+    # stern rail, the hose, the diver)
+    cl = _client(t) if surface and _client_in_view(f, t) else None
+    if surface:
+        with f.layer() as L:
+            BOAT.draw(L, t, pump_angle=12.0, winch_angle=0.0, hose_coil=0.55, rail=cl is None)
+        BOAT.draw_lights(f, t, lantern=1.0, window=0.0, masthead=1.0)
+    if cl is not None:
+        _client_masks(f, cl)
     with f.layer() as L:
-        if surface:
-            BOAT.draw(L, t, pump_angle=12.0, winch_angle=0.0, hose_coil=0.55)
+        if cl is not None:
+            _draw_client(f, L, cl)
+            _draw_rail(L, t)
         LIB.draw_hose(L, HOSE.points(t), LIB.HOSE_W, color=S.mix(S.RED, INK, 0.75 * smoothstep(13.2, 13.62, t)))
         DIVER.draw(f, t, L)
     if surface:
         S.water_front(f, t, alpha=0.10, bright=BRIGHT)
-        BOAT.draw_lights(f, t, lantern=1.0, window=0.0, masthead=1.0)
         xh = pelvis_x(T_HIT)
         _splash(f, t, pelvis_x(T_TOE) - 18.0, T_TOE, 14, 0.3, 10)
         _crown(f, t, xh, T_HIT, 1.0, 13)

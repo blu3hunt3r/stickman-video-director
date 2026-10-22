@@ -41,8 +41,8 @@ T_TOLL = LIB.TOLLS[2][0] - OFF       # 6.80: the third toll (the loudest)
 # (I 5.50, told 5.68, him 6.06)
 T_REL = 2.40                         # the hose coupling comes off the helmet
 T_TWIST = (5.30, 5.58)               # the helmet's quarter-turn (unlock)
-T_LIFT = (5.62, 6.10)                # lifted off over his head
-T_LOWER = (6.10, 6.45)               # lowered to his side
+T_LIFT = (5.62, 6.00)                # lifted off over his head
+T_LOWER = (6.00, 6.55)               # brought forward and down to his side
 T_HAT = 7.15                         # the gust gets under the client's hat
 T_FLY = 7.24                         # ... and takes it
 
@@ -201,9 +201,9 @@ _DV_P = [
     (4.10, 818.0, -484.0),
     (4.40, 752.0, -490.0),
     (4.75, 728.0, -488.0),
-    (6.45, 728.0, -488.0),
-    (6.75, 690.0, -489.0),
-    (7.10, 684.0, -488.0),
+    (6.55, 728.0, -488.0),
+    (6.85, 690.0, -489.0),
+    (7.15, 684.0, -488.0),
     (10.0, 684.0, -488.0),
 ]
 _DVX = _keys(_DV_P, 1, m0=-12.0)
@@ -223,7 +223,7 @@ _FL = [
     (2.85, 3.15, _foot_rung(7), _foot_rung(4), (36.0, -30.0)),
     (3.45, 3.80, _foot_rung(4), _foot_deck(850.0), (40.0, -150.0)),
     (4.10, 4.40, _foot_deck(850.0), _foot_deck(715.0), (0.0, -34.0)),
-    (6.45, 6.72, _foot_deck(715.0), _foot_deck(668.0), (0.0, -26.0)),
+    (6.55, 6.80, _foot_deck(715.0), _foot_deck(668.0), (0.0, -26.0)),
 ]
 _FR = [
     (0.60, 1.10, (985.0, 580.0), _foot_rung(11), (10.0, -20.0)),
@@ -232,7 +232,7 @@ _FR = [
     (3.15, 3.45, _foot_rung(5), _foot_rung(2), (36.0, -30.0)),
     (3.80, 4.10, _foot_rung(2), _foot_deck(785.0), (10.0, -110.0)),
     (4.45, 4.75, _foot_deck(785.0), _foot_deck(740.0), (0.0, -26.0)),
-    (6.62, 6.88, _foot_deck(740.0), _foot_deck(700.0), (0.0, -20.0)),
+    (6.70, 6.95, _foot_deck(740.0), _foot_deck(700.0), (0.0, -20.0)),
 ]
 
 
@@ -249,7 +249,7 @@ def _twist(t):
 
 def _speak(t):
     """The unheard words: two small dips of the head (his name)."""
-    return 3.5 * LIB.bump(t, 6.50, 6.55, 6.56, 6.63) + 3.0 * LIB.bump(t, 6.64, 6.69, 6.70, 6.78)
+    return 3.5 * LIB.bump(t, 6.52, 6.57, 6.58, 6.65) + 3.0 * LIB.bump(t, 6.66, 6.71, 6.72, 6.80)
 
 
 def _dv_body(t):
@@ -330,18 +330,13 @@ def _helm_ref():
     return dict(sk=sk, c=c, R=R, cl=BOAT.to_local(c, _tau(T_LIFT[0])), pieces=pcs, lamp=lamp)
 
 
-_LIFT = [  # (t, dx, dy, rot) from the worn position, boat-local
-    (T_LIFT[0], 0.0, 0.0, 0.0),
-    (5.70, 0.0, -12.0, 0.0),
-    (5.98, -6.0, -128.0, -5.0),
-    (T_LIFT[1], -10.0, -150.0, -7.0),
-]
-_LDX = _keys(_LIFT, 1)
-_LDY = _keys(_LIFT, 2)
-_LDR = _keys(_LIFT, 3)
-_CARRY = (-34.0, 36.0)               # near wrist from the pelvis when carrying it (local)
-_GRIP_L = (4.0, 22.0)                # near wrist from the helmet centre
-_GRIP_R = (14.0, 24.0)
+_GRIP_L = (16.0, 34.0)               # near hand on the helmet (from its centre): low on the back
+_GRIP_R = (-16.0, 30.0)              # far hand: low on the front (hidden behind it)
+_CARRY = (-30.0, 22.0)               # near wrist from the pelvis while he carries it (boat-local)
+
+
+def _carry_rot(t):
+    return -4.0 + 2.0 * math.sin(2 * math.pi * (t - T_LOWER[1]) / 1.7) * smoothstep(T_LOWER[1], T_LOWER[1] + 0.4, t)
 
 
 def _carry_wrist_local(t):
@@ -349,31 +344,52 @@ def _carry_wrist_local(t):
     return (_DVX(t) + _CARRY[0] + sw, _DVY(t) + _CARRY[1] + 0.4 * sw)
 
 
+def _carry_c_local(t):
+    w = _carry_wrist_local(t)
+    g = _rot(_GRIP_L, _carry_rot(t))
+    return (w[0] - g[0], w[1] - g[1])
+
+
+@functools.lru_cache(maxsize=1)
+def _helm_path():
+    """Up off his head, forward (clear of his face) and down to his side: boat-local offsets
+    from the worn centre, and the tilt."""
+    cl = _helm_ref()["cl"]
+    cc = _carry_c_local(T_LOWER[1])
+    k = [
+        (T_LIFT[0], 0.0, 0.0, 0.0),
+        (5.70, 0.0, -12.0, 0.0),
+        (5.92, -5.0, -118.0, -5.0),
+        (T_LIFT[1], -14.0, -146.0, -8.0),
+        (6.24, -120.0, -62.0, -16.0),
+        (T_LOWER[1], cc[0] - cl[0], cc[1] - cl[1], _carry_rot(T_LOWER[1])),
+    ]
+    return _keys(k, 1), _keys(k, 2), _keys(k, 3)
+
+
 def _helm_xform(t):
     """(centre world, rotation deg) of the helmet once it is off his head (t >= T_LIFT[0])."""
-    ref = _helm_ref()
     tau = _tau(t)
-    cl = ref["cl"]
-    if t <= T_LIFT[1]:
-        c = (cl[0] + _LDX(t), cl[1] + _LDY(t))
-        rot = _LDR(t)
+    if t < T_LOWER[1]:
+        cl = _helm_ref()["cl"]
+        fx, fy, fr = _helm_path()
+        c = (cl[0] + fx(t), cl[1] + fy(t))
+        rot = fr(t)
     else:
-        over = (cl[0] + _LDX(T_LIFT[1]), cl[1] + _LDY(T_LIFT[1]))
-        w = _carry_wrist_local(t)
-        carry = (w[0] - _GRIP_L[0], w[1] - _GRIP_L[1])
-        u = clamp((t - T_LOWER[0]) / (T_LOWER[1] - T_LOWER[0]))
-        e = ease("inout", u)
-        arc = math.sin(math.pi * u)
-        c = (lerp(over[0], carry[0], e) - 46.0 * arc, lerp(over[1], carry[1], e) - 10.0 * arc)
-        rot = lerp(_LDR(T_LIFT[1]), 0.0, e) + 9.0 * arc + 2.0 * math.sin(2 * math.pi * t / 1.7) * smoothstep(
-            T_LOWER[1], T_LOWER[1] + 0.4, t)
+        c = _carry_c_local(t)
+        rot = _carry_rot(t)
     return BOAT.to_world(c, tau), rot
 
 
-def _helm_center(t):
+def _helm_now(t):
+    """(centre world, rotation) of the helmet, worn or not."""
     if t < T_LIFT[0]:
-        return costume.helmet_frame(_dv_skel_body(t))[0]
-    return _helm_xform(t)[0]
+        return costume.helmet_frame(_dv_skel_body(t))[0], 0.0
+    return _helm_xform(t)
+
+
+def _helm_center(t):
+    return _helm_now(t)[0]
 
 
 # ---------------------------------------------------------------- hands
@@ -425,8 +441,8 @@ _HL_R = _resolve(_HL, "L")
 _HR_R = _resolve(_HR, "R")
 
 
-def _hand_targets(t):
-    """{side: (world wrist target, weight, grip)}."""
+def _hand_targets(t, rest=None):
+    """{side: (world wrist target, weight, grip)}. rest: where the wrists hang (world)."""
     tau = _tau(t)
     pb = BOAT.pose(tau)
     out = {}
@@ -439,27 +455,51 @@ def _hand_targets(t):
     if wr > 0.0:
         q, mv = _limb(_HR_R, t)
         out["R"] = (BOAT.to_world(q, tau, pb), wr, 1.0 - 0.6 * mv)
-    # the helmet: both hands up to it, the turn, the lift; the near hand carries it down
-    hl = smoothstep(5.05, 5.30, t)
-    hr = smoothstep(5.10, 5.32, t) * (1.0 - smoothstep(6.02, 6.30, t))
-    if hl > 0.0 or hr > 0.0:
-        c = _helm_center(t)
-        rot = _helm_xform(t)[1] if t >= T_LIFT[0] else 0.0
+    # the helmet: both hands up to it (from where they hang), the turn, the lift; the far
+    # hand lets go on the way down, the near one carries it
+    if rest is not None and t >= _HELM_HANDS["L"][0]:
+        c, rot = _helm_now(t)
         tw = _twist(t)
-        for side, w, g in (("L", hl, _GRIP_L), ("R", hr, _GRIP_R)):
-            if w <= 0.0:
+        for side, (a0, a1, r0, r1, g) in _HELM_HANDS.items():
+            if t < a0 or (r1 is not None and t >= r1 + 0.05):
                 continue
             gx, gy = _rot(g, rot)
-            gx += 0.25 * tw          # the hands go round with the quarter-turn
-            out[side] = ((c[0] + gx, c[1] + gy), w, 1.0)
+            grip = (c[0] + gx + 0.25 * tw, c[1] + gy)          # round with the quarter-turn
+            if t < a1:
+                tgt = _arc(rest[side], grip, (t - a0) / (a1 - a0), (-26.0, 0.0))
+            elif r0 is not None and t > r0:
+                tgt = _arc(grip, rest[side], (t - r0) / (r1 - r0), (-8.0, 6.0))
+            else:
+                tgt = grip
+            w = smoothstep(a0, a0 + 0.05, t)
+            if r1 is not None:
+                w *= 1.0 - smoothstep(r1, r1 + 0.05, t)
+            out[side] = (tgt, w, 1.0)
     return out
+
+
+_HELM_HANDS = {  # side: (rise from, on the helmet by, let go from, back at the side by, grip)
+    "L": (5.00, 5.28, None, None, _GRIP_L),
+    "R": (5.06, 5.32, 6.30, 6.56, _GRIP_R),
+}
+
+
+def _arc(a, b, u, lift):
+    u = clamp(u)
+    e = ease("inout", u)
+    k = math.sin(math.pi * u)
+    return (lerp(a[0], b[0], e) + lift[0] * k, lerp(a[1], b[1], e) + lift[1] * k)
 
 
 def _dv_arms(p, t):
     up = 1.0 - smoothstep(0.35, 0.8, t)
     p.arms["L"] = {k: lerp(_ARM_REST_L[k], _ARM_UP_L[k], up) for k in _ARM_REST_L}
     p.arms["R"] = dict(_ARM_REST_R)
-    for side, (tgt, w, grip) in _hand_targets(t).items():
+    rest = None
+    if t >= _HELM_HANDS["L"][0]:
+        skr = F.solve(p, cast.DIVER)
+        rest = {s: skr.j["wrist_" + s] for s in ("L", "R")}
+    for side, (tgt, w, grip) in _hand_targets(t, rest).items():
         q = arm_ik(p.copy(), side, tgt, cast.DIVER, elbow_out=False)
         a = p.arms[side]
         a["sh"] = lerp(a["sh"], q.arms[side]["sh"], w)
@@ -608,7 +648,7 @@ def _cl_mine(t):
     p.arms["R"] = dict(sh=lerp(4.0, -10.0, knife) + 8.0 * st, abd=7.0, elbow=lerp(16.0, 24.0, knife) + 10.0 * st,
                        wrist=0.0, grip=0.5 + 0.3 * st)
     p.head = -2.0 - 9.0 * st
-    p.eyes = dict(open=1.0, glow=0.9 + 0.3 * smoothstep(T_TOLL, T_TOLL + 0.1, t), look=0.0)
+    p.eyes = dict(open=1.0, glow=0.9 + 0.15 * smoothstep(T_TOLL, T_TOLL + 0.1, t), look=0.0)
     return p
 
 
@@ -658,7 +698,7 @@ def _cl_ember(t):
 
 def _cl_look(t):
     lk = cast.client(ember=_cl_ember(t), coat_flow=0.12 + 0.06 * noise1(t * 0.5, 4))
-    lk.eye_size = 1.0 + 0.6 * smoothstep(T_TOLL + 0.01, T_TOLL + 0.12, t)
+    lk.eye_size = 1.0 + 0.4 * smoothstep(T_TOLL + 0.01, T_TOLL + 0.12, t)
     if t >= T_HAT:
         lk.hat = None
         lk.hair = "slick"
@@ -697,16 +737,17 @@ def _hat_ref():
 
 def _hat_keys():
     c0 = _hat_ref()[1]
-    k = [  # (t, x, y, rot)
+    k = [  # (t, x, y, rot): up off his head, across the moon, over the diver, into the sea by the stern
         (T_HAT, c0[0], c0[1], 0.0),
-        (T_FLY, c0[0] + 4.0, c0[1] - 8.0, 8.0),
-        (7.40, c0[0] + 40.0, c0[1] - 80.0, 40.0),
-        (7.58, c0[0] + 110.0, c0[1] - 140.0, 95.0),
-        (7.80, c0[0] + 230.0, c0[1] - 120.0, 190.0),
-        (7.98, -270.0, -690.0, 260.0),
-        (8.12, -170.0, -420.0, 320.0),
-        (8.26, -112.0, -110.0, 352.0),
-        (8.32, -96.0, 30.0, 358.0),
+        (T_FLY, c0[0] + 4.0, c0[1] - 8.0, 6.0),
+        (7.40, c0[0] + 50.0, c0[1] - 110.0, 18.0),
+        (7.60, -550.0, -945.0, 30.0),
+        (7.80, -440.0, -935.0, 120.0),
+        (7.94, -340.0, -890.0, 220.0),
+        (8.04, -255.0, -770.0, 290.0),
+        (8.14, -180.0, -500.0, 330.0),
+        (8.25, -118.0, -150.0, 352.0),
+        (8.31, -100.0, 20.0, 358.0),
     ]
     return k
 
@@ -899,24 +940,26 @@ def _runoff(f, t, sk):
     tau = _tau(t)
     c = f.ctx
     col = LIB.SPRAY
-    # sheets running down the dome
-    k = smoothstep(ts, ts + 0.15, t) * (1.0 - smoothstep(ts + 0.6, ts + 1.6, t))
+    # sheets running down the dome: short pale streaks sliding off it
+    k = smoothstep(ts, ts + 0.12, t) * (1.0 - smoothstep(ts + 0.5, ts + 1.4, t))
     if k > 0.01:
         hc, R = costume.helmet_frame(sk)[:2]
         c.save()
         c.new_path()
-        draw.circle(c, hc, R)
+        draw.circle(c, hc, R * 0.97)
         c.clip()
-        for j in range(7):
-            u = (j + 0.5) / 7.0 * 2.0 - 1.0
-            ph = hash01(61, j, 1) * 6.0
+        for j in range(6):
+            u = (hash01(61, j, 0) * 2.0 - 1.0) * 0.85
+            sp = 0.7 + 0.6 * hash01(61, j, 1)
+            ph = hash01(61, j, 2)
+            pos = (ph + sp * (t - ts)) % 1.0
             pts = []
-            for i in range(8):
-                v = i / 7.0
-                yy = hc[1] - R * 0.95 + v * R * 1.9
+            for i in range(6):
+                v = max(0.0, pos - 0.3) + (pos - max(0.0, pos - 0.3)) * i / 5.0
+                yy = hc[1] - R + v * 2.0 * R
                 half = math.sqrt(max(0.0, R * R - (yy - hc[1]) ** 2))
-                pts.append((hc[0] + u * half * 0.95 + 1.5 * math.sin(yy / 7.0 + ph + 9.0 * t), yy))
-            LIB.draw_hose(c, pts, 1.8 / f.cam.zoom, color=LIB.MOONLIT, alpha=0.35 * k * (0.5 + 0.5 * hash01(61, j, 2)))
+                pts.append((hc[0] + u * half + 1.2 * math.sin(yy / 6.0 + ph * 6.0 + 7.0 * t), yy))
+            LIB.draw_hose(c, pts, 1.5 / f.cam.zoom, color=LIB.MOONLIT, alpha=0.4 * k * (1.0 - pos) ** 0.5)
         c.restore()
     # drips: emitted from points on the suit, then ballistic (g = 2600)
     g = 2600.0
@@ -1091,9 +1134,9 @@ def render(f, t, T):
         LIB.draw_hose(L, hp, LIB.HOSE_W)
         if t >= T_REL:
             _coupling(L, hp)
-        draw_diver(f, L, t, dk)
         _line(L, st)
         _bell(L, f, t, st, md)
+        draw_diver(f, L, t, dk)
         if t >= T_HAT:
             _draw_hat(L, f, t, ms)
     S.water_front(f, tau, alpha=0.08, bright=BRIGHT)
