@@ -316,9 +316,9 @@ def _cops_b(c, t):
     tint = lerp(K.BLUE, K.PAPER, 0.24)
     for i, (dx, dy, d1) in enumerate(COPS):
         k = t - T_COPS[i]
-        if k < 0.0:
-            continue
         g = ease("outback", clamp(k / 0.2))
+        if k <= 0.0 or g < 1e-3:         # a zero scale is an invalid cairo matrix
+            continue
         d = d1 + 90.0 * (1.0 - ease("out3", clamp(k / 0.32)))
         p = (P.CAR[0] + dx * d, P.CAR[1] + dy * d)
         ang = math.degrees(math.atan2(-dy, -dx))

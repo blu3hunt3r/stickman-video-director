@@ -9,3 +9,7 @@ the database asks that it be credited. Loaded and retargeted by engine/mocap.py.
     56_02   (a neighbour's stretch)       56_03   lift open window
     104_02  (his walk into a room)        142_16  (her recoil in the doorway)
     16_08   run, sudden stop (the Knight to the car)
+    17_03   stealth walk (the Architect)  17_08   heavyset walk (the Knight)
+    22_03   kneeling (the Cracker)        23_03   (the Cracker at the gold)
+    26_10   (the Knight's bend and heave) 77_05   looking round, flashlight (the Guard)
+    77_14   careful creep (the Cracker)   81_05   pushing a heavy object (the Knight shuts the vault)
