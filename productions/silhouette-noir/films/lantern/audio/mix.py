@@ -45,22 +45,8 @@ def fx(name, dur=None, seed=0, **p):
 
 
 def footsteps():
-    """Heel strikes of the girl in s02: (film time, running?)."""
-    A = S2.girl()
-    out = []
-    dt = 1.0 / 240.0
-    for side in ("L", "R"):
-        prev = None
-        t = -0.5
-        while t < S2.T_BLACK:
-            hx, hy = A.joint(t, "heel_" + side)
-            h = sets.ground_y(hx) - hy
-            if prev is not None and prev > 7.0 >= h:
-                run = S2.T_THRUST + 0.7 < t < S2.T_LEG
-                out.append((S2_AT + t, run, side))
-            prev = h
-            t += dt
-    return sorted(out)
+    """Her footfalls in s02: (film time, running?)."""
+    return [(S2_AT + t, run) for t, run in S2.steps()]
 
 
 def lullaby(n):
@@ -108,19 +94,18 @@ def main():
     dr = fx("drone_swell", dur=BLACK - (S2_AT + 9.6), seed=9)
     put(music, dr, S2_AT + 9.6, -10)
     # footsteps on leaves and roots
-    for i, (t, run, side) in enumerate(footsteps()):
+    for i, (t, run) in enumerate(footsteps()):
         if t >= BLACK:
             continue
         name = "footstep_run" if run else "footstep"
         s = fx(name, seed=100 + i, weight=0.35 if not run else 0.5, wet=0)
         put(efx, s, t, -13 if not run else -10, pan=-0.05)
     # lantern creak: a squeak at each turn of the swing
-    sw = S2.lantern_swing()
     prev = None
     k = 0
     for i in range(int((S2.T_BLACK + 0.5) * 60)):
         t = -0.5 + i / 60.0
-        a = float(sw.angle(t))
+        a = float(S2.lantern_angle(t))
         if prev is not None and abs(a - prev[0]) > 1e-5:
             d = a - prev[0]
             if prev[1] is not None and np.sign(d) != np.sign(prev[1]) and abs(a) > 0.04:
@@ -132,7 +117,7 @@ def main():
         else:
             prev = (a, None)
     # the toy: wheels rattle as she picks it up
-    put(efx, fx("keys", seed=4), S2_AT + S2.T_STOP + 1.25, -24)
+    put(efx, fx("keys", seed=4), S2_AT + S2.T_INSERT[0] + 0.7, -22)
     # she lifts the lantern: a soft flare
     put(efx, fx("match_flare", seed=8), S2_AT + S2.T_LIFT + 0.4, -18)
     # the eyes: something breathing, her heartbeat
@@ -144,15 +129,18 @@ def main():
     # the thrust: the flame flares, the eyes snap away
     put(efx, fx("match_flare", seed=11), S2_AT + S2.T_THRUST + 0.05, -6)
     put(efx, fx("whoosh", seed=12, size=0.7), S2_AT + S2.T_THRUST + 0.1, -9, pan=0.5)
-    # the leg: a reverse swell into its first tap, a second tap, cut
-    for j, leg in enumerate(S2.LEGS):
-        land = S2_AT + leg[1] + 1.25
-        if land >= BLACK:
-            continue
-        tap = fx("impact", seed=20 + j, size=0.25)
-        put(efx, tap[: n_of(1.2)], land, -10 + 3 * j, pan=0.35)
-        put(efx, fx("watch_crack", seed=30 + j), land, -12, pan=0.35)
-    put(music, fx("reverse_swell", dur=S2.LEGS[0][1] + 1.25 - S2.T_LEG + 0.6, seed=6), S2_AT + S2.T_LEG - 0.6, -14)
+    # each pair of eyes clicks open
+    for j, e in enumerate(S2.EYES):
+        put(efx, fx("drip", seed=40 + j), S2_AT + e[3], -16, pan=0.3 + 0.1 * j)
+    # the legs: a reverse swell into the first stab, a stab each, the light snuffed
+    for j, (t0, g, dx, base) in enumerate(S2.LEGS):
+        land = S2_AT + t0 + g
+        tap = fx("impact", seed=20 + j, size=0.3)
+        put(efx, tap[: n_of(1.2)], land, -9 + 2 * j, pan=0.35)
+        put(efx, fx("watch_crack", seed=30 + j), land, -11, pan=0.35)
+    first = S2.LEGS[0][0] + S2.LEGS[0][1]
+    put(music, fx("reverse_swell", dur=first - S2.T_LEG + 0.6, seed=6), S2_AT + S2.T_LEG - 0.6, -14)
+    put(efx, fx("flame_out", seed=3), S2_AT + S2.T_CLOSE, -10)
 
     # ---------------------------------------------------------------- bus, cut, master
     mix = music + efx + amb

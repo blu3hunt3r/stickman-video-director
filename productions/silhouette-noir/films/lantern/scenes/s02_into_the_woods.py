@@ -1,410 +1,415 @@
-"""s02 · INTO THE WOODS: the girl walks into the forest with her lantern (style test).
+"""s02 · INTO THE WOODS, as a Saul Bass cut-paper sequence (style test).
 
-Look: Limbo sepia-grey fog, black trunks, the lantern's amber pool of light around her.
-She is big in frame (about a third of the height), the camera tracks her in profile.
+Flat paper field, black trunk bars sliding past at three speeds, one amber disc of lantern
+light, the girl a hinged paper doll (on twos), red only for her scarf, her bow and the flame.
 
 Beats (scene time, s):
-   -0.5  iris opens out of the title's flame onto the lantern flame; pull back to reveal her
-    0-7  she walks into the wood
-    7    stops: her brother's wooden horse on the path. Crouches, picks it up, holds it close
-    9.3  lifts the lantern high and looks into the dark ahead. He came this way
-   10.3  walks on, slower; the wood darkens around the light
-   14.0  eyes open in the dark beyond the light. She stops, pulls the lantern in, trembles
-   15.9  thrusts the lantern at them: the flame flares, the eyes snap shut and pull back
-   16.7  she hurries on (runs), stops for breath
-   18.2  a long jointed leg lowers out of the dark at the edge of the light; she looks up.
-   19.78 a second leg lands: cut to black.
+   -0.5  the title's iris opens on the lantern's red flame; graphic pull back to the wood
+    0-7  she walks right; trunks slide by
+    7.0  she stops: her brother's wooden horse on the path. She looks down
+    7.4  INSERT: the horse, big, in the amber disc; her arm reaches in and takes it
+    9.0  back wide: she hugs the toy; 9.3 lifts the lantern high and looks ahead
+   10.3  walks on, slower; the field darkens to night, the disc shrinks
+   14.0  white eyes with red pupils cut open in the dark, one pair at a time; she stops, leans
+         back, pulls the lantern in
+   15.9  thrusts the lantern: the disc bursts in rings, the eyes snap shut
+   16.7  she runs; trunks whip past
+   18.2  two jagged black legs (The Man with the Golden Arm) stab down into the light
+   19.45 the disc closes to the flame; 19.78 black
 """
 import math
 from functools import lru_cache
 
-from engine import draw
-from engine.core import clamp, lerp, ease, noise1
-from engine.frame import Camera
-from engine.motion import Actor
-from engine.physics import Pendulum
+from engine import bass
+from engine.core import clamp, lerp, ease, hash01, noise1
+from engine.palette import PAPER, RED
 from engine.timing import Cue
-from films.lantern import cast, sets
+from films.lantern import doll
+from films.lantern.scenes import s01_title as S1
 
-ZOOM = 1.45
-FEET_Y = 1580.0            # her feet on screen
-IRIS = (540.0, 1040.0)     # where s01's flame sits: the iris opens here
-X0 = -220.0
-X_TOY = 2330.0
-X_EYES = 3040.0            # where she stops when the eyes open
-X_RUN = X_EYES + 520.0            # where she stops after running
-LEG_X = X_RUN + 250.0      # where the leg's tip lands
+FIELD = S1.FIELD                     # warm paper, same as the title
+NIGHT = (0.105, 0.095, 0.088)
+GREY = (0.58, 0.55, 0.50)
+AMBER = (0.95, 0.66, 0.24)
+IRIS = S1.FLAME
+GY = 1590.0                          # ground line (screen y)
+GX = 380.0                           # her usual screen x
 
 T_STOP = 7.0
+T_INSERT = (7.4, 9.0)
 T_LIFT = 9.3
 T_EYES = 14.0
 T_THRUST = 15.9
+T_RUN = 16.7
 T_LEG = 18.2
-T_BLACK = 19.78          # hard cut to black, just after the second leg lands
+T_CLOSE = 19.45
+T_BLACK = 19.78
+LEGS = [  # (start, grow time, tip dx from her, base)
+    (T_LEG, 1.0, 330.0, (1240.0, -160.0)),
+    (T_LEG + 0.45, 0.8, 600.0, (1300.0, 260.0)),
+]
+
+SPEED = [(-1.0, 230.0), (6.55, 230.0), (7.0, 0.0), (10.3, 0.0), (10.75, 165.0), (13.95, 165.0),
+         (14.35, 0.0), (T_RUN, 0.0), (T_RUN + 0.2, 640.0), (17.85, 640.0), (18.2, 0.0), (40.0, 0.0)]
 
 
 def k(t, t0, dur, e="inout"):
     return ease(e, clamp((t - t0) / dur))
 
 
+def track(keys, t):
+    """Piecewise eased keys [(t, v), ...] (smoothstep between keys)."""
+    if t <= keys[0][0]:
+        return keys[0][1]
+    for (t0, v0), (t1, v1) in zip(keys, keys[1:]):
+        if t <= t1:
+            u = (t - t0) / max(t1 - t0, 1e-6)
+            return lerp(v0, v1, u * u * (3 - 2 * u))
+    return keys[-1][1]
+
+
+def speed(t):
+    for (t0, v0), (t1, v1) in zip(SPEED, SPEED[1:]):
+        if t <= t1:
+            return lerp(v0, v1, clamp((t - t0) / max(t1 - t0, 1e-6)))
+    return 0.0
+
+
 @lru_cache(maxsize=1)
-def girl():
-    a = Actor(cast.GIRL, cast.girl(), x=X0, ground=sets.ground_y, facing=1, t0=-1.5, seed=4)
-    a.walk(to=X_TOY - 130, gait="child_walk")                    # ends near T_STOP
-    a.stand(until=T_STOP + 0.45)
-    a.stand(until=T_STOP + 1.85, crouch=0.42, blend=0.35)         # crouch for the toy
-    a.stand(until=T_LIFT + 1.0)
-    a.walk(to=X_EYES, gait="child_walk", speed=0.62)              # slower, deeper
-    a.stand(until=T_THRUST + 0.8)
-    a.walk(to=X_RUN, gait="child_run")
-    a.stand(until=40.0)
-    # the lantern arm (R): held forward; raised to look; pulled in; thrust; carried running
-    sh = [(-4.0, 38), (T_LIFT, 38), (T_LIFT + 0.6, 112, "out3"), (T_LIFT + 1.2, 112), (T_LIFT + 1.9, 40, "inout"),
-          (T_EYES + 0.5, 40), (T_EYES + 0.9, 24, "out3"), (T_THRUST, 24), (T_THRUST + 0.22, 92, "out5"),
-          (T_THRUST + 0.8, 92), (T_THRUST + 1.1, 46, "inout"), (T_LEG + 0.8, 46), (T_LEG + 1.4, 70, "inout"),
-          (40.0, 70)]
-    el = [(-4.0, 28), (T_LIFT, 28), (T_LIFT + 0.6, 14, "out3"), (T_LIFT + 1.2, 14), (T_LIFT + 1.9, 28, "inout"),
-          (T_EYES + 0.5, 28), (T_EYES + 0.9, 62, "out3"), (T_THRUST, 62), (T_THRUST + 0.22, 4, "out5"),
-          (T_THRUST + 0.8, 4), (T_THRUST + 1.1, 32, "inout"), (40.0, 32)]
-    a.key("arm.R.sh", sh, fade=0.01)
-    a.key("arm.R.elbow", el, fade=0.01)
-    # fear: the lantern hand trembles while the eyes watch
-    a.channel("arm.R.wrist", lambda t: -10 + 7 * noise1(t * 11.0, seed=8) * k(t, T_EYES + 0.4, 0.4)
-              * (1 - k(t, T_THRUST, 0.2)), -4.0, 40.0, mode="set", fade=0.01)
-    a.arm("R", -4.0, 40.0, fade=0.01, abd=6, grip=1.0)
-    # the toy: reach down for it, then hug it to her chest with the left arm
-    a.reach("L", T_STOP + 0.55, T_STOP + 1.55, toy_ground(), fade=0.4, grip=1.0)
-    a.arm("L", T_STOP + 1.55, 40.0, fade=0.45, sh=22, abd=4, elbow=112, wrist=-6, grip=1.0)
-    # where she looks
-    a.look_at(T_STOP - 0.6, T_STOP + 1.4, toy_ground(), fade=0.4)
-    a.look_at(T_LIFT + 0.2, T_LIFT + 1.6, (X_TOY + 900, -420), fade=0.4)
-    a.look_at(T_EYES + 0.2, T_THRUST + 0.7, (X_EYES + 430, -330), fade=0.25)
-    a.look_at(T_LEG + 0.7, 40.0, (LEG_X + 60, -620), fade=0.6)
-    # leaning back from the eyes; breathing after the run
-    a.key("pitch", [(T_EYES + 0.3, 0), (T_EYES + 0.8, -9, "out3"), (T_THRUST, -9), (T_THRUST + 0.2, 8, "out5"),
-                    (T_THRUST + 0.7, 0)], fade=0.3)
-    a.channel("pitch", lambda t: 9 + 3 * math.sin((t - T_LEG) * 7.0) * (1 - k(t, T_LEG + 0.5, 0.8)),
-              T_LEG - 0.2, T_LEG + 0.9, mode="set", fade=0.3)
-    a.blink(3.1)
-    a.blink(T_LIFT + 1.5)
-    a.blink(T_EYES + 1.2, dur=0.2)
+def _table():
+    """Distance walked and stride phase, integrated at 240 Hz from t = -1."""
+    dt = 1.0 / 240.0
+    d, ph, out = 0.0, 0.0, []
+    for i in range(int(42 * 240)):
+        t = -1.0 + i * dt
+        v = speed(t)
+        out.append((d, ph))
+        stride = lerp(300.0, 540.0, clamp((v - 230.0) / 410.0))
+        d += v * dt
+        ph += v / stride * dt
+    return out
+
+
+def dist(t):
+    i = clamp((t + 1.0) * 240.0, 0, len(_table()) - 2)
+    a, b = int(i), int(i) + 1
+    u = i - a
+    return lerp(_table()[a][0], _table()[b][0], u), lerp(_table()[a][1], _table()[b][1], u)
+
+
+def steps():
+    """Footfalls (scene time, running?): every half stride cycle while moving."""
+    out = []
+    t, last = -0.5, None
+    while t < T_BLACK:
+        n = math.floor(dist(t)[1] * 2.0 + 0.25)
+        if last is not None and n != last and speed(t) > 20:
+            out.append((t, speed(t) > 400))
+        last = n
+        t += 1.0 / 240.0
+    return out
+
+
+# ----------------------------------------------------------------------------- her
+def girl_x(t):
+    return GX + 70.0 * k(t, T_RUN, 0.6) * (1 - k(t, T_LEG, 0.8)) - 30.0 * k(t, T_EYES + 0.3, 0.5) * (1 - k(t, T_THRUST, 0.2))
+
+
+def pose(t):
+    tq = bass.on_twos(t)
+    v = speed(tq)
+    run = v > 400.0
+    p = doll.walk_pose(dist(tq)[1], stride=clamp(v / (640.0 if run else 210.0)), run=run)
+    # the lantern arm
+    p.sh_f = track([(-1, 26), (T_LIFT, 26), (T_LIFT + 0.4, 150), (T_LIFT + 1.1, 150), (T_LIFT + 1.6, 26),
+                    (T_EYES + 0.3, 26), (T_EYES + 0.6, 8), (T_THRUST, 8), (T_THRUST + 0.12, 96),
+                    (T_THRUST + 0.7, 96), (T_RUN, 40), (T_LEG + 0.2, 40), (T_LEG + 0.8, 62), (40, 62)], tq)
+    p.el_f = track([(-1, 36), (T_LIFT, 36), (T_LIFT + 0.4, -8), (T_LIFT + 1.1, -8), (T_LIFT + 1.6, 36),
+                    (T_EYES + 0.3, 36), (T_EYES + 0.6, 76), (T_THRUST, 76), (T_THRUST + 0.12, 0),
+                    (T_THRUST + 0.7, 0), (T_RUN, 40), (40, 26)], tq)
+    p.sh_f += 3.0 * noise1(tq * 9.0, seed=4) * k(tq, T_EYES + 0.4, 0.3) * (1 - k(tq, T_THRUST, 0.1))   # trembling
+    if tq >= T_INSERT[1]:
+        p.toy = True
+        p.sh_b, p.el_b = 34.0 + 0.3 * p.sh_b, 100.0
+    p.head = track([(-1, 0), (T_STOP - 0.4, 0), (T_STOP, -20), (T_INSERT[0], -20), (T_INSERT[1], 0), (T_LIFT + 0.3, 8),
+                    (T_LIFT + 1.4, 8), (T_LIFT + 1.8, 0), (T_EYES, 0), (T_EYES + 0.3, 6), (T_THRUST + 0.6, 6),
+                    (T_RUN, 0), (T_LEG + 0.5, 0), (T_LEG + 1.0, 22), (40, 22)], tq)
+    p.lean += track([(-1, 0), (T_EYES + 0.2, 0), (T_EYES + 0.5, -7), (T_THRUST, -7), (T_THRUST + 0.15, 9),
+                     (T_THRUST + 0.6, 0), (T_LEG + 0.3, 0), (T_LEG + 0.6, -5), (40, -5)], tq)
+    return p
+
+
+def lantern_angle(t):
+    """Swing of the lantern on its bail (rad): lags her stride, kicks at the thrust and stops."""
+    v = speed(t)
+    ph = dist(t)[1]
+    a = 0.16 * math.sin(2 * math.pi * ph * 2.0 - 1.2) * clamp(v / 230.0, 0, 1.6)
+    for t0, amp in ((T_STOP, 0.22), (14.35, 0.18), (T_THRUST + 0.12, -0.45), (18.2, 0.35)):
+        a += bass.settle(t, t0, amp=amp, freq=0.9, decay=1.6)
     return a
 
 
-def toy_ground():
-    return (X_TOY, sets.ground_y(X_TOY) - 22.0)
+LANTERN = {
+    "cap": bass.cut([(-30, -2), (30, -2), (38, 16), (-38, 16)], seed=31, amp=1.0),
+    "ring": bass.cut([(-9, -18), (9, -18), (9, -2), (-9, -2)], seed=32, amp=0.6),
+    "posts": [bass.cut([(x0, 14), (x0 + 7, 14), (x0 + 7, 92), (x0, 92)], seed=33 + i, amp=0.5)
+              for i, x0 in enumerate((-36, -3.5, 29))],
+    "base": bass.cut([(-40, 90), (40, 90), (34, 108), (-34, 108)], seed=36, amp=1.0),
+    "glass": bass.cut([(-30, 14), (30, 14), (30, 92), (-30, 92)], seed=37, amp=0.6),
+}
 
 
-@lru_cache(maxsize=1)
-def lantern_swing():
-    A = girl()
-
-    def pivot(t):
-        # the gait jitters the wrist frame to frame; a short box filter keeps the swing physical
-        pts = [A.joint(t + i * 0.025, "wrist_R") for i in (-2, -1, 0, 1, 2)]
-        return (sum(p[0] for p in pts) / 5.0, sum(p[1] for p in pts) / 5.0)
-    return Pendulum(pivot, length=46.0, t0=-3.5, t1=24.0, damping=3.0, gravity=1800.0, dt=1.0 / 120.0)
-
-
-# ----------------------------------------------------------------------------- camera
-@lru_cache(maxsize=4096)
-def _track_x(tq):
-    A = girl()
-    xs = [A.root(tq + i * 0.12)[0] for i in range(-5, 6)]
-    return sum(xs) / len(xs)
+def lantern_geom(t, hand):
+    a = lantern_angle(t)
+    top = (hand[0] + 4.0, hand[1] + 14.0)
+    bail = 46.0
+    ring = (top[0] + math.sin(a) * bail, top[1] + math.cos(a) * bail)
+    ca, sa = math.cos(-a), math.sin(-a)
+    c = (ring[0] + 53 * sa * -1 if False else ring[0] + math.sin(a) * 53.0, ring[1] + math.cos(a) * 53.0)
+    return top, ring, a, c
 
 
-def track(t):
-    """The tracking camera: smoothed x, a lead into the dark at the eyes, a push in at the end."""
-    x = _track_x(round(t * 24.0) / 24.0)
-    lead = 150.0 + 70.0 * k(t, T_EYES - 0.4, 1.2) * (1 - k(t, T_THRUST + 0.6, 1.0)) - 40.0 * k(t, T_LEG - 0.6, 1.6)
-    zoom = ZOOM * (1.0 + 0.10 * k(t, T_LEG, 2.6, "inout")) * (1.0 + 0.04 * k(t, T_EYES, 1.6) * (1 - k(t, T_THRUST, 0.4)))
-    gy = sets.ground_y(x)
-    y = gy - (FEET_Y - 960.0) / zoom - 140.0 * k(t, T_LEG + 0.4, 2.0, "inout")
-    return Camera(x + lead, y, zoom)
-
-
-def camera(t):
-    cam = track(t)
-    # opening: start on the flame where the title's iris opened, pull back to the track
-    b = k(t, -0.2, 3.4, "inout3")
-    if b >= 1.0:
-        return cam
-    z0 = 4.2
-    zoom = math.exp(lerp(math.log(z0), math.log(cam.zoom), b))
-    # glide the lantern's screen position from the iris centre to its place in the track
-    _, lt, _ = lantern_points(t)
-    s_end = cam.to_screen(lt)
-    sx, sy = lerp(IRIS[0], s_end[0], b), lerp(IRIS[1], s_end[1], b)
-    return Camera(lt[0] - (sx - 540.0) / zoom, lt[1] - (sy - 960.0) / zoom, zoom)
-
-
-# ----------------------------------------------------------------------------- lantern
-def lantern_points(t):
-    """Hand (bail), body center, swing angle."""
-    A = girl()
-    hand = A.joint(t, "wrist_R")
-    th = lantern_swing().angle(t)
-    th = 0.8 * math.tanh(th / 0.8)          # the bail stops a full swing over
-    L = 46.0
-    c = (hand[0] + math.sin(th) * L, hand[1] + math.cos(th) * L)
-    return hand, c, th
-
-
-def draw_lantern(ctx, ink, t):
-    hand, c, th = lantern_points(t)
-    ca, sa = math.cos(-th), math.sin(-th)
-
-    def R(px, py):            # lantern-local (y down from the ring) -> world
-        return (c[0] + px * ca - py * sa, c[1] + px * sa + py * ca)
-    ctx.new_path()
-    ctx.move_to(*hand)
-    ctx.line_to(*R(0, -30))
-    ctx.set_source_rgb(*ink)
-    ctx.set_line_width(3.0)
-    ctx.stroke()
-    parts = [
-        [R(-13, -30), R(13, -30), R(17, -22), R(-17, -22)],          # cap
-        [R(-6, -38), R(6, -38), R(6, -30), R(-6, -30)],                # ring knob
-        [R(-17, -22), R(-14, -22), R(-14, 18), R(-17, 18)],            # left post
-        [R(14, -22), R(17, -22), R(17, 18), R(14, 18)],                # right post
-        [R(-1.5, -22), R(1.5, -22), R(1.5, 18), R(-1.5, 18)],          # middle post
-        [R(-19, 18), R(19, 18), R(16, 26), R(-16, 26)],                # base
-    ]
-    for p in parts:
-        draw.poly(ctx, p)
-    ctx.set_source_rgb(*ink)
-    ctx.fill()
-
-
-def flare(t):
-    return math.exp(-max(0.0, t - T_THRUST - 0.12) * 3.2) * k(t, T_THRUST, 0.12, "out3")
-
-
-def darkness(t):
-    return k(t, 9.6, 5.0, "inout") * (1 - 0.6 * flare(t)) + 0.15 * k(t, T_LEG, 1.5)
-
-
-# ----------------------------------------------------------------------------- the toy
-def _toy_polys():
-    """Her brother's wooden horse on wheels, local coords (origin on the ground, 1 = px)."""
-    P = []
-    P.append(draw.ellipse_pts((0, -40), 27, 12, n=24))                                  # body
-    P.append([(14, -48), (24, -76), (34, -82), (46, -74), (44, -68), (32, -66), (26, -44)])  # neck, head
-    P.append([(24, -78), (27, -90), (31, -80)])                                          # ear
-    P.append([(-26, -46), (-40, -38), (-44, -24), (-34, -36), (-24, -36)])              # tail
-    for lx in (-18, -8, 10, 19):
-        P.append([(lx - 3, -34), (lx + 3, -34), (lx + 3, -16), (lx - 3, -16)])          # legs
-    P.append([(-32, -17), (32, -17), (32, -10), (-32, -10)])                             # board
-    for wx in (-22, 22):
-        P.append(draw.circle_pts((wx, -7), 7.5, n=16))                                   # wheels
-    return P
-
-
-TOY = _toy_polys()
-
-
-def toy_xform(t):
-    """(x, y, angle deg) of the toy: on the path, then in her left hand."""
-    gx, gy = X_TOY, sets.ground_y(X_TOY)
-    if t < T_STOP + 1.3:
-        return gx, gy, 0.0
-    w = girl().joint(t, "wrist_L")
-    u = k(t, T_STOP + 1.3, 0.25)
-    return lerp(gx, w[0] + 6, u), lerp(gy, w[1] + 34, u), lerp(0.0, -14.0, u)
-
-
-def draw_toy(ctx, ink, t):
-    x, y, a = toy_xform(t)
+def draw_lantern(ctx, t, hand, ink, flick):
+    top, ring, a, c = lantern_geom(t, hand)
     ctx.save()
-    ctx.translate(x, y)
-    ctx.rotate(math.radians(a))
-    ctx.scale(0.8, 0.8)
-    for p in TOY:
-        draw.poly(ctx, p)
+    ctx.new_path()
+    ctx.move_to(*top)
+    ctx.line_to(*ring)
+    ctx.set_line_width(5.0)
     ctx.set_source_rgb(*ink)
-    ctx.fill()
+    ctx.stroke()
+    ctx.translate(*ring)
+    ctx.rotate(-a)
+    bass.fill_polys(ctx, [LANTERN["glass"]], AMBER)
+    r = 13.0 * flick
+    bass.fill_polys(ctx, [S1.flame_pts((0.0, 66.0), r, 4.0 * noise1(bass.on_twos(t) * 2, seed=3), int(bass.on_twos(t) * 12) % 5)], RED)
+    bass.fill_polys(ctx, [LANTERN["cap"], LANTERN["ring"], LANTERN["base"]] + LANTERN["posts"], ink)
     ctx.restore()
+    return c
+
+
+def flame_point(t, hand):
+    _, ring, a, _ = lantern_geom(t, hand)
+    return (ring[0] + math.sin(a) * 58.0, ring[1] + math.cos(a) * 58.0)
+
+
+# ----------------------------------------------------------------------------- the wood
+def darkness(t):
+    return k(t, 9.6, 4.8, "inout")
+
+
+def _bars(t, par, spacing, wr, seed, scroll):
+    off = scroll * par
+    out = []
+    for i in range(int((off - 300) // spacing), int((off + 1400) // spacing) + 1):
+        if hash01(seed, i) < 0.18:
+            continue
+        x = i * spacing + spacing * 0.7 * hash01(seed, i, 1) - off
+        w = lerp(wr[0], wr[1], hash01(seed, i, 2))
+        out.append((i, x, w))
+    return out
+
+
+@lru_cache(maxsize=2048)
+def _trunk(i, w, seed, top, bot):
+    """One cut-paper trunk in local x (centre 0): a bar with, sometimes, a dead bough stub."""
+    polys = [bass.cut_rect(-w / 2, top, w / 2, bot, seed=seed * 1000 + i, amp=1.4)]
+    if hash01(seed, i, 5) < 0.55:
+        y = lerp(top + 260, bot - 420, hash01(seed, i, 6))
+        sgn = 1 if hash01(seed, i, 7) < 0.5 else -1
+        L = w * 1.4 + 70 * hash01(seed, i, 8)
+        polys.append(bass.cut([(0, y), (sgn * L, y - 0.8 * L), (sgn * (L + 9), y - 0.8 * L + 13), (0, y + w * 0.45)],
+                              seed=seed * 1000 + i + 7, amp=1.0))
+    return polys
+
+
+def draw_trunks(c, t, scroll, par, spacing, wr, seed, color, top=-60.0, avoid=None):
+    jit = 1.5 * noise1(bass.on_twos(t) * 3.0, seed=seed)
+    for i, x, w in _bars(t, par, spacing, wr, seed, scroll):
+        if avoid is not None and abs(x - avoid[0]) < avoid[1] + w / 2:
+            continue
+        c.save()
+        c.translate(x + jit, 0.0)
+        bass.fill_polys(c, _trunk(i, round(w, 1), seed, top, GY + 40.0), color)
+        c.restore()
+
+
+@lru_cache(maxsize=4096)
+def _tuft(i):
+    n = 3 + int(hash01(71, i) * 3)
+    polys = []
+    for j in range(n):
+        x = (j - n / 2) * 11 + 6 * hash01(71, i, j)
+        h = 22 + 40 * hash01(72, i, j)
+        lean = (hash01(73, i, j) - 0.5) * 30
+        polys.append(bass.cut([(x - 5, 4), (x + lean, -h), (x + 5, 4)], seed=i * 13 + j, amp=0.5))
+    return polys
+
+
+def draw_ground(c, t, scroll, ink):
+    bass.fill_polys(c, [bass.cut_rect(-60.0, GY, 1140.0, 2000.0, seed=81, amp=1.2)], ink)
+    for i in range(int((scroll - 100) // 85), int((scroll + 1200) // 85) + 1):
+        if hash01(70, i) < 0.4:
+            continue
+        x = i * 85 + 40 * hash01(74, i) - scroll
+        c.save()
+        c.translate(x, GY + 2)
+        bass.fill_polys(c, _tuft(i), ink)
+        c.restore()
+
+
+def light_disc(c, center, r, color, t):
+    seed = int(bass.on_twos(t) * 12.0) % 3
+    bass.fill_polys(c, [bass.cut_ellipse(center, r, r, seed=seed, max_len=60.0)], color)
 
 
 # ----------------------------------------------------------------------------- the eyes
-EYES = [  # (dx from X_EYES, y, size, appear at, seed)
-    (420.0, -300.0, 1.00, T_EYES + 0.00, 1),
-    (560.0, -620.0, 0.80, T_EYES + 0.45, 2),
-    (380.0, -60.0, 0.75, T_EYES + 0.75, 3),
-    (660.0, -250.0, 1.15, T_EYES + 1.05, 4),
-    (520.0, -880.0, 0.65, T_EYES + 1.30, 5),
+EYES = [  # (screen x, y, size, opens at)
+    (800.0, 1020.0, 1.00, T_EYES + 0.00),
+    (950.0, 760.0, 0.80, T_EYES + 0.42),
+    (760.0, 1360.0, 0.72, T_EYES + 0.74),
+    (1000.0, 1180.0, 1.15, T_EYES + 1.02),
+    (880.0, 520.0, 0.62, T_EYES + 1.30),
 ]
 
 
-def eye_state(t, e):
-    dx, y, s, t_in, seed = e
-    opn = k(t, t_in, 0.25, "out3")
-    shut = k(t, T_THRUST + 0.10 + 0.05 * seed, 0.12, "in3")
-    back = k(t, T_THRUST + 0.10, 0.8, "out3")
-    ph = (t * 0.6 + seed * 0.37) % 1.0                       # an occasional blink
-    blink = 1.0 - clamp(1.0 - abs(ph - 0.5) / 0.03)
-    o = opn * blink * (1 - shut)
-    x = X_EYES + dx + 260.0 * back + 6.0 * noise1(t * 0.8, seed=seed)
-    return x, y + 4.0 * noise1(t * 0.7, seed=seed + 9), s * (1 - 0.4 * back), o
+def almond(c, cx, cy, w, h, n=18):
+    pts = []
+    for i in range(n + 1):
+        u = i / n
+        x = lerp(-w, w, u)
+        pts.append((cx + x, cy - h * math.sin(math.pi * u) ** 0.8))
+    for i in range(n + 1):
+        u = 1 - i / n
+        x = lerp(-w, w, u)
+        pts.append((cx + x, cy + h * math.sin(math.pi * u) ** 0.8))
+    return pts
 
 
-def draw_eye_bodies(f, t):
-    """Soft black masses the eyes sit in (darker than the dark around them)."""
-    if t < T_EYES - 0.3 or t > T_THRUST + 1.4:
+def draw_eyes(c, t):
+    if t < T_EYES - 0.05 or t > T_THRUST + 0.6:
         return
-    with f.layer(blur=34.0) as L:
-        for e in EYES:
-            x, y, s, o = eye_state(t, e)
-            a = k(t, e[3] - 0.3, 0.6) * (1 - k(t, T_THRUST + 0.15, 0.9))
-            if a <= 0:
-                continue
-            draw.ellipse(L, (x - 10 * s, y + 70 * s), 120 * s, 190 * s)
-            L.set_source_rgba(*sets.INK, 0.8 * a)
-            L.fill()
-
-
-def draw_eyes(f, t):
-    if t < T_EYES - 0.1 or t > T_THRUST + 1.2:
-        return
-    with f.emit() as G:
-        for e in EYES:
-            x, y, s, o = eye_state(t, e)
-            if o <= 0.01:
-                continue
-            for ex in (-14 * s, 14 * s):
-                draw.ellipse(G, (x + ex, y), 8.0 * s, 5.5 * s * o)
-                G.set_source_rgba(1.0, 0.97, 0.88, 0.95)
-                G.fill()
-                draw.glow_disc(G, (x + ex, y), 30 * s, (1.0, 0.95, 0.8), a=0.35 * o)
-
-
-# ----------------------------------------------------------------------------- the leg
-LEGS = [  # (tip x offset from LEG_X, lands at, hip offset): two of its legs, the body off right in the dark
-    (0.0, T_LEG, (700.0, -430.0)),
-    (380.0, T_LEG + 0.30, (760.0, -330.0)),
-]
-
-
-def leg_points(t, leg):
-    """Hip (off frame right, in the dark), knee (the high point), tip: a two-bone leg."""
-    dx0, t_in, (hx, hy) = leg
-    hip = (LEG_X + hx, hy)
-    land = (LEG_X + dx0, sets.ground_y(LEG_X + dx0) + 4.0)
-    u = k(t, t_in, 1.25, "inout3")
-    tap = 10.0 * math.sin(clamp((t - t_in - 1.25) / 0.5) * math.pi)
-    hover = (land[0] + 260.0, -1600.0)
-    tip = (lerp(hover[0], land[0], u) - 25.0 * k(t, t_in + 1.6, 1.5, "inout"), lerp(hover[1], land[1], u) - tap)
-    L1, L2 = 760.0, 900.0
-    dx, dy = tip[0] - hip[0], tip[1] - hip[1]
-    d = clamp(math.hypot(dx, dy), abs(L1 - L2) + 1.0, L1 + L2 - 1.0)
-    a = math.atan2(dy, dx)
-    cb = clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1.0, 1.0)
-    # the knee stays on one side of the hip-tip line (above it: a spider's knee is its high point)
-    ka = a + math.acos(cb)
-    knee = (hip[0] + math.cos(ka) * L1, hip[1] + math.sin(ka) * L1)
-    return hip, knee, tip
-
-
-def draw_leg(t, L):
-    for leg in LEGS:
-        if t < leg[1] - 0.1:
+    tq = bass.on_twos(t)
+    for j, (x, y, s, t_in) in enumerate(EYES):
+        o = clamp(bass.pop(tq, t_in, 0.25))
+        o *= 1.0 - k(tq, T_THRUST + 0.08 + 0.04 * j, 0.1, "in3")
+        ph = (tq * 0.55 + j * 0.31) % 1.0                  # an occasional blink
+        o *= 1.0 - clamp(1.0 - abs(ph - 0.5) / 0.04)
+        if o <= 0.02:
             continue
-        hip, knee, tip = leg_points(t, leg)
-
-        def seg(a, b, wa, wb, n=12):
-            pts = [(lerp(a[0], b[0], i / (n - 1)), lerp(a[1], b[1], i / (n - 1))) for i in range(n)]
-            return draw.ribbon(pts, [lerp(wa, wb, i / (n - 1)) for i in range(n)])
-        polys = [seg(hip, knee, 84, 58), seg(knee, tip, 58, 8, n=16), draw.ellipse_pts(knee, 46, 40, n=20)]
-        for (p0, p1, wa, n_) in ((hip, knee, 40.0, 10), (knee, tip, 34.0, 14)):   # bristles, pointing down the leg
-            ang = math.atan2(p1[1] - p0[1], p1[0] - p0[0])
-            for i in range(1, n_):
-                u = i / float(n_)
-                p = (lerp(p0[0], p1[0], u), lerp(p0[1], p1[1], u))
-                for sgn in (-1, 1):
-                    n = ang + sgn * 0.45
-                    ln = wa * (1 - u * 0.55)
-                    q = (p[0] + math.cos(n) * ln, p[1] + math.sin(n) * ln)
-                    w = 3.5 * (1 - u * 0.5)
-                    nx, ny = -math.sin(ang) * w, math.cos(ang) * w
-                    polys.append([(p[0] - nx, p[1] - ny), q, (p[0] + nx, p[1] + ny)])
-        for p in polys:
-            draw.poly(L, p)
-        L.set_source_rgb(*sets.INK)
-        L.fill()
+        look = -16.0 * s                                     # they all look at her
+        for ex in (-52.0 * s, 52.0 * s):
+            bass.fill_polys(c, [bass.scissor(almond(c, x + ex, y, 40.0 * s, 20.0 * s * o), seed=j, sag=0.5,
+                                             amp=0.4, max_len=12.0)], PAPER)
+            ph_ = 17.0 * s * o
+            bass.fill_polys(c, [[(x + ex + look - 6.0 * s, y - ph_), (x + ex + look + 6.0 * s, y - ph_),
+                                 (x + ex + look + 6.0 * s, y + ph_), (x + ex + look - 6.0 * s, y + ph_)]], RED)
 
 
-# ----------------------------------------------------------------------------- render
+# ----------------------------------------------------------------------------- shots
+def render_insert(f, t):
+    """The horse, big, in the amber disc; her arm reaches in from the top left and takes it."""
+    ink = f.pal.ink
+    c0 = (540.0, 1090.0)
+    with f.screen() as c:
+        c.rectangle(0, 0, 1080, 1920)
+        c.set_source_rgb(*FIELD)
+        c.fill()
+        light_disc(c, c0, 520.0 * (1 + 0.012 * noise1(bass.on_twos(t) * 5, seed=2)), AMBER, t)
+        # a few trunks behind, close and big
+        for x, w in ((930.0, 90.0), (1040.0, 60.0)):
+            bass.fill_polys(c, [bass.cut_rect(x - w / 2, -60.0, x + w / 2, 1500.0, seed=int(x), amp=1.4)], ink)
+        bass.fill_polys(c, [bass.cut_rect(-60.0, 1470.0, 1140.0, 2000.0, seed=82, amp=1.2)], ink)
+        tq = bass.on_twos(t)
+        t0 = T_INSERT[0]
+        grab = (470.0, 1290.0)
+        reach = k(tq, t0 + 0.15, 0.55, "out3")
+        lift = k(tq, t0 + 1.0, 0.5, "in3")
+        hand = (lerp(-260.0, grab[0], reach) + 260.0 * lift, lerp(500.0, grab[1], reach) - 1900.0 * lift)
+        toy_at = (560.0 + (hand[0] - grab[0]) * (lift > 0), 1472.0 + (hand[1] - grab[1]) * (lift > 0))
+        tilt = -8.0 * lift
+        doll.draw_toy(c, toy_at, ink, k=3.4, angle=tilt)
+        shoulder = (-200.0, 140.0)
+        arm = bass.capsule_pts(shoulder, hand, 62.0, 48.0)
+        bass.fill_polys(c, [arm, bass.cut_ellipse(hand, 62.0, 68.0, seed=91)], ink)
+        # her red scarf end flicks across the corner, a reminder whose arm this is
+        bass.fill_polys(c, [bass.cut([(-40, 260 + 30 * reach), (220, 330 + 40 * reach), (260, 372 + 40 * reach),
+                                      (-40, 330 + 30 * reach)], seed=93, amp=1.2)], RED)
+
+
 def render(f, t, T):
-    pal = f.pal
-    cam = camera(t)
-    f.set_camera(cam.shaken(t, amp=2.0 + 4.0 * k(t, T_EYES, 0.6) * (1 - k(t, T_THRUST + 1.5, 1.0)),
-                            rot_amp=0.08, freq=0.5, seed=7))
-    A = girl()
-    forest = sets.FOREST
-    d = darkness(t)
-    forest.draw_back(f, shafts=1.0 - 0.8 * d)
-    if d > 0:                              # the far wood sinks into the dark
-        with f.screen() as S:
-            S.rectangle(0, 0, 1080, 1920)
-            S.set_source_rgba(*pal.ink, 0.38 * d)
-            S.fill()
-    forest.draw_plane(f)
-    draw_eye_bodies(f, t)
-    hand, lc, th = lantern_points(t)
-    fl = flare(t)
-    gutter = 0.25 * k(t, T_LEG + 1.4, 0.4) * (0.6 + 0.4 * noise1(t * 9.0, seed=5))
-    flick = (0.92 + 0.08 * noise1(t * 7.0, seed=3) + 0.04 * noise1(t * 23.0, seed=4)) * (1 + 0.8 * fl) * (1 - gutter)
-    reach = 1.0 - 0.18 * d
-
-    # the pool of warm light in the fog around the lantern (behind her: lights the air)
-    with f.light(par=1.0, blur=40.0, alpha=0.85) as Lg:
-        draw.glow_disc(Lg, lc, 520.0 * flick * reach, pal.light, a=0.55)
-        draw.glow_disc(Lg, lc, 190.0 * flick, pal.light, a=0.55)
-    held = t >= T_STOP + 1.3
-    with f.layer() as L:
-        if not held:
-            draw_toy(L, pal.ink, t)
-        A.draw(f, t, L)
-        if held:
-            draw_toy(L, pal.ink, t)
-        draw_lantern(L, pal.ink, t)
-        draw_leg(t, L)
-    with f.emit() as G:
-        ca, sa = math.cos(-th), math.sin(-th)
-
-        def R(px, py):
-            return (lc[0] + px * ca - py * sa, lc[1] + px * sa + py * ca)
-        for x0, x1 in ((-14, -1.5), (1.5, 14)):
-            draw.poly(G, [R(x0, -22), R(x1, -22), R(x1, 18), R(x0, 18)])
-            G.set_source_rgba(*pal.light, min(1.0, 0.85 * flick))
-            G.fill()
-        draw.glow_disc(G, R(0, 2), 11.0 * flick, pal.flame, a=1.0, core=0.3)
-    forest.draw_canopy(f)
-    forest.draw_front(f)
-    # the dark beyond the lantern's reach: a soft radial falloff centred on the light
-    sx, sy = cam.to_screen(lc)
-    zs = cam.zoom / ZOOM
-    r0 = (260.0 - 70.0 * d + 160.0 * fl) * zs * flick
-    r1 = (1250.0 - 380.0 * d + 300.0 * fl) * zs
-    with f.screen() as S:
-        draw.radial(S, (sx, sy), r0, max(r1, r0 + 50), [(0.0, pal.ink, 0.0), (0.6, pal.ink, 0.14 + 0.30 * d),
-                                                         (1.0, pal.ink, 0.42 + 0.45 * d)])
-        S.rectangle(0, 0, 1080, 1920)
-        S.fill()
-    draw_eyes(f, t)
+    bass.bass_scene(f, field=FIELD, paper=0.8, vignette=0.16, mottle=0.05)
     if t >= T_BLACK:
-        with f.screen() as S:
-            S.rectangle(0, 0, 1080, 1920)
-            S.set_source_rgb(0.0, 0.0, 0.0)
-            S.fill()
+        with f.screen() as c:
+            c.rectangle(0, 0, 1080, 1920)
+            c.set_source_rgb(0.0, 0.0, 0.0)
+            c.fill()
+        return
+    if T_INSERT[0] <= t < T_INSERT[1]:
+        render_insert(f, t)
+        return
+    ink = f.pal.ink
+    d = darkness(t)
+    scroll, _ = dist(t)
+    p = pose(t)
+    gx = girl_x(t)
+    tq = bass.on_twos(t)
+    fl = math.exp(-max(0.0, t - T_THRUST - 0.1) * 3.0) * k(t, T_THRUST, 0.1, "out3")
+    flick = 1.0 + 0.04 * noise1(tq * 6.0, seed=7)
+    # where her hand and the flame will be (for the light and for the opening zoom)
+    hand = _hand(gx, p)
+    flame = flame_point(t, hand)
+    _, _, _, lc = lantern_geom(t, hand)
+    close = k(t, T_CLOSE, T_BLACK - T_CLOSE, "in3")
+    R = 470.0 * (1.0 - 0.28 * d) * (1.0 + 0.45 * fl) * flick * (1.0 + 0.10 * k(t, T_LIFT, 0.4) * (1 - k(t, T_LIFT + 1.2, 0.4)))
+    R *= 1.0 - 0.97 * close
+
+    with f.screen() as c:
+        # opening: the iris showed the flame big at IRIS; a graphic pull back to the wide
+        b = k(t, -0.5, 2.9, "inout3")
+        if b < 1.0:
+            z = math.exp(lerp(math.log(7.5), 0.0, b))
+            ax, ay = lerp(IRIS[0], flame[0], b), lerp(IRIS[1], flame[1], b)
+            c.translate(ax, ay)
+            c.scale(z, z)
+            c.translate(-flame[0], -flame[1])
+        field = tuple(lerp(a, b_, d) for a, b_ in zip(FIELD, NIGHT))
+        c.rectangle(-2000, -2000, 5080, 5920)
+        c.set_source_rgb(*field)
+        c.fill()
+        far = tuple(lerp(a, b_, clamp(d * 1.15)) for a, b_ in zip(GREY, NIGHT))
+        draw_trunks(c, t, scroll, 0.45, 150.0, (16.0, 44.0), 11, far)
+        draw_trunks(c, t, scroll, 1.0, 330.0, (46.0, 110.0), 23, ink)
+        # the light is a disc laid over the wood: inside it she stands clear on amber
+        light_disc(c, lc, R, AMBER, t)
+        if fl > 0.01:                                           # the burst: rings flung outward
+            u = k(t, T_THRUST + 0.05, 0.7, "out3")
+            bass.rings(c, lc, [R * (1.15 + 1.3 * u), R * (1.5 + 1.9 * u), R * (1.9 + 2.6 * u)],
+                       [34 * (1 - u) + 2, 24 * (1 - u) + 2, 16 * (1 - u) + 2], AMBER, seed=5, alpha=1.0 - u * 0.7)
+        draw_ground(c, t, scroll, ink)
+        if t < T_INSERT[0]:                                      # the toy on the path
+            doll.draw_toy(c, (dist(T_STOP)[0] + 650.0 - scroll, GY + 2.0), ink, k=0.8)
+        doll.draw_girl(c, (gx, GY), p, ink, RED)
+        draw_lantern(c, t, hand, ink, flick * (1 + 0.6 * fl) * (1 - 0.5 * close))
+        for (t0, g, dx, base) in LEGS:
+            if t >= t0:
+                tip = (gx + dx, GY + 6.0)
+                bass.jagged_arm(c, base, tip, ink, width=84.0, grow=ease("out3", clamp((t - t0) / g)),
+                                jags=4, jag=0.9, claw=0.75, seed=int(dx))
+        draw_trunks(c, t, scroll, 1.9, 1500.0, (150.0, 230.0), 37, ink, avoid=(gx + 120.0, 520.0))
+        draw_eyes(c, t)
+
+
+def _hand(gx, p):
+    """The front hand's screen position without drawing (draw_girl on a throwaway surface)."""
+    import cairo
+    s = cairo.ImageSurface(cairo.FORMAT_A8, 1, 1)
+    return doll.draw_girl(cairo.Context(s), (gx, GY), p, (0, 0, 0), (0, 0, 0))
 
 
 def cues(T):
-    return [Cue(-0.5, "forest night ambience, distant wind", gain_db=-14, dur=20.5),
-            Cue(0.0, "lantern creak on its bail, slow swing", gain_db=-20, dur=20.0),
-            Cue(T_STOP + 1.3, "small wooden toy picked up, wheels rattle", gain_db=-16),
-            Cue(T_EYES, "low breathing in the dark, something large", gain_db=-14, dur=2.0),
-            Cue(T_THRUST + 0.1, "lantern flame flares with a whoosh", gain_db=-10),
-            Cue(T_THRUST + 0.8, "child running on leaves", gain_db=-14, dur=1.3),
-            Cue(T_LEG + 1.2, "single heavy tap of a chitinous leg on wood", gain_db=-8)]
+    return [Cue(-0.5, "night wind through trees", gain_db=-14, dur=20.0),
+            Cue(T_INSERT[0] + 0.7, "small wooden toy picked up, wheels rattle", gain_db=-14),
+            Cue(T_EYES, "eyes opening: soft wet clicks, a low breath", gain_db=-12, dur=1.6),
+            Cue(T_THRUST + 0.05, "lantern flare whoosh", gain_db=-8),
+            Cue(T_LEG + 1.0, "chitinous stab into the ground", gain_db=-6)]
