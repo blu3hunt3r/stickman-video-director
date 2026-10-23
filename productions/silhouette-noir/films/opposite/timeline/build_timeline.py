@@ -14,7 +14,7 @@ from engine.timing import build, summary  # noqa: E402
 FILM = "opposite"
 SCENES = [
     ("s01", "title", 6.0, None),
-    ("s02", "opposite", 27.5, None),
+    ("s02", "opposite", 28.5, None),
 ]
 PLACE = {}
 

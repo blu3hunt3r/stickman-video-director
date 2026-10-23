@@ -1,8 +1,8 @@
 {
  "film": "opposite",
  "fps": 24,
- "duration": 33.5,
- "frames": 804,
+ "duration": 34.5,
+ "frames": 828,
  "vo_src": "audio/vo/narration_full.wav",
  "scenes": [
   {
@@ -24,8 +24,8 @@
    "id": "s02",
    "slug": "opposite",
    "start": 6.0,
-   "duration": 27.5,
-   "frames": 660,
+   "duration": 28.5,
+   "frames": 684,
    "prev": "s01",
    "next": null,
    "trans_out": null,

@@ -12,7 +12,7 @@ from functools import lru_cache
 
 import cairo
 
-from engine import bass, paperdoll as pd
+from engine import bass, mocap as mc, paperdoll as pd
 from engine.core import clamp, lerp, ease
 from engine.palette import PAPER, RED
 
@@ -36,35 +36,45 @@ LAMP_X = 310.0
 
 # ----------------------------------------------------------------------------- the beats (film time)
 T_PUSH = 4.6           # the title's camera pushes into her window
-T_HEAR = 9.3           # she hears them across the street
-T_GLIDE_OUT = 9.8      # across the street to his window
-T_QUARREL = 10.6       # the quarrel, already going as the camera arrives
-T_RAISE = 12.9         # the knife goes up (crash zoom)
-T_SLASH = 13.52
-T_HIS_OFF = 14.15      # his light goes out after she has fallen
-T_GLIDE_BACK = 15.0
-T_CUP = 16.6           # the cup slips from her hand
-T_SHATTER = 17.0
-T_STEP = 17.15
-T_HIS_ON = 18.3        # he is standing there, looking at her
-T_POINT = 19.4
-T_LEAVE = 19.95        # his arm drops; he turns and runs out of the room
+T_SIP = 5.6            # she sips from her mug
+T_HEAR = 8.4           # she hears them across the street ...
+T_WALK = 8.6           # ... and walks to the window to look
+D = 1.2                # everything after her walk runs this much later than in the first cut
+
+
+def S(t):
+    """A time from the first cut, shifted past her walk to the window."""
+    return t + D
+
+
+T_GLIDE_OUT = S(9.8)   # across the street to his window
+T_QUARREL = S(10.6)    # the quarrel, already going as the camera arrives
+T_SLASH = S(13.52)
+T_RAISE = T_SLASH - 0.6            # the knife goes up (crash zoom)
+T_HIS_OFF = S(14.15)   # his light goes out after she has fallen
+T_GLIDE_BACK = S(15.0)
+T_CUP = S(16.6)        # she startles; the mug flies from her hand
+T_SHATTER = T_CUP + 0.48
+T_STEP = T_CUP + 1.1   # she backs away from the window
+T_HIS_ON = S(18.3)     # he is standing there, looking at her
+T_POINT = S(19.4)
+T_LEAVE = S(19.95)     # his arm drops; he turns and runs out of the room
 T_TURN = T_LEAVE + 0.15
 T_RUN = T_LEAVE + 0.38
-T_REACH = 20.95        # she reaches up for the cord of her lamp
-T_HER_OFF = 21.45
-T_STAIR_B = (21.7, 22.2, 22.7)      # floors 3, 2, 1: coming down
-T_DOOR_B = 23.15
-T_LINE = (23.35, 24.85)            # the red dotted path across the street
-T_DOOR_A = 24.9
-T_STAIR_A = (25.45, 26.05)         # floors 1, 2: coming up, faster
-T_HALL = 26.25                     # the line of light under her door
-T_DOOR_PUSH = 27.2
-T_FEET = 29.15
-T_KNOB = (29.65, 30.15)
-T_KEY_PUSH = 30.0
-T_EYE = 30.95
-T_BLACK = 31.9
+T_REACH = S(20.95)     # she reaches up for the cord of her lamp
+T_HER_OFF = S(21.45)
+T_STAIR_B = (S(21.7), S(22.2), S(22.7))      # floors 3, 2, 1: coming down
+T_DOOR_B = S(23.15)
+T_LINE = (S(23.35), S(24.85))                # the red dotted path across the street
+T_DOOR_A = S(24.9)
+T_STAIR_A = (S(25.45), S(26.05))             # floors 1, 2: coming up, faster
+T_HALL = S(26.25)                            # the line of light under her door
+T_DOOR_PUSH = S(27.2)
+T_FEET = S(29.15)
+T_KNOB = (S(29.65), S(30.15))
+T_KEY_PUSH = S(30.0)
+T_EYE = S(30.95)
+T_BLACK = S(31.9)
 
 # windows lit in the title, in rhythm (key, t_on)
 TITLE_ON = [(("w", "B", 1, 3), 2.70), (("w", "A", 0, 1), 2.85), (("w", "B", 2, 1), 3.00), (("w", "A", 1, 3), 3.15),
@@ -73,8 +83,8 @@ TITLE_ON = [(("w", "B", 1, 3), 2.70), (("w", "A", 0, 1), 2.85), (("w", "B", 2, 1
 LIGHT = {k: [(t, 99.0)] for k, t in TITLE_ON}
 LIGHT[HIS] = [(3.30, T_HIS_OFF), (T_HIS_ON, 99.0)]
 LIGHT[HER] = [(4.10, T_HER_OFF)]
-LIGHT[("w", "A", 1, 3)] = [(3.15, 24.3)]
-LIGHT[("w", "B", 2, 1)] = [(3.00, 24.6)]
+LIGHT[("w", "A", 1, 3)] = [(3.15, S(24.3))]
+LIGHT[("w", "B", 2, 1)] = [(3.00, S(24.6))]
 LIGHT[("s", "B", 3)] = [(T_STAIR_B[0], T_STAIR_B[1])]
 LIGHT[("s", "B", 2)] = [(T_STAIR_B[1], T_STAIR_B[2])]
 LIGHT[("s", "B", 1)] = [(T_STAIR_B[2], T_DOOR_B)]
@@ -182,34 +192,34 @@ WIDE_Y = -1450.0                     # ground sits at screen y ~1480 in the wide
 WIDE = (STREET_X, WIDE_Y, 0.36)
 HER_C, HIS_C = centre(HER_R), centre(HIS_R)
 KNIFE_C = (HIS_C[0] + 10.0, HIS_C[1] - 40.0)
-CORD_C = (-200.0, -1000.0)
+CORD_C = (-125.0, -1000.0)
 SEGMENTS = [  # (t0, t1, anchor, screen target, zoom, dip (log), ease)
     (0.0, 4.6, (STREET_X, WIDE_Y), (540.0, 960.0), 0.372, 0.0, "inout"),
     (T_PUSH, 6.6, HER_C, (540.0, 980.0), 3.0, 0.0, "inout3"),
-    (6.6, T_GLIDE_OUT, HER_C, (540.0, 980.0), 3.2, 0.0, "inout"),
-    (T_GLIDE_OUT, 12.0, HIS_C, (540.0, 980.0), 3.3, math.log(3.2 / 1.25), "inout3"),
-    (12.0, T_RAISE, HIS_C, (540.0, 980.0), 3.55, 0.0, "inout"),
+    (6.6, T_GLIDE_OUT, HER_C, (540.0, 980.0), 3.15, 0.0, "inout"),
+    (T_GLIDE_OUT, S(12.0), HIS_C, (540.0, 980.0), 3.3, math.log(3.2 / 1.25), "inout3"),
+    (S(12.0), T_RAISE, HIS_C, (540.0, 980.0), 3.55, 0.0, "inout"),
     # crash zoom on the knife, held through the fall and the dark
     (T_RAISE, T_RAISE + 0.28, KNIFE_C, (540.0, 960.0), 4.7, 0.0, "out3"),
     (T_RAISE + 0.28, T_HIS_OFF + 0.3, KNIFE_C, (540.0, 960.0), 4.85, 0.0, "inout"),
     (T_HIS_OFF + 0.3, T_GLIDE_BACK, HIS_C, (540.0, 980.0), 3.4, 0.0, "inout"),
-    # whip back to her, then a slow push while the cup falls
-    (T_GLIDE_BACK, 15.85, HER_C, (540.0, 980.0), 3.3, math.log(3.4), "inout3"),
-    (15.85, 18.0, HER_C, (540.0, 980.0), 3.75, 0.0, "inout"),
-    (18.0, 18.85, (STREET_X, -960.0), (540.0, 1000.0), 0.85, 0.0, "inout3"),
+    # whip back to her, then a slow push while the mug falls
+    (T_GLIDE_BACK, S(15.85), HER_C, (540.0, 980.0), 3.3, math.log(3.4), "inout3"),
+    (S(15.85), S(18.0), HER_C, (540.0, 980.0), 3.75, 0.0, "inout"),
+    (S(18.0), S(18.85), (STREET_X, -960.0), (540.0, 1000.0), 0.85, 0.0, "inout3"),
     # a push lands on him as he points, then creeps on; whip to her and the cord
-    (18.85, 19.5, HIS_C, (540.0, 1000.0), 1.6, 0.0, "inout3"),
-    (19.5, 20.9, HIS_C, (540.0, 1000.0), 1.9, 0.0, "inout"),
-    (20.9, 21.3, CORD_C, (540.0, 960.0), 3.3, math.log(1.7), "inout3"),
-    (21.3, 21.65, CORD_C, (540.0, 960.0), 3.45, 0.0, "inout"),
+    (S(18.85), S(19.5), HIS_C, (540.0, 1000.0), 1.6, 0.0, "inout3"),
+    (S(19.5), S(20.9), HIS_C, (540.0, 1000.0), 1.9, 0.0, "inout"),
+    (S(20.9), S(21.3), CORD_C, (540.0, 960.0), 3.3, math.log(1.7), "inout3"),
+    (S(21.3), S(21.65), CORD_C, (540.0, 960.0), 3.45, 0.0, "inout"),
     # follow him: down his stairwell, across the street with the red path, up hers
-    (21.65, 22.9, (1310.0, -800.0), (540.0, 960.0), 0.60, 0.0, "inout3"),
-    (22.9, 25.1, (-690.0, -800.0), (540.0, 960.0), 0.60, 0.0, "inout"),
-    (25.1, T_DOOR_PUSH, (-690.0, -800.0), (540.0, 960.0), 0.64, 0.0, "inout"),
-    (T_DOOR_PUSH, 29.0, centre(DOOR_IN), (540.0, 960.0), 9.0, 0.0, "inout3"),
-    (29.0, T_KEY_PUSH, centre(DOOR_IN), (540.0, 960.0), 9.6, 0.0, "inout"),
-    (T_KEY_PUSH, 30.9, KEYHOLE, (540.0, 960.0), 190.0, 0.0, "in3"),
-    (30.9, 32.5, KEYHOLE, (540.0, 960.0), 200.0, 0.0, "out3"),
+    (S(21.65), S(22.9), (1310.0, -800.0), (540.0, 960.0), 0.60, 0.0, "inout3"),
+    (S(22.9), S(25.1), (-690.0, -800.0), (540.0, 960.0), 0.60, 0.0, "inout"),
+    (S(25.1), T_DOOR_PUSH, (-690.0, -800.0), (540.0, 960.0), 0.64, 0.0, "inout"),
+    (T_DOOR_PUSH, S(29.0), centre(DOOR_IN), (540.0, 960.0), 9.0, 0.0, "inout3"),
+    (S(29.0), T_KEY_PUSH, centre(DOOR_IN), (540.0, 960.0), 9.6, 0.0, "inout"),
+    (T_KEY_PUSH, S(30.9), KEYHOLE, (540.0, 960.0), 190.0, 0.0, "in3"),
+    (S(30.9), S(32.5), KEYHOLE, (540.0, 960.0), 200.0, 0.0, "out3"),
 ]
 
 
@@ -245,7 +255,7 @@ def camera(t):
 
 def tilt(t):
     """Dutch angle (deg): the frame leans while he watches her, and again at her door."""
-    return (-4.5 * k(t, T_HIS_ON - 0.3, 1.2) * (1.0 - k(t, 21.65, 0.8))
+    return (-4.5 * k(t, T_HIS_ON - 0.3, 1.2) * (1.0 - k(t, S(21.65), 0.8))
             + 3.5 * k(t, T_FEET - 0.6, 1.0) * (1.0 - k(t, T_KEY_PUSH, 0.6)))
 
 
@@ -284,24 +294,6 @@ def _track(keys, t):
     return keys[-1][1]
 
 
-def stepping(fig, t, steps, spread=16.0, lift=34.0):
-    """A standing state whose feet step: steps = [(t0, dur, side, dx)] in figure units. The
-    moving foot arcs; the pelvis rides over the feet and sinks as they spread."""
-    fx = {"near": spread * 0.5, "far": -spread * 0.5}
-    fy = {"near": 0.0, "far": 0.0}
-    for t0, dur, side, dx in steps:
-        u = clamp((t - t0) / dur)
-        fx[side] += dx * u * u * (3 - 2 * u)
-        fy[side] -= lift * math.sin(math.pi * u)
-    px = 0.5 * (fx["near"] + fx["far"])
-    reach = 0.97 * (fig.thigh + fig.shin)
-    py = -fig.leg * 0.965
-    for side in fx:
-        py = max(py, fy[side] - fig.ankle + 4.0 - math.sqrt(max(reach * reach - (fx[side] - px) ** 2, 1.0)))
-    return dict(pelvis=(px, py), feet={side: (fx[side], fy[side], 0.0) for side in fx},
-                phase=0.0, speed=0.0, run=0.0, stride=0.0)
-
-
 def _reach(fig, st, pose, target, facing=1, bend=1.0):
     """("ang") shoulder and elbow angles that put the wrist on target (figure units)."""
     q = pd._rot(fig.shoulder, pose.lean)
@@ -312,16 +304,115 @@ def _reach(fig, st, pose, target, facing=1, bend=1.0):
     return a1 - pose.lean, (a2 - a1 + 180.0) % 360.0 - 180.0
 
 
-# her: two steps back from the window when he looks up, two more when he points
-HER_X = -172.0
-HER_STEPS = [(T_STEP, 0.26, "far", -100.0), (T_STEP + 0.2, 0.26, "near", -100.0),
-             (T_POINT + 0.1, 0.2, "far", -60.0), (T_POINT + 0.24, 0.2, "near", -60.0)]
-LAMP_IN = (-210.0, -1100.0)          # her pendant lamp, hung from the top of her window
-CORD = (-194.0, -1046.0)             # the bead on its pull cord
+# ----------------------------------------------------------------------------- performances
+# Real motion capture (engine.mocap: CMU Graphics Lab Motion Capture Database), seen from the
+# side and retargeted onto the paper figures. Performances run in figure units around x = 0;
+# the window drawing places them at HER_X / MAN_X / VIC_X.
+HER_X = -245.0
+MAN_X, MAN_X2, VIC_X = 736.0, 790.0, 842.0
+Q0 = T_QUARREL - 1.2                 # the quarrel is already going when the camera arrives
 
 
-def her_state(t):
-    return stepping(figs()[0], t, HER_STEPS)
+@lru_cache(maxsize=1)
+def her_perf():
+    C = mc.Clip.load
+    return mc.Performance(figs()[0], [
+        mc.Seg(C("137_26"), 0.3, 2.3, at=1.6, speed=0.5),                          # mug at her chest
+        mc.Seg(C("137_26"), 7.0, 9.9, at=T_SIP),                                   # a sip
+        mc.Seg(C("137_26"), 2.3, 3.2, at=T_WALK),                                  # to the window, mug in hand
+        mc.Seg(C("137_26"), 5.55, 6.4, at=T_WALK + 0.9, blend=0.35),               # she stops at the glass
+        mc.Seg(C("137_26"), 6.3, 6.4, at=T_WALK + 1.75, speed=0.05, lean=9.0, blend=0.6),  # peering out
+        mc.Seg(C("120_15"), 3.45, 4.4, at=T_CUP - 0.15, travel=0.0, blend=0.12),   # the startle
+        mc.Seg(C("76_03"), 2.2, 3.6, at=T_STEP, lean=-16.0, travel=2.0, blend=0.3),   # backing away
+        mc.Seg(C("79_73"), 3.6, 5.3, at=T_STEP + 1.4, blend=0.4),                  # frozen
+    ], facing=1, near="Right")
+
+
+@lru_cache(maxsize=1)
+def man_perfs():
+    """(the quarrel and the knife, alone at the glass pointing, the run out)."""
+    C = mc.Clip.load
+    fm = figs()[1]
+    quarrel = mc.Performance(fm, [
+        mc.Seg(C("80_48"), 2.2, 2.2 + (T_SLASH - 1.35 - Q0), at=Q0),
+        mc.Seg(C("86_04"), 42.3, 43.05, at=T_SLASH - 1.35, speed=0.6, near="Right", blend=0.3),   # the knife goes up
+        mc.Seg(C("86_04"), 43.05, 44.4, at=T_SLASH - 0.1, near="Right", blend=0.04),             # and comes down
+    ], facing=1, near="Left")
+    alone = mc.Performance(fm, [
+        mc.Seg(C("80_48"), 8.6, 9.4, at=T_HIS_ON - 0.3, speed=0.5),
+        mc.Seg(C("80_48"), 5.7, 6.05, at=T_POINT - 0.2),                               # the arm comes up
+        mc.Seg(C("80_48"), 6.05, 6.15, at=T_POINT + 0.15, speed=0.2, blend=0.1),       # and holds on her
+        mc.Seg(C("80_48"), 8.6, 8.8, at=T_LEAVE, blend=0.3),
+    ], facing=-1, near="Left")
+    x = alone.raw(T_TURN + 0.125)["pelvis"][0]
+    run = mc.Performance(fm, [mc.Seg(C("80_48"), 8.8, 8.8, at=T_TURN),
+                              mc.Seg(C("09_01"), 0.0, 1.6, at=T_RUN, blend=0.2)], facing=1, x=-x, near="Left")
+    return quarrel, alone, run
+
+
+@lru_cache(maxsize=1)
+def vic_perf():
+    C = mc.Clip.load
+    return mc.Performance(figs()[2], [
+        mc.Seg(C("80_48"), 4.0, 4.0 + (T_RAISE + 0.05 - Q0), at=Q0),                  # she argues back
+        mc.Seg(C("79_73"), 0.45, 1.6, at=T_RAISE + 0.05, lean=-12.0),                  # hands up to her face
+        mc.Seg(C("90_18"), 0.55, 1.6, at=T_SLASH + 0.05, blend=0.12),                  # goes over backward
+    ], facing=-1, near="Left")
+
+
+def victim_pose(t):
+    """(state, pose): her captured quarrel and fall, with her arms thrown up over her face as
+    the knife goes up."""
+    st, p = vic_perf()(t)
+    w = k(t, T_RAISE + 0.1, 0.25, "out3") * (1.0 - k(t, T_SLASH + 0.05, 0.12))
+    if w > 0.0:
+        p.arms["near"] = _toward(p.arms["near"], 150.0, 95.0, w)
+        p.arms["far"] = _toward(p.arms["far"], 128.0, 105.0, w)
+    return st, p
+
+
+def foot_contacts(state_fn, t0, t1, hz=120.0):
+    """Times a foot comes down onto the floor (for footsteps), from a state function."""
+    out = []
+    prev = None
+    up = [False, False]
+    lift = [-5.0, -5.0]
+    for i in range(int((t1 - t0) * hz) + 1):
+        t = t0 + i / hz
+        st = state_fn(t)
+        ys = [st["feet"][side][1] for side in ("near", "far")]
+        if prev is not None:
+            for i_, (a, b) in enumerate(zip(prev, ys)):
+                if a < lift[i_]:
+                    up[i_] = True
+                if up[i_] and b >= -3.2:
+                    up[i_] = False
+                    if not out or t - out[-1] > 0.12:
+                        out.append(t)
+        prev = ys
+    return out
+
+
+def _toward(arm, sh, el, w):
+    return ("ang", arm[1] + mc._wrap(sh - arm[1]) * w, arm[2] + mc._wrap(el - arm[2]) * w)
+
+
+def her_scale(t):
+    """She comes up to the glass (a little bigger), and shrinks back into the room."""
+    return 1.0 + 0.15 * k(t, T_WALK + 0.3, 1.6) * (1.0 - k(t, T_STEP, 1.2))
+
+
+def her_world_x(st, lx, t):
+    """World x of figure-unit x lx, with her scale taken about her pelvis."""
+    px = st["pelvis"][0]
+    return HER_X + FS * (px + her_scale(t) * (lx - px))
+
+
+@lru_cache(maxsize=1)
+def cord_home():
+    """The bead of her lamp's pull cord (world), just in front of where she ends up."""
+    st, _ = her_perf()(T_REACH)
+    return (her_world_x(st, st["pelvis"][0], T_REACH) + 40.0, -1046.0)
 
 
 def cord_pull(t):
@@ -330,114 +421,99 @@ def cord_pull(t):
 
 
 def her_pose(t, hold=True):
+    """(state, pose): the mocap performance plus her hand to her mouth and the reach for the cord."""
     fig = figs()[0]
-    p = pd.Pose()
-    pant = 1.3 * math.sin(t * 2.0 * math.pi * 1.7) * k(t, T_STEP + 0.4, 0.5)
-    p.lean = 0.6 * math.sin(t * 1.9) + pant + _track([
-        (0, 0), (T_HEAR, 0), (T_HEAR + 0.4, 6), (T_CUP - 0.2, 6), (T_CUP + 0.12, -6), (T_STEP, -7),
-        (T_STEP + 0.3, -14), (T_STEP + 0.9, -7), (T_POINT, -7), (T_POINT + 0.18, -18), (T_POINT + 0.8, -10),
-        (T_REACH, -10), (T_REACH + 0.3, 3), (99, 3)], t)
-    p.head = _track([(0, 0), (7.4, 0), (7.8, 8), (8.3, 0), (T_HEAR, 0), (T_HEAR + 0.3, -5), (T_CUP - 0.1, -5),
-                     (T_CUP + 0.1, 7), (T_STEP + 0.8, 2), (T_POINT, 2), (T_POINT + 0.15, 10), (T_POINT + 0.7, 4),
-                     (T_REACH, 4), (T_REACH + 0.25, 16), (99, 16)], t)
-    # the cup arm: a sip, lowered to listen, opens when the cup slips, flinches up at his point
-    sh = _track([(0, 34), (7.3, 34), (7.75, 64), (8.35, 64), (8.8, 34), (T_HEAR, 34), (T_HEAR + 0.4, 28),
-                 (T_CUP - 0.06, 28), (T_CUP + 0.18, 12), (T_STEP + 0.5, 6), (T_POINT, 6), (T_POINT + 0.12, 72),
-                 (T_POINT + 0.6, 50), (99, 50)], t)
-    el = _track([(0, 100), (7.3, 100), (7.75, 128), (8.35, 128), (8.8, 100), (T_HEAR, 100), (T_HEAR + 0.4, 96),
-                 (T_CUP - 0.06, 96), (T_CUP + 0.18, 30), (T_STEP + 0.5, 18), (T_POINT, 18), (T_POINT + 0.12, 84),
-                 (T_POINT + 0.6, 70), (99, 70)], t)
+    st, p = her_perf()(t)
+    w = k(t, T_CUP + 0.3, 0.2)
+    if w > 0.0:
+        p.arms["far"] = _toward(p.arms["far"], 72.0, 142.0, w)
     w = k(t, T_REACH, 0.32, "inout3")
-    if w > 0.0:                                      # up for the cord, then one pull
-        tgt = ((CORD[0] - HER_X) / FS, (CORD[1] + 3.0 + cord_pull(t) + FLOOR_H * 2) / FS)
-        rs, re = _reach(fig, her_state(t), p, tgt)
-        sh, el = lerp(sh, rs, w), lerp(el, re, w)
-    p.arms["near"] = ("ang", sh, el)
-    # the other hand flies to her mouth when the cup goes
-    p.arms["far"] = ("ang", _track([(0, -6), (T_CUP, -6), (T_CUP + 0.16, 72), (99, 72)], t),
-                     _track([(0, 10), (T_CUP, 10), (T_CUP + 0.16, 142), (99, 142)], t))
+    if w > 0.0:
+        cx, cy = cord_home()
+        m = her_scale(t)
+        tgt = (st["pelvis"][0] + (cx - her_world_x(st, st["pelvis"][0], t)) / (FS * m),
+               (cy + 3.0 + cord_pull(t) + FLOOR_H * 2) / (FS * m))
+        p.arms["near"] = _toward(p.arms["near"], *_reach(fig, st, p, tgt), w)
+        p.head = lerp(p.head, 16.0, w)
     if hold and t < T_CUP:
-        p.hold["near"] = draw_cup
-    p.eye = 1.0 - max(0.0, 1.0 - abs(t - 8.9) / 0.07) - max(0.0, 1.0 - abs(t - 11.3) / 0.07)
-    return p
+        p.hold["near"] = lambda ctx, hc, deg: draw_mug(ctx, hc, deg, t)
+    p.eye = 1.0 - max(0.0, 1.0 - abs(t - 7.9) / 0.07) - max(0.0, 1.0 - abs(t - 10.3) / 0.07)
+    return st, p
 
 
-def draw_cup(ctx, hc, deg):
+def _mug_shape(ctx, ink, steam_t=None):
+    """A coffee mug (handle at the back) with steam curling off it; origin at the hand."""
+    bass.fill_polys(ctx, [_MUG], ink)
     ctx.save()
-    ctx.translate(hc[0] + 4.0, hc[1] - 6.0)
-    bass.fill_polys(ctx, [_CUP], (0.02, 0.018, 0.016))
+    ctx.new_path()
+    ctx.arc(-17.0, -6.0, 10.0, math.radians(90), math.radians(270))
+    ctx.set_line_width(5.5)
+    ctx.set_source_rgb(*ink)
+    ctx.stroke()
+    if steam_t is not None:
+        ctx.set_line_width(3.2)
+        ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+        for j, x0 in enumerate((-4.0, 6.0)):
+            ctx.new_path()
+            for i in range(14):
+                u = i / 13.0
+                x = x0 + 5.0 * math.sin(2 * math.pi * (u * 1.2 - steam_t * 0.9) + j * 2.0) * u
+                y = -30.0 - 46.0 * u
+                (ctx.move_to if i == 0 else ctx.line_to)(x, y)
+            ctx.set_source_rgba(*PAPER, 0.75)
+            ctx.stroke()
     ctx.restore()
 
 
-_CUP = bass.cut([(-14, -26), (18, -26), (14, 8), (-10, 8)], seed=61, amp=0.3)
+def draw_mug(ctx, hc, deg, t):
+    tilt = clamp(-deg - 55.0, 0.0, 75.0)          # tipped toward her lips when she drinks
+    ctx.save()
+    ctx.translate(hc[0] + 10.0, hc[1] - 4.0)
+    ctx.rotate(math.radians(-tilt))
+    _mug_shape(ctx, (0.02, 0.018, 0.016), steam_t=t if tilt < 20.0 else None)
+    ctx.restore()
+
+
+_MUG = bass.cut([(-14, -28), (16, -28), (15, 12), (-13, 12)], seed=61, amp=0.2)
 
 
 @lru_cache(maxsize=1)
 def cup_release():
-    """World position of her cup at the moment it slips (a dry draw)."""
+    """World position of her mug at the moment she startles (a dry draw)."""
     s = cairo.ImageSurface(cairo.FORMAT_A8, 1, 1)
-    j = figs()[0].draw(cairo.Context(s), her_state(T_CUP), her_pose(T_CUP, hold=False),
-                       {"ink": (0, 0, 0), "red": (0, 0, 0), "far": (0, 0, 0)}, facing=1)
+    st, p = her_pose(T_CUP, hold=False)
+    j = figs()[0].draw(cairo.Context(s), st, p, {"ink": (0, 0, 0), "red": (0, 0, 0), "far": (0, 0, 0)}, facing=1)
     hx, hy = j["hand_near"]
-    return (HER_X + hx * FS + 1.6, -FLOOR_H * 2 + hy * FS - 2.4)
-
-
-# him: the quarrel and the knife at MAN_X; alone at MAN_X2 after his light comes back on
-MAN_X, MAN_X2, VIC_X = 736.0, 790.0, 842.0
-
-
-@lru_cache(maxsize=1)
-def man_runner():
-    return pd.Walker(figs()[1], x0=-60.0, speed=[(T_RUN, 0.0), (T_RUN + 0.25, 820.0), (99.0, 820.0)])
-
-
-def man_state(t):
-    fig = figs()[1]
-    if t < T_HIS_ON:
-        return stepping(fig, t, [(T_SLASH - 0.04, 0.14, "near", 80.0)])             # the lunge
-    if t >= T_RUN:
-        return man_runner().state(t)
-    return stepping(fig, t, [(T_POINT - 0.5, 0.24, "near", -60.0), (T_POINT - 0.3, 0.24, "far", -60.0)])
+    m = her_scale(T_CUP)
+    return (her_world_x(st, hx + 10.0, T_CUP), -FLOOR_H * 2 + (hy - 4.0) * FS * m)
 
 
 def man_pose(t):
-    """In his window: the quarrel and the knife, then alone: he points at her, turns, runs."""
-    p = pd.Pose()
+    """(state, pose, facing, sx) for him: quarrel and knife; alone pointing; the paper turn; the run."""
+    quarrel, alone, run = man_perfs()
     if t < T_HIS_ON:
-        Q = k(t, T_QUARREL, 0.3) * (1.0 - k(t, T_RAISE - 0.12, 0.15))
-        ph = 2.0 * math.pi * 1.5 * (t - T_QUARREL)
-        jab = max(0.0, math.sin(ph)) ** 0.7
-        jab2 = max(0.0, math.sin(ph - 1.6)) ** 0.7
-        R = k(t, T_RAISE, 0.32, "out3")
-        S = k(t, T_SLASH - 0.05, 0.1, "out")
-        shake_ = 2.5 * math.sin(t * 47.0) * R * (1.0 - S)
-        sh = lerp(lerp(lerp(14.0, 50.0 + 55.0 * jab, Q), 166.0 + shake_, R), 28.0, S)
-        el = lerp(lerp(lerp(10.0, 10.0 + 22.0 * (1.0 - jab), Q), 34.0, R), 0.0, S)
-        p.lean = lerp(lerp(lerp(0.0, 4.0 + 8.0 * jab, Q), -14.0, R), lerp(26.0, 16.0, k(t, T_SLASH + 0.08, 0.4)), S)
-        p.head = lerp(lerp(0.0, 5.0 * jab, Q), 8.0, R) * (1.0 - S) - 6.0 * S
-        p.arms["near"] = ("ang", sh, el)
-        p.arms["far"] = ("ang", lerp(lerp(lerp(8.0, 20.0 + 45.0 * jab2, Q), -24.0, R), -40.0, S),
-                         lerp(lerp(30.0, 40.0, Q), 24.0, R))
-        if t >= T_RAISE - 0.1:                       # overhand grip: the blade hangs from the fist
-            p.hold["near"] = lambda ctx, hc, deg, o=150.0 * (1.0 - S): draw_knife(ctx, hc, deg + o)
-        return p
-    run = k(t, T_RUN, 0.25)
-    p.head = 2.0 + 4.0 * k(t, T_POINT, 0.2) * (1.0 - run)
-    p.lean = _track([(0, 0), (T_POINT - 0.5, 0), (T_POINT - 0.2, 7), (T_POINT + 0.2, 12), (T_LEAVE, 10),
-                     (T_LEAVE + 0.3, 2), (T_RUN, 2), (T_RUN + 0.3, 16), (99, 16)], t)
-    sh = _track([(0, 6), (T_POINT, 6), (T_POINT + 0.16, 104), (T_POINT + 0.32, 92), (T_POINT + 0.45, 96),
-                 (T_LEAVE, 96), (T_LEAVE + 0.22, 10), (99, 10)], t)
-    el = _track([(0, 8), (T_POINT, 8), (T_POINT + 0.16, -6), (T_LEAVE, -4), (T_LEAVE + 0.22, 12), (99, 12)], t)
-    fsh, fel = -4.0, 12.0
-    if run > 0.0:                                    # arms pump with the run
-        sw = math.cos(2.0 * math.pi * man_runner().phase(t))
-        sh, el = lerp(sh, 15.0 - 45.0 * sw, run), lerp(el, 80.0, run)
-        fsh, fel = lerp(fsh, 15.0 + 45.0 * sw, run), lerp(fel, 80.0, run)
-    p.arms["near"] = ("ang", sh, el)
-    p.arms["far"] = ("ang", fsh, fel)
-    if T_POINT + 0.05 <= t < T_LEAVE + 0.1:
-        p.hold["near"] = draw_point
-    return p
+        st, p = quarrel(t)
+        # the knife arm: high over his head (Psycho), then one stab down; the body stays captured
+        S_ = k(t, T_SLASH - 0.07, 0.1, "out")
+        w = k(t, T_RAISE, 0.32, "out3") * (1.0 - k(t, T_SLASH + 0.5, 0.5))
+        if w > 0.0:
+            p.arms["near"] = _toward(p.arms["near"], lerp(170.0, 30.0, S_) - p.lean * (1.0 - S_),
+                                     lerp(30.0, 0.0, S_), w)
+        if t >= T_RAISE - 0.2:                        # overhand grip: the blade hangs from the fist
+            off = lerp(150.0, 70.0, S_)
+            p.hold["near"] = lambda ctx, hc, deg: draw_knife(ctx, hc, deg + off)
+        return st, p, 1, 1.0
+    sx = math.cos(math.pi * k(t, T_TURN, 0.25))
+    if sx > 0.0:
+        st, p = alone(t)
+        w = k(t, T_POINT - 0.1, 0.22, "out3") * (1.0 - k(t, T_LEAVE, 0.25))
+        if w > 0.0:                                   # the point is aimed level, straight at her window
+            p.arms["near"] = _toward(p.arms["near"], 96.0 - p.lean, -4.0, w)
+        if T_POINT + 0.05 <= t < T_LEAVE + 0.1:
+            p.hold["near"] = draw_point
+        return st, p, -1, max(sx, 0.04)
+    st, p = run(t)
+    return st, p, 1, max(-sx, 0.04)
 
 
 def draw_knife(ctx, hc, deg):
@@ -459,41 +535,17 @@ def draw_point(ctx, hc, deg):
                        64.0, (0.02, 0.018, 0.016), angle=deg, seed=3)
 
 
-def victim_pose(t):
-    """She argues back, cowers under the knife, and goes over backward with her arms flung up."""
-    p = pd.Pose()
-    Q = k(t, T_QUARREL + 0.3, 0.3) * (1.0 - k(t, T_RAISE, 0.15))
-    jab = max(0.0, math.sin(2.0 * math.pi * 1.5 * (t - T_QUARREL) + math.pi)) ** 0.7
-    C = k(t, T_RAISE + 0.1, 0.28, "out3")
-    F = clamp((t - T_SLASH - 0.03) / 0.42)
-    p.lean = lerp(lerp(0.0, 3.0 * jab, Q), -16.0, C)
-    p.crouch = 30.0 * C * (1.0 - F)
-    p.head = lerp(6.0 * jab * Q, -8.0, C) + 14.0 * F
-    sh = lerp(lerp(lerp(10.0, 40.0 + 50.0 * jab, Q), 150.0, C), 175.0, F)
-    el = lerp(lerp(lerp(20.0, 30.0 + 30.0 * (1.0 - jab), Q), 95.0, C), 10.0, F)
-    p.arms["near"] = ("ang", sh, el)
-    p.arms["far"] = ("ang", sh * 0.85 - 6.0 * Q, el + 10.0)
-    return p
-
-
-def victim_fall(t):
-    """(rotation deg about her feet, drop in world px): over backward, below the sill."""
-    F = clamp((t - T_SLASH - 0.03) / 0.42)
-    return 84.0 * F * F, 22.0 * F
-
-
-def _draw_fig(c, fig, x, floor_y, pose, facing, colors, st=None, rot=0.0, sx=1.0):
-    """Draw a figure at FS on a floor; rot tips it about its feet, sx squashes it about the
-    pelvis (a paper-doll turn)."""
+def _draw_fig(c, fig, x, floor_y, pose, facing, colors, st=None, sx=1.0, m=1.0):
+    """Draw a figure at FS on a floor; sx squashes it about the pelvis (a paper-doll turn),
+    m scales it about the pelvis and the floor (nearer the glass)."""
     st = st or pd.standing(fig)
     c.save()
     c.translate(x, floor_y)
-    c.rotate(math.radians(rot))
     c.scale(FS, FS)
-    if sx != 1.0:
+    if sx != 1.0 or m != 1.0:
         px = st["pelvis"][0]
         c.translate(px, 0.0)
-        c.scale(sx, 1.0)
+        c.scale(sx * m, m)
         c.translate(-px, 0.0)
     out = fig.draw(c, st, pose, colors, facing=facing)
     c.restore()
@@ -609,42 +661,47 @@ def draw_window(c, key, t, ink):
     if key == HER and L > 0.0:
         _clip(c, r)
         draw_lamp(c, t, ink)
-        fw, _, _ = figs()
-        _draw_fig(c, fw, HER_X, -FLOOR_H * 2, her_pose(t), 1, {"ink": ink, "red": RED, "far": ink}, st=her_state(t))
+        st, p = her_pose(t)
+        _draw_fig(c, figs()[0], HER_X, -FLOOR_H * 2, p, 1, {"ink": ink, "red": RED, "far": ink}, st=st, m=her_scale(t))
         c.restore()
     if key == HIS and L > 0.02:
         _clip(c, r)
         fw, fm, fv = figs()
         cols = {"ink": ink, "red": RED, "far": ink}
         if t < T_HIS_ON:
-            rot, drop = victim_fall(t)
-            _draw_fig(c, fv, VIC_X, -FLOOR_H * 2 + drop, victim_pose(t), -1, cols, rot=rot)
-            _draw_fig(c, fm, MAN_X, -FLOOR_H * 2, man_pose(t), 1, cols, st=man_state(t))
+            st, p = victim_pose(t)
+            _draw_fig(c, fv, VIC_X, -FLOOR_H * 2, p, -1, cols, st=st)
+            st, p, facing, sx = man_pose(t)
+            _draw_fig(c, fm, MAN_X, -FLOOR_H * 2, p, facing, cols, st=st)
         else:
-            sx = math.cos(math.pi * k(t, T_TURN, 0.25))          # the paper turn: face her, then the door
-            _draw_fig(c, fm, MAN_X2, -FLOOR_H * 2, man_pose(t), -1 if sx > 0 else 1, cols, st=man_state(t),
-                      sx=max(abs(sx), 0.04))
+            st, p, facing, sx = man_pose(t)
+            _draw_fig(c, fm, MAN_X2, -FLOOR_H * 2, p, facing, cols, st=st, sx=sx)
         c.restore()
 
 
 @lru_cache(maxsize=1)
 def _her_lamp():
-    x, y = LAMP_IN
+    x, y = cord_home()[0] - 14.0, LAMP_TOP
     flex = _cr((x - 1.3, y - 10.0, x + 1.3, y + 16.0), 87, amp=0.05)
     shade = bass.cut([(x - 12.0, y + 14.0), (x + 12.0, y + 14.0), (x + 27.0, y + 36.0), (x - 27.0, y + 36.0)], seed=86, amp=0.15)
-    return [flex, shade]
+    return x, [flex, shade]
+
+
+LAMP_TOP = -1100.0
 
 
 def draw_lamp(c, t, ink):
     """Her pendant lamp: shade, bulb, and the pull cord she will reach for."""
-    x, y = LAMP_IN
+    x, polys = _her_lamp()
+    y = LAMP_TOP
     bass.fill_polys(c, [bass.draw.ellipse_pts((x, y + 37.0), 8.0, 4.5, n=20)], PAPER)
-    bass.fill_polys(c, _her_lamp(), ink)
-    cy = CORD[1] + cord_pull(t)
-    c.rectangle(CORD[0] - 0.6, y + 34.0, 1.2, cy - (y + 34.0))
+    bass.fill_polys(c, polys, ink)
+    cx, cy = cord_home()
+    cy += cord_pull(t)
+    c.rectangle(cx - 0.6, y + 34.0, 1.2, cy - (y + 34.0))
     c.set_source_rgb(*ink)
     c.fill()
-    bass.fill_polys(c, [bass.draw.circle_pts((CORD[0], cy), 2.2, n=16)], ink)
+    bass.fill_polys(c, [bass.draw.circle_pts((cx, cy), 2.2, n=16)], ink)
 
 
 def draw_cup_fall(c, t, ink):
@@ -654,10 +711,10 @@ def draw_cup_fall(c, t, ink):
     dt = t - T_CUP
     _clip(c, HER_R)
     c.save()
-    c.translate(x0 - 18.0 * dt, y0 + 0.5 * 1900.0 * dt * dt)
-    c.rotate(math.radians(-160.0 * dt))
-    c.scale(FS, FS)
-    bass.fill_polys(c, [_CUP], ink)
+    c.translate(x0 + 30.0 * dt, y0 - 90.0 * dt + 0.5 * 1900.0 * dt * dt)     # flung up a little, then down
+    c.rotate(math.radians(-260.0 * dt))
+    c.scale(FS * her_scale(T_CUP), FS * her_scale(T_CUP))
+    _mug_shape(c, ink)
     c.restore()
     c.restore()
 
