@@ -15,6 +15,7 @@ from films.opposite_bass import world as B
 from films.opposite_full import folk as F
 from films.opposite_full import kit as K
 from films.opposite_full import rooms as R
+from films.opposite_full.scenes import s08_door as S08
 
 k = K.k
 HER_B, HIS_B = K.HER_B, K.HIS_B
@@ -115,8 +116,9 @@ def him_at_window(c, rim):
 
 
 # ---------------------------------------------------------------- 0-2.5: the burst, from the floor
-DOORWAY = (392.0, 520.0, 688.0, 1250.0)       # her door, seen from the floor of her room
-THRESH = DOORWAY[3]
+DOORWAY = S08.DOOR                            # her door, as s08 shows it from inside her room
+THRESH = S08.BAR_Y
+S08_T = 3.4                                   # s08's clock at our 0: his feet at the door, the handle still
 
 
 def shake(t):
@@ -132,14 +134,14 @@ def shake(t):
 
 def leaf_quad(swing):
     """The door leaf, hinged on the doorway's left jamb, swung `swing` (0 shut .. 1 flung
-    open toward us, against the wall off the left of the frame)."""
+    open toward us, against the wall off the left of the frame): (hinge top, free top, free
+    bottom, hinge bottom)."""
     x0, y0, x1, y1 = DOORWAY
     th = math.radians(100.0 * swing)
-    reach = 1.0 + 1.6 * math.sin(th)              # the free edge comes toward us: bigger
-    fx = x0 + (x1 - x0) * math.cos(th) - 520.0 * math.sin(th)
-    fy0 = lerp(y0, y0 - 420.0, math.sin(th) ** 1.2)
-    fy1 = lerp(y1, y1 + 640.0, math.sin(th) ** 1.2)
-    return [(x0, y0), (fx, fy0 * reach / reach), (fx, fy1), (x0, y1)]
+    fx = x0 + (x1 - x0) * math.cos(th) - 760.0 * math.sin(th)
+    fy0 = lerp(y0, y0 - 360.0, math.sin(th) ** 1.2)
+    fy1 = lerp(y1, y1 + 560.0, math.sin(th) ** 1.2)
+    return [(x0, y0), (fx, fy0), (fx, fy1), (x0, y1)]
 
 
 MAN_H = 786.0                                  # his height in man_front's units, hat crown to heel
@@ -182,9 +184,9 @@ LINK_G = 3600.0                                # px/s^2
 
 
 def _link(i):
-    x0, y0 = DOORWAY[2] - 12.0, 822.0
+    x0, y0 = DOORWAY[2] - 12.0, S08.CHAIN_Y
     vy = -300.0 - 500.0 * hash01(i, 402)
-    floor_y = lerp(THRESH + 60.0, 1820.0, hash01(i, 403))
+    floor_y = lerp(THRESH + 50.0, 1850.0, hash01(i, 403))
     t_land = (-vy + math.sqrt(vy * vy + 2.0 * LINK_G * (floor_y - y0))) / LINK_G
     vx = (lerp(170.0, 960.0, hash01(i, 401)) - x0) / t_land
     return x0, y0, vx, vy, floor_y, t_land
@@ -204,68 +206,81 @@ def chain_link(i, dt):
 def link_r(i, dt):
     """Its size: bigger as it comes nearer the lens."""
     _, _, _, _, floor_y, t_land = _link(i)
-    end = lerp(7.0, 19.0, clamp((floor_y - THRESH) / (1820.0 - THRESH)))
+    end = lerp(8.0, 20.0, clamp((floor_y - THRESH) / (1850.0 - THRESH)))
     return lerp(6.0, end, clamp(dt / t_land))
+
+
+def _quad_pt(q, u, v):
+    """Bilinear point in the leaf quad q = (hinge top, free top, free bottom, hinge bottom)."""
+    top = (lerp(q[0][0], q[1][0], u), lerp(q[0][1], q[1][1], u))
+    bot = (lerp(q[3][0], q[2][0], u), lerp(q[3][1], q[2][1], u))
+    return (lerp(top[0], bot[0], v), lerp(top[1], bot[1], v))
+
+
+def draw_leaf(c, swing):
+    """s08's leaf (teal-grey, two panels, the lever) swung open toward us on its hinge."""
+    q = leaf_quad(swing)
+    bass.fill_polys(c, [bass.orient(q, True)], S08.LEAF_C)
+    x0, y0, x1, y1 = DOORWAY
+    for y_a, y_b in ((320.0, 760.0), (880.0, 1240.0)):
+        va, vb = (y_a - y0) / (y1 - y0), (y_b - y0) / (y1 - y0)
+        ua, ub = 56.0 / (x1 - x0), 1.0 - 56.0 / (x1 - x0)
+        panel = [_quad_pt(q, ua, va), _quad_pt(q, ub, va), _quad_pt(q, ub, vb), _quad_pt(q, ua, vb)]
+        bass.fill_polys(c, [bass.orient(panel, True)], S08.PANEL_C)
+    ku, kv = (B.KNOB[0] - x0) / (x1 - x0), (B.KNOB[1] - y0) / (y1 - y0)
+    knob = _quad_pt(q, ku, kv)
+    sx = math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) / (x1 - x0)
+    K.dot(c, knob, 44.0 * max(sx, 0.3), S08.METAL, seed=104)
 
 
 def draw_burst(c, t):
     dx, dy = shake(t)
     c.save()
     c.translate(dx, dy)
-    swing = 0.0
-    if t >= T_BURST:
-        u = (t - T_BURST) / 0.13
-        swing = ease("out3", clamp(u)) if u < 1.0 else 1.0 - 0.06 * math.exp(-7.0 * (t - T_BURST - 0.13)) * \
-            abs(math.sin(16.0 * (t - T_BURST - 0.13)))
-    elif t >= T_KICK:
-        swing = 0.05 * math.sin(math.pi * clamp((t - T_KICK) / 0.24))
-    # the room from its floor: walls and ceiling dark, the floor running to the door
-    K.fill(c, K.DEEP)
-    bass.fill_polys(c, [bass.orient([(-200.0, 2100.0), (DOORWAY[0] - 40.0, THRESH), (DOORWAY[2] + 40.0, THRESH),
-                                     (1280.0, 2100.0)], True)], K.SHUT)
-    bass.fill_polys(c, [bass.cut_rect(DOORWAY[0] - 26.0, DOORWAY[1] - 26.0, DOORWAY[2] + 26.0, THRESH + 4.0, seed=501)],
-                    K.INK)
     x0, y0, x1, y1 = DOORWAY
+    if t < T_BURST:
+        # s08's door, shut on its chain, his feet in the light under it; the kick jolts it to the chain
+        g = S08.G_MAX * (k(t, T_KICK, 0.05, "out3") - k(t, T_KICK + 0.16, 0.14, "in3"))
+        S08.draw_door(c, S08_T + t, gap=g)
+        if t >= T_KICK:
+            links = S08.chain_links(g, S08_T + t)
+            K.ripple(c, links[len(links) // 2][0], t, T_KICK + 0.04, K.PAPER, n=2, every=0.08, life=0.4, r0=18.0,
+                     r1=104.0, width=3.2, seed=150, alpha=0.7)
+        c.restore()
+        return
+    u = (t - T_BURST) / 0.13
+    swing = ease("out3", clamp(u)) if u < 1.0 else 1.0 - 0.06 * math.exp(-7.0 * (t - T_BURST - 0.13)) * \
+        abs(math.sin(16.0 * (t - T_BURST - 0.13)))
     step = k(t, 1.55, 0.6, "inout")                   # he takes a step in
-    if swing < 0.02:
-        # shut: the light under the door, broken by his feet
-        bass.fill_polys(c, [bass.cut_rect(x0 + 4.0, y1 - 7.0, x1 - 4.0, y1, seed=502, amp=0.3)], K.AMBER)
-        for fx in (500.0, 566.0):
-            bass.fill_polys(c, [bass.cut_rect(fx, y1 - 8.0, fx + 22.0, y1 + 1.0, seed=503, amp=0.2)], K.INK)
-        bass.fill_polys(c, [bass.cut_rect(x0, y0, x1, y1 - 7.0, seed=504, amp=0.3)], K.INK)
+    # her room, as s08 has it: the wall, the floor, the moonlight from the window behind us
+    K.fill(c, S08.WALL_C)
+    bass.fill_polys(c, [bass.cut_rect(-40.0, THRESH + 26.0, 1120.0, 1960.0, seed=99, amp=1.0)], S08.FLOOR_C)
+    S08.moon_floor(c, S08_T + t)
+    bass.fill_polys(c, [bass.cut_rect(x0 - 26.0, y0 - 26.0, x1 + 26.0, THRESH, seed=100, amp=1.2)], S08.FRAME_C)
+    # the doorway open on the landing's light; the light thrown across her floor at us
+    bass.fill_polys(c, [bass.cut_rect(x0, y0, x1, THRESH, seed=505, amp=0.3)], K.AMBER)
+    bass.fill_polys(c, [bass.cut_rect(x0, THRESH - 190.0, x1, THRESH - 182.0, seed=506, amp=0.3)],
+                    lerp(K.AMBER, K.INK, 0.25))
+    wedge = [(x0, THRESH), (x1, THRESH), (x1 + 760.0, 2100.0), (x0 - 700.0, 2100.0)]
+    bass.fill_polys(c, [bass.orient(wedge, True)], K.AMBER, 0.55 * clamp(swing * 1.4))
+    # his long shadow, on the floor toward us, swaying with the bulb behind him
+    foot_y = lerp(THRESH - 18.0, THRESH + 60.0, step)
+    man_shadow(c, 540.0, foot_y, clamp(swing * 1.3), -520.0 * math.sin(bulb_swing(t)), K.INK)
+    # him: a step behind the threshold he fits under the lintel; stepping over it he comes past the frame
+    s_man = lerp(1.2, 1.46, step)
+    if step < 0.35:
+        c.save()
+        K.clip_rect(c, (x0, y0, x1, THRESH + 200.0))
+        man_front(c, 540.0, foot_y, s_man, K.INK)
+        c.restore()
     else:
-        # open: the landing's light, him in it, the light thrown across the floor at us
-        bass.fill_polys(c, [bass.cut_rect(x0, y0, x1, y1, seed=505, amp=0.3)], K.AMBER)
-        bass.fill_polys(c, [bass.cut_rect(x0, y1 - 150.0, x1, y1 - 144.0, seed=506, amp=0.3)], lerp(K.AMBER, K.INK, 0.25))
-        wedge = [(x0, y1), (x1, y1), (x1 + 900.0, 2100.0), (x0 - 820.0, 2100.0)]
-        bass.fill_polys(c, [bass.orient(wedge, True)], K.AMBER, 0.55 * clamp(swing * 1.4))
-        # his long shadow, on the floor toward us, swaying with the bulb behind him
-        foot_y = lerp(y1 - 14.0, y1 + 50.0, step)
-        if t >= T_BURST:
-            man_shadow(c, 540.0, foot_y, clamp(swing * 1.3), -520.0 * math.sin(bulb_swing(t)), K.INK)
-        # him: a step behind the threshold he fits under the lintel; stepping over it he comes past the frame
-        s_man = lerp(0.86, 1.08, step)
-        if step < 0.35:
-            c.save()
-            K.clip_rect(c, (x0, y0, x1, y1 + 200.0))
-            man_front(c, 540.0, foot_y, s_man, K.INK)
-            c.restore()
-        else:
-            man_front(c, 540.0, foot_y, s_man, K.INK)
-        # the leaf, flung open toward us
-        if swing < 0.999:
-            bass.fill_polys(c, [bass.orient(leaf_quad(swing), True)], K.INK)
-    if 0.0 < swing < 0.08 and t < T_BURST:
-        # the kick: a crack of light down the free edge, the chain taut across it
-        g = swing / 0.05
-        bass.fill_polys(c, [bass.cut_rect(x1 - 10.0 * g - 4.0, y0 + 6.0, x1, y1, seed=507, amp=0.2)], K.AMBER)
-        bass.fill_polys(c, [bass.orient([(x1 - 12.0 * g - 4.0, y1), (x1, y1), (x1 + 420.0 * g, 2100.0),
-                                         (x1 + 120.0 * g, 2100.0)], True)], K.AMBER, 0.5)
-        bass.line_band(c, [(x1 - 26.0, 820.0), (x1 + 8.0, 822.0)], K.PAPER, width=5.0, seed=508)
+        man_front(c, 540.0, foot_y, s_man, K.INK)
+    # the leaf, flung open toward us
+    if swing < 0.999:
+        draw_leaf(c, swing)
     # the chain's links, flying at us: they land across the floor, bounce, skid and lie there
-    if t >= T_BURST:
-        for i in range(9):
-            K.dot(c, chain_link(i, t - T_BURST), link_r(i, t - T_BURST), K.PAPER, seed=410 + i)
+    for i in range(9):
+        K.dot(c, chain_link(i, t - T_BURST), link_r(i, t - T_BURST), lerp(K.STEEL, K.PAPER, 0.75), seed=410 + i)
     c.restore()
 
 
@@ -406,6 +421,7 @@ def draw_her_window_frame(c, t):
         b = 70.0 + 60.0 * math.sin(y / 230.0 + 2.6 * t) + 40.0 * math.sin(y / 97.0 - 3.7 * t) + 90.0 * (y / 1740.0)
         pts.append((b, y))
     pts.append((-40.0, 1740.0))
+    pts = [(1080.0 - x, y) for x, y in pts]          # it hangs at the right, as in her window's view
     bass.fill_polys(c, [bass.orient(bass.cut(pts, seed=638, amp=0.6), True)], lerp(K.NIGHT, K.PAPER, 0.25), 0.3)
     bass.line_band(c, pts[2:-1], R.GLASS, width=3.0, seed=639, alpha=0.8)
 
