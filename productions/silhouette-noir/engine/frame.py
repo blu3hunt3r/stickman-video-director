@@ -143,6 +143,7 @@ class Frame:
         self.cam = Camera()
         self.post = dict(
             grain=self.pal.grain,          # film grain amplitude (0..~0.1)
+            grain_fps=24.0,                # how often the grain changes (12: on twos)
             vignette=self.pal.vignette,    # 0..1
             bloom=0.22,                    # halo from bright areas
             bloom_threshold=0.55,
@@ -470,7 +471,8 @@ class Frame:
             out *= V[..., None]
         # grain (luminance-weighted, soft 2px clumps)
         if P["grain"] > 0:
-            idx = int(self.t * 24 + 0.5) % 12
+            gf = P["grain_fps"]
+            idx = int(math.floor(self.t * gf + gf / 48.0)) % 12     # rounded by half a 24 fps frame
             G = cached(("grain", self.pw, self.ph, idx), lambda: _grain(self.pw, self.ph, idx))
             lum = out[..., 1] * (1.0 / 255.0)
             wgt = 0.35 + 2.4 * lum * (1.0 - lum)

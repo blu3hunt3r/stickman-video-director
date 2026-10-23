@@ -77,6 +77,20 @@ def chord(semis, dur, vel=0.7, seed=0, octave=0, stacc=True, spread=(0, 12)):
     return out / len(semis)
 
 
+def sip(seed=0):
+    """A small sip from a hot mug: an airy slurp, then a swallow."""
+    rng = dsp.rng_for("ob-sip", seed)
+    n = n_of(0.55)
+    t = np.arange(n) / SR
+    air = dsp.bandpass(rng.standard_normal(n).astype(np.float32), 1600.0, 5200.0, 2)
+    air *= np.clip(t / 0.04, 0, 1) * np.exp(-np.clip(t - 0.1, 0, None) / 0.06)
+    air *= 0.55 + 0.45 * np.sin(2 * np.pi * 34.0 * t + rng.uniform(0, 6.28))     # it bubbles a little
+    g = t - 0.32
+    gulp = np.where(g > 0, np.sin(2 * np.pi * (150.0 - 70.0 * np.clip(g / 0.09, 0, 1)) * g) * np.exp(-g / 0.045), 0.0)
+    x = (0.6 * air / (np.max(np.abs(air)) + 1e-9) + 0.4 * gulp).astype(np.float32)
+    return x
+
+
 def pizz(f0, vel=0.8, seed=0):
     rng = dsp.rng_for("ob-pizz", seed)
     y = dsp.karplus_strong(f0, 0.9, t60=0.6, brightness=0.45, rng=rng)
@@ -120,8 +134,8 @@ def main():
 
     # ------------------------------------------------------------ TITLE
     ostinato(music, 0.0, Wd.T_TITLE_CUT, vel=(0.45, 0.85), octave=-1, seed=1, gain=0)
-    for i in range(9):                                                   # the strips: paper swishes
-        put(efx, fx("brush_swish", seed=10 + i), 0.05 + 0.15 * i, -20, pan=-0.6 if i % 2 else 0.6)
+    for i, (t0, dur) in enumerate(Wd.STRIPS):                            # the strips: paper swishes
+        put(efx, fx("brush_swish", seed=10 + i), t0 + 0.08, -20, pan=0.6 if i % 2 else -0.6)
     put(music, rev(chord(CHORD, 0.5, 1.0, 21, octave=1)), Wd.T_TITLE_CUT, -6)   # the red cut: sforzando
     put(music, shrieks(n_stabs=1, seed=2), Wd.T_TITLE_CUT, -12)
     put(efx, fx("whip", seed=3), Wd.T_TITLE_CUT - 0.02, -12)
@@ -148,6 +162,8 @@ def main():
         t = Wd.T_WIN + i * Wd.BEAT
         put(music, pizz(note(0 if i % 4 < 2 else -2, BB2 / 2.0), 0.8, seed=i), t, -10)
     put(music, tremolo((10, 11, 12), Wd.T_ROOM - Wd.T_EYE + 0.2, 0.7, seed=3), Wd.T_EYE, -7)
+    put(efx, fx("brush_swish", seed=21), Wd.T_SIP[0] - 0.03, -24)            # in close on her: the sip
+    put(vox, dsp.reverb(sip(1), "small_room", wet_db=-18.0, seed=3).mean(axis=1), 6.22, -7)
     q1 = gen("quarrel", 0.0, 6.0)
     q2 = gen("quarrel", Wd.QUARREL_LOOP[1], 6.0)
     q = np.zeros(n_of(Wd.T_RAISE + 0.15 - Wd.QUARREL_AT))
@@ -177,6 +193,8 @@ def main():
     put(music, tremolo((11, 12, 13), Wd.T_SLASH[0] - Wd.T_RAISE, 0.9, seed=5, octave=2), Wd.T_RAISE, -13)
     sc = gen("scream_a", 0.08, 0.08 + 15.3 - (Wd.T_RAISE + 0.08), fade=0.06)
     put(vox, dsp.reverb(sc, "small_room", wet_db=-12.0, seed=4).mean(axis=1), Wd.T_RAISE + 0.08, -8)
+    for j, ts in enumerate(Wd.STABS):                                    # each stab lands
+        put(efx, fx("impact", seed=75 + j, size=0.1)[: n_of(0.4)], ts, -8, pan=0.1)
     for j, ts in enumerate(Wd.T_SLASH):                                  # one shriek per cut
         put(music, shrieks(n_stabs=2, every=0.09, f0=1318.5 * SEMI ** j, seed=10 + j), ts - 0.01, -12)
         put(efx, fx("whip", seed=70 + j), ts - 0.02, -8, pan=(-0.4, 0.4, 0.0)[j])

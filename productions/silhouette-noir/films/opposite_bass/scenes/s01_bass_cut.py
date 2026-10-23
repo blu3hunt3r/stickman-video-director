@@ -7,7 +7,8 @@ from films.opposite_bass import world as Wd
 
 
 def render(f, t, T):
-    bass.bass_scene(f, field=Wd.INK, paper=0.85, vignette=0.12, mottle=0.035)
+    bass.bass_scene(f, field=Wd.INK, paper=0.85, vignette=0.12, mottle=0.035, flicker=0.0)
+    f.post["grain_fps"] = 12.0          # the grain moves on twos, with the paper figures
     Wd.draw(f, t)
 
 
