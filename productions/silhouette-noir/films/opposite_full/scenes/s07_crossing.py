@@ -107,22 +107,11 @@ def head(name, t):
 
 # ---------------------------------------------------------------- the section, dark
 def people(t):
-    t2 = K.twos(t)
-
     def fn(c, b, n, room):
-        fy = room[3]
-        if b is HIS_B and n == K.HIS_FLOOR:
-            victim(c, fy)
-        elif b is HER_B and n == 2:               # dozing in front of the radio
-            fig = F.small("bald")
-            p = pd.Pose(lean=-5.0, head=-26.0, arms={"near": ("ang", 8.0, 30.0), "far": ("ang", 4.0, 28.0)})
-            F.draw(c, fig, F.seated(fig, 0.0, -1, 36.0), p, 276.0, fy, -1, None)
-        elif b is HER_B and n == 3:               # asleep in her chair
-            fig = F.small("bun")
-            p = pd.Pose(lean=-14.0, head=16.0, arms={"near": ("ang", 14.0, 66.0), "far": ("ang", 8.0, 62.0)})
-            F.draw(c, fig, F.seated(fig, 0.0, -1, 36.0), p, 282.0, fy, -1, None)
-        elif b is HIS_B and n == 2:
-            F.sleeper(c, 769.0, fy, t2, None)
+        if b is K.HIS_B and n == K.HIS_FLOOR:
+            victim(c, room[3])
+        else:
+            F.asleep(c, b, n, room, t)
     return fn
 
 

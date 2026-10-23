@@ -94,6 +94,24 @@ def draw(c, fig, st, pose, x, floor_y, facing, lit, scale=SEC_FS, color=None, ey
     return out
 
 
+def asleep(c, b, n, room, t):
+    """The neighbours after their lights are out (s01's end onward, until s10 wakes them):
+    the old man dozing in front of the radio, the woman asleep in her chair, the sleeper in
+    his bed; the other rooms are empty. Call from a section's people(c, b, n, room) for a
+    dark neighbour's room."""
+    fy = room[3]
+    if b is K.HER_B and n == 2:
+        fig = small("bald")
+        p = pd.Pose(lean=-5.0, head=-26.0, arms={"near": ("ang", 8.0, 30.0), "far": ("ang", 4.0, 28.0)})
+        draw(c, fig, seated(fig, 0.0, -1, 36.0), p, 276.0, fy, -1, None)
+    elif b is K.HER_B and n == 3:
+        fig = small("bun")
+        p = pd.Pose(lean=-14.0, head=16.0, arms={"near": ("ang", 14.0, 66.0), "far": ("ang", 8.0, 62.0)})
+        draw(c, fig, seated(fig, 0.0, -1, 36.0), p, 282.0, fy, -1, None)
+    elif b is K.HIS_B and n == 2:
+        sleeper(c, 769.0, fy, B.twos(t), None)
+
+
 def sleeper(c, x, floor_y, t, lit, seed=0):
     """Someone asleep in the bed at x (the section's bed, head on the pillow at its left
     end): a head and a blanket that rises and falls."""

@@ -11,6 +11,7 @@ from engine.timing import Cue
 from films.opposite_bass import world as B
 from films.opposite_full import folk as F
 from films.opposite_full import kit as K
+from films.opposite_full import rooms as R
 
 k = K.k
 HER_B, HIS_B = K.HER_B, K.HIS_B
@@ -32,9 +33,7 @@ T_OUT = tuple(8.5 + 0.25 * i for i in range(len(LIGHTS_OUT)))
 T_FRIDGE = T_OUT[2] - 0.2         # the fridge door shuts just before that light goes
 T_TV_OFF = T_OUT[-1]              # the television, left on in the dark room, blinks out
 T_NUMS = 10.25                    # her 4 turns paper, his 5 red
-T_PUSH = (10.5, 12.0)             # push in on her room ...
-PUSH = 3.2                        # ... this far, her floor landing on the side stage's floor line
-STAGE_FLOOR = 1560.0
+T_PUSH = (10.5, 12.0)             # push in on her room, to where s02 begins (rooms.S01_END)
 
 NUM_DIM = lerp(K.NIGHT, K.PAPER, 0.35)
 
@@ -103,13 +102,6 @@ def city_lit(t):
     return on * (1.0 - sum(1 for t0 in T_OUT if t >= t0) / len(T_OUT))
 
 
-def _out_at(b, n):
-    for room, t0 in zip(LIGHTS_OUT, T_OUT):
-        if room == (b, n):
-            return t0
-    return 99.0
-
-
 def her_pose(t):
     """At the stove, waiting on the kettle: head down, a hand out toward it."""
     fig = B.win_fig(0)
@@ -117,6 +109,21 @@ def her_pose(t):
     sway = math.sin(2.0 * math.pi * 0.3 * t)
     p = pd.Pose(lean=5.0 + 1.5 * sway, head=-10.0, arms={"near": ("ang", 34.0, 58.0), "far": ("ang", 18.0, 52.0)})
     return fig, st, p
+
+
+def television(c, fy, t):
+    """HER_B storey 3's television: its screen flickers, throwing a pale wedge at her chair,
+    and at T_TV_OFF it blinks out to a line."""
+    if t < T_TV_OFF:
+        h = (math.floor(t * 12.0) * 0.618) % 1.0
+        glow = lerp(K.STEEL, K.PAPER, 0.35 + 0.5 * h)
+        bass.fill_polys(c, [bass.orient([(214.0, fy - 54.0), (236.0, fy - 66.0), (306.0, fy - 18.0), (306.0, fy)], True)],
+                        K.PAPER, 0.10)
+        bass.fill_polys(c, [bass.cut_rect(198.0, fy - 56.0, 230.0, fy - 31.0, seed=330, amp=0.4)], glow)
+    elif t < T_TV_OFF + 0.12:
+        u = (t - T_TV_OFF) / 0.12
+        bass.fill_polys(c, [bass.cut_rect(214.0 - 16.0 * (1 - u), fy - 45.5, 214.0 + 16.0 * (1 - u), fy - 42.5,
+                                          seed=331, amp=0.2)], K.PAPER)
 
 
 def people(t, lit):
@@ -127,7 +134,12 @@ def people(t, lit):
         x0, y0, x1, y1 = room
         fy = y1
         L = lit.get((b, n))
-        tt = min(t2, _out_at(b, n))               # once the light is off, they are still
+        tt = t2
+        if b is HER_B and n == 3:
+            television(c, fy, t)                  # left on after the light, till it blinks out
+        if L is None and not (b, n) in ((HER_B, K.HER_FLOOR), (HIS_B, K.HIS_FLOOR)):
+            F.asleep(c, b, n, room, t)            # light out: gone to bed, or dozing where they sat
+            return
         if b is HER_B and n == K.HER_FLOOR:
             fig, st, p = her_pose(tt)
             F.draw(c, fig, st, p, 232.0, fy, -1, L)
@@ -147,17 +159,6 @@ def people(t, lit):
                 K.ripple(c, (204.0, fy - 66.0), t, beat, K.PAPER, n=2, every=0.12, life=0.45, r0=4.0, r1=26.0,
                          width=3.0, seed=n)
         elif b is HER_B and n == 3:               # the television, and a woman sunk in her chair
-            tv_on = t < T_TV_OFF
-            if tv_on:
-                h = (math.floor(t * 12.0) * 0.618) % 1.0
-                glow = lerp(K.STEEL, K.PAPER, 0.35 + 0.5 * h)
-                bass.fill_polys(c, [bass.orient([(214.0, fy - 54.0), (236.0, fy - 66.0), (306.0, fy - 18.0),
-                                                 (306.0, fy)], True)], K.PAPER, 0.10)
-                bass.fill_polys(c, [bass.cut_rect(198.0, fy - 56.0, 230.0, fy - 31.0, seed=330, amp=0.4)], glow)
-            elif t < T_TV_OFF + 0.12:                # it blinks out to a dot
-                u = (t - T_TV_OFF) / 0.12
-                bass.fill_polys(c, [bass.cut_rect(214.0 - 16.0 * (1 - u), fy - 44.0 - 1.5, 214.0 + 16.0 * (1 - u),
-                                                  fy - 44.0 + 1.5, seed=331, amp=0.2)], K.PAPER)
             fig = F.small("bun")
             p = pd.Pose(lean=-11.0, head=-3.0, arms={"near": ("ang", 14.0, 66.0), "far": ("ang", 8.0, 62.0)})
             F.draw(c, fig, F.seated(fig, 0.0, -1, 36.0), p, 282.0, fy, -1, L)
@@ -306,15 +307,15 @@ def draw_city(c, t):
 
 # ---------------------------------------------------------------- the scene
 def push(t):
-    """(fixed point, scale) of the push in on her room: it ends with her room centred and
-    her floor on the side stage's floor line."""
-    x0, y0, x1, y1 = K.her_room()
-    cx, fy = (x0 + x1) / 2.0, y1
-    # x' = fx + s (x - fx) must send cx to 540 and her floor to STAGE_FLOOR at s = PUSH
-    fx = (540.0 - PUSH * cx) / (1.0 - PUSH)
-    fyy = (STAGE_FLOOR - PUSH * fy) / (1.0 - PUSH)
-    s = lerp(1.0, PUSH, k(t, T_PUSH[0], T_PUSH[1] - T_PUSH[0], "inout3"))
-    return (fx, fyy), s
+    """(centre, zoom) of the push in on her room, in section px. It ends exactly where s02
+    begins (rooms.S01_END: the section at 3.2x on her room's centre): the zoom log-lerped and
+    the centre weighted by how far the zoom has gone, as rooms.cam_lerp does."""
+    u = k(t, T_PUSH[0], T_PUSH[1] - T_PUSH[0], "inout3")
+    za, zb = 1.0, R.S01_END.z * R.S
+    z = math.exp(lerp(math.log(za), math.log(zb), u))
+    w = (1.0 / z - 1.0 / za) / (1.0 / zb - 1.0 / za)
+    (ax, ay), (bx, by) = (540.0, 960.0), R.ROOM_CENTRE_SEC
+    return (lerp(ax, bx, w), lerp(ay, by, w)), z
 
 
 def render(f, t, T):
@@ -327,12 +328,12 @@ def render(f, t, T):
         elif t < T_CUT:
             draw_night(c, t)
         else:
-            (fx, fy), s = push(t)
+            (cx, cy), z = push(t)
             c.save()
-            if s > 1.0001:
-                c.translate(fx, fy)
-                c.scale(s, s)
-                c.translate(-fx, -fy)
+            if z > 1.0001:
+                c.translate(540.0, 960.0)
+                c.scale(z, z)
+                c.translate(-cx, -cy)
             draw_city(c, t)
             c.restore()
 
