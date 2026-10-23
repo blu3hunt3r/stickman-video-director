@@ -1,0 +1,58 @@
+{
+ "film": "lantern",
+ "fps": 24,
+ "duration": 26.0,
+ "frames": 624,
+ "vo_src": "audio/vo/narration_full.wav",
+ "scenes": [
+  {
+   "id": "s01",
+   "slug": "title",
+   "start": 0.0,
+   "duration": 6.0,
+   "frames": 144,
+   "prev": null,
+   "next": "s02",
+   "trans_out": {
+    "kind": "iris",
+    "dur": 1.0,
+    "mode": "open",
+    "center": [
+     540.0,
+     1040.0
+    ],
+    "ring": 0.0
+   },
+   "trans_in": null,
+   "handle_in": 0.0,
+   "handle_out": 0.5,
+   "lines": [],
+   "words": []
+  },
+  {
+   "id": "s02",
+   "slug": "into_the_woods",
+   "start": 6.0,
+   "duration": 20.0,
+   "frames": 480,
+   "prev": "s01",
+   "next": null,
+   "trans_out": null,
+   "trans_in": {
+    "kind": "iris",
+    "dur": 1.0,
+    "mode": "open",
+    "center": [
+     540.0,
+     1040.0
+    ],
+    "ring": 0.0
+   },
+   "handle_in": 0.5,
+   "handle_out": 0.0,
+   "lines": [],
+   "words": []
+  }
+ ],
+ "vo": []
+}

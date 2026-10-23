@@ -94,4 +94,21 @@ RED_FILM = Palette(
     grain=0.06, vignette=0.65,
 )
 
-PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM}
+# --------------------------------------------------------------------------- THE LANTERN
+# Limbo sepia-grey forest, no snow. Mid-grey fog keeps frames readable (never murky black);
+# the lantern's amber pool is the only warm light. RED is the girl's scarf and the Bass titles.
+LANTERN = Palette(
+    "lantern",
+    ink=(0.020, 0.018, 0.016),
+    sky_top=(0.50, 0.48, 0.43), sky_bottom=(0.80, 0.77, 0.70),
+    fog_stops=[(0.0, (0.26, 0.25, 0.23)), (0.45, (0.50, 0.48, 0.44)), (1.0, (0.78, 0.75, 0.69))],
+    haze_gamma=0.75,
+    light=(1.0, 0.72, 0.38),          # the lantern: warm amber
+    flame=(1.0, 0.88, 0.62),
+    accent=RED,
+    paper=PAPER,
+    grade=dict(lift=(0.010, 0.009, 0.006), gain=(1.0, 0.99, 0.95), gamma=(1.0, 1.0, 1.02)),
+    grain=0.065, vignette=0.6,
+)
+
+PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN}
