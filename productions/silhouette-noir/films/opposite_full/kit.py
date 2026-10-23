@@ -684,21 +684,24 @@ def floor_numbers(c, b, color, lit=None, size=40.0):
 
 def draw_section(c, t, lit=None, people=None, open_windows=None, open_doors=None, street_doors=(),
                  beams=True, ladder=0.0, numbers=None, room_fill=None, overturned=False, city=True,
-                 lamp_on=True, field=NIGHT):
+                 lamp_on=True, field=NIGHT, sky_lit=0.0, moon_at=MOON_S):
     """The two buildings cut open, at time t.
 
     lit:   {(building, storey): rgb} rooms whose light is on (default: hers and his, AMBER)
+    beams: True (every lit room throws its light across the street), False, or a set of
+           (building, storey): only those rooms do
     people(c, b, n, room_rect): draws whoever is in a lit or dark room (called after the
            furniture, before the walls), for every room
     open_windows / open_doors: {building: set(storeys)}; street_doors: buildings whose street
            door stands open
     ladder: her drop ladder, 0 up .. 1 down
     numbers: None, or {building: {storey: rgb}} to show the floor numbers (lit ones coloured)
+    sky_lit: how many of the far city's windows are lit (0..1); moon_at: where the moon hangs
     """
     fill(c, field)
     if city:
-        skyline(c)
-        moon(c, MOON_S)
+        skyline(c, lit=sky_lit)
+        moon(c, moon_at)
     lit = {(HER_B, HER_FLOOR): AMBER, (HIS_B, HIS_FLOOR): AMBER} if lit is None else lit
     open_windows = open_windows or {}
     open_doors = open_doors or {}
@@ -721,7 +724,7 @@ def draw_section(c, t, lit=None, people=None, open_windows=None, open_doors=None
         c.save()
         clip_rect(c, (STREET[0], 0.0, STREET[1], GROUND))           # the light falls in the street only
         for (b, n), col in lit.items():
-            if n > 1:
+            if n > 1 and (beams is True or (b, n) in beams):
                 beam(c, b, n, col)
         c.restore()
     fire_escape(c, INK, ladder)
