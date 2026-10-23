@@ -41,7 +41,8 @@ twice.
 |---|---|
 | s01: the dashed sewer branch is drawn running right under the vault. | s08 the hollow floor; s09 the trapdoor. |
 | s02: his red look goes to the X, and her white look catches him. | s07 the betrayal; s09 the rewind's callout on her eye. |
-| s03: as she lifts the chalk she leaves a small dot on the sewer line under the vault. | s09: the rewind stops on that dot. |
+| s03: as the Knight slams his piece down by the street, her chalk, lifting away from the vault, leaves a small dot on the sewer line under it. | s09: the rewind stops on that frame: the dot and his slam at once. |
+| s03: his slam claps the plan's vault door shut on the queen and the bishop. | s07: he shuts the vault on the other two. |
 | s03: a small bell is drawn on the side door. | s07: his L route goes through that door, and the alarm rings. |
 | s07: she opens one small deposit box, and something red glints. | s11: the ruby. |
 
@@ -169,9 +170,11 @@ Shared shots in `plan.py`:
 
 - `P.table(c, cam, lamp_a, sheet, plan_a)`: the table shot (the sheet's shadow, the sheet, the
   lamp's pool; Plan A at strength `plan_a`). The field under it is `K.DEEP`.
-- `P.draw_plan_a(c, a)`: Plan A as she leaves it in s03 (both routes, ①–⑤, the X, the cone,
-  the chalk car, the bell, the dot). `P.draw_pieces(c, cam, P.PIECES_A)`: the pieces where
-  s03 leaves them.
+- `P.draw_plan_a(c, a, cone_ang=0, prog=None, door=0)`: Plan A as she leaves it in s03 (both
+  routes, ①–⑤, the X, the guard's cone (kept inside the corridor's walls) and its timing
+  ring, the dial at the vault door, the chalk car, the bell, the dot). `prog` draws its parts
+  (`P.PLAN_A_PARTS`) on, as s03 does. `P.draw_pieces(c, cam, P.PIECES_A)`: the pieces where
+  s03 leaves them. `P.table(..., on_plan=fn)` draws more chalk under the lamp's pool.
 - `P.piece_on(c, cam, kind, p, h, color, edge, lift=...)`: one piece standing on the plan,
   with its shadow cast away from the lamp.
 - Cameras: `P.TOP` (straight down), `P.TABLE` (s02), `P.PLAN_CAM` (s03), `P.HANDOFF_34` (s03's
@@ -264,23 +267,34 @@ Times are scene-local seconds. *Sound cues are in italics.*
 
 ### s03 PLAN (24–40)
 
-The table view, nearer to top-down (`phi ≈ 72`). Her chalk hand draws the route and the
-pieces hop along it on the beat.
+The plan from above (`phi` 64 → 72), one continuous glide that follows her chalk. The pieces
+hop along the route in file (bishop, queen, knight), landing on the beat. Hands are about one
+and a half pieces tall.
 
-- **24.5–27.0:** ① from manhole A down into the sewer (a down-chevron in a circle), east, then
-  north up the branch to the hatch.
-- **27.0–30.0:** ② through the store room into the corridor. She sets a black pawn (the
-  guard) on the guard post, then draws his cone, which sweeps in four-beat swings, and a
-  timing ring round the pawn.
-- **30.0–33.0:** ③ the pieces wait at the edge of the intersection, then hop across in the
-  dark gaps of the sweep (on the beat).
-- **33.0–35.0:** ④ north to the vault door. A small dial is drawn at the door, the bishop
-  steps to it, and the door's arc swings open onto the X.
-- **35.0–37.0:** ⑤ the exit back to manhole A and along the street to a chalk car, where the
-  knight is set. A small bell is drawn on the side door (no one remarks it).
-- **37.0–39.0:** The plant. As her hand lifts away, the chalk touches the sewer line under
-  the vault and leaves a small dot. *A soft tap.* It is never pointed at, only there.
-- **39.0–40.0:** The camera begins to tilt down toward the bank; s04 continues the move.
+- **24.0–27.6:** ① Her chalk taps a 'down here' chevron on manhole A (24.5). The route runs
+  east along the sewer and north up the branch to the store-room hatch. The pieces join the
+  line one by one and hop along behind the chalk.
+- **27.6–29.0:** ② Through the store room to the corridor. The Cracker's old hand (gold rim,
+  shirt cuff) sets a black pawn, the guard, on his post (28.5). *Clack.*
+- **29.0–30.0:** She sweeps his light out from the pawn. A timing ring goes round him, with
+  four ticks and a dot that runs round once per swing. The light swings 32° each way, a full
+  swing every two seconds, so the crossing is dark on 30.5, 31.5, 32.5 and so on. *A low
+  wooden tock at each end of the swing.*
+- **29.5–32.5:** ③ The route crosses the corridor, and ④ runs north to the vault door. The
+  pieces cross one per dark gap: the bishop (30.5), the queen (31.5), the knight (32.5).
+- **31.0–32.1:** The bishop reaches the door. A gold lens on a leader line opens on the dial,
+  which turns right, left, right (a numbered gold arrow for each turn: s06's three gates).
+  *Clunk* (32.0): the door swings open. The chalk runs in to the X (32.4), and the bishop and
+  the queen hop in.
+- **34.2–34.75:** The Knight's own red hand snatches his piece off the route at the door and
+  slams it down out on the street (34.75, *THUD*). The others jump, and the vault door on the
+  plan claps shut on them. In that same instant her hand, lifting away from the vault,
+  touches the sewer line under it and leaves a dot. That is the plant, hidden by the slam:
+  everyone is looking at him, and the tap is buried under the thud.
+- **35.5–37.3:** ⑤ She draws the way out along the street to him, a chalk car beside him, and
+  a small bell on the side door (37.0, no one remarks it).
+- **38.0–40.0:** The plan is done and the light settles. The camera starts to tilt down (phi
+  is falling at 15°/s at the cut), and s04 carries on the move from `P.HANDOFF_34`.
 
 ### s04 NIGHT (40–52)
 

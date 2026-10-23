@@ -18,7 +18,7 @@ from contextlib import contextmanager
 import cairo
 
 from engine import bass, draw
-from engine.core import clamp, lerp
+from engine.core import clamp, ease, lerp
 from films.double_cross import kit as K
 
 # ============================================================================ geometry
@@ -246,7 +246,7 @@ def deposit_boxes(c, color=K.PAPER, seed=0, alpha=0.7):
         K.chalk_line(c, [(x0, y), (x1, y)], 1.0, 2.0, color, seed + 2 + r, alpha)
 
 
-def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0):
+def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0, sewer_edge=K.BLUE):
     """The bank, streets and sewer in chalk (plan px). u: {group: progress 0..1} to draw groups
     on (the title); missing groups are fully drawn. door: the vault door's swing (0 shut)."""
     g = {name: 1.0 for name in GROUPS}
@@ -260,10 +260,6 @@ def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0):
         for i in range(3):                                # the front steps
             y = BANK[3] + 10.0 + 12.0 * i
             K.chalk_line(c, [(704.0 - 6.0 * i, y), (786.0 + 6.0 * i, y)], g["streets"], 2.0, color, seed + 12 + i, 0.6)
-    # the sewer: dashed (underground), the branch passing under the vault
-    if g["sewer"] > 0.0:
-        K.dashes(c, SEWER_MAIN, color, 4.0, 22.0, 14.0, g["sewer"], seed + 20, 0.75)
-        K.dashes(c, SEWER_BRANCH, color, 4.0, 22.0, 14.0, g["sewer"], seed + 21, 0.75)
     # walls
     for key, kind in (("bank", "ext"), ("vault", "vault"), ("rooms", "int")):
         if g[key] <= 0.0:
@@ -272,6 +268,12 @@ def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0):
         n = len(rects)
         for i, r in enumerate(rects):
             _wall(c, r, clamp(g[key] * n - i * 0.6), color, seed + 30 + i)
+    # the sewer: dashed (underground) and drawn over the walls it passes under, each dash edged
+    # in the paper's blue so it shows across a wall; the branch runs right under the vault
+    if g["sewer"] > 0.0:
+        for pts, sd in ((SEWER_MAIN, 20), (SEWER_BRANCH, 21)):
+            K.dashes(c, pts, sewer_edge, 10.0, 22.0, 14.0, g["sewer"], seed + sd, 1.0)
+            K.dashes(c, pts, color, 4.0, 22.0, 14.0, g["sewer"], seed + sd, 0.8)
     if g["vault"] >= 1.0:
         vault_door(c, door, color, seed + 50)
         deposit_boxes(c, color, seed + 60)
@@ -382,18 +384,55 @@ def lamp(c, a=1.0, centre=LAMP_AT, r=760.0):
         K.pool(c, centre, r, r, K.GOLD, 0.16 * a, steps=3)
 
 
-def draw_plan_a(c, a=1.0, cone_ang=0.0):
+CHEVRON_AT = MANHOLE_A                       # step 1's mark: down here
+DIAL_AT = (540.0, 728.0)                     # step 4's mark: the dial at the vault door
+RING_R = 46.0                                # the timing ring round the guard's pawn
+CONE_BAND = (186.0, 860.0, 894.0, 940.0)     # the corridor his light sweeps (between its walls)
+PLAN_A_PARTS = ("in", "out", "n1", "n2", "n3", "n4", "n5", "chevron", "cone", "ring", "dial", "car", "bell", "dot")
+
+
+def draw_plan_a(c, a=1.0, cone_ang=0.0, prog=None, door=0.0):
     """Plan A as she leaves it (plan px, inside cam.ground): the bank, both routes, the steps
-    (1)-(5), the X, the guard's cone, the chalk car, the bell on the side door and the dot."""
-    draw_plan(c, bell=True)
-    K.route(c, ROUTE_IN, 1.0, K.PAPER, seed=3, alpha=a)
-    K.route(c, ROUTE_OUT[6:], 1.0, K.PAPER, seed=4, alpha=a)
+    (1)-(5), the X, the guard's cone and its timing ring, the dial at the vault door, the chalk
+    car, the bell on the side door and the dot. prog: {part: 0..1} draws parts on (s03; the
+    parts are P.PLAN_A_PARTS); missing parts are fully drawn. door: the vault door's swing."""
+    g = dict.fromkeys(PLAN_A_PARTS, 1.0)
+    if prog:
+        g.update(prog)
+    draw_plan(c, door=door)
+    if g["chevron"] > 0.0:
+        K.chevron(c, CHEVRON_AT, 22.0 * ease("outback", g["chevron"]), (0.0, 1.0), K.PAPER, width=4.0, seed=131,
+                  alpha=a)
+    K.route(c, ROUTE_IN, g["in"], K.PAPER, seed=3, alpha=a)
+    K.route(c, ROUTE_OUT[6:], g["out"], K.PAPER, seed=4, alpha=a)
     for i, (txt, p) in enumerate(STEPS):
-        K.circled(c, txt, p, 26.0, 1.0, seed=10 + i, alpha=a)
+        K.circled(c, txt, p, 26.0, g["n%d" % (i + 1)], seed=10 + i, alpha=a)
     K.xmark(c, X_VAULT, 56.0, seed=20, alpha=a)
-    K.cone(c, (GUARD_POST[0] + 24.0, GUARD_POST[1]), cone_ang, 22.0, 320.0, alpha=0.16 * a)
-    K.car(c, CAR, 180.0, 0.8, K.INK, K.PAPER, alpha=a)
-    K.dot(c, DOT, 9.0, K.PAPER, alpha=a)
+    if g["cone"] > 0.0:                          # the guard's light, kept inside the corridor's walls
+        c.save()
+        c.rectangle(CONE_BAND[0], CONE_BAND[1], CONE_BAND[2] - CONE_BAND[0], CONE_BAND[3] - CONE_BAND[1])
+        c.clip()
+        K.cone(c, (GUARD_POST[0] + 24.0, GUARD_POST[1]), cone_ang, 22.0 * ease("out3", g["cone"]),
+               320.0 * ease("out3", g["cone"]), alpha=0.16 * a)
+        c.restore()
+    if g["ring"] > 0.0:
+        K.chalk_circle(c, GUARD_POST, RING_R, g["ring"], 2.5, K.PAPER, seed=132, alpha=0.8 * a, start=-90.0)
+        for i in range(4):
+            if g["ring"] >= 0.25 * (i + 1):
+                ang = math.radians(-90.0 + 90.0 * i)
+                p0 = (GUARD_POST[0] + (RING_R - 7.0) * math.cos(ang), GUARD_POST[1] + (RING_R - 7.0) * math.sin(ang))
+                p1 = (GUARD_POST[0] + (RING_R + 7.0) * math.cos(ang), GUARD_POST[1] + (RING_R + 7.0) * math.sin(ang))
+                K.chalk_line(c, [p0, p1], 1.0, 3.0, K.PAPER, seed=133 + i, alpha=0.8 * a)
+    if g["dial"] > 0.0:
+        K.chalk_circle(c, DIAL_AT, 12.0, g["dial"], 2.5, K.PAPER, seed=137, alpha=0.9 * a)
+        if g["dial"] >= 1.0:
+            K.chalk_line(c, [DIAL_AT, (DIAL_AT[0] + 6.0, DIAL_AT[1] - 8.0)], 1.0, 2.5, K.PAPER, seed=138, alpha=0.9 * a)
+    if g["car"] > 0.0:
+        K.car(c, CAR, 180.0, 0.8 * ease("outback", g["car"]), K.INK, K.PAPER, alpha=a)
+    if g["bell"] > 0.0:
+        K.bell(c, BELL_AT, ease("outback", g["bell"]), K.PAPER, seed=120, alpha=a)
+    if g["dot"] > 0.0:
+        K.dot(c, DOT, 9.0 * ease("outback", g["dot"]), K.PAPER, alpha=a)
 
 
 def draw_pieces(c, cam, pieces=PIECES_A, h=100.0):
@@ -402,15 +441,18 @@ def draw_pieces(c, cam, pieces=PIECES_A, h=100.0):
         piece_on(c, cam, kind, p, h, col, edge, facing=fc)
 
 
-def table(c, cam, lamp_a=1.0, sheet=1.0, plan_a=0.0):
-    """The table shot: the sheet's shadow, the sheet, the lamp's pool; plan_a > 0 also draws
-    Plan A at that strength. (The field under it is K.DEEP: the table in the dark.)"""
+def table(c, cam, lamp_a=1.0, sheet=1.0, plan_a=0.0, on_plan=None):
+    """The table shot: the sheet's shadow, the sheet, Plan A at strength plan_a (if > 0), then
+    on_plan(c) (more chalk, in plan px), and the lamp's pool over it all. (The field under it is
+    K.DEEP: the table in the dark.)"""
     with cam.ground(c):
         if cam.phi < 89.0:
             sheet_shadow(c)
         draw_sheet(c, sheet)
         if plan_a > 0.0:
             draw_plan_a(c, plan_a)
+        if on_plan is not None:
+            on_plan(c)
         lamp(c, lamp_a)
 
 
