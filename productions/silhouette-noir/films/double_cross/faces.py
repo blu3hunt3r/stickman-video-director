@@ -61,27 +61,29 @@ def _edged(c, polys, color, edge, w):
     bass.fill_polys(c, polys, color)
 
 
-def _eye(c, centre, w, h, look, lid=1.0, color=K.PAPER, pupil=K.INK):
+def _eye(c, centre, w, h, look, lid=1.0, color=K.PAPER, pupil=K.INK, down=0.0, squint=0.0):
     """An almond eye in profile (facing +x): look -1..1 moves the pupil from back to front and
-    down (+) a little; lid 0..1 opens it."""
+    down (+) a little; lid 0..1 opens it; down 0..1 drops the pupil and the upper lid with it
+    (looking at the floor); squint 0..1 lifts the lower lid (a smile in the eye)."""
     if lid <= 0.02:
         bass.line_band(c, [(centre[0] - w * 0.5, centre[1]), (centre[0] + w * 0.55, centre[1] + 1.0)], K.INK, width=4.0)
         return
     x, y = centre
     hh = h * lid
-    pts = [(x + w * 0.55, y + 1.0), (x + w * 0.2, y - hh * 0.55), (x - w * 0.2, y - hh * 0.6), (x - w * 0.5, y - hh * 0.1),
-           (x - w * 0.35, y + hh * 0.4), (x + w * 0.15, y + hh * 0.42)]
+    up, lo = hh * (1.0 - 0.4 * down), hh * (1.0 - 0.45 * squint)
+    pts = [(x + w * 0.55, y + 1.0), (x + w * 0.2, y - up * 0.55), (x - w * 0.2, y - up * 0.6), (x - w * 0.5, y - up * 0.1),
+           (x - w * 0.35, y + lo * 0.4), (x + w * 0.15, y + lo * 0.42)]
     bass.fill_polys(c, [bass.orient(pts, True)], color)
     c.save()
     c.new_path()
     D.poly(c, pts)
     c.clip()
     px = x + w * (0.12 + 0.22 * look)
-    py = y + hh * (0.05 + 0.18 * max(0.0, look))
+    py = y + hh * (0.05 + 0.18 * max(0.0, look) + 0.32 * down)
     bass.fill_polys(c, [D.circle_pts((px, py), h * 0.5, n=20)], pupil)
     c.restore()
     # the upper lid's line, flicking past the outer corner
-    bass.line_band(c, [(x - w * 0.52, y - hh * 0.08), (x - w * 0.2, y - hh * 0.62), (x + w * 0.2, y - hh * 0.58),
+    bass.line_band(c, [(x - w * 0.52, y - up * 0.08), (x - w * 0.2, y - up * 0.62), (x + w * 0.2, y - up * 0.58),
                        (x + w * 0.62, y - 2.0)], K.INK, width=max(3.0, h * 0.28), taper=(0.4, 1.0))
 
 
@@ -111,7 +113,7 @@ _COAT = ((20, 920), (60, 800), (120, 724), (200, 694), (252, 714), (270, 790), (
          (430, 744), (470, 772), (520, 840), (560, 920))
 
 
-def her(c, at, s=1.0, look=0.4, lid=1.0, t=0.0, field=K.GOLD, edge=None):
+def her(c, at, s=1.0, look=0.4, lid=1.0, t=0.0, field=K.GOLD, edge=None, down=0.0, squint=0.0):
     """The Architect in profile, facing right: a smooth sweep of hair into a low chignon with a
     pencil through it, a drop earring, the trench coat's collar turned up. look: where her
     pupil is (-1 back .. 1 forward and down)."""
@@ -132,7 +134,7 @@ def her(c, at, s=1.0, look=0.4, lid=1.0, t=0.0, field=K.GOLD, edge=None):
     bass.line_band(c, [(286, 408), (287, 438)], K.GOLD, width=4.0)
     K.dot(c, (287, 450), 11.0, K.PAPER, seed=815)
     _edged(c, [_poly("coat", _COAT, 816)], K.INK, edge, 5.0)
-    _eye(c, (466, 298), 46.0, 18.0, look, lid)
+    _eye(c, (466, 298), 46.0, 18.0, look, lid, down=down, squint=squint)
     marks = _out(c, {"eye": (480.0, 300.0), "mouth": (520.0, 458.0), "ear": (286.0, 360.0), "nose": (557.0, 392.0),
                      "bun": (144.0, 552.0)})
     c.restore()
@@ -275,13 +277,16 @@ _OPEN = [(-175, -100), (-128, -114), (-78, -116), (-36, -108), (0, -96), (30, -8
 HAND_LEN = 235.0            # hand units from the wrist to the fingertip
 
 
-def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.05):
+def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.05, rim=None):
     """A hand reaching in from `wrist` (frame px, off the frame) to pinch a piece's crown (or a
     stick of chalk) at `grip`, seen from the side: the coat sleeve (widening toward the camera
     by `flare` per unit of length), the back of the hand, finger and thumb closing on the grip.
     open_u 0..1 opens them (letting go). s: px per hand unit (HAND_LEN * s is the hand's length;
-    a hand is about one and a half chess pieces tall)."""
-    spec = HANDS[who]
+    a hand is about one and a half chess pieces tall). rim: the rim's colour (default: the
+    owner's; GOLD by a match)."""
+    spec = dict(HANDS[who])
+    if rim is not None:
+        spec["rim"] = rim
     k = s * spec["w"]
     dx, dy = grip[0] - wrist[0], grip[1] - wrist[1]
     ang = math.atan2(dy, dx)

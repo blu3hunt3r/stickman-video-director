@@ -358,15 +358,25 @@ and a half pieces tall.
 
 ### s08 LOCKED (96–108)
 
-- **96.0–98.0:** Black, and the Cracker's ragged breath. A match strikes (*spark, flare*)
-  and gold rings of light open on her profile, calm, with the Cracker behind her at the door.
-- **98.0–101.0:** He pounds the door (*muffled thuds*) and the flame shivers. Her eye in
-  close-up; the corner of her mouth lifts.
-- **101.0–104.0:** She taps the floor with her heel: a hollow knock. A ripple goes down
-  through the floor in cutaway: the slab, the void, the sewer pipe. Exactly where she taps,
-  the chalk dot from s03 glows.
-- **104.0–108.0:** From her coat she unrolls a translucent sheet toward the camera until it
-  fills the frame. This matches into s09.
+- **96.0–98.85:** Black, and the Cracker's ragged breath. A match scratches (sparks, no
+  flame), then strikes (*flare*), and gold rings of light open on her profile, calm, with the
+  Cracker beyond her, leaning on the round door. He rears back, fists up.
+- **98.85–99.9:** We cut on his first blow to the shot from behind him: his back and bowler,
+  both fists pounding the door at head height (*three muffled BOOMs*). Each blow rings on the
+  steel and shakes dust down; the camera shakes. His shadow looms over him on the door. The
+  flame shivers.
+- **99.9–101.35:** Her eye in close-up, steady. Her look drops to the floor as a white dotted
+  sight line and the corner of her mouth lifts (*vibraphone, upright*). The camera whips down
+  after the look.
+- **101.35–104.0:** At floor level, the sight line lands in a chalk ring at her heel. She taps:
+  a click, then a hollow knock. The floor opens top-down into a blueprint section (the slab,
+  the earth, the sewer pipe) and the knock rings down through it. A gold plumb line drops from
+  her heel to the chalk dot on the pipe, and a lens joins it to the dot on the plan (the vault,
+  its X and the dot).
+- **104.0–108.0:** The two-shot. The Cracker turns round to her (a cut-paper turn). She brings
+  a roll up from her coat to her eye and lets it fall open before her face, then lifts the
+  sheet toward the camera until it fills the frame, the match glowing through the paper. s09
+  begins on this sheet (`S8.roll_shot(c, S8.T_END)`).
 
 ### s09 PLAN B (108–124)
 
