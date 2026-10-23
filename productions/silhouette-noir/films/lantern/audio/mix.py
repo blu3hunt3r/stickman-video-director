@@ -117,7 +117,9 @@ def main():
         else:
             prev = (a, None)
     # the toy: wheels rattle as she picks it up
-    put(efx, fx("keys", seed=4), S2_AT + S2.T_INSERT[0] + 0.7, -22)
+    put(efx, fx("keys", seed=4), S2_AT + S2.T_STOP + 1.15, -22)
+    put(efx, fx("whoosh", seed=13, size=0.25), S2_AT + S2.T_STOP - 0.1, -20)          # the push in
+    put(efx, fx("whoosh", seed=14, size=0.25), S2_AT + S2.T_STOP + 1.5, -22)          # and back out
     # she lifts the lantern: a soft flare
     put(efx, fx("match_flare", seed=8), S2_AT + S2.T_LIFT + 0.4, -18)
     # the eyes: something breathing, her heartbeat
@@ -130,7 +132,7 @@ def main():
     put(efx, fx("match_flare", seed=11), S2_AT + S2.T_THRUST + 0.05, -6)
     put(efx, fx("whoosh", seed=12, size=0.7), S2_AT + S2.T_THRUST + 0.1, -9, pan=0.5)
     # each pair of eyes clicks open
-    for j, e in enumerate(S2.EYES):
+    for j, e in enumerate(S2.eyes()):
         put(efx, fx("drip", seed=40 + j), S2_AT + e[3], -16, pan=0.3 + 0.1 * j)
     # the legs: a reverse swell into the first stab, a stab each, the light snuffed
     for j, (t0, g, dx, base) in enumerate(S2.LEGS):

@@ -3,7 +3,7 @@ trunks slide in around it and crowd the light; THE LANTERN rises between them; t
 close over the title until only the flame is left, and the iris opens out of the flame
 into the forest (s02 starts on the lantern's flame at the same spot).
 
-    0.2   the flame pops in, flickering on twos
+    0.2   the flame pops in, swaying
     0.6   trunks slide in, alternating from the ground and the canopy
     1.7   THE / LANTERN rises in the clearing between them
     4.0   the trunks close in on the flame and grow over the title
@@ -51,10 +51,9 @@ def flame_pts(c, r, sway, seed):
 
 
 def draw_flame(c, t, scale):
-    tw = bass.on_twos(t)
-    sway = 26.0 * noise1(tw * 1.7, seed=2) * scale
-    r = 70.0 * scale * (1.0 + 0.05 * noise1(tw * 3.1, seed=5))
-    seed = int(tw * 12.0) % 6
+    sway = 26.0 * noise1(t * 1.3, seed=2) * scale            # a smooth, living flame
+    r = 70.0 * scale * (1.0 + 0.05 * noise1(t * 2.3, seed=5))
+    seed = 3
     bass.fill_polys(c, [flame_pts(FLAME, r, sway, seed)], RED)
     core = (FLAME[0] + 0.12 * sway, FLAME[1] + 0.18 * r)
     bass.fill_polys(c, [flame_pts(core, r * 0.42, sway * 0.5, seed + 7)], PAPER)
@@ -100,7 +99,7 @@ def render(f, t, T):
         if p > 0:
             draw_flame(c, t, p * (1.0 + 0.25 * k(t, 5.2, 0.8, "in3")))
         # the title rises in the clearing, then the trunks grow over it
-        Tt = bass.title_glyphs("THE\nLANTERN", width=760.0, leading=1.08, seed=3, rough=1.0, jitter=0.7)
+        Tt = bass.title_glyphs("THE\nLANTERN", width=760.0, leading=1.08, seed=3, rough=0.55, jitter=0.25)
         u = clamp((t - 1.7) / 1.2)
         if u > 0:
             bass.draw_title(c, Tt, (540.0, 520.0), f.pal.ink, u=u, anim="rise", order="ltr", overlap=0.7)
