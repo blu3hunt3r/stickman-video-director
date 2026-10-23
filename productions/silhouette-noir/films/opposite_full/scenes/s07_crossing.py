@@ -13,6 +13,7 @@ from engine.timing import Cue
 from films.opposite_bass import world as B
 from films.opposite_full import folk as F
 from films.opposite_full import kit as K
+from films.opposite_full import rooms as R
 
 k = K.k
 HER_B, HIS_B = K.HER_B, K.HIS_B
@@ -75,9 +76,10 @@ def paths():
     ]
     her_stairs = _lift(HIS_B.stair_route(1, K.HIS_FLOOR))
     esc = _lift(K.escape_route(K.HER_FLOOR, 2), -6.0)
+    esc[0] = (419.0, esc[0][1])                         # s06 leaves her at the rail, looking down
     drop_x = K.ESCAPE_X[1] - 19.0
     legs_her = [
-        walk(esc, 28.0, 0.1, T_STOP),                                                   # down the fire escape
+        walk(esc, 28.0, 0.0, T_STOP),                                                   # down the fire escape (on the rail from the cut)
         walk([esc[-1], (drop_x, esc[-1][1])], 20.0, T_LADDER + 0.2, T_LADDER + 0.3),
         walk([(drop_x, esc[-1][1] + 10.0), (drop_x, PAVE)], 24.0, T_LADDER + 0.35, T_LADDER + 0.95),   # the ladder
         walk([(drop_x, PAVE), (707.0, PAVE)], 34.0, T_LADDER + 1.0, T_LADDER + 2.0),    # across the street, running
@@ -106,13 +108,19 @@ def head(name, t):
 
 
 # ---------------------------------------------------------------- the section, dark
+def her_room(t):
+    """Her room as s06 left it: dark, the window up and the wind in it, the door on its chain."""
+    return R.Room(lit=False, window=1.0, wind=0.8 + 0.15 * math.sin(2.0 * math.pi * 0.4 * t), chain="on",
+                  kettle=True, flame=False, mug=False, film_t=76.0 + t)
+
+
 def people(t):
     def fn(c, b, n, room):
         if b is K.HIS_B and n == K.HIS_FLOOR:
             victim(c, room[3])
         else:
             F.asleep(c, b, n, room, t)
-    return fn
+    return R.section_people(t, her_room(t), others=fn)
 
 
 def victim(c, fy):
