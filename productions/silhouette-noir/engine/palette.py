@@ -127,4 +127,5 @@ OPPOSITE = Palette(
     grain=0.045, vignette=0.5,
 )
 
-PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN, "opposite": OPPOSITE}
+PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN, "opposite": OPPOSITE,
+            "opposite_bass": OPPOSITE}
