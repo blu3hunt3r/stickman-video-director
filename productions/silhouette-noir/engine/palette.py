@@ -127,5 +127,23 @@ OPPOSITE = Palette(
     grain=0.045, vignette=0.5,
 )
 
+# --------------------------------------------------------------------------- DOUBLE CROSS
+# A heist told on its own blueprint: cyanotype blue paper and chalk for the plan, a navy night
+# for the world it rises into; gold for the vault and the lamp; RED for the double-crosser.
+DOUBLE_CROSS = Palette(
+    "double_cross",
+    ink=(0.018, 0.020, 0.026),
+    sky_top=(0.05, 0.09, 0.16), sky_bottom=(0.05, 0.09, 0.16),
+    fog_stops=[(0.0, (0.05, 0.09, 0.16)), (0.5, (0.11, 0.19, 0.30)), (1.0, (0.16, 0.26, 0.38))],
+    haze_gamma=0.75,
+    light=(0.95, 0.66, 0.24),
+    flame=(1.0, 0.88, 0.62),
+    accent=RED,
+    paper=PAPER,
+    grade=dict(lift=(0.008, 0.009, 0.012), gain=(1.0, 1.0, 0.99), gamma=(1.0, 1.0, 1.0)),
+    grain=0.045, vignette=0.5,
+)
+
 PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN, "opposite": OPPOSITE,
-            "opposite_bass": OPPOSITE, "opposite_full": OPPOSITE}
+            "opposite_bass": OPPOSITE, "opposite_full": OPPOSITE,
+            "double_cross": DOUBLE_CROSS}
