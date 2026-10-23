@@ -238,7 +238,7 @@ def main():
     put(vox, env_db(b, [(0.0, -30), (0.4, 0), (len(b) / SR, 0)]), Wd.T_DOOR, -10)
     room = fx("room_tone", dur=Wd.T_END - Wd.T_DOOR, seed=2)
     put(amb, room, Wd.T_DOOR, -18)
-    for i, t in enumerate((Wd.T_DOOR + 0.4, Wd.T_DOOR + 0.95, Wd.T_DOOR + 1.45)):     # his steps down her hall
+    for i, t in enumerate(Wd.HALL_STEPS):                                # his steps down her hall
         put(feet, dsp.sos(up[(i + 4) % len(up)], "lowpass", 1100.0 + 500.0 * i, 2), t, -16 + 3.0 * i)
     for j in range(2):                                                   # he stops at her door
         put(feet, dsp.sos(up[(j + 1) % len(up)], "lowpass", 2600.0, 2), Wd.T_FEET + 0.14 * j, -4 - 3.0 * j)

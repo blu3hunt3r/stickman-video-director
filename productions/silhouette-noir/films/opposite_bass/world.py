@@ -14,13 +14,15 @@ Every beat is one graphic idea, and each one turns into the next:
                  a separate piece of paper; the frame jumps closer on the beat.
   14.0  KNIFE    the blade goes up; three cuts slice the frame itself open on red (Psycho); she
                  comes apart and falls out of the picture; bars close the window.
-  16.5  MUG      her head in profile, her hand to her mouth; the mug falls and shatters.
-  18.5  ARM      his window lights; he stands looking at her; his arm grows across the street
-                 to her window, jagged (The Man with the Golden Arm). He is gone.
+  16.5  MUG      her head in profile, the mug held up under her chin; she gasps, lets it go and
+                 the same hand flies to her mouth; it shatters out of shot, the shards fly up.
+  18.5  ARM      his window lights; he stands looking at her; his arm grows out of his shoulder
+                 across the street to her window, jagged (The Man with the Golden Arm). He is gone.
   21.5  OFF      she pulls the cord: the picture flips negative and goes dark.
   22.5  PATH     a diagram in the dark: a red line walks, step by step, down his stairs,
                  across the street, up hers, to her door.
-  28.5  DOOR     the bar of light under her door; two feet cut into it; the handle turns, twice.
+  28.5  DOOR     the bar of light under her door; his shadow takes it a step at a time; two feet
+                 cut into it; the handle turns, twice.
   31.5  HIS EYE  into the keyhole: his eye, the mirror of hers, opens.
   33.4  END      OPPOSITE, cut through in red. Black.
 
@@ -64,7 +66,7 @@ T_SLASH = (14.6, 14.85, 15.1)
 T_BARS = 15.9
 T_MUG = 16.5
 T_GASP = 16.55
-T_HAND = 16.85
+T_HAND = 17.17            # the hand that dropped it lands over her mouth
 T_DROP = 16.95
 T_SMASH = 17.6
 T_ARM = 18.5
@@ -144,7 +146,11 @@ def _toward(arm, sh, el, w):
 def her_pose(t):
     st, p = perfs()[0](twos(t))
     if t < T_MUG:
-        p.hold["near"] = lambda c, hc, deg: draw_mug(c, hc, deg, t, scale=1.0)
+        p.hold["near"] = mug_hold(t)
+        # before and after the sip she holds the mug at her chest, forearm level
+        w = 1.0 - k(t, 5.2, 0.4) + k(t, 8.05, 0.45)
+        if w > 0.0:
+            p.arms["near"] = _toward(p.arms["near"], 14.0 - p.lean, 84.0, min(w, 1.0))
     if T_OFF <= t:                                 # up to the cord, and pull
         u = k(t, T_OFF + 0.1, 0.25, "out3")
         pull = k(t, T_PULL, 0.08, "out")
@@ -160,26 +166,23 @@ def man_pose(t):
     w = k(t, T_RAISE, 0.32, "out3") * (1.0 - k(t, T_SLASH[0] + 0.5, 0.5))
     if w > 0.0:                                    # the knife high over his head, then down
         p.arms["near"] = _toward(p.arms["near"], lerp(170.0, 30.0, S_) - p.lean * (1.0 - S_), lerp(30.0, 0.0, S_), w)
-    if t >= T_RAISE - 0.2:
-        off = lerp(150.0, 70.0, S_)
-        p.hold["near"] = lambda c, hc, deg: draw_knife(c, hc, deg + off)
+    if t >= T_RAISE + 0.06:
+        # out of his coat on the way up; raised: the blade points up and back over his head;
+        # plunging: it points down
+        p.hold["near"] = knife_hold(lerp(-112.0, 78.0, S_))
     return st, p
 
 
 def alone_pose(t):
-    st, p = perfs()[2](twos(t))
-    w = k(t, T_GROW - 0.15, 0.2, "out3") * (1.0 - k(t, T_RETRACT, 0.2))
-    if w > 0.0:
-        p.arms["near"] = _toward(p.arms["near"], 98.0 - p.lean, -8.0, w)
-    return st, p
+    return perfs()[2](twos(t))
 
 
 def vic_pose(t):
     st, p = perfs()[3](twos(t))
     w = k(t, T_RAISE + 0.1, 0.25, "out3") * (1.0 - k(t, T_SLASH[0] + 0.05, 0.12))
     if w > 0.0:
-        p.arms["near"] = _toward(p.arms["near"], 150.0, 95.0, w)
-        p.arms["far"] = _toward(p.arms["far"], 128.0, 105.0, w)
+        p.arms["near"] = _toward(p.arms["near"], 58.0 - p.lean, 108.0, w)
+        p.arms["far"] = _toward(p.arms["far"], 40.0 - p.lean, 128.0, w)
     return st, p
 
 
@@ -187,52 +190,125 @@ _HILT = bass.cut([(-6, -7), (16, -7), (16, 7), (-6, 7)], seed=62, amp=0.2)
 _BLADE = bass.cut([(16, -10), (120, -3), (150, 5), (16, 10)], seed=63, amp=0.2)
 
 
-def draw_knife(c, hc, deg):
-    c.save()
-    c.translate(*hc)
-    c.rotate(math.radians(deg))
-    bass.fill_polys(c, [_HILT], INK)
-    bass.fill_polys(c, [_BLADE], PAPER)
-    c.restore()
+def knife_hold(ang):
+    """An overhand grip: the hilt in the fist, the blade pointing at world angle `ang` (deg,
+    for a figure facing +x: -90 straight up, 90 straight down)."""
+    def fn(c, H):
+        a = ang if H["facing"] > 0 else 180.0 - ang
+        c.save()
+        c.translate(*H["hc"])
+        c.rotate(math.radians(a))
+        bass.fill_polys(c, [_HILT], INK)
+        bass.fill_polys(c, [_BLADE], PAPER)
+        c.restore()
+    return fn
 
 
-_MUG = bass.cut([(-14, -28), (16, -28), (15, 12), (-13, 12)], seed=61, amp=0.2)
+# a mug held by its handle (origin in the fist), the body forward of the hand
+_MUG_BODY = [(5.0, -26.0), (35.0, -26.0), (34.0, 12.0), (6.0, 12.0)]
+_MUG_RIM = (20.0, -26.0)
 
 
-def mug_shape(c, color, steam_t=None):
-    """A coffee mug (handle at the back, steam rising); origin at the hand, mug units."""
-    bass.fill_polys(c, [_MUG], color)
-    c.save()
+def _mug_handle(c):
     c.new_path()
-    c.arc(-17.0, -6.0, 10.0, math.radians(90), math.radians(270))
-    c.set_line_width(5.5)
+    c.arc_negative(5.0, -7.0, 9.5, math.radians(-80.0), math.radians(80.0))
+
+
+def mug_shape(c, color, edge=None, edge_w=6.0):
+    """The mug in mug units (handle centre at the origin), with an optional paper edge so it
+    reads against a body of the same ink."""
+    if edge is not None:
+        c.save()
+        c.set_source_rgb(*edge)
+        c.set_line_join(cairo.LINE_JOIN_ROUND)
+        c.new_path()
+        bass.draw.poly(c, _MUG_BODY)
+        c.set_line_width(edge_w)
+        c.stroke()
+        _mug_handle(c)
+        c.set_line_width(5.0 + edge_w)
+        c.stroke()
+        c.restore()
+    bass.fill_polys(c, [bass.orient(_MUG_BODY, True)], color)
+    c.save()
+    _mug_handle(c)
+    c.set_line_width(5.0)
     c.set_source_rgb(*color)
     c.stroke()
-    if steam_t is not None:
-        c.set_line_width(3.2)
-        c.set_line_cap(cairo.LINE_CAP_ROUND)
-        for j, x0 in enumerate((-4.0, 6.0)):
-            c.new_path()
-            for i in range(14):
-                u = i / 13.0
-                x = x0 + 5.0 * math.sin(2 * math.pi * (u * 1.2 - steam_t * 0.9) + j * 2.0) * u
-                y = -34.0 - 34.0 * u
-                c.line_to(x, y) if i else c.move_to(x, y)
-            c.set_source_rgba(*color, 0.8)
-            c.stroke()
     c.restore()
 
 
-def draw_mug(c, hc, deg, t, scale=1.0):
+def steam(c, at, t, color, alpha=1.0, scale=1.0):
+    """Two curls of steam rising straight up from `at` (world), whatever the mug is doing."""
+    if alpha <= 0.02:
+        return
     c.save()
-    c.translate(hc[0], hc[1] + 4.0)
-    c.rotate(math.radians(clamp(-deg - 55.0, 0.0, 75.0)))
+    c.translate(*at)
     c.scale(scale, scale)
-    mug_shape(c, INK, steam_t=twos(t))
+    c.set_line_width(3.0)
+    c.set_line_cap(cairo.LINE_CAP_ROUND)
+    for j, x0 in enumerate((-6.0, 5.0)):
+        c.new_path()
+        for i in range(14):
+            u = i / 13.0
+            x = x0 + 5.0 * math.sin(2 * math.pi * (u * 1.2 - t * 0.9) + j * 2.0) * u
+            y = -6.0 - 34.0 * u
+            c.line_to(x, y) if i else c.move_to(x, y)
+        c.set_source_rgba(*color, 0.8 * alpha)
+        c.stroke()
     c.restore()
+
+
+def mug_hold(t):
+    """Her mug, gripped by the handle: upright until the hand nears her mouth, then tipped
+    rim-first toward her lips; the steam rises straight up and stops while she drinks."""
+    def fn(c, H):
+        hc, f = H["hc"], H["facing"]
+        dm = math.dist(hc, H["mouth"])
+        tilt = 74.0 * ease("inout", clamp((125.0 - dm) / 80.0))
+        c.save()
+        c.translate(*hc)
+        c.scale(f, 1.0)
+        c.rotate(math.radians(-tilt))
+        mug_shape(c, INK, edge=H.get("edge"))
+        rim = c.user_to_device(*_MUG_RIM)
+        c.restore()
+        rim = c.device_to_user(*rim)
+        steam(c, rim, twos(t), INK, alpha=1.0 - clamp(tilt / 30.0))
+    return fn
 
 
 # ----------------------------------------------------------------------------- exploded cut-outs
+def _hand_local(fig, kind):
+    """Hand outline in the hand's own frame: x along the forearm from the wrist, y toward the
+    thumb. Returns (palm polygon, thumb polygon or None, length)."""
+    r, a = fig.hand_r, fig.arm_w[2] / 2.0
+    if kind == "fist":
+        L, b = 1.75 * r, 0.95 * r
+        palm = [(0.0, -a), (0.3 * L, -b), (0.78 * L, -1.02 * b), (L, -0.55 * b), (1.04 * L, 0.0), (L, 0.55 * b),
+                (0.78 * L, 0.98 * b), (0.42 * L, 1.08 * b), (0.12 * L, 0.85 * b), (0.0, a)]
+        return palm, None, L
+    L, b = 2.3 * r, 0.8 * r
+    palm = [(0.0, -a), (0.35 * L, -b), (0.74 * L, -0.95 * b), (0.92 * L, -0.66 * b), (L, -0.15 * b),
+            (0.97 * L, 0.3 * b), (0.86 * L, 0.6 * b), (0.6 * L, 0.72 * b), (0.25 * L, 0.85 * b), (0.0, a)]
+    thumb = [(0.2 * L, 0.6 * b), (0.46 * L, 0.95 * b), (0.57 * L, 1.38 * b), (0.5 * L, 1.6 * b), (0.4 * L, 1.42 * b),
+             (0.29 * L, 1.0 * b)]
+    return palm, thumb, L
+
+
+def hand_poly(fig, kind, base, u, n, thumb=1.0):
+    """World outline of a hand at wrist `base`, forearm direction u, thumb side n; thumb (0..1)
+    scales the thumb out of the palm (it shrinks away where the side flips)."""
+    palm, th, L = _hand_local(fig, kind)
+    pts = list(palm)
+    if th is not None and thumb > 0.05:
+        y0 = 0.6 * fig.hand_r * 0.8
+        tp = [(x, y0 + (y - y0) * thumb) for x, y in th[1:]]
+        pts = palm[:8] + tp + palm[8:]              # the thumb lobe sits between knuckles and wrist
+    w = [(base[0] + u[0] * x + n[0] * y, base[1] + u[1] * x + n[1] * y) for x, y in pts]
+    return bass.orient(w, True), L
+
+
 def _shorten(a, b, g):
     d = math.dist(a, b) or 1.0
     g = min(g, d * 0.3)
@@ -240,10 +316,11 @@ def _shorten(a, b, g):
     return (a[0] + ux * g, a[1] + uy * g), (b[0] - ux * g, b[1] - uy * g)
 
 
-def draw_cutout(c, fig, st, pose, color, facing=1, gap=0.0, burst=None, far=None):
+def draw_cutout(c, fig, st, pose, color, facing=1, gap=0.0, burst=None, far=None, edge=None, hide=()):
     """Draw a paperdoll figure as separate pieces of cut paper (Anatomy of a Murder): each
     limb segment, the torso, head, hands and feet are their own shapes with `gap` px of paper
-    between them. burst(name, centre) -> (dx, dy, deg) moves a piece (coming apart)."""
+    between them. burst(name, centre) -> (dx, dy, deg) moves a piece (coming apart). edge: the
+    colour behind the figure, for the paper edge of held things. hide: arms not to draw."""
     P = st["pelvis"]
     P = (P[0], P[1] + pose.crouch)
     lean = pose.lean
@@ -270,7 +347,19 @@ def draw_cutout(c, fig, st, pose, color, facing=1, gap=0.0, burst=None, far=None
         a2, b2 = _shorten(a, b, gap)
         piece(name, [bass.capsule_pts(a2, b2, ra, rb, cap=8)], rgb, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))
 
+    def moved(name, centre, fn):
+        dx, dy, deg = burst(name, centre) if burst is not None else (0.0, 0.0, 0.0)
+        c.save()
+        c.translate(centre[0] + dx, centre[1] + dy)
+        c.rotate(math.radians(deg))
+        c.translate(-centre[0], -centre[1])
+        fn()
+        c.restore()
+
     out = {}
+    # the mouth (for the mug): on the face, turned with the head
+    m = pd._rot((36.0, -32.0), -pose.head)
+    out["mouth"] = Wd((fig.neck[0] + m[0], fig.neck[1] - gap * 1.2 + m[1]))
     legs = {}
     for side in ("far", "near"):
         foot = st["feet"][side]
@@ -300,17 +389,28 @@ def draw_cutout(c, fig, st, pose, color, facing=1, gap=0.0, burst=None, far=None
 
     def draw_arm(side, rgb):
         sh, el, wr = arm(side)
+        out["shoulder_" + side] = sh
+        if side in hide:
+            return
         w0, w1, w2 = fig.arm_w
         d = math.dist(wr, el) or 1.0
-        hc = (wr[0] + (wr[0] - el[0]) / d * (fig.hand_r * 0.55 + gap * 0.7), wr[1] + (wr[1] - el[1]) / d * (fig.hand_r * 0.55 + gap * 0.7))
+        u = ((wr[0] - el[0]) / d, (wr[1] - el[1]) / d)
         seg("upper_" + side, sh, el, w0 / 2, w1 / 2, rgb)
         seg("fore_" + side, el, wr, w1 / 2, w2 / 2, rgb)
-        piece("hand_" + side, [bass.draw.circle_pts(hc, fig.hand_r, n=20)], rgb, hc)
-        out["hand_" + side] = hc
         hold = pose.hold.get(side)
-        if hold is not None:
-            dx, dy, deg = burst("hand_" + side, hc) if burst is not None else (0.0, 0.0, 0.0)
-            hold(c, (hc[0] + dx, hc[1] + dy), math.degrees(math.atan2(wr[1] - el[1], wr[0] - el[0])) + deg)
+        base = (wr[0] + u[0] * gap * 0.7, wr[1] + u[1] * gap * 0.7)
+        n1 = (-u[1], u[0])
+        sc = n1[0] * facing - 0.6 * n1[1]               # thumb forward and up
+        n = n1 if sc >= 0 else (-n1[0], -n1[1])
+        poly, L = hand_poly(fig, "fist" if hold is not None else "open", base, u, n, thumb=clamp(abs(sc) * 3.0))
+        hc = (base[0] + u[0] * 0.5 * L, base[1] + u[1] * 0.5 * L)
+        out["hand_" + side] = hc
+
+        def fn():
+            if hold is not None:
+                hold(c, dict(hc=hc, wrist=base, u=u, n=n, facing=facing, mouth=out["mouth"], edge=edge))
+            bass.fill_polys(c, [poly], rgb)
+        moved("hand_" + side, hc, fn)
 
     draw_arm("far", far)
     draw_leg("far", far)
@@ -347,7 +447,6 @@ def draw_cutout(c, fig, st, pose, color, facing=1, gap=0.0, burst=None, far=None
     framed("head", head_c, head)
     draw_arm("near", color)
     out["head"] = Wd((fig.neck[0] + 10.0, fig.neck[1] - 60.0))
-    out["mouth"] = Wd((fig.neck[0] + 40.0, fig.neck[1] - 35.0))
     out["pelvis"] = P
     return out
 
@@ -449,10 +548,6 @@ def title():
     return bass.title_glyphs("OPPOSITE", width=900.0, seed=7, rough=1.0, jitter=0.8)
 
 
-def _outer(g):
-    return max(g.polys, key=lambda p: abs(bass.poly_area(p)))
-
-
 def _half_xf(t):
     """Placement of OPPO (0) and SITE (1): (dx, dy, rot, scale) about each half's own centre,
     from the title's rest place to the facades."""
@@ -464,7 +559,7 @@ def _half_xf(t):
         gl = T[:4] if h == 0 else T[4:]
         bb = bass.bbox([p for g in gl for p in g.polys])
         hc = ((bb[0] + bb[2]) / 2 + 540.0, (bb[1] + bb[3]) / 2 + 960.0)
-        out.append((hc, lerp(hc, target, u), rot * r, lerp(1.0, 0.82, u)))
+        out.append((hc, lerp(hc, target, u), rot * r, lerp(1.0, 0.64, u)))
     return out
 
 
@@ -502,6 +597,8 @@ def draw_title_shot(c, t):
             c.save()
             c.translate(0.0, (1.0 - rise) * 1500.0)
             bass.fill_polys(c, [bass.cut_rect(*B, seed=20 + j)], INK)
+            # footing below the frame, so the overshoot never lifts the slab off the ground
+            bass.fill_polys(c, [bass.orient(rect_pts((B[0] + 3.0, B[3] - 40.0, B[2] - 3.0, B[3] + 400.0)), True)], INK)
             c.restore()
     # Psycho strips through the black at the start
     if t < 1.6:
@@ -523,7 +620,7 @@ def draw_title_shot(c, t):
                 polys = _letter_world(i, t)
                 if morph > 0:
                     outer = bass.morph_outline(_outer_world(polys), rect_pts(_letter_window(i)), morph, n=120)
-                    holes = [_shrink(p, 1.0 - morph) for p in polys if p is not _outer_world(polys)]
+                    holes = [_shrink(p, 1.0 - clamp(morph * 2.2)) for p in polys if p is not _outer_world(polys)]
                     bass.fill_polys(c, [bass.orient(outer, True)] + [bass.orient(h, False) for h in holes if h], PAPER)
                 else:
                     bass.fill_polys(c, polys, PAPER, evenodd=True)
@@ -569,35 +666,63 @@ def draw_street(c, t):
     fill(c, PAPER)
     for j, B in enumerate((LEFT_B, RIGHT_B)):
         bass.fill_polys(c, [bass.cut_rect(*B, seed=20 + j)], INK)
-    draw_windows(c, t)
+    return draw_windows(c, t)
+
+
+def red_arm_out(t):
+    return T_GROW - 0.08 <= t < T_RETRACT + 0.2
 
 
 def draw_windows(c, t):
+    """The lit windows and the figures in them. Returns device-space anchors: his shoulder,
+    for the red arm; her near hand, for the light cord."""
+    anchors = {}
     for r in LEFT_WIN + RIGHT_WIN:
         bass.fill_polys(c, [bass.cut_rect(*r, seed=int(r[0] + r[1]))], window_color(r, t))
     if t >= T_WIN - 0.6:
         c.save()
         clip_rect(c, HER_WIN)
-        her = figs()[0]
-        st, p = her_pose(t)
-        c.save()
-        place(c, HER_WIN[0] + 32.0, HER_WIN[3] + 6.0, WIN_FS)
-        draw_cutout(c, her, st, p, INK, facing=1)
-        c.restore()
+        anchors["her_hand"] = draw_her_window(c, t)
         c.restore()
     if his_on(t):
         c.save()
         clip_rect(c, HIS_WIN)
         if t < T_ARM:
             draw_room_small(c, t)
-        else:
-            st, p = alone_pose(t)
-            if t < T_GONE:
-                c.save()
-                place(c, HIS_WIN[0] + 92.0 + 260.0 * k(t, T_RETRACT + 0.05, 0.2, "in3"), HIS_WIN[3] + 6.0, WIN_FS)
-                draw_cutout(c, figs()[1], st, p, INK, facing=-1)
-                c.restore()
+        elif t < T_GONE:
+            anchors["his_shoulder"] = draw_him_alone(c, t)
         c.restore()
+    return anchors
+
+
+def draw_her_window(c, t):
+    """Her, in her window. Returns her near hand in device space."""
+    st, p = her_pose(t)
+    c.save()
+    place(c, HER_WIN[0] + 32.0, HER_WIN[3] + 6.0, WIN_FS)
+    o = draw_cutout(c, figs()[0], st, p, INK, facing=1, edge=AMBER)
+    hand = c.user_to_device(*o["hand_near"])
+    c.restore()
+    return hand
+
+
+@lru_cache(maxsize=1)
+def cord_end():
+    """The light cord hangs from the top of her window to where her hand will take it."""
+    surf = cairo.RecordingSurface(cairo.CONTENT_COLOR_ALPHA, None)
+    return draw_her_window(cairo.Context(surf), T_PULL - 0.06)
+
+
+def draw_him_alone(c, t):
+    """Him alone at his window, after: while the red arm is out it is his arm, and the real
+    one is not drawn. Returns his near shoulder in device space."""
+    st, p = alone_pose(t)
+    c.save()
+    place(c, HIS_WIN[0] + 92.0 + 260.0 * k(t, T_RETRACT + 0.05, 0.2, "in3"), HIS_WIN[3] + 6.0, WIN_FS)
+    o = draw_cutout(c, figs()[1], st, p, INK, facing=-1, edge=AMBER, hide=("near",) if red_arm_out(t) else ())
+    sh = c.user_to_device(*o["shoulder_near"])
+    c.restore()
+    return sh
 
 
 def draw_room_small(c, t):
@@ -605,12 +730,12 @@ def draw_room_small(c, t):
     c.save()
     place(c, HIS_WIN[0] + 24.0, HIS_WIN[3] + 6.0, WIN_FS)
     st, p = man_pose(t)
-    draw_cutout(c, man, st, p, INK, facing=1)
+    draw_cutout(c, man, st, p, INK, facing=1, edge=AMBER)
     c.restore()
     c.save()
     place(c, HIS_WIN[0] + 24.0 + 300.0 * WIN_FS, HIS_WIN[3] + 6.0, WIN_FS)
     st, p = vic_pose(t)
-    draw_cutout(c, vic, st, p, INK, facing=-1)
+    draw_cutout(c, vic, st, p, INK, facing=-1, edge=AMBER)
     c.restore()
 
 
@@ -675,34 +800,34 @@ def draw_eye(c, t, open_, look, iris_rgb, reflect=None, mirror=False, pupil=1.0)
         c.restore()
     else:
         bass.disc(c, ic, 70.0 * pupil, INK, seed=35)
-    bass.disc(c, (ic[0] + 70.0, ic[1] - 72.0), 20.0, PAPER, seed=36)
+    bass.disc(c, (ic[0] + 92.0, ic[1] - 80.0), 18.0, PAPER, seed=36)      # the glint: clear of the reflection
     c.restore()
 
 
 def reflect_room(t):
     def fn(c, r):
-        bass.fill_polys(c, [bass.cut_rect(*r, seed=41, amp=1.0)], AMBER)
         c.save()
-        clip_rect(c, r)
+        clip_rect(c, r)                     # everything inside: the dive magnifies any stray edge
+        bass.fill_polys(c, [bass.cut_rect(*r, seed=41, amp=1.0)], AMBER)
         s = (r[2] - r[0]) / W
         c.translate(r[0], r[1])
         c.scale(s, s)
-        draw_room(c, t, zoom_cam=False)
+        draw_room(c, t)
         c.restore()
     return fn
 
 
 def draw_her_eye_shot(c, t):
-    look = lerp(-0.25, 0.42, k(t, T_EYE + 0.35, 0.16, "outback")) + 0.03 * math.sin(7.0 * t)
+    look = lerp(-0.25, 0.42, k(t, T_EYE + 0.35, 0.16, "outback")) + 0.03 * math.sin(7.0 * t) * (1.0 - k(t, 10.0, 0.2))
     blink = 1.0 - (k(t, 9.62, 0.06, "in") - k(t, 9.74, 0.08, "out"))
     open_ = min(k(t, T_EYE - 0.05, 0.18, "out3"), blink)
     # into the reflection: the frame rides into the little window in her iris
-    z = math.exp(math.log(W / 104.0) * k(t, 10.25, 0.75, "in3"))
+    z = math.exp(math.log(W / 104.0) * k(t, 10.2, 0.72, "in3"))
     ic = (EYE_C[0] + look * 150.0, EYE_C[1] - 6.0)
     c.save()
     c.translate(540.0, 960.0)
     c.scale(z, z)
-    c.translate(-lerp(540.0, ic[0], k(t, 10.25, 0.4, "out")), -lerp(960.0, ic[1], k(t, 10.25, 0.4, "out")))
+    c.translate(-lerp(540.0, ic[0], k(t, 10.2, 0.4, "out")), -lerp(960.0, ic[1], k(t, 10.2, 0.4, "out")))
     draw_eye(c, t, open_, look, INK, reflect=reflect_room(t))
     c.restore()
 
@@ -715,7 +840,7 @@ MAN_X, VIC_X = 345.0, 345.0 + 300.0 * ROOM_FS
 
 def room_zoom(t):
     """The frame jumps closer on the beat as the quarrel rises (cut-in jumps, not a move)."""
-    steps = [(T_ROOM, 1.0), (12.0, 1.07), (12.5, 1.14), (13.0, 1.22), (13.5, 1.3), (T_RAISE, 1.18)]
+    steps = [(T_ROOM, 1.12), (12.0, 1.19), (12.5, 1.26), (13.0, 1.33), (13.5, 1.4), (T_RAISE, 1.25)]
     z = steps[0][1]
     for (t0, v0), (t1, v1) in zip(steps, steps[1:]):
         z = lerp(z, v1, k(t, t1, 0.07, "out5"))
@@ -752,12 +877,12 @@ def draw_room(c, t, zoom_cam=True):
     c.save()
     place(c, VIC_X, ROOM_FLOOR, ROOM_FS)
     st, p = vic_pose(t)
-    jv = draw_cutout(c, vic, st, p, INK, facing=-1, gap=gap, burst=vic_burst(t))
+    jv = draw_cutout(c, vic, st, p, INK, facing=-1, gap=gap, burst=vic_burst(t), edge=AMBER)
     c.restore()
     c.save()
     place(c, MAN_X, ROOM_FLOOR, ROOM_FS)
     st, p = man_pose(t)
-    jm = draw_cutout(c, man, st, p, INK, facing=1, gap=gap)
+    jm = draw_cutout(c, man, st, p, INK, facing=1, gap=gap, edge=AMBER)
     c.restore()
     # shouting between their mouths
     mm = (MAN_X + jm["mouth"][0] * ROOM_FS, ROOM_FLOOR + jm["mouth"][1] * ROOM_FS)
@@ -850,92 +975,206 @@ BOB = bass.scissor([
     (676, 540), (640, 560), (560, 520), (470, 540), (430, 600), (410, 760), (420, 960), (380, 1040),
     (290, 1050)], seed=302, sag=0.8, amp=1.2, max_len=60.0, corner=36.0)
 EYE_P = (590.0, 640.0)
-HAND_AT = (720.0, 935.0)
-MUG_X = 880.0
+CU_S = 7.0                       # the close-up: her hand and the mug at this scale (figure units -> px)
+MUG_HC = (745.0, 1262.0)         # her fist on the handle, the mug held up under her chin
+MUG_U = (0.34, -0.94)            # her forearm rises from below the frame to the fist
+MOUTH_HC = (738.0, 930.0)        # the same hand, clamped over her mouth
+MUG_G = 14000.0                  # px/s^2: the mug drops out of the frame well before it lands
 
 
-def mug_pos(t):
-    """Falling past her face, turning; it hits the floor at T_SMASH."""
-    u = clamp((t - T_DROP) / (T_SMASH - T_DROP))
-    return (lerp(900.0, MUG_X, u), lerp(420.0, 1480.0, u * u)), -170.0 * u
+def _unit(v):
+    d = math.hypot(*v) or 1.0
+    return (v[0] / d, v[1] / d)
+
+
+def _capsule(a, b, r0, r1):
+    return bass.orient(bass.capsule_pts(a, b, r0, r1, 6), True)
+
+
+def edged(c, polys, color, edge, width):
+    """Fill polys in `color` over a stroke of `edge`, so a cut piece laid on paper of its own
+    colour still shows its edge."""
+    c.save()
+    c.new_path()
+    for p in polys:
+        bass.draw.poly(c, p)
+    c.set_source_rgb(*edge)
+    c.set_line_width(width)
+    c.set_line_join(cairo.LINE_JOIN_ROUND)
+    c.stroke()
+    c.restore()
+    bass.fill_polys(c, polys, color)
+
+
+def _xf(pts, at, ang):
+    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+    return [(at[0] + x * ca - y * sa, at[1] + x * sa + y * ca) for x, y in pts]
+
+
+def cu_open_hand(at, u, spread):
+    """Her hand springing open off the handle: palm at `at`, fingers fanned along u."""
+    a0 = math.degrees(math.atan2(u[1], u[0]))
+    palm = _xf(bass.cut([(-62, -66), (52, -60), (64, 0), (52, 62), (-62, 66)], seed=321, amp=0.6), at, a0)
+    polys = [bass.orient(palm, True)]
+    tips = []
+    for j, (off, da, L, r) in enumerate(((-45.0, -30.0, 118.0, 18.0), (-15.0, -10.0, 138.0, 19.0),
+                                         (15.0, 10.0, 130.0, 18.0), (44.0, 28.0, 102.0, 16.0))):
+        ang = a0 + da * spread
+        base = _xf([(48.0, off)], at, a0)[0]
+        tip = (base[0] + math.cos(math.radians(ang)) * L, base[1] + math.sin(math.radians(ang)) * L)
+        polys.append(_capsule(base, tip, r, r * 0.85))
+        tips.append(tip)
+    th0 = _xf([(-6.0, -50.0)], at, a0)[0]                     # the thumb, out to the side
+    ang = a0 - 22.0 - 38.0 * spread
+    polys.append(_capsule(th0, (th0[0] + math.cos(math.radians(ang)) * 84.0,
+                                th0[1] + math.sin(math.radians(ang)) * 84.0), 21.0, 17.0))
+    return polys
+
+
+def cu_mouth_hand():
+    """Her hand clamped over her mouth (palm centre at the origin): fingers together across
+    her cheek toward her ear, the thumb up beside her nose. Returns (polys, finger cut lines)."""
+    polys = [bass.orient(bass.cut([(-40, -70), (44, -78), (58, -10), (40, 80), (-34, 74)], seed=331, amp=0.8),
+                         True)]
+    cuts = []
+    for j, (y0, ang, L, r) in enumerate(((-52.0, 194.0, 168.0, 18.0), (-17.0, 189.0, 186.0, 18.5),
+                                         (18.0, 184.0, 176.0, 17.5), (51.0, 178.0, 146.0, 16.0))):
+        a = math.radians(ang)
+        b0 = (-26.0, y0)
+        tip = (b0[0] + math.cos(a) * L, b0[1] + math.sin(a) * L)
+        polys.append(_capsule(b0, tip, r, r * 0.88))
+        if j:                                                 # the cut between this finger and the last
+            pa = math.radians((ang + prev[0]) / 2.0)
+            m0 = (b0[0] - 4.0, (y0 + prev[1]) / 2.0)
+            Lc = min(L, prev[2]) - 14.0
+            cuts.append([(m0[0] + math.cos(pa) * 40.0, m0[1] + math.sin(pa) * 40.0),
+                         (m0[0] + math.cos(pa) * Lc, m0[1] + math.sin(pa) * Lc)])
+        prev = (ang, y0, L)
+    polys.append(_capsule((26.0, -62.0), (-24.0, -136.0), 19.0, 16.0))      # thumb, beside her nose
+    return polys, cuts
+
+
+def mug_hand_at(t):
+    """Where her fist holds the mug: it jumps on the gasp and trembles until she lets go."""
+    jump = 44.0 * (k(t, T_GASP, 0.07, "out") - k(t, T_GASP + 0.12, 0.35, "inout"))
+    shake = 4.0 * math.sin(t * 61.0) * k(t, T_GASP, 0.05)
+    return (MUG_HC[0] + shake, MUG_HC[1] - jump)
+
+
+def mug_fall(t):
+    """(handle centre, rotation deg) of the dropped mug: it tips forward and falls out of
+    the bottom of the frame long before it lands."""
+    x0, y0 = mug_hand_at(T_DROP)
+    d = max(0.0, t - T_DROP)
+    return (x0 + 90.0 * d, y0 + 0.5 * MUG_G * d * d), 140.0 * min(d / 0.35, 1.0) ** 1.4
 
 
 def shards():
     out = []
-    for i in range(16):
-        a = math.radians(-170.0 + 160.0 * hash01(i, 1))
-        v = 380.0 + 620.0 * hash01(i, 2)
-        size = 26.0 + 60.0 * hash01(i, 3)
-        out.append((math.cos(a) * v, math.sin(a) * v, (hash01(i, 4) - 0.5) * 900.0, size, i))
+    for i in range(15):
+        vx = (hash01(i, 1) - 0.5) * 900.0
+        vy = -1500.0 - 750.0 * hash01(i, 2)
+        size = 28.0 + 52.0 * hash01(i, 3)
+        out.append((vx, vy, (hash01(i, 4) - 0.5) * 1100.0, size, i))
     return out
 
 
-def hand_parts():
-    """Her hand clamped over her mouth, fingers along her cheek toward her ear: cut strips
-    (origin at the palm)."""
-    parts = [bass.cut([(-30, -70), (70, -60), (80, 70), (-40, 80)], seed=311, amp=1.0)]
-    for j, (y0, ang, L) in enumerate(((-52.0, 192.0, 150.0), (-18.0, 184.0, 178.0), (16.0, 178.0, 170.0),
-                                      (50.0, 170.0, 136.0))):
-        a = math.radians(ang)
-        parts.append(bass.capsule_pts((-20.0, y0), (-20.0 + math.cos(a) * L, y0 + math.sin(a) * L), 17.0, 15.0, 5))
-    parts.append(bass.capsule_pts((10.0, -60.0), (-70.0, -150.0), 19.0, 16.0, 5))           # thumb, up the nose
-    parts.append(bass.capsule_pts((40.0, 60.0), (130.0, 640.0), 50.0, 60.0, 6))             # wrist, forearm
-    return [bass.orient(p, True) for p in parts]
+def draw_mug_hand(c, t):
+    """Her near hand and its forearm, rising from the bottom of the frame: on the mug, sprung
+    open as she lets it go, then clamped over her mouth."""
+    fig = figs()[0]
+    swing = k(t, T_HAND - 0.14, 0.14, "out")
+    if t < T_HAND - 0.14:
+        hc = mug_hand_at(t)
+        if t >= T_DROP:
+            hc = (hc[0] - 6.0, hc[1] - 16.0 * k(t, T_DROP, 0.05, "out"))
+        u = MUG_U
+    else:
+        h0 = mug_hand_at(T_DROP)
+        hc = (lerp(h0[0] - 6.0, MOUTH_HC[0], swing), lerp(h0[1] - 16.0, MOUTH_HC[1], swing))
+        u = _unit((lerp(MUG_U[0], 0.05, swing), lerp(MUG_U[1], -1.0, swing)))
+    # forearm: from below the frame to the wrist
+    wrist = (hc[0] - u[0] * 70.0, hc[1] - u[1] * 70.0) if swing < 1.0 else (MOUTH_HC[0] + 8.0, MOUTH_HC[1] + 70.0)
+    elbow = (wrist[0] - u[0] * 1100.0, wrist[1] - u[1] * 1100.0)
+    arm = _capsule(wrist, elbow, 54.0, 64.0)
+    if t < T_DROP:
+        n = (u[1], -u[0])
+        c.save()
+        c.translate(*hc)
+        c.scale(CU_S, CU_S)
+        mug_shape(c, INK, edge=PAPER, edge_w=1.4)
+        rim = c.user_to_device(*_MUG_RIM)
+        c.restore()
+        fist, L = hand_poly(fig, "fist", (0.0, 0.0), u, n)
+        fist = [(hc[0] + (x - u[0] * 0.5 * L) * CU_S, hc[1] + (y - u[1] * 0.5 * L) * CU_S) for x, y in fist]
+        edged(c, [arm, bass.orient(fist, True)], INK, PAPER, 10.0)
+        return c.device_to_user(*rim)
+    if t < T_HAND - 0.14:
+        edged(c, [arm] + cu_open_hand(hc, u, k(t, T_DROP, 0.05, "outback")), INK, PAPER, 10.0)
+        return None
+    polys, cuts = cu_mouth_hand()
+    ang = 100.0 * (1.0 - swing)                          # fingers up off the mug, over onto her cheek
+    edged(c, [arm] + [_xf(p, hc, ang) for p in polys], INK, PAPER, 12.0)
+    c.save()
+    c.set_source_rgb(*PAPER)
+    c.set_line_width(6.0)
+    c.set_line_cap(cairo.LINE_CAP_ROUND)
+    for ln in cuts:
+        c.new_path()
+        bass.draw.poly(c, _xf(ln, hc, ang), close=False)
+        c.stroke()
+    c.restore()
+    return None
 
 
 def draw_mug_shot(c, t):
     fill(c, PAPER)
-    floor = 1560.0
-    bass.fill_polys(c, [bass.cut_rect(-40.0, floor, W + 40.0, H + 40.0, seed=61, amp=2.0)], INK)
     bass.fill_polys(c, [bass.orient(PROFILE, True), bass.orient(BOB, True)], INK)
     # the eye: a paper almond, wide on the gasp
     wide = 1.0 + 0.7 * k(t, T_GASP, 0.1, "outback")
     eye = almond((EYE_P[0], EYE_P[1] - 10.0 * (wide - 1.0)), 84.0, 40.0 * wide)
     bass.fill_polys(c, [eye], PAPER)
     bass.disc(c, (EYE_P[0] + 20.0, EYE_P[1] - 4.0), 11.0 * (2.0 - wide * 0.6), INK, seed=312)
-    # her hand flies up over her mouth: a paper edge keeps it apart from her face
-    hu = k(t, T_HAND, 0.14, "outback")
-    if hu > 0:
-        c.save()
-        c.translate(HAND_AT[0] + (1.0 - hu) * 200.0, HAND_AT[1] + (1.0 - hu) * 1000.0)
-        parts = hand_parts()
-        c.new_path()
-        for p in parts:
-            bass.draw.poly(c, p)
-        c.set_source_rgb(*PAPER)
-        c.set_line_width(12.0)
-        c.set_line_join(cairo.LINE_JOIN_ROUND)
-        c.stroke()
-        bass.fill_polys(c, parts, INK)
-        c.restore()
-    # the mug
+    # the dropped mug, tipping forward as it falls out of the frame
     if T_DROP <= t < T_SMASH:
-        (x, y), rot = mug_pos(twos(t))
+        (x, y), rot = mug_fall(twos(t))
+        if y < H + 400.0:
+            c.save()
+            c.translate(x, y)
+            c.rotate(math.radians(rot))
+            c.scale(CU_S, CU_S)
+            mug_shape(c, INK, edge=PAPER, edge_w=1.4)
+            c.restore()
+    rim = draw_mug_hand(c, t)
+    # steam: off the rim while she holds it; left hanging in the air when the mug drops
+    if rim is not None:
+        steam(c, rim, twos(t), INK, alpha=1.0, scale=CU_S * 0.8)
+    elif t < T_DROP + 0.4:
         c.save()
-        c.translate(x, y)
-        c.rotate(math.radians(rot))
-        c.scale(5.0, 5.0)
-        mug_shape(c, INK)
+        c.translate(MUG_HC[0], MUG_HC[1])
+        c.scale(CU_S, CU_S)
+        rim0 = c.user_to_device(*_MUG_RIM)
         c.restore()
-    elif T_MUG <= t < T_DROP:
-        c.save()
-        c.translate(900.0, 420.0 + 30.0 * k(t, T_MUG, 0.3))
-        c.scale(5.0, 5.0)
-        mug_shape(c, INK, steam_t=t)
-        c.restore()
+        r0 = c.device_to_user(*rim0)
+        steam(c, (r0[0], r0[1] - 44.0 * (t - T_DROP) / 0.4), twos(T_DROP), INK,
+              alpha=1.0 - k(t, T_DROP, 0.4, "in"), scale=CU_S * 0.8)
+    # the smash below the frame: shards burst up into it and fall away
     if t >= T_SMASH:
+        (x0, _), _ = mug_fall(T_SMASH)
         d = twos(t) - T_SMASH
         for vx, vy, w, size, i in shards():
-            x = MUG_X + vx * d * 0.7
-            y = min(floor + 4.0, floor - 40.0 + vy * d + 0.5 * 3200.0 * d * d)
-            rot = w * min(d, 0.6)
-            bass.fill_polys(c, [bass.triangle_pts((x, y), size, rot, seed=70 + i)], INK)
+            x = x0 + vx * d
+            y = H + 30.0 + vy * d + 0.5 * 5200.0 * d * d
+            if y < H + 80.0:                                  # china: glaze black outside, white within
+                ink = i % 3 != 0
+                edged(c, [bass.triangle_pts((x, y), size, w * d, seed=70 + i)], INK if ink else PAPER,
+                      PAPER if ink else INK, 5.0)
 
 
 # ----------------------------------------------------------------------------- his arm across the street
-def arm_points(t):
+def arm_points(shoulder=None):
     """From his shoulder in the window to her window."""
-    base = (HIS_WIN[0] + 80.0, HIS_WIN[3] + 6.0 - 568.0 * WIN_FS)
+    base = shoulder or (HIS_WIN[0] + 80.0, HIS_WIN[3] + 6.0 - 568.0 * WIN_FS)
     tip = (HER_WIN[2] - 14.0, centre(HER_WIN)[1] - 20.0)
     return base, tip
 
@@ -947,11 +1186,22 @@ def draw_arm_shot(c, t):
     c.translate(540.0, 960.0)
     c.rotate(math.radians(tilt))
     c.translate(-540.0 + shake * math.sin(t * 61.0), -960.0 + shake * math.cos(t * 47.0))
-    draw_street(c, t)
+    anchors = draw_street(c, t)
     grow = k(t, T_GROW, 0.7, "out3") * (1.0 - k(t, T_RETRACT, 0.18, "in3"))
     if grow > 0:
-        base, tip = arm_points(t)
+        sh = anchors.get("his_shoulder")
+        base, tip = arm_points(c.device_to_user(*sh) if sh else None)
+        c.save()
+        if sh:                                      # the root stops at his back
+            c.rectangle(-4000.0, -4000.0, base[0] + 1.0 + 4000.0, 8000.0)
+            c.clip()
         bass.jagged_arm(c, base, tip, RED, width=38.0, grow=grow, jags=5, jag=1.0, claw=0.7, seed=4)
+        c.restore()
+        if sh and T_ARM <= t < T_GONE:              # his body over the root of the arm
+            c.save()
+            clip_rect(c, HIS_WIN)
+            draw_him_alone(c, t)
+            c.restore()
     c.restore()
 
 
@@ -964,18 +1214,20 @@ def draw_off_shot(c, t):
     c.scale(z, z)
     c.translate(-cc[0], -cc[1] + 10.0)
     off = t >= T_PULL + 0.04
-    draw_street(c, t)
+    anchors = draw_street(c, t)
     if off:
         bass.fill_polys(c, [bass.cut_rect(*HER_WIN, seed=int(HER_WIN[0] + HER_WIN[1]))], INK)
     else:
-        # the cord, from the top of her window
-        cx = HER_WIN[0] + 92.0
-        pull = 12.0 * k(t, T_PULL, 0.05)
+        # the cord, from the top of her window down to her hand: hanging until she takes it,
+        # then in her fist as she pulls
+        x0, y0 = cord_end()
+        hand = anchors.get("her_hand")
+        end = c.device_to_user(*hand) if t >= T_PULL - 0.06 and hand else (x0, y0)
         c.save()
         c.set_source_rgb(*INK)
         c.set_line_width(2.0)
-        c.move_to(cx, HER_WIN[1])
-        c.line_to(cx, HER_WIN[1] + 42.0 + pull)
+        c.move_to(x0, HER_WIN[1])
+        c.line_to(*end)
         c.stroke()
         c.restore()
     c.restore()
@@ -1017,7 +1269,7 @@ def path_pts():
     p += _stairs(1850.0, 2100.0, HIS_ROOM_Y, 0.0)
     p += [(1600.0, 0.0), (1100.0, 0.0)]
     p += _stairs(850.0, 600.0, 0.0, HER_ROOM_Y)
-    p += [(380.0, HER_ROOM_Y), (300.0, HER_ROOM_Y - 40.0)]
+    p += [(404.0, HER_ROOM_Y), (378.0, HER_ROOM_Y - 40.0)]      # he stops outside her door (x 330-352)
     return p
 
 
@@ -1127,6 +1379,9 @@ def draw_path_shot(c, t):
 
 # ----------------------------------------------------------------------------- her door
 BAR_Y = 1300.0
+HALL_STEPS = (T_DOOR + 0.4, T_DOOR + 0.95, T_DOOR + 1.45)     # his steps along her hall, heard not seen
+SHADOW_LEAD = (W + 60.0, 960.0, 840.0, 730.0, 540.0)            # where his shadow reaches, step by step
+SHADOW_TONE = (0.0, 0.3, 0.45, 0.58, 0.66)
 KNOB = (745.0, 840.0)
 KEYHOLE = (745.0, 960.0)
 
@@ -1144,8 +1399,16 @@ def draw_door(c, t):
     bass.fill_polys(c, [bass.cut_rect(250.0, 260.0, 830.0, BAR_Y - 2.0, seed=101, amp=1.5)], (0.045, 0.042, 0.038))
     # the bar of light under it
     bar = bass.cut_rect(-40.0, BAR_Y, W + 40.0, BAR_Y + 26.0, seed=102, amp=1.2)
-    flick = 1.0 - 0.25 * k(t, 29.0, 1.2) * (0.5 + 0.5 * math.sin(t * 9.0))
-    bass.fill_polys(c, [bar], lerp(INK, AMBER, flick))
+    bass.fill_polys(c, [bar], AMBER)
+    # his shadow comes along the hall ahead of him: a step at a time it takes more of the light
+    n = sum(k(t, ts, 0.08, "out") for ts in HALL_STEPS) + k(t, T_FEET - 0.08, 0.16, "out3")
+    if n > 0.0:
+        i = min(int(n), 3)
+        f = n - i
+        lead = lerp(SHADOW_LEAD[i], SHADOW_LEAD[min(i + 1, 4)], f)
+        tone = lerp(SHADOW_TONE[i], SHADOW_TONE[min(i + 1, 4)], f)
+        bass.fill_polys(c, [bass.cut_rect(lead, BAR_Y - 1.0, W + 40.0, BAR_Y + 27.0, seed=105, amp=1.0)],
+                        lerp(AMBER, INK, tone))
     # his feet cut into it
     fu = k(t, T_FEET - 0.08, 0.16, "out3")
     if fu > 0:
@@ -1175,8 +1438,9 @@ def draw_door_shot(c, t):
 # ----------------------------------------------------------------------------- the keyhole, his eye
 def draw_key_shot(c, t):
     z = math.exp(math.log(30.0) * k(t, T_KEY + 0.1, 0.65, "in3"))
+    p = k(t, T_KEY + 0.1, 0.65, "inout")           # the keyhole slides to the centre as we push in
     c.save()
-    c.translate(540.0, 960.0)
+    c.translate(lerp(KEYHOLE[0], 540.0, p), lerp(KEYHOLE[1] - 4.0, 960.0, p))
     c.scale(z, z)
     c.translate(-KEYHOLE[0], -(KEYHOLE[1] - 4.0))
     draw_door(c, t)
@@ -1257,6 +1521,5 @@ def draw(f, t):
 
 
 def motion_blur_at(t):
-    if T_EYE + 1.7 < t < T_ROOM or T_KEY + 0.1 < t < T_KEY + 0.75:
-        return 3
+    """No motion blur: cut paper moves crisply (sub-frame blur only left stepped ghosts)."""
     return 1
