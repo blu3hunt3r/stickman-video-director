@@ -29,8 +29,10 @@ under the vault. The overlay slides over the plan and shows PLAN B:
 - her real prize, not the gold but one ruby.
 
 Police cars close on the Knight from all four streets and a red ring snaps round him:
-checkmate. Two blocks away a manhole lifts, and she walks off into the night. Back at the table
-her gloved hand tips the red knight over. Her palm opens on the ruby: the red dot.
+checkmate. Two blocks away a manhole lifts, and she walks off into the night; their two routes
+cross into an X. The X splits open on her gloved palm under a street lamp: the ruby. Back at the
+table her white queen takes the red knight, and the title's X crosses again, the ruby as the red
+dot.
 
 **DOUBLE CROSS:** he crosses the crew; she had crossed him before he moved. X marks the spot
 twice.
@@ -45,6 +47,8 @@ twice.
 | s03: his slam claps the plan's vault door shut on the queen and the bishop. | s07: he shuts the vault on the other two. |
 | s03: a small bell is drawn on the side door. | s07: his L route goes through that door, and the alarm rings. |
 | s07: she opens one small deposit box, and something red glints. | s11: the ruby. |
+| s02: his slam makes the other pieces jump. | s11: her queen knocks his knight over, quietly. |
+| s01: the white strip lands first and the red crosses over it. | s11: the X comes back with the white over the red. |
 
 ## Cast
 
@@ -221,8 +225,8 @@ Each scene module defines its beats as module-level constants and exports `cues(
 | s07 | cross | 80.0 | 16.0 | animator | the gold; her deposit box (a red glint); his look; the X-split; the door slams; the dial; his red L on the plan; the alarm |
 | s08 | locked | 96.0 | 12.0 | me | black; a match; the Cracker pounds; her smile; the hollow knock; the tracing paper |
 | s09 | plan_b | 108.0 | 16.0 | me | the rewind to the dot (callout) and her look; the overlay: trapdoor, her route, police at his car, the ruby; down through the floor |
-| s10 | checkmate | 124.0 | 12.0 | me | the Knight to the car; the city as a chessboard; four police cars close like rooks; the red ring; pull back: her line walks away; the routes cross into an X |
-| s11 | end | 136.0 | 8.0 | me | the ruby in her palm; she tips the knight over; the title; the red dot; black |
+| s10 | checkmate | 124.0 | 12.0 | me | the Knight to the car; the city as a chessboard; four police cars close like rooks; the red ring; his face; pull back: her line walks away; the routes cross into an X |
+| s11 | end | 136.0 | 8.0 | me | the X splits open on her palm: the ruby; the queen takes the knight; the X lifts off the plan into the title; the red dot; black |
 
 ## Scene by scene
 
@@ -380,43 +384,85 @@ and a half pieces tall.
 
 ### s09 PLAN B (108–124)
 
-- **108.0–111.0:** The rewind. Reversed snippets of s07, s06, s05, s04 and s03, about 0.4 s
-  each, under chalk streaks and a double chevron, with the stopwatch spinning back. It lands
-  in s03 at the plant, played forward. A callout lens snaps round the chalk dot under the
-  vault. *Tape-rewind whoosh; a ting.*
-- **111.0–113.0:** s02's elevation: his red look at the X and her white look at him. A
-  callout on her eye.
-- **113.0–118.0:** The plan with the tracing sheet sliding over it from the top. Plan B
-  appears in solid chalk:
+The scene's `REWIND` and `FREEZES` tables say which scene is on screen when, so the mix can run
+that scene's own sound backwards and forwards with the picture.
+
+- **108.0–108.15:** Held on s08's last frame (the sheet held up to the match).
+- **108.15–110.75:** The rewind. The film runs backwards through s08, s07, s06, s05 and s04,
+  0.4 s each, and into s03, under chalk streaks and a double chevron, with the heist stopwatch
+  spinning back (its hand red while past the stop). *Tape-rewind whoosh.*
+- **110.75–111.5:** Played forward (chalk corners round the frame): the Knight slams his piece
+  down and her chalk, lifting off the vault, leaves the dot. *A tape click.*
+- **111.5–112.2:** Freeze. A lens snaps round the dot. Magnified, it sits on the sewer line
+  inside the vault, with a gold ripple on it. *A ting.*
+- **112.2–114.6:** Back again into s02, then played: his red look at the X, her white look at
+  him. Freeze, and a lens on her eye with his red look glinting in it.
+- **114.6–118.9:** The plan from above. Her tracing sheet unrolls down over it (*paper*). Plan B
+  is chalked on it in solid lines and numbered in solid discs (Plan A's numbers are rings).
+  The camera whips to each:
   1. the trapdoor square at the dot;
-  2. her route down through it and north along the branch to manhole B, then off the sheet;
-  3. four police cars round his car (`POLICE`/`RED`);
-  4. a `RED` X on the ruby box, where the chalk X was on the gold.
-- **118.0–124.0:** The vault by match light. She lifts a floor tile, and below is black. The
-  Cracker stares, then grins. Section: they drop through to the sewer and walk north while
-  the solid route lights ahead. *The theme returns upright, in the major.*
+  2. her route through it, north along the branch to manhole B (ringed) and west off the sheet;
+  3. four police cars sliding in nose-first at his car, from the west, north, east and south,
+     their bars flashing, one per half beat (*trumpet stabs*);
+  4. a `RED` X on the ruby box.
+
+  Pull back: both plans at once. *The theme returns upright, in the major.*
+- **118.9–119.92:** The vault by match light, close. Kneeling, she lifts the floor tile on its
+  south edge and lays it aside: below is black. The match grazes the floor and the tile's
+  underside.
+- **119.92–120.66:** The Cracker's face, lit from below. He stares, the light crosses his
+  spectacles (*ting*), and he grins (*a dry chuckle*).
+- **120.66–124.0:** Section. The floor is cut away under the vault: the shaft under the
+  trapdoor, its iron ladder, the branch pipe and its water. The camera pulls back as she steps
+  into the hole, slides down the ladder with the match held up and splashes into the pipe; he
+  follows. She turns north and they wade off left, with Plan B's solid line lighting the way
+  ahead of them. The cut runs on north along the pipe to manhole B, and the line lights up its
+  shaft to the back street and rings there.
 
 ### s10 CHECKMATE (124–136)
 
-- **124.0–127.0:** Front street at night. The Knight bursts from the alley with two heavy bags
-  and heaves them into the car. The headlights flare and the engine coughs.
-- **127.0–131.0:** The city from above as a chessboard: the blocks are its squares and the
-  bank is in the middle. His red car moves, trailing red dots. From the four ends of the
-  streets four police cars slide in like rooks, their bars turning `POLICE`/`RED`, one per
-  beat, *each with a stab*. The red marker ring closes round his car: checkmate. *Sirens
-  braid.*
-- **131.0–136.0:** The pull-back. Manhole B lifts two blocks north and two small chalk
-  figures walk away. The camera tilts to top-down and the two routes, his red and her white,
-  straighten into two strokes crossing over the bank: an X.
+- **0.0–1.46:** The front street at night, the alarm bell ringing red ripples over the side
+  door. The Knight bursts round the car's tail (the mocap's run and sudden stop, 0.2), swings
+  both bags up (0.95–1.12) and flings them in (1.12–1.26), and slams the rear door (1.32–1.42).
+  *Bell, running steps, a skid, a grunt, the bags, the slam.*
+- **1.46–2.92:** Close on the car's nose: the engine coughs twice (1.62–1.86), the headlight
+  flares and the engine catches (2.02), the car lurches off west (2.5–2.9) and its light fills
+  the frame (2.68–2.92).
+- **2.92–6.42:** Out of the white, the city from above as a chessboard: the blocks are its
+  squares and the bank, in the middle, is the blueprint. His red car speeds along the front street
+  trailing red dots (3.15–3.55). Four police cars slide in from the four streets like rooks, one
+  per beat (4.0, 4.5, 5.0, 5.5), their bars turning `POLICE`/`RED`, *each with a stab*. The red
+  marker ring snaps round his car at 6.0: checkmate. The camera rolls (his panic, the film's one
+  Dutch tilt, 6.0–6.42). *Sirens braid.*
+- **6.42–7.2:** His face in the car's side window, washed red and blue by turns, his eyes darting.
+- **7.2–12.0:** The pull-back. Manhole B's lid slides off two blocks north (7.95–8.25), she climbs
+  out and the Cracker follows (8.2–8.45); a lens on the manhole (7.85–9.85) shows the two small
+  figures walking west, her match lighting the way, her white route lighting up behind her. From
+  10.0 to 11.2 the two routes, his red and her white, straighten into two strokes crossing over
+  the bank: an X, held to the cut.
 
 ### s11 END (136–144)
 
-- **136.0–139.0:** Her gloved hand opens under a street lamp: the ruby, a faceted `RED` cut
-  stone. It glints (*a celesta ping*), and she closes her fist.
-- **139.0–142.0:** The table at dawn-dark. Her hand tips the red knight over beside the
-  standing queen. *Clack, roll.*
-- **142.0–144.0:** The title again, DOUBLE CROSS on the X, with the ruby as the red dot at the
-  crossing. Black from 143.5.
+- **0.0–0.62:** The X splits the frame along its own strokes: s10's last frame breaks into four
+  triangles that crack apart and fly off, each carrying half of the strokes on its edges. *A paper
+  rip; the sirens cut off.* In the gap, from straight above: her gloved fist under a street lamp,
+  over the pavement (the kerb along the red stroke's diagonal, the lamp in a puddle).
+- **0.55–1.3:** Her fingers open one after another, the index first, red light escaping: the ruby,
+  a cut stone on her palm exactly where the X crossed. At **1.5** it glints, an X of light along
+  the frame's diagonals (*the one celesta ping*). **2.45–2.75:** she closes her hand on it, and the
+  red light leaks between her fingers and dies. *The glove creaks.*
+- **3.0–4.35:** Dawn at the table, the lamp low and a cold wash from the window. The red knight
+  stands where he set it by the car in s03, inside the red ring and Plan B's chalk police. Her
+  gloved hand brings the white queen in low from the west; its base knocks his (3.85, *click*), he
+  goes over to the east and lands on his side (4.0, *clack, roll*), and the queen is set down on
+  his square: the queen takes the knight. Her hand lets go and leaves.
+- **4.35–5.5:** The camera rises off the table to the whole plan, straight down (s01's top view).
+- **5.5–6.0:** The chalk X lifts off the vault and grows into the title X (s01's landing run
+  backwards), landing on the last chord at 6.0. This time the white strip lies over the red: she
+  crossed him last.
+- **6.2, 6.45:** DOUBLE and CROSS slide back in from the top and the bottom, where the opening's
+  flew out. **7.0:** the ruby lands as the red dot at the crossing (*the film's last chalk tap*).
+- **7.5:** Black, the red dot a breath longer, gone by 7.9.
 
 ## Sound plan (for the mix)
 

@@ -391,11 +391,12 @@ CONE_BAND = (186.0, 860.0, 894.0, 940.0)     # the corridor his light sweeps (be
 PLAN_A_PARTS = ("in", "out", "n1", "n2", "n3", "n4", "n5", "chevron", "cone", "ring", "dial", "car", "bell", "dot")
 
 
-def draw_plan_a(c, a=1.0, cone_ang=0.0, prog=None, door=0.0):
+def draw_plan_a(c, a=1.0, cone_ang=0.0, prog=None, door=0.0, x=True):
     """Plan A as she leaves it (plan px, inside cam.ground): the bank, both routes, the steps
     (1)-(5), the X, the guard's cone and its timing ring, the dial at the vault door, the chalk
     car, the bell on the side door and the dot. prog: {part: 0..1} draws parts on (s03; the
-    parts are P.PLAN_A_PARTS); missing parts are fully drawn. door: the vault door's swing."""
+    parts are P.PLAN_A_PARTS); missing parts are fully drawn. door: the vault door's swing. x: the
+    X on the vault (s11 lifts it off to become the title)."""
     g = dict.fromkeys(PLAN_A_PARTS, 1.0)
     if prog:
         g.update(prog)
@@ -407,7 +408,8 @@ def draw_plan_a(c, a=1.0, cone_ang=0.0, prog=None, door=0.0):
     K.route(c, ROUTE_OUT[6:], g["out"], K.PAPER, seed=4, alpha=a)
     for i, (txt, p) in enumerate(STEPS):
         K.circled(c, txt, p, 26.0, g["n%d" % (i + 1)], seed=10 + i, alpha=a)
-    K.xmark(c, X_VAULT, 56.0, seed=20, alpha=a)
+    if x:
+        K.xmark(c, X_VAULT, 56.0, seed=20, alpha=a)
     if g["cone"] > 0.0:                          # the guard's light, kept inside the corridor's walls
         c.save()
         c.rectangle(CONE_BAND[0], CONE_BAND[1], CONE_BAND[2] - CONE_BAND[0], CONE_BAND[3] - CONE_BAND[1])

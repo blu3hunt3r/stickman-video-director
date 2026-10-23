@@ -8,3 +8,4 @@ the database asks that it be credited. Loaded and retargeted by engine/mocap.py.
     120_15  startle                       137_26  drink from a mug, walk
     56_02   (a neighbour's stretch)       56_03   lift open window
     104_02  (his walk into a room)        142_16  (her recoil in the doorway)
+    16_08   run, sudden stop (the Knight to the car)
