@@ -445,14 +445,22 @@ def escape_platform(n):
     return (ESCAPE_X[0], level(n), ESCAPE_X[1])
 
 
+def escape_ladder(n):
+    """(top, bottom) of the fire escape's ladder from storey n's platform down to n-1's
+    (they zig-zag: the storey-5 ladder leaves from the wall end, the next from the far end...)."""
+    x0, x1 = ESCAPE_X
+    if (HER_B.floors - n) % 2 == 0:
+        return (x0 + 10.0, level(n)), (x1 - 10.0, level(n - 1) - 4.0)
+    return (x1 - 10.0, level(n)), (x0 + 10.0, level(n - 1) - 4.0)
+
+
 def escape_route(n0=HER_FLOOR, n1=2):
-    """Down her fire escape from storey n0's platform to n1's, zig-zagging."""
-    pts = []
+    """Down her fire escape from storey n0's window to storey n1's platform: along each
+    platform to its ladder, and down the ladder (where feet go)."""
+    pts = [(ESCAPE_X[0] + 12.0, level(n0) - 4.0)]
     for n in range(n0, n1, -1):
-        y0, y1 = level(n) - 4.0, level(n - 1) - 4.0
-        a, b = (ESCAPE_X[0] + 12.0, y0), (ESCAPE_X[1] - 10.0, y0)
-        pts += [a, b] if (n0 - n) % 2 == 0 else [b, a]
-    pts.append((pts[-1][0], level(n1) - 4.0))
+        top, bot = escape_ladder(n)
+        pts += [(top[0], level(n) - 4.0), bot]
     return pts
 
 
@@ -625,9 +633,7 @@ def fire_escape(c, color=INK, ladder=0.0):
             px = x0 + j * (x1 - x0) / 4.0
             polys.append(bass.orient([(px - 1.2, y - 44.0), (px + 1.2, y - 44.0), (px + 1.2, y), (px - 1.2, y)], True))
     for n in range(HER_B.floors, 2, -1):
-        a = (x0 + 10.0, level(n)) if (HER_B.floors - n) % 2 == 0 else (x1 - 10.0, level(n))
-        b2 = (x1 - 10.0, level(n - 1) - 4.0) if (HER_B.floors - n) % 2 == 0 else (x0 + 10.0, level(n - 1) - 4.0)
-        polys.append(bass.line_pts([a, b2], width=7.0, seed=830 + n))
+        polys.append(bass.line_pts(list(escape_ladder(n)), width=7.0, seed=830 + n))
     # the drop ladder: two rails and rungs under the storey-2 platform
     yd0 = level(2) + 4.0
     yd1 = lerp(level(2) + 120.0, GROUND - 6.0, clamp(ladder))
