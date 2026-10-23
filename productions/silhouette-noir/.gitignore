@@ -10,3 +10,6 @@ films/*/audio/vo/*.wav
 films/*/out/
 films/*/qa/
 films/*/final/*_preview.mp4
+
+# mocap clips downloaded while casting; only the ones a film uses are committed (git add -f)
+assets/mocap/*.bvh
