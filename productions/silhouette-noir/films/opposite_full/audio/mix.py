@@ -2075,9 +2075,10 @@ def s09(m, t0):
     if not PULSES or len(PULSES) != len(DIGITS):
         PULSES = [[d[4] + (15.0 + 30.0 * i) / D_RATE for i in range(d[0] or 10)] for d in DIGITS]
     T_WITHDRAW = g(S, "T_WITHDRAW", DIGITS[-1][4] + 0.08)
-    # the bible's beats the draft has not set yet (placed on the beat)
-    T_RINGS = g(S, "T_RINGS", (T_EAR + 0.25, T_EAR + 1.0))
-    T_ANSWER = g(S, "T_ANSWER", T_EAR + 1.5)
+    # the two rings in the earpiece and the click that ends them (the bible's, on the beat, until
+    # the module has them)
+    T_RINGS = g(S, "T_RING", (T_EAR + 0.25, T_EAR + 1.0))
+    T_ANSWER = g(S, "T_CLICK", T_EAR + 1.5)
 
     # his room, amber; the door creaks open on the landing's light
     m.put("amb", bed("room_tone", L, 91), 0.0, -30)
@@ -2090,6 +2091,8 @@ def s09(m, t0):
             and abs(call(S, "lamp_sway", t, default=0.0)) > abs(call(S, "lamp_sway", t + 1 / 48.0, default=0.0))]
     for j, t in enumerate(sway):
         m.put("efx", creak(0.25, 92 + j, iron=True), float(t) - 0.1, -34, pan=0.1)
+    if sway:
+        m.cover("lamp sways")                          # its chain: these creaks, at the swing's ends
     m.put("vox", gen("gasp_a", 0.0, 0.62, fade=0.01), T_SEE, -11, pan=-0.3, label="her breath catches", key=True)
     m.put("music", strings((HIS, HIS + 1), T_EAR - T_SEE, 0.7, seed=91, octaves=(0, 1), attack=1.2, release=0.6,
                            env=[(0.0, 0.5), (T_DIAL - T_SEE, 0.8), (T_EAR - T_SEE, 1.0)]), T_SEE + 0.1, -21)
@@ -2103,7 +2106,7 @@ def s09(m, t0):
               label="her heart" if k == 0 else None)
         k += 1
     m.put("efx", rustle(0.45, 93, 250.0, 2500.0), T_REACH, -26, label="her hand comes in")
-    m.put("efx", rustle(0.2, 94, 400.0, 3000.0), T_TOUCH, -31)
+    m.put("efx", rustle(0.2, 94, 400.0, 3000.0), T_TOUCH, -31, label="her fingertips touch")
     m.put("efx", rustle(0.18, 95, 300.0, 2500.0), T_TWITCH, -27, label="the victim's fingers twitch")
     m.put("efx", rustle(0.25, 96, 250.0, 2200.0), T_CLOSE, -25, label="they close on hers")
     m.put("music", harp(note(HER), 0.5, seed=5), T_CLOSE, -24, pan=-0.2)
@@ -2118,6 +2121,8 @@ def s09(m, t0):
     for j, ((d, t_in, w0, w1, rel), ps) in enumerate(zip(DIGITS, PULSES)):
         x = dial_turn(d, t_in, w0, w1, rel, tuple(float(v) for v in ps), rate=D_RATE, seed=j)
         m.put("efx", x, t_in, -10, pan=-0.05, label=f"dial {d}: let go", sync=rel, align=None)
+        m.mark(w0, f"dial {d}: wind")                  # the ratchet and the stop are in dial_turn
+        m.mark(w1, f"dial {d}: stop")
         for tp in ps:
             m.mark(float(tp), f"dial {d}: pulse")
     m.put("efx", rustle(0.3, 97, 250.0, 2400.0), T_WITHDRAW, -29, label="her hand goes")
@@ -2412,7 +2417,7 @@ def realize(m, c):
         return "auto: footsteps"
     if has("dial"):
         d = re.findall(r"\d", s)
-        x, _ = dial(int(d[0]) if d else 1)
+        x = dial(int(d[0]) if d else 1)
         m.put("efx", x, t, gdb, pan=pan, label=lab)
         return "auto: rotary dial"
     if has("ringback", "ringing", "phone ring", "rings twice"):
