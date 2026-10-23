@@ -699,7 +699,11 @@ def pull(t):
     return z, cy
 
 
-def draw_watched(c, t):
+def draw_watched(c, t, lines_off=None, ring=True):
+    """The section, the watchers and the web of looks. lines_off: when the looks run home into
+    him (s11); ring: draw the red ring. Returns his head in frame px (or None)."""
+    def off(i):
+        return None if lines_off is None else lines_off + 0.025 * i
     z, cy = pull(t)
     c.save()
     c.translate(540.0, 960.0)
@@ -743,25 +747,27 @@ def draw_watched(c, t):
             p = heads.get(room_)
             if p is not None:
                 K.sight_line(c, p, target, t, t0 + 0.2, color=K.PAPER, dur=0.45, r=6.0, gap=22.0, head=24.0,
-                             march=26.0, seed=90 + i)
+                             march=26.0, seed=90 + i, off=off(i))
         for i, p in enumerate(city_eyes()):
             K.sight_line(c, p, target, t, T_CITY_LOOKS + 0.11 * i, color=K.PAPER, dur=0.5, r=5.0, gap=22.0, head=20.0,
-                         march=26.0, seed=110 + i, alpha=0.85)
+                         march=26.0, seed=110 + i, alpha=0.85, off=off(i + 3))
         # the block beyond, as it comes into view: nearest first
         flank_eyes.sort(key=lambda p: abs(p[0] - target[0]))
         for i, p in enumerate(flank_eyes):
             K.sight_line(c, p, target, t, T_PULL[0] + 0.45 + 0.09 * i, color=K.PAPER, dur=0.55, r=5.0, gap=22.0,
-                         head=20.0, march=26.0, seed=140 + i, alpha=0.8)
+                         head=20.0, march=26.0, seed=140 + i, alpha=0.8, off=off(i + 1))
         K.sight_line(c, (540.0, K.GROUND - 70.0), target, t, T_POLICE_LOOK, color=K.POLICE, dur=0.45, r=7.0, gap=24.0,
-                     head=26.0, march=30.0, seed=130)
+                     head=26.0, march=30.0, seed=130, off=off(2))
         if heads.get("her") is not None:
             K.sight_line(c, heads["her"], target, t, T_WAKE, color=K.PAPER, dur=0.01, r=7.0, gap=24.0, head=26.0,
-                         march=26.0, seed=131)
+                         march=26.0, seed=131, off=off(0))
         # the red ring closes round him
-        if t >= T_RING:
+        if ring and t >= T_RING:
             K.marker_ring(c, (target[0] - 6.0, target[1] + 48.0), 48.0, 92.0, u=k(t, T_RING, 0.42, "out"), color=RED,
                           width=12.0, seed=7)
+        hh = c.user_to_device(*target)
     c.restore()
+    return c.device_to_user(*hh) if hh is not None else None
 
 
 def city_lit(t):
