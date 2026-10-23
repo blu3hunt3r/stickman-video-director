@@ -155,15 +155,27 @@ Plan px with north up, on a sheet that fills the frame at `PlanCam(540, 960, 1.0
 | BANK footprint | x 170–910, y 380–1300 |
 | VAULT | x 360–720, y 430–700 (thick walls). Round door on its south wall, centre (540, 700). The X is at the vault centre (540, 565). |
 | Gold | stacked in the vault's west half |
-| Deposit wall | the vault's east inner wall; the ruby box at (690, 520) |
+| Deposit wall | the vault's east inner wall, 2 columns × 6 rows (`P.BOXES`, `P.box_rect(col, row)`); the ruby box is column 2, row 2, centre (680, 518) (`P.RUBY`) |
 | TRAPDOOR (Plan B only) | (450, 600), on the sewer branch |
 | CORRIDOR | x 500–580, from the vault door south to y 1180 |
 | INTERSECTION | cross corridor y 860–940, x 200–880; GUARD POST at (240, 900) |
 | STORE ROOM | x 200–500, y 980–1300, with the HATCH at (450, 1150) and a door into the corridor at (500, 1150) |
 | LOBBY | x 580–910, y 980–1300; front doors on the south wall |
 | SIDE DOOR | (910, 1100), with an alarm bell; the ALLEY runs south from it, x 910–1010 |
-| FRONT STREET | y 1350–1450; MANHOLE A at (250, 1400); the CAR at (900, 1400) |
+| FRONT STREET | y 1350–1450; MANHOLE A at (250, 1400); the CAR at (930, 1400), at the alley's mouth |
 | SEWER (dashed: underground) | main line along y = 1400. Branch north up x = 450: under the store room (hatch), **under the vault**, to manhole B. |
+
+Shared shots in `plan.py`:
+
+- `P.table(c, cam, lamp_a, sheet, plan_a)`: the table shot (the sheet's shadow, the sheet, the
+  lamp's pool; Plan A at strength `plan_a`). The field under it is `K.DEEP`.
+- `P.draw_plan_a(c, a)`: Plan A as she leaves it in s03 (both routes, ①–⑤, the X, the cone,
+  the chalk car, the bell, the dot). `P.draw_pieces(c, cam, P.PIECES_A)`: the pieces where
+  s03 leaves them.
+- `P.piece_on(c, cam, kind, p, h, color, edge, lift=...)`: one piece standing on the plan,
+  with its shadow cast away from the lamp.
+- Cameras: `P.TOP` (straight down), `P.TABLE` (s02), `P.PLAN_CAM` (s03), `P.HANDOFF_34` (s03's
+  last frame and s04's first). `PlanCam.lerp(a, b, u)` blends two cameras.
 
 Routes (`P.ROUTE_IN`, `P.ROUTE_OUT`, `P.ROUTE_KNIGHT`, `P.ROUTE_B`):
 

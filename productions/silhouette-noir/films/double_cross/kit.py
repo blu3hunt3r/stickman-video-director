@@ -16,6 +16,8 @@ says it draws in plan px (inside a P.PlanCam's ground transform).
 import math
 from functools import lru_cache
 
+import cairo
+
 from engine import bass, draw
 from engine.core import clamp, ease, hash01, lerp
 from engine.palette import RED
@@ -108,6 +110,54 @@ def poly_cut(pts, s0, s1):
 
 
 # ============================================================================ chalk
+def band_pts(pts, width, seed=0, taper=(1.0, 1.0), step=14.0, amp=0.6):
+    """The outline of a chalk band along pts that keeps every vertex, so corners stay square and
+    small circles stay round (bass.line_band resamples at fixed arc steps and rounds them off):
+    each segment is resampled at <= step px, corners are mitred, the width wobbles by amp."""
+    P = [pts[0]]
+    for p in pts[1:]:
+        if math.dist(p, P[-1]) > 1e-6:
+            P.append(p)
+    if len(P) < 2:
+        return []
+    total = poly_len(P) or 1.0
+    out, nrm, arc = [], [], []
+    acc = 0.0
+    for i, (a, b) in enumerate(zip(P, P[1:])):
+        d = math.dist(a, b)
+        n = (-(b[1] - a[1]) / d, (b[0] - a[0]) / d)
+        m = max(1, int(math.ceil(d / step)))
+        for j in range(m):
+            f = j / m
+            out.append((lerp(a[0], b[0], f), lerp(a[1], b[1], f)))
+            arc.append(acc + d * f)
+            if j == 0 and i > 0:                     # a corner: mitre between the two normals
+                p0 = nrm[-1]
+                mx, my = p0[0] + n[0], p0[1] + n[1]
+                ml = math.hypot(mx, my) or 1.0
+                mx, my = mx / ml, my / ml
+                k = 1.0 / max(0.4, mx * n[0] + my * n[1])
+                nrm.append((mx * k, my * k))
+            else:
+                nrm.append(n)
+        acc += d
+    out.append(P[-1])
+    arc.append(total)
+    nrm.append(n)
+    left, right = [], []
+    for k, (p, n, s) in enumerate(zip(out, nrm, arc)):
+        w = 0.5 * max(0.4, width * lerp(taper[0], taper[1], s / total) + amp * _sn(seed, k, 5))
+        left.append((p[0] + n[0] * w, p[1] + n[1] * w))
+        right.append((p[0] - n[0] * w, p[1] - n[1] * w))
+    return bass.orient(left + right[::-1], True)
+
+
+def band(c, pts, color=PAPER, width=5.0, seed=0, taper=(1.0, 1.0), alpha=1.0):
+    poly = band_pts(pts, width, seed, taper)
+    if poly:
+        bass.fill_polys(c, [poly], color, alpha)
+
+
 def chalk_line(c, pts, u=1.0, width=5.0, color=PAPER, seed=0, alpha=0.95, taper=(1.0, 1.0)):
     """A ruled chalk stroke along pts, struck on to fraction u of its length."""
     if u <= 0.0 or len(pts) < 2:
@@ -115,13 +165,14 @@ def chalk_line(c, pts, u=1.0, width=5.0, color=PAPER, seed=0, alpha=0.95, taper=
     L = poly_len(pts)
     part = poly_cut(pts, 0.0, L * clamp(u))
     if len(part) >= 2 and poly_len(part) > 0.5:
-        bass.line_band(c, part, color, width=width, seed=seed, taper=taper, alpha=alpha)
+        band(c, part, color, width, seed, taper, alpha)
 
 
 def chalk_rect(c, r, u=1.0, width=5.0, color=PAPER, seed=0, alpha=0.95):
     """A rectangle (x0, y0, x1, y1) outlined in chalk, drawn round from its top-left corner."""
     x0, y0, x1, y1 = r
-    chalk_line(c, [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)], u, width, color, seed, alpha)
+    lap = min(width, (x1 - x0) / 2.0)                # overlap the start so the first corner is closed
+    chalk_line(c, [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0), (x0 + lap, y0)], u, width, color, seed, alpha)
 
 
 def chalk_circle(c, p, r, u=1.0, width=5.0, color=PAPER, seed=0, alpha=0.95, start=-90.0, n=None):
@@ -222,12 +273,17 @@ def cone(c, apex, ang, spread, length, color=PAPER, alpha=0.16, steps=3, seed=0)
         bass.fill_polys(c, [bass.orient(pts, True)], color, alpha * (0.55 if i == 0 else 0.5))
 
 
-def pool(c, p, rx, ry, color=GOLD, alpha=0.16, steps=4, seed=0):
-    """A pool of light: nested flat ellipses, brightest in the middle."""
+def pool(c, p, rx, ry, color=GOLD, alpha=0.16, steps=4, seed=0, add=True):
+    """A pool of light: nested flat ellipses, brightest in the middle. add: light adds to what
+    it falls on (gold on blue paper brightens it instead of greying it)."""
+    c.save()
+    if add:
+        c.set_operator(cairo.OPERATOR_ADD)
     for i in range(steps):
         f = 1.0 - i / steps
-        bass.fill_polys(c, [draw.ellipse_pts(p, rx * (0.35 + 0.65 * f), ry * (0.35 + 0.65 * f), n=64)], color,
+        bass.fill_polys(c, [draw.ellipse_pts(p, rx * (0.35 + 0.65 * f), ry * (0.35 + 0.65 * f), n=72)], color,
                         alpha * 0.5)
+    c.restore()
 
 
 def flame(c, p, t, s=1.0, seed=0):
