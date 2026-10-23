@@ -17,7 +17,7 @@ from engine.core import lerp
 from films.opposite_bass import world as B
 from films.opposite_full import kit as K
 
-SEC_FS = 0.2                      # figure units -> px, in the section's rooms
+SEC_FS = 0.8 / 4.4                # figure units -> px in the section's rooms (rooms.FIG_S / rooms.S: the stage's figures)
 DARK_INK = lerp(K.DEEP, K.INK, 0.6)   # furniture and people in a room whose light is off
 
 
@@ -90,7 +90,9 @@ def draw(c, fig, st, pose, x, floor_y, facing, lit, scale=SEC_FS, color=None, ey
     c.save()
     B.place(c, x, floor_y, scale)
     out = B.draw_cutout(c, fig, st, pose, col, facing=facing, edge=edge, outline=edge, ow=10.0)
+    head = c.user_to_device(*out["head"])
     c.restore()
+    out["head_at"] = c.device_to_user(*head)          # the head, in the caller's px (for sight lines)
     return out
 
 
