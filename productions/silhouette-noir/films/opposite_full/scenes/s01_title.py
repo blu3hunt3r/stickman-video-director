@@ -141,9 +141,9 @@ def people(t, lit):
             F.asleep(c, b, n, room, t)            # light out: gone to bed, or dozing where they sat
             return
         if b is HER_B and n == K.HER_FLOOR:
+            R.section_room(c, t, R.Room(flame=True, steam=1.0, film_t=t))      # her set, as s02 has it
             fig, st, p = her_pose(tt)
             F.draw(c, fig, st, p, 232.0, fy, -1, L)
-            B.steam(c, (187.0, fy - 62.0), tt, K.INK, alpha=0.9, scale=0.55)
         elif b is HIS_B and n == K.HIS_FLOOR:
             st, p = P["man"](tt)
             F.draw(c, B.win_fig(1), st, p, 758.0, fy, 1, L)
