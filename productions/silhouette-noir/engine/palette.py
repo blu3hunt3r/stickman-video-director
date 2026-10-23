@@ -111,4 +111,20 @@ LANTERN = Palette(
     grain=0.065, vignette=0.6,
 )
 
-PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN}
+# --------------------------------------------------------------------------- OPPOSITE
+# Saul Bass cut paper: warm paper sky, ink facades, amber windows; RED only for the threat.
+OPPOSITE = Palette(
+    "opposite",
+    ink=(0.020, 0.018, 0.016),
+    sky_top=(0.80, 0.765, 0.70), sky_bottom=(0.80, 0.765, 0.70),
+    fog_stops=[(0.0, (0.26, 0.25, 0.23)), (0.45, (0.50, 0.48, 0.44)), (1.0, (0.78, 0.75, 0.69))],
+    haze_gamma=0.75,
+    light=(0.95, 0.66, 0.24),
+    flame=(1.0, 0.88, 0.62),
+    accent=RED,
+    paper=PAPER,
+    grade=dict(lift=(0.010, 0.009, 0.006), gain=(1.0, 0.99, 0.95), gamma=(1.0, 1.0, 1.02)),
+    grain=0.045, vignette=0.5,
+)
+
+PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN, "opposite": OPPOSITE}

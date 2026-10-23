@@ -235,6 +235,48 @@ def girl(red, seed=0):
                   foot=foot, eye=((44.0, -330.0), 8.0, 10.0))
 
 
+def woman(red=None, seed=0):
+    """OPPOSITE's woman: a bob, a slim knee-length dress, low heels. About 650 px tall."""
+    s = 300 + seed * 100
+    torso = [
+        (_cut([(-24, -258), (30, -258), (42, -200), (34, -110), (40, -20), (50, 150), (-42, 150), (-34, -20),
+               (-30, -110), (-38, -200)], s + 1), "ink"),
+        (_cut([(-8, -280), (14, -280), (14, -254), (-8, -254)], s + 2), "ink"),
+    ]
+    head = [(_ellipse((8, -318), 36, 43, s + 3), "ink"),
+            # the bob: a clean helmet of hair around the back of the head, cut level at the jaw
+            (_cut([(-34, -344), (-18, -362), (8, -366), (32, -356), (46, -334), (44, -322), (22, -336), (0, -338),
+                   (-12, -320), (-14, -290), (-46, -288), (-48, -318)], s + 4), "ink")]
+    foot = _cut([(-10, -10), (10, -10), (16, 4), (34, 14), (36, 22), (-4, 22), (-10, 10)], s + 8)
+    return Figure("woman", thigh=142.0, shin=136.0, ankle=22.0, upper=110.0, fore=100.0,
+                  leg_w=(30.0, 22.0, 15.0), arm_w=(20.0, 16.0, 13.0), hand_r=12.0,
+                  shoulder=(2.0, -244.0), neck=(4.0, -268.0), torso=torso, head=head,
+                  foot=foot, eye=((30.0, -322.0), 5.5, 6.5))
+
+
+def man(red=None, seed=0):
+    """OPPOSITE's man: fedora, long coat with a turned-up collar, heavy shoes. About 715 px tall."""
+    s = 500 + seed * 100
+    torso = [
+        (_cut([(-40, -272), (46, -272), (62, -212), (56, -60), (68, 172), (-60, 172), (-50, -60), (-56, -212)], s + 1), "ink"),
+        (_cut([(-30, -300), (8, -312), (30, -296), (40, -270), (-38, -268)], s + 2), "ink"),        # collar
+    ]
+    head = [(_ellipse((10, -338), 38, 45, s + 3), "ink"),
+            (_cut([(-62, -362), (76, -362), (80, -352), (-66, -350)], s + 4), "ink"),            # brim
+            (_cut([(-34, -362), (44, -362), (40, -400), (26, -410), (6, -402), (-18, -410), (-30, -398)], s + 5), "ink")]
+    foot = _cut([(-16, -10), (14, -10), (20, 4), (46, 8), (48, 22), (-18, 22)], s + 8)
+    return Figure("man", thigh=150.0, shin=146.0, ankle=22.0, upper=128.0, fore=118.0,
+                  leg_w=(42.0, 34.0, 27.0), arm_w=(32.0, 26.0, 20.0), hand_r=16.0,
+                  shoulder=(2.0, -254.0), neck=(6.0, -284.0), torso=torso, head=head,
+                  foot=foot, eye=((36.0, -342.0), 6.0, 3.2))
+
+
+def standing(fig, x=0.0, spread=16.0):
+    """A walker-like state for a figure standing still at x (feet together, pelvis at rest)."""
+    return dict(pelvis=(x, -fig.leg * 0.965), feet={"near": (x + spread * 0.5, 0.0, 0.0), "far": (x - spread * 0.5, 0.0, 0.0)},
+                phase=0.0, speed=0.0, run=0.0, stride=0.0)
+
+
 # ----------------------------------------------------------------------------- walking
 class Walker:
     """Footfalls from a speed curve. speed: [(t, px/s), ...] (linear between keys).

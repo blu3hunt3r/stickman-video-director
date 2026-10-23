@@ -1,0 +1,40 @@
+{
+ "film": "opposite",
+ "fps": 24,
+ "duration": 32.0,
+ "frames": 768,
+ "vo_src": "audio/vo/narration_full.wav",
+ "scenes": [
+  {
+   "id": "s01",
+   "slug": "title",
+   "start": 0.0,
+   "duration": 6.0,
+   "frames": 144,
+   "prev": null,
+   "next": "s02",
+   "trans_out": null,
+   "trans_in": null,
+   "handle_in": 0.0,
+   "handle_out": 0.0,
+   "lines": [],
+   "words": []
+  },
+  {
+   "id": "s02",
+   "slug": "opposite",
+   "start": 6.0,
+   "duration": 26.0,
+   "frames": 624,
+   "prev": "s01",
+   "next": null,
+   "trans_out": null,
+   "trans_in": null,
+   "handle_in": 0.0,
+   "handle_out": 0.0,
+   "lines": [],
+   "words": []
+  }
+ ],
+ "vo": []
+}

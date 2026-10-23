@@ -18,7 +18,7 @@ import re
 from .core import FPS
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FILMS = ("salvage", "shadowplay", "red", "lantern")
+FILMS = ("salvage", "shadowplay", "red", "lantern", "opposite")
 
 _TL = {}
 
