@@ -18,7 +18,7 @@ dates (UTC).
 | 6 | OPPOSITE v1–v3 | 10-23 | 0:32–0:34.5 | Wordless thriller test, one continuous camera | Three previews |
 | 7 | OPPOSITE, the Bass cut | 10-23 | 0:36 | Pure Saul Bass graphic retelling, one scene | Delivered, two review passes |
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
-| 9 | DOUBLE CROSS | 10-23 | 2:24 | Wordless Bass heist, 11 scenes | v1 and v2 (the shot types, `9ea5f1b`) delivered |
+| 9 | DOUBLE CROSS | 10-23 | 2:24 | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`) and v3 (the review fixes and the voices) delivered |
 
 ---
 
@@ -316,7 +316,8 @@ The bible's casting table also named clips the code does not use (18_08, 13_33, 
 
 ### 9.6 Scene by scene (film times from the scene modules' constants)
 
-This is the v1 picture. The v2 inserts that play over it are listed in 9.10.
+This is the v1 picture. The v2 inserts that play over it are listed in 9.10, and v3's changes to
+s01–s03, s09 and s10 in 9.11.
 
 **s01 TITLE (0:00–0:12).** Four chalk dots tick in at the sheet's corners (0:00.5–0:02.0) and dotted
 lines join them; the blueprint unrolls (0:02.5–0:04.0); the bank rules itself in, one group per beat
@@ -425,7 +426,8 @@ the ruby lands as the red dot (2:23.0); black (2:23.5), the dot gone by 2:23.9.
 - **Foley.** All synthesised in `mix.py` (chalk, paper, pieces, the manhole, drips, the hatch, the
   flashlight, the stethoscope, the cat and the can, dial clicks pitched D, F, A, the fence, the bolts,
   the vault's groan and BOOM, gold, the bell, the match, the hollow knock, the tracing paper, the
-  engine, sirens), plus breaths and steps cut from `films/opposite/audio/gen/`. No new paid generation.
+  engine, sirens), plus breaths and steps cut from `films/opposite/audio/gen/`. v1 and v2 used no
+  paid generation; v3 adds the voices (9.11).
 - **Measured (v1).** -16.01 LUFS, true peak -1.30 dBTP, no clipping; 420 cues (389 by the sections,
   31 auto-spotted, all in s07; 0 missed); worst sync 20 ms.
 
@@ -475,7 +477,49 @@ glitch scan raised 35 flags: v1's 27 and 8 at the new inserts, all deliberate.
 | 2:09.92 | s10 | Black flash before checkmate (2 frames) |
 | 2:19.88 | s11 | Punch-in ×3, with one red wedge, as the queen knocks the knight over (5 frames) |
 
-### 9.11 Files
+### 9.11 v3: the review fixes and the voices
+
+On 10-24 the user had me review the whole film, then asked "fix it, and do you think voice should
+be used?". They chose a murmured briefing plus two touches of voice, and approved 200–250 credits
+for it.
+
+**The picture.** Six fixes in s01, s02, s03, s09 and s10. s11 was re-rendered because it opens on
+s10's last frame. s04–s08 are as in v2, and the s04–s05 reframing the review raised was left alone.
+The bible's v3 table has the details.
+
+| Film time | Scene | Fix |
+|---|---|---|
+| 0:00–0:07 | s01 | It opens on the bank at night, at s04's eye level. Chalk dots mark the corners of the front (0:00.5–0:02.0) and dotted lines join them. The street folds flat, back to front (s04's pop-up run backwards, 0:02.5–0:03.5), as the camera tilts up to straight down (0:02.75–0:04.0). The outline lies down onto the blueprint and the plan rules itself in from it (0:04.0–0:07.0). |
+| 0:11.1 | s01 | A gold lens opens off the landed X on the vault's gold, through its door; s02 closes it. |
+| 0:21–0:24 | s02 | The briefing, wide: the crew round the table under the swinging lamp. Her chalk taps the X twice (0:21.25, 0:21.5), his red look goes down to it (0:21.6), hers goes across to him (0:22.5), and her chalk goes in toward manhole A. |
+| 0:24–0:35 | s03 | Her chalk hand reads as hers (a bold white edge). Lenses open on step ① (manhole A's lid, 0:25.05–0:26.3) and step ③ (the guard and his light, 0:29.55–0:30.75). |
+| 1:58.12–1:58.8 | s09 | Plan B one beat per mark: a hold on the red X, then a whip back to both plans before the cut. |
+| 2:11.2–2:13.5 | s10 | Her way out, full frame: the back street looking north. Manhole B's lid is knocked up (2:11.47) and dragged aside. She climbs out, then the Cracker, and they walk west under the street lamp as the police lights pool beyond the roofs. Then back to the board for the X. |
+
+**The voices** (Magnific, ElevenLabs eleven_v3, 114 credits, in `audio/gen/`). These are the film's
+first voices, and it stays wordless.
+
+- **The briefing is murmured in three voices** (0:21.05–0:22.45 and 0:24.1–0:34.7), and who speaks
+  follows the picture:
+  - each line is cut into syllables at the dips in its level, and the inner syllables are
+    shuffled, so it keeps its voice and cadence but says nothing;
+  - it is low-passed and set about 13–16 dB under the score;
+  - the Knight's slam ends it.
+- **The Knight's grunts** use his own strained voice, at the bags (1:26.4) and at the vault door
+  (1:30.12, held while it swings).
+- **Her breath of a laugh** comes as the corner of her mouth lifts (1:40.59).
+- **The rewind.** s09's rewind carries the voices, because it is cut from the mix.
+
+**Measured.** -16.01 LUFS, true peak -1.30 dBTP, no clipped samples. 449 cues: 421 realised by the
+sections, 28 auto-spotted (all in s07, as before), 0 missed. The worst cue-to-event offset is 25 ms;
+no measured onset is more than a frame out.
+
+Delivered as `final/double_cross_v3_preview.mp4`, encoded as in SYSTEM.md section 9: 3,456 frames,
+144.0 s, 7.72 Mb/s, 138.9 MB, -16.1 LUFS with a true peak of -0.9 dBFS after AAC. The glitch scan
+(run on v2's preview too, for comparison) flags 37 frames against v2's 39. All are at deliberate
+cuts, inserts, rewind slips and whips, and none is at a v3 change.
+
+### 9.12 Files
 
 | Path | What it is |
 |---|---|
@@ -487,6 +531,8 @@ glitch scan raised 35 flags: v1's 27 and 8 at the new inserts, all deliberate.
 | `films/double_cross/shots.py` | The v2 shot-type helpers (SHOT_TYPES.md, Part C). |
 | `films/double_cross/scenes/s01_title.py` … `s11_end.py` | The eleven scenes. |
 | `films/double_cross/timeline/build_timeline.py`, `timeline.json` | The edit: eleven scenes, hard cuts. |
-| `films/double_cross/audio/mix.py` | The score, foley, rewind and master. |
+| `films/double_cross/audio/mix.py` | The score, foley, voices, rewind and master. |
+| `films/double_cross/audio/gen/*.mp3` | v3's voice takes: the briefing's lines in three voices, the Knight's grunts, her laugh. |
 | `films/double_cross/final/double_cross_preview.mp4` | The delivered v1 preview (not in git). |
 | `films/double_cross/final/double_cross_v2_preview.mp4` | The delivered v2 preview, with the shot types (not in git). |
+| `films/double_cross/final/double_cross_v3_preview.mp4` | The delivered v3 preview, with the review fixes and the voices (not in git). |

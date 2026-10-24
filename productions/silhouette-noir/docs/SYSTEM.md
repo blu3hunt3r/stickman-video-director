@@ -426,7 +426,7 @@ With hard cuts only (OPPOSITE full, DOUBLE CROSS) there is exactly one segment p
 ### 7.3 Wordless films (OPPOSITE onward)
 
 Each has one `audio/mix.py` that reads the scene modules and is the score, the foley and the mix at
-once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 5,675.
+once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 5,862 (v3).
 Every wordless mix targets **-16 LUFS**. The true-peak limiter's ceiling is -1.0 dBTP in LANTERN,
 OPPOSITE and the Bass cut, -1.2 in OPPOSITE full and -1.3 in DOUBLE CROSS.
 
@@ -462,6 +462,27 @@ against that scene's beats.
   levels. So a re-run after the scenes change still covers every cue.
 - **Buses:** `music`, `hall` (the music's plate send), `efx`, `amb`, `vox`, `feet`, `tick`, `rew`.
 - **Rooms.** `ROOMS` says which reverb each scene's foley sounds in, from which scene time.
+
+**The voices** (v3). The takes are generated once and kept in `films/double_cross/audio/gen/*.mp3`.
+`take(name)` decodes one with ffmpeg (mono, 48 kHz, cached), and `take_cut(name, a, b, fin, fout, rms)`
+cuts and fades a slice, its loudest 0.3 s brought to an RMS. The grunts and the laugh are cut this
+way and placed against their cues, like any foley.
+
+The briefing's murmur is built so that it is never heard as words:
+
+- `LINES` holds each voice's lines as (start, end) s in its take, with the words in comments for
+  the record. `VOICE` holds each voice's low-pass and pan.
+- `seams(x)` finds a line's syllable boundaries: the dips in its 25 ms level, at least 5 dB deep
+  and 0.12 s apart.
+- `murmur(who, k, fit, seed)` shuffles the syllables between the first and the last, preferring an
+  order where no two neighbours stay side by side. It drops middle syllables until the line fits
+  `fit` seconds, joins the pieces with 6 ms crossfades, high-passes at 110 Hz, low-passes at the
+  voice's frequency and sets the RMS to -20 dBFS.
+- `say(m, who, k, t, gain, fit)` puts the result on the `vox` bus in the scene's room and returns
+  where it ends, so the next line can be placed from it.
+
+Only the first line of each murmur cue is labelled. A labelled event claims every cue within a
+frame of it, whatever its words, so an unlabelled line cannot claim another cue by accident.
 
 **Mixdown** (`mixdown`): the music and its plate are ducked a little under the breath key (-4 dB);
 the stems are summed; then `rewind_pass` builds the rewind.
@@ -505,6 +526,10 @@ It writes `DIR/qa.json` and `DIR/overview.png`.
 **v1 numbers** (the delivered DOUBLE CROSS): -16.01 LUFS, true peak -1.30 dBTP, 0 clipped samples;
 420 cues, 389 realised by the sections, 31 auto-spotted (all in s07), 0 missed; worst sync offset
 20 ms; every scene played from its module.
+
+**v3 numbers:** -16.01 LUFS, true peak -1.30 dBTP, 0 clipped samples; 449 cues, 421 realised by the
+sections, 28 auto-spotted (all in s07: the two grunts are now claimed), 0 missed; worst cue-to-event
+offset 25 ms, and no measured onset more than a frame out.
 
 ---
 

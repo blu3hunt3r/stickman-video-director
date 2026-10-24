@@ -20,7 +20,9 @@ section uses is looked up in this order: the module's constant (by name), else t
 cue whose words match (nearest the bible's time), else the bible's time. Every cue no section
 answered within a frame is realised from its words (and reported), so a re-run after the scenes
 change still covers every cue. Nothing is fetched; everything is synthesised here (or cut from
-films/opposite/audio/gen), deterministically: the same scenes give the same file, bit for bit.
+films/opposite/audio/gen, and from the voices' own takes in audio/gen: the briefing's murmur, the
+Knight's grunts, her breath of a laugh), deterministically: the same scenes give the same file, bit
+for bit.
 
 THE SCORE is heist jazz at 120 bpm in D minor, one piece from the first chalk tap to the last
 chord: a beat is 0.5 s, a bar 2 s, and every scene starts on a bar line (bar b starts at 2b s).
@@ -46,7 +48,8 @@ THE THEME (vibraphone; beats in the 16-beat phrase; D Dorian with C# as the lead
         D6/9                   Em9    A13               Gmaj9                  A13       D6/9
 
     bars   film s    scene  the score
-    0- 5     0- 12   s01    four chalk taps count it in; the bass walks in as the blueprint unrolls;
+    0- 5     0- 12   s01    four chalk taps count it in on the bank at night; the bass walks in as the
+                            street folds flat (card snaps) and the camera tilts up to the blueprint;
                             a vibraphone note per ruled line, up the D minor-major chord; the strips
                             and the stamps hit with the band (the spy chord, D minor-major 7); the X
                             lands; the bass walks down into the lamp.
@@ -87,7 +90,8 @@ THE THEME (vibraphone; beats in the 16-beat phrase; D Dorian with C# as the lead
                             trumpets come in hot on the theme's head; bar 64 a muted stab per police
                             car, rising a semitone each, the sirens (tuned D-A) braiding over them;
                             bar 65 CHECKMATE (a hard low stab, a choked cymbal, his heart); bar 66
-                            the theme in D major, soft, as they walk away; bar 67 the X swells on a
+                            the back street (rungs, the lid, soft steps) under the theme in D major,
+                            soft, as they walk away; bar 67 the X swells on a
                             held A13 and the theme's last phrase resolves onto s11's D.
    68-71   136-144   s11    the frame torn open (a paper rip; the sirens cut off) onto D major; ONE
                             celesta ping on the ruby; dawn: the theme's last two bars in D major,
@@ -104,6 +108,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 from fractions import Fraction
@@ -2063,6 +2068,108 @@ def breath(kind, seed=0):
     return dsp.sos(gen("her_breath", 4.0, 4.26, fade=0.02), "lowpass", 4500.0, 2)
 
 
+# ============================================================================ the voices
+# The voices' own takes (generated once, in audio/gen): the briefing's lines in three voices,
+# each (start, end) s in its take, with what it says for the record (it is never heard as words:
+# see murmur); the Knight's grunts; her breath of a laugh.
+VOX = os.path.join(ROOT, "audio", "gen")
+LINES = {
+    "her": ("murmur_her", ((0.21, 2.48),          # We go in under the street, here.
+                           (2.56, 6.52),          # Down the manhole, along the sewer, up through the hatch.
+                           (6.61, 9.12),          # The guard turns every two seconds ...
+                           (9.17, 11.36),         # ... we cross in the dark, one at a time.
+                           (11.49, 15.6))),       # Right, left, right, and the door's open.
+    "cracker": ("murmur_cracker", ((0.27, 2.16),      # Under the street ...
+                                   (2.24, 2.8),       # Hm.
+                                   (2.98, 4.64),      # How long in the corridor?
+                                   (4.8, 5.92),       # Two seconds.
+                                   (6.0, 7.2),        # That's not long.
+                                   (7.34, 9.68),      # And the dial, three turns?
+                                   (10.0, 11.28),     # I've opened worse.
+                                   (11.49, 12.96))),  # Much worse.
+    "knight": ("murmur_knight", ((0.2, 1.28),         # And then the gold.
+                                 (1.55, 4.52),        # In my car, out the front.
+                                 (4.61, 6.32),        # Nobody carries it but me.
+                                 (6.56, 7.52))),      # Got it?
+}
+VOICE = {"her": (1300.0, -0.25), "cracker": (1050.0, 0.25), "knight": (900.0, 0.4)}    # low-pass (Hz), pan
+
+
+@lru_cache(maxsize=None)
+def take(name):
+    """A voice take (audio/gen/<name>.mp3), mono at SR."""
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", os.path.join(VOX, name + ".mp3"), "-f", "f32le",
+                          "-ac", "1", "-ar", str(SR), "-"], capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32).astype(np.float64)
+
+
+def take_cut(name, a, b, fin=0.02, fout=0.08, rms=None):
+    """[a, b) s of a take, its edges faded; rms: its loudest 0.3 s brought to this RMS."""
+    x = dsp.fade(take(name)[n_of(a):n_of(b)], fin, fout)
+    if rms is not None:
+        w = n_of(0.3)
+        top = float(np.sqrt(np.max(np.convolve(x ** 2, np.ones(w) / w, "valid"))))
+        x = x * (rms / (top + 1e-12))
+    return x
+
+
+def seams(x, dip=5.0, gap=0.12, shortest=0.07):
+    """Where a line breaks into syllables: the dips in its level (dip dB deep and gap s apart at
+    the least), its ends included; no piece shorter than shortest."""
+    hop, w = n_of(0.005), n_of(0.025)
+    db = 20.0 * np.log10(np.sqrt(np.convolve(x ** 2, np.ones(w) / w, "same")[::hop]) + 1e-9)
+    cuts = [0]
+    for p in signal.find_peaks(-db, prominence=dip, distance=max(1, int(round(gap / 0.005))))[0]:
+        i = int(p) * hop
+        if i - cuts[-1] >= n_of(shortest) and len(x) - i >= n_of(shortest):
+            cuts.append(i)
+    return cuts + [len(x)]
+
+
+@lru_cache(maxsize=None)
+def murmur(who, k, fit=None, seed=0):
+    """Line k of the briefing in this voice with its words scrambled: the syllables between its
+    first and its last shuffled (no two neighbours still side by side, where that can be), so it
+    keeps its voice, its pace and its cadence and says nothing; fit (s): syllables dropped from
+    its middle until it fits. Low-passed (across the table, under the score); its RMS -20 dBFS."""
+    name, lines = LINES[who]
+    a, b = lines[k]
+    x = take(name)[n_of(a):n_of(b)]
+    cuts = seams(x)
+    parts = [x[i:j] for i, j in zip(cuts[:-1], cuts[1:])]
+    r = rng("murmur", who, k, seed)
+    if len(parts) > 3:
+        mid, best = list(range(1, len(parts) - 1)), None
+        for _ in range(64):
+            order = [0] + [int(i) for i in r.permutation(mid)] + [len(parts) - 1]
+            bad = sum(1 for u, v in zip(order, order[1:]) if v == u + 1)
+            if best is None or bad < best[0]:
+                best = (bad, order)
+            if not bad:
+                break
+        parts = [parts[i] for i in best[1]]
+    xf = n_of(0.006)
+    while fit is not None and len(parts) > 2 and sum(map(len, parts)) - xf * (len(parts) - 1) > n_of(fit):
+        parts.pop(1 + int(r.integers(len(parts) - 2)))
+    y = np.zeros(sum(map(len, parts)))
+    i = 0
+    for p in parts:
+        y[i:i + len(p)] += dsp.fade(p, 0.006, 0.006)
+        i += len(p) - xf
+    y = y[:i + xf]
+    if fit is not None and len(y) > n_of(fit):
+        y = dsp.fade(y[:n_of(fit)], 0.0, 0.08)
+    y = dsp.sos(dsp.sos(y, "highpass", 110.0, 2), "lowpass", VOICE[who][0], 2)
+    return y * (0.1 / (np.sqrt(np.mean(y ** 2)) + 1e-12))
+
+
+def say(m, who, k, t, gain, fit=None, seed=0, label=None):
+    """Line k of this voice (murmured) at scene time t, in the scene's room; where it ends."""
+    x = murmur(who, k, None if fit is None else round(fit, 3), seed)
+    m.put("vox", roomed(m, x, t, seed), t, gain, pan=VOICE[who][1], label=label, align=None)
+    return t + len(x) / SR
+
+
 # ============================================================================ foley the sections share
 @lru_cache(maxsize=None)
 def cloth(dur=0.35, seed=0, heavy=0.0):
@@ -2779,8 +2886,22 @@ def s01(m, S):
     jn = span(m, "T_JOIN", None, "dotted lines", "dry run", "chalk ticks")
     if jn:
         m.put("efx", roomed(m, chalk_dots(8, jn[1] - jn[0], 11, 0.35), jn[0]), jn[0], -22.0, label="a dry run of chalk ticks")
-    u0, u1 = span(m, "T_UNROLL", (1.5, 3.5), "unroll", "blueprint")
-    m.put("efx", paper_unroll(round(u1 - u0, 2), 1), u0, -13.0, label="the blueprint unrolls", align=None)
+    # the bank at night: the street's air under the count-in, going as the street folds flat
+    up0, up1 = span(m, "T_UP", (2.75, 4.0), "tilts up", "straight down")
+    na = night_air(round(up1 + 0.3, 2), 2)
+    env = np.clip((up1 + 0.3 - tax(len(na))) / (up1 - up0 + 0.3), 0, 1)
+    m.put("amb", na * env[:, None], 0.0, -23.0, label="night on the street: a distant city, the wind", align=None)
+    # the street folds flat, back to front (s04's pop-up snaps); the camera tilts up over it to the plan
+    for k, (t, _, c) in enumerate(cues_with(m, "folds flat")):
+        m.put("efx", roomed(m, popup(k % 6 + 1), t, k, wet=-20.0), t, c["gain_db"] + CUE_TRIM - 2.0, pan=c["pan"],
+              label="a card folds flat (the street folds away)")
+    m.put("efx", paper_rise(round(up1 - up0, 2), 2), up0, -18.0, label="the camera tilts up over the street to the plan",
+          align=None)
+    ls = m.cue_of("lies down")
+    if ls:
+        t = float(ls["t"])
+        m.put("efx", roomed(m, paper_whoosh(0.3, 9), t), t - 0.15, -29.0, label="the chalk outline lies down on the plan",
+              align=None, sync=t)
     # the bank rules itself in: a chalk stroke a beat, and the vibraphone climbs the spy chord
     gr = g(S, "T_GROUPS", ())
     if gr and all(isinstance(x, (tuple, list)) and len(x) == 2 and _num(x[1]) for x in gr):
@@ -2834,6 +2955,14 @@ def s01(m, S):
     m.put("efx", chalk_tap(9, 0.9), tland, -19.0)
     hit(m, tland, 38, 0.45, gain=-12.0)
     m.put("music", bass(37, 0.4, 0.75, 1), FB(m, 5) + 1.5, -11.0, pan=-0.1, hall=-24.0)     # C#2 -> D (s02)
+    # the gold lens off the X: a celesta's fifths (in the vibraphone's A), a faint clink, a glint
+    tg = m.at("T_GOLD", 11.1, "gold shimmer", "lens opens")
+    for k, (p, dt) in enumerate(((81, 0.0), (88, 0.09), (93, 0.18))):          # A5 E6 A6
+        m.put("music", celesta(p, 0.55 - 0.08 * k, 20 + k), tg + dt, -21.0, pan=0.45, hall=-16.0,
+              label="the gold lens opens (celesta)" if k == 0 else None)
+    m.put("efx", roomed(m, gold_clink(6, 0.6), tg + 0.05), tg + 0.05, -28.0, pan=0.45, label="a faint clink of gold")
+    tgl = m.at("T_GLINT", 11.45, "glint")
+    m.put("music", ting(6, 93) * 0.6, tgl, -27.0, pan=0.5, hall=-16.0, label="a glint off the gold")
 
 
 # ============================================================================ s02 CREW (12-24): bars 6-11
@@ -2890,8 +3019,17 @@ def s02(m, S):
           label="a low held note: she knows", align=None)
     m.put("music", piano(26, hold, 0.45, 1), the, -18.0, pan=-0.1)
     m.put("music", piano(38, hold, 0.4, 2), the, -20.0, pan=-0.1)
-    tch = m.at("T_CHALK", 11.0, "picks up the chalk", "chalk")
-    m.put("efx", roomed(m, chalk_scratch(0.12, 40, press=0.5), tch), tch, -23.0, pan=-0.6, label="she picks up the chalk")
+    # her chalk taps the X, twice (the target); then lifts and glides off toward manhole A (s03 lands it)
+    for k, (t, _, _) in enumerate(cues_with(m, "chalk tap on the x")):
+        m.put("efx", roomed(m, chalk_tap(40 + k, 0.5 - 0.1 * k), t), t, -18.0 - 1.5 * k, pan=-0.05,
+              label="chalk tap on the X")
+    tgo = m.at("", 11.0, "glides over the plan", win=1.0)
+    m.put("efx", roomed(m, cloth(0.55, 4), tgo), tgo, -27.0, pan=-0.3, label="her sleeve: the chalk glides off the X",
+          align=None)
+    # her low voice under the X: the briefing begins (a murmur, no words), until her look
+    mu0, mu1 = span(m, "T_MURMUR", (9.05, 10.45), "her low voice", "briefing")
+    say(m, "her", 0, mu0, -21.0, fit=min(mu1, the - 0.05) - mu0,
+        label="her low voice under the X: the briefing begins (a murmur, no words)")
 
 
 # ============================================================================ s03 PLAN (24-40): bars 12-19
@@ -2953,6 +3091,13 @@ def s03(m, S):
     # her chalk: the chevron, the circled steps, the dotted route
     tch = m.at("T_CHEVRON", 0.5, "chevron")
     m.put("efx", roomed(m, chalk_tap(51, 0.75), tch), tch, -12.5, pan=-0.4, label="chalk tap: the chevron on manhole A")
+    # the lenses on (1) and (3): a soft tick each; the lid's lets in a breath of the street
+    for k, (t, _, c) in enumerate(cues_with(m, "lens opens on manhole", "lens opens on the guard")):
+        lid = "manhole" in c["sfx"].lower()
+        m.put("efx", roomed(m, chalk_tap(68 + k, 0.3), t), t, -22.0, pan=0.3 if lid else -0.4,
+              label="a soft chalk tick: a step's lens opens")
+        if lid:
+            m.put("amb", night_air(1.4, 5), t + 0.05, -33.0, pan=0.3, align=None)
     for k, (t, _, _) in enumerate(cues_with(m, "circled step", "pops in")):
         m.put("efx", roomed(m, chalk_tap(60 + k, 0.3), t), t, -22.0, pan=0.15 * math.sin(1.3 * k + 0.5),
               label="a soft chalk tick: a circled step pops in")
@@ -3022,6 +3167,18 @@ def s03(m, S):
         m.put("efx", roomed(m, piece_clack(90 + j, 0.25), tth + dt), tth + dt, -21.0 - 2.0 * j, pan=-0.3 + 0.2 * j)
     m.put("efx", roomed(m, strip_thud(7), tth + 0.03), tth + 0.03, -20.0, pan=-0.1)    # the drawn door claps shut
     hit(m, tth, 46, 0.8, gain=-11.0)
+    # the briefing, murmured over the plan (no words, under the score): her low voice leads down the
+    # route; the Cracker hums, then asks as he sets the guard; she answers through the light's sweep,
+    # and right, left, right at the dial; he has opened worse; the Knight cuts in, and his slam ends it
+    mu0, mu1 = span(m, "T_MURMUR", (0.1, 10.7), "briefing", "murmured")
+    say(m, "her", 1, mu0, -21.0, fit=tpw - 0.55 - mu0, label="the briefing, murmured over the plan (no words)")
+    say(m, "cracker", 1, mu0 + 2.25, -24.0)
+    say(m, "cracker", 2, tpw - 0.5, -22.0, fit=c0 + 0.45 - (tpw - 0.5))
+    say(m, "her", 2, c0 + 0.45, -21.5, fit=tl0 - 0.05 - (c0 + 0.45))
+    say(m, "her", 4, tl0, -21.5, fit=tck - 0.05 - tl0)
+    e = say(m, "cracker", 6, tck + 0.15, -22.0)
+    k0 = max(e - 0.25, tgr - 1.2)
+    say(m, "knight", 2, k0, -20.0, fit=min(mu1, tth - 0.04) - k0)
     tdot = m.at("T_DOT", tth, "the dot", "buried")
     m.put("efx", chalk_tap(77, 0.3), tdot, -30.0, pan=-0.2, label="the dot: a soft chalk tap, buried under the thud")
     melody(m, tth, ((0, 1, 62), (1, 1.5, 55)), inst="tbn", gain=-15.0, vel=0.75, seed=12,
@@ -3674,6 +3831,22 @@ def s07(m, S):
     if tred is not None:
         m.put("music", brass(63, 0.9, 0.55, seed=16, mute="harmon", scoop=False, vib=False, fall=1.0), tred, -18.0,
               pan=0.3, label="he moves: the seams turn red (the semitone)")
+    # the Knight's strained grunts, his own voice: the bags heaved up (the gold shifts inside them);
+    # his weight thrown against the vault door, held as it swings
+    for k, (dflt, words, cut_, lab) in enumerate((
+            (6.4, ("heaves up the two heavy bags",), (5.06, 5.76, 0.168),
+             "he heaves up the two heavy bags: a strained grunt (his voice); the gold shifts inside them"),
+            (10.12, ("throws his weight",), (0.10, 1.64, 0.257),
+             "he throws his weight against the vault door: a strained grunt (his voice)"))):
+        tg_ = m.at("", dflt, *words, win=0.3)
+        a, b, on = cut_
+        x = dsp.sos(take_cut("grunt_knight", a, b, 0.03, 0.25 if k else 0.12, rms=db2lin(-11.2)), "lowpass", 9000.0, 2)
+        m.put("vox", roomed(m, x, tg_, k), tg_ - on, cgain(m, tg_, "grunt", default=-17.0) + (1.0 if k else -1.0),
+              pan=cpan(m, tg_, "grunt"), label=lab, sync=tg_, align=None, key=True)
+        if not k:
+            for j in range(2):
+                m.put("efx", roomed(m, dsp.sos(gold_clink(60 + j, 1.0), "lowpass", 1600.0, 2), tg_ + 0.06 + 0.07 * j),
+                      tg_ + 0.06 + 0.07 * j, -25.0 - 2.0 * j, pan=(-0.15, 0.15)[j], align=None)
     # the door shut: the groan; BOOM on the bar line; the dial spins red; the bolts shoot home
     ss = span(m, "T_SHUT", (10.0, 12.0), "door shut", "swings the door", "groan", "shut", opt=True)
     if ss is not None:
@@ -3774,6 +3947,11 @@ def s08(m, S):
     if mod:
         tgl = m.at("", g(S, "T_GLANCE", 4.3) + 0.1, "her look drops", "look drops")
         m.put("efx", roomed(m, chalk_tap(71, 0.3), tgl), tgl, -22.5, label="a soft chalk tick: her look drops to the floor")
+    tla = m.at("T_LAUGH", 4.59, "breathes a laugh", "laugh", opt=True)
+    if tla is not None:                    # her breath of a laugh (her own voice), as the corner of her mouth lifts
+        x = take_cut("laugh_her", 2.32, 2.70, 0.01, 0.06, rms=db2lin(-11.2))
+        m.put("vox", space(x, "cell", -14.0), tla - 0.2, -23.0, pan=cpan(m, tla, "laugh", default=-0.2),
+              label="she breathes a laugh through her nose (her voice)", sync=tla, align=None)
     tsm = m.at("T_SMILE", 4.65, "mouth lifts", "calm note", "smile")
     for j, (b, d, p) in enumerate(THEME[:2]):
         tt = tsm + b * BEAT
@@ -4085,9 +4263,11 @@ def s10(m, S):
     theme's head an octave up); the tyres, the headlight's white, the board. Bar 64: four police
     cars slide in, one a beat, a muted stab each rising a semitone (Plan B's chalk come true); the
     sirens, tuned to the theme's fifth, braid over them. Bar 65: CHECKMATE on the bar line, a hard
-    low stab and a choked cymbal; his heart. Bars 66-67, the pull-back: manhole B; two figures walk
-    away under the theme in D major (the sirens braided into it, receding); the routes swell into
-    the X on a held A13; the theme's last phrase resolves into s11's D."""
+    low stab and a choked cymbal; his heart. Bars 66-67, behind the bank: the back street's night
+    air, a drip down the shaft, a boot on each rung, manhole B's lid knocked up and dragged aside,
+    and two pairs of soft steps away west on the beat, under the theme in D major (the sirens
+    braided into it, receding); the routes swell into the X on a held A13; the theme's last phrase
+    resolves into s11's D."""
     L = m.len
     t62, t63, t64, t65, t66, t67 = (FB(m, b) for b in range(62, 68))
     tn = float(g(S, "T_NOSE", 1.46))
@@ -4210,18 +4390,25 @@ def s10(m, S):
     hb = fx("heartbeat", dur=round(f1 - f0 + 0.2, 2), seed=1, bpm=118)
     m.put("efx", hb, f0, cgain(m, f0, "heartbeat", default=-12.0) + 2.0, label="a heartbeat thump", align=None)
     m.put("vox", breath("in"), f0 + 0.08, -19.0, pan=0.05, align=None, key=True)
-    # the pull-back: the lens on manhole B (a ting); its lid dragged aside; two figures walk away
-    tle = float(g(S, "T_LENS", (7.85, 9.85))[0])
-    m.put("music", ting(2, 93) * 0.7, tle, -23.0, pan=-0.2, hall=-16.0)
-    tlid = float(g(S, "T_LID", (7.95, 8.25))[0])
+    # behind the bank, the back street (full frame): night air, a drip down the shaft; manhole B's lid
+    # knocked up off its seat and dragged aside; a boot on each rung; then their soft steps away west
+    tbk0 = m.at("", tbk, "cut to the back street", win=0.5)
+    esc1 = float(g(S, "T_ESC", (7.2, 9.5))[1])
+    m.put("amb", night_air(round(esc1 - tbk0 + 0.6, 2), 9), tbk0, -29.0, label="night air in the back street",
+          align=None)
+    m.put("efx", drip(4), tbk0 + 0.32, -27.0, pan=0.2, align=None)
+    tkn = m.at("", 7.47, "knocked up off its seat", win=0.6)
+    m.put("efx", rev(pitch(dsp.sos(rung(30), "lowpass", 1800.0, 2), -5.0), -9.0, 5, "street"), tkn, -15.0, pan=0.25,
+          label="an iron clunk: the lid knocked up off its seat")
+    tlid = float(g(S, "T_LID", (7.6, 7.88))[0])
     m.put("efx", rev(manhole_scrape(0.35, 2), -8.0, 4, "street"), tlid, cgain(m, tlid, "manhole", default=-14.0) - 8.0,
-          pan=cpan(m, tlid, "manhole", default=-0.2), label="an iron manhole cover dragged aside", align=None)
-    cwk = m.cue_of("footsteps walking away", "walking away")
-    w0 = float(cwk["t"]) if cwk else float(g(S, "T_UP", (8.2, 8.45))[0]) + 0.3
-    w1 = float(tx0)
-    steps(m, "her", w0, w1, 0.5, gain=-27.0, pan=-0.3, room_="street", label="two pairs of soft footsteps walking away",
-          k0=4)
-    steps(m, "cracker", w0 + 0.25, w1, 0.5, gain=-29.0, pan=-0.25, room_="street", k0=6)
+          pan=cpan(m, tlid, "manhole", default=0.3), label="an iron manhole cover dragged aside", align=None)
+    for k, (t, _, c) in enumerate(cues_with(m, "iron rung")):
+        m.put("efx", rev(rung(20 + k), -10.0, k, "cell"), t, -24.0, pan=c["pan"], label="a boot on an iron rung")
+    for k, (t, _, c) in enumerate(cues_with(m, "soft footstep on the cobbles")):
+        who = "her" if "hers" in c["sfx"] else "cracker"
+        m.put("feet", footstep(who, 4 + k, "street", seed=4 + k), t - STEP_PRE, -25.0 if who == "her" else -26.5,
+              pan=c["pan"], label="a soft footstep on the cobbles", sync=t)
     # bar 66: the theme in D major, soft, braided with the receding sirens (D-A)
     melody(m, t66, THEME_MAJOR, gain=-15.0, vel=0.6, stop=4, seed=23, label="the theme in D major, soft (they walk)")
     bassline(m, t66, "D2 ~ A1 ~", gain=-12.0, vel=0.65)
@@ -4393,11 +4580,11 @@ def _bc(t, text, gain=-12.0, dur=None, pan=0.0):
 
 
 BIBLE_CUES = {       # the bible's sound beats, scene times (what a stand-in is spotted from)
-    "s01": [_bc(0.0, "chalk tap: a dot at a corner of the sheet", -10, pan=-0.6),
-            _bc(0.5, "chalk tap: a dot at a corner of the sheet", -10, pan=0.6),
-            _bc(1.0, "chalk tap: a dot at a corner of the sheet", -10, pan=0.6),
-            _bc(1.5, "chalk tap: a dot at a corner of the sheet", -10, pan=-0.6),
-            _bc(1.5, "the blueprint unrolls (paper unrolling)", -10, 2.0)]
+    "s01": [_bc(0.0, "chalk tap: a dot at a corner of the bank's front", -10, pan=-0.6),
+            _bc(0.5, "chalk tap: a dot at a corner of the bank's front", -10, pan=0.6),
+            _bc(1.0, "chalk tap: a dot at a corner of the bank's front", -10, pan=0.6),
+            _bc(1.5, "chalk tap: a dot at a corner of the bank's front", -10, pan=-0.6),
+            _bc(2.25, "a paper whoosh: the camera tilts up over the street to the plan", -14, 1.25)]
            + [_bc(3.5 + 0.5 * k, f"chalk scratch: the {w} ruled in", -12, 0.42)
               for k, w in enumerate(("bank", "vault", "corridor", "streets", "manholes", "sewer", "side door"))]
            + [_bc(8.0, "whoosh-thud: the first strip slashes across", -6, pan=0.3),

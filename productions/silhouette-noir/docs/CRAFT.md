@@ -161,7 +161,10 @@ look lasts (`K.sight_line`). Her looks are PAPER, his are RED. In DOUBLE CROSS s
 down to the X (0:21.6) and her white look goes across to him (0:22.5); nothing else is needed for
 the audience to know she has seen him. A **lens on a leader line** (`K.callout`) joins a detail to
 its place: in s02 each face is joined to its piece on the plan; in s08 (1:43.25) a lens joins the
-glowing dot under her heel to the dot on the plan.
+glowing dot under her heel to the dot on the plan. In v3 s03 the lenses also open on the steps
+themselves: manhole A's lid in the road at ① (0:25.05) and the guard with his light at ③ (0:29.55).
+A hand must read as its owner at a glance: her chalk hand carries a bold white edge, three times
+the others' rim, so the plan is visibly hers.
 
 ### Numbered callouts
 
@@ -215,7 +218,9 @@ L (1:33.0). Later the same top view becomes Plan B's overlay (1:54.6) and the ci
 - **Stagger.** Repeated actions take one beat each so the eye can count them: the bank's parts rule
   in one per beat (0:04.0–0:07.0); the pieces hop along the route; the four police cars slide in on
   2:08.0, 2:08.5, 2:09.0, 2:09.5. When we want urgency we halve it: Plan B's cars arrive on half
-  beats (1:57.15–1:57.75).
+  beats (1:57.15–1:57.75). v3's review found the opposite fault too: a mark that arrives with no
+  time to land. So Plan B's red X now gets its own hold (1:58.12–1:58.58), and a pull back to both
+  plans, before the cut.
 - **Anticipation and settle.** Snaps use `outback`; the stopwatch's hand snaps to each tick with a
   short settle (`K.heist_beats`).
 - **Holds and black.** The strongest beats get air. In v1 the vault door's BOOM (1:32.0) cut to black
@@ -252,8 +257,18 @@ L (1:33.0). Later the same top view becomes Plan B's overlay (1:54.6) and the ci
 - **Loudness is fixed.** Every wordless film is mastered to -16 LUFS integrated under a true-peak
   limiter (ceiling -1.0 dBTP in the tests, -1.2 in OPPOSITE full, -1.3 in DOUBLE CROSS).
 - **Spend nothing new without asking.** Paid generation (Magnific) is for voice and sound only, and
-  only after telling the user. DOUBLE CROSS used none: everything is synthesised or reused from
-  OPPOSITE's recordings.
+  only after telling the user. DOUBLE CROSS v1 and v2 used none: everything was synthesised or
+  reused from OPPOSITE's recordings. v3's voices cost 114 credits, inside the 200–250 the user
+  approved for them.
+- **Voices without words.** A wordless film can still have people in the room. DOUBLE CROSS v3's
+  briefing is murmured by the three voices (s02 0:21.05; s03 0:24.1–0:34.7):
+  - each line is cut at the dips in its level and its inner syllables are shuffled, so it keeps
+    its speaker, pace and cadence but says nothing;
+  - it is low-passed and set about 13–16 dB under the score;
+  - who speaks follows the picture, and his slam cuts it off.
+  
+  Effort and feeling can be real voice: the Knight's strained grunts at the bags and the vault
+  door (1:26.4, 1:30.12), and her breath of a laugh as the corner of her mouth lifts (1:40.59).
 
 ---
 
@@ -298,7 +313,12 @@ needs more air. The limits are what keep that freedom from turning into noise.
   - "little flaws … from hand shape of the lady drinking … proper in-depth review": two full review
     passes on the Bass cut;
   - "connecting things and camera motion and sound effects": DOUBLE CROSS's plan-as-map and its
-    joined-up sound.
+    joined-up sound;
+  - "fix it, and do you think voice should be used?" after a whole-film review: DOUBLE CROSS v3's
+    six picture fixes (the bank folding into the blueprint, the gold under the X, a briefing you
+    can see, the step lenses, one beat per Plan B mark, her escape full frame) and its voices.
+- **Watch for shapes that read as something else.** In v3 a manhole lid drawn with two pick holes
+  and steam read as a face. Cast lettering (SEWER) and a lighter iron made it a lid.
 - **Fix causes, then neighbours.** A fix to a scene another scene imports (s06's dial, s02 and s03, s08's
   last frame) means re-checking the importer.
 - **Nothing is committed unreviewed.** Agents never commit; the director looks at the frames first.

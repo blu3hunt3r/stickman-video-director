@@ -17,13 +17,18 @@ P.HANDOFF_34.
 """
 import math
 
+import cairo
+
 from engine import bass
+from engine import paperdoll as pd
 from engine.core import clamp, ease, lerp
 from engine.timing import Cue
+from films.double_cross import bank as Bk
+from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
-from films.double_cross.scenes.s02_crew import B_AT, N_AT, PIECE_H, Q_AT
+from films.double_cross.scenes.s02_crew import B_AT, GO, LEN as S02_LEN, N_AT, PIECE_H, Q_AT
 
 # ---------------------------------------------------------------------------- beats
 T_CHEVRON = 0.5                 # tap: the 'down here' chevron on manhole A
@@ -38,6 +43,8 @@ SWEEP_T0 = 5.0                  # the light swings 32 degrees each way, a full s
 SWEEP_AMP = 32.0                # dark at the crossing on 6.5, 7.5, 8.5 ... (the gaps)
 T_SETTLE = (13.4, 15.0)         # the plan is done: the light settles on the corridor
 T_DIAL = 6.85                   # the dial is chalked at the vault door
+T_LENS1 = (1.05, 2.3)           # a lens on (1): manhole A's iron lid in the road
+T_LENS3 = (5.55, 6.75)          # a lens on (3): the guard at his post, his light swinging
 T_LENS = (7.0, 8.06)            # a lens on the dial
 TURNS = ((7.12, 1.0, 210.0), (7.37, -1.0, 300.0), (7.62, 1.0, 150.0))   # right, left, right
 T_CLICK = 8.0                   # clunk: the door swings open
@@ -48,6 +55,8 @@ T_DOT = T_THUD                  # her chalk touches the sewer line under the vau
 T_CAR = 12.45
 T_BELL = 13.0
 T_TILT = 14.0                   # the camera begins the tilt down (s04 continues it)
+T_MURMUR = (0.1, 10.7)          # the briefing, murmured over the plan (no words): her low voice leads, the
+                                #   Cracker asks, the Knight cuts in; his slam ends it
 
 HOP = 0.3                       # a hop lands on its beat
 D1 = (540.0, 782.0)             # at the vault door, on the dial
@@ -84,6 +93,9 @@ END_RATE = (2.0, 30.0, 0.055, -15.0, 0.0)   # still moving at the cut: phi falli
 
 LENS_C = (868.0, 520.0)
 LENS_R = 150.0
+LENS1_C = (770.0, 1610.0)        # the step lenses sit low, clear of her arm (it comes in from the left)
+LENS3_C = (235.0, 1415.0)
+STEP_R = 132.0
 LAMP_H = 700.0                   # the lamp's height over the table (plan px), for the hands' shadows
 
 
@@ -261,7 +273,7 @@ def _dust(c, cam, t):
 def _her_moves():
     door, x = P.VAULT_DOOR, P.X_VAULT
     return (
-        (-0.6, 0.45, "go", ((-80.0, 1520.0), 260.0, P.MANHOLE_A, 6.0, 0.0)),
+        (GO[0] - S02_LEN, GO[1] - S02_LEN, "go", GO[2:]),     # from s02's X, in to manhole A
         (0.45, 0.6, "go", (P.MANHOLE_A, 6.0, P.MANHOLE_A, 0.0, 0.0)),
         (0.6, 1.0, "go", (P.MANHOLE_A, 0.0, P.MANHOLE_A, 3.0, 8.0)),
         (1.0, 3.6, "route_in", None),
@@ -398,6 +410,97 @@ def _knight_hand(c, cam, t):
     _piece_hand(c, cam, "knight", p, 300.0 * leave, open_u, off)
 
 
+# ============================================================================ the lenses on (1) and (3)
+def _lid_face(t):
+    """Manhole A from above: the iron lid in the road at night, SEWER cast across it, her
+    chevron chalked under that."""
+    def fn(c):
+        cx, cy = LENS1_C
+        K.fill(c, lerp(K.INK, K.NAVY, 0.9))                             # the road
+        kerb = [(cx - 170.0, cy - 82.0), (cx + 170.0, cy - 90.0)]
+        bass.fill_polys(c, [[(cx - 170.0, cy - 170.0), (cx + 170.0, cy - 170.0), kerb[1], kerb[0]]],
+                        lerp(K.NAVY, K.STEEL, 0.75))                    # the pavement, moonlit
+        for k in range(3):                                              # the paving's joints
+            x = cx - 120.0 + 125.0 * k
+            bass.line_band(c, [(x, cy - 170.0), (x + 4.0, cy - 96.0)], lerp(K.NAVY, K.STEEL, 0.35), width=3.0,
+                           seed=602 + k)
+        bass.line_band(c, kerb, lerp(K.STEEL, K.PAPER, 0.45), width=7.0, seed=601)
+        p, R = (cx + 4.0, cy + 26.0), 78.0
+        iron = lerp(K.STEEL, K.PAPER, 0.06)
+        Bk.disc(c, p, R + 7.0, K.INK, seed=605)                         # the frame's gap
+        Bk.disc(c, p, R, iron, seed=606)                                # the iron, moonlit
+        c.save()
+        c.new_path()
+        c.arc(p[0], p[1], R - 12.0, 0.0, 2.0 * math.pi)
+        c.clip()
+        for i in range(-7, 8):                                          # the cast grip pattern
+            g = 13.0 * i
+            for sgn in (1.0, -1.0):
+                bass.line_band(c, [(p[0] + g - 80.0, p[1] - sgn * 80.0), (p[0] + g + 80.0, p[1] + sgn * 80.0)],
+                               lerp(K.STEEL, K.INK, 0.5), width=3.0, seed=610 + i + (20 if sgn > 0 else 0))
+        bass.fill_polys(c, [[(p[0] - 90.0, p[1] - 15.0), (p[0] + 90.0, p[1] - 15.0), (p[0] + 90.0, p[1] + 15.0),
+                             (p[0] - 90.0, p[1] + 15.0)]], iron)        # the name band ...
+        c.restore()
+        K.numeral(c, "SEWER", p, 19.0, lerp(K.STEEL, K.INK, 0.55), seed=644)   # ... cast in it
+        Bk.ring(c, p, R - 6.0, 5.0, lerp(K.STEEL, K.PAPER, 0.4), seed=640)     # the raised rim
+        arc = (math.pi * 0.95, math.pi * 1.5)                           # moonlight on its far side
+        pts = [(p[0] + (R - 6.0) * math.cos(lerp(*arc, j / 10.0)), p[1] + (R - 6.0) * math.sin(lerp(*arc, j / 10.0)))
+               for j in range(11)]
+        bass.line_band(c, pts, lerp(K.STEEL, K.PAPER, 0.75), width=3.0, seed=643)
+        K.chevron(c, (p[0], p[1] + 38.0), 22.0, (0.0, 1.0), K.PAPER, width=8.0, seed=655)   # 'down here'
+    return fn
+
+
+def _guard_face(t):
+    """The guard in the corridor, side on: cap, coat, the flashlight in his fist, its beam
+    swinging with the plan's cone (the same clock)."""
+    def fn(c):
+        cx, cy = LENS3_C
+        floor = cy + 92.0
+        K.fill(c, K.DEEP)
+        bass.fill_polys(c, [[(cx - 170.0, cy - 170.0), (cx + 170.0, cy - 170.0), (cx + 170.0, floor),
+                             (cx - 170.0, floor)]], lerp(K.DEEP, K.STEEL, 0.5))   # the corridor's far wall
+        bass.line_band(c, [(cx - 170.0, cy + 26.0), (cx + 170.0, cy + 26.0)], lerp(K.DEEP, K.STEEL, 0.8),
+                       width=3.0, seed=661)                             # the dado
+        bass.fill_polys(c, [[(cx - 170.0, floor), (cx + 170.0, floor), (cx + 170.0, cy + 170.0),
+                             (cx - 170.0, cy + 170.0)]], K.INK)
+        bass.line_band(c, [(cx - 170.0, floor), (cx + 170.0, floor)], lerp(K.STEEL, K.PAPER, 0.15), width=3.0,
+                       seed=662)
+        x, s = cx - 66.0, 0.25
+        st = C.standing("guard")
+        pose = pd.Pose()
+        pose.arms["near"] = ("ang", 78.0 + 0.45 * sweep(t), 0.0)        # the light swings on the plan's clock
+        pose.arms["far"] = ("ang", 6.0, 14.0)
+        fl = C.hold_flashlight(on=True)
+        pose.hold["near"] = fl
+        dry = cairo.Context(cairo.ImageSurface(cairo.FORMAT_A8, 4, 4))   # where his lens will be ...
+        dry.set_matrix(c.get_matrix())
+        C.draw(dry, "guard", st, pose, x, floor, s, 1, rim=False)
+        lens, ang = C.lens_at(dry, fl)
+        if lens is not None:                                            # ... so the beam goes behind him
+            K.cone(c, lens, ang, 11.0, 300.0, K.PAPER, alpha=0.26, seed=663)
+            hit = (lens[0] + 190.0 * math.cos(math.radians(ang)), lens[1] + 190.0 * math.sin(math.radians(ang)))
+            Bk.ellipse(c, hit, 34.0, 46.0, K.PAPER, 0.16)                # the patch it lays on the wall
+        C.draw(c, "guard", st, pose, x, floor, s, 1, bg=K.INK, rim=lerp(K.STEEL, K.PAPER, 0.35), rim_w=4.0)
+    return fn
+
+
+def _step_lens(c, cam, t, span, anchor, centre, face, seed):
+    u = min(clamp((t - span[0]) / 0.3), 1.0 - clamp((t - span[1]) / 0.16))
+    if u <= 0.0:
+        return
+    K.callout(c, cam.to_view(anchor), centre, STEP_R, face(t), u=u, color=K.PAPER, ring_w=8.0, dot_r=7.0,
+              line_w=3.5, seed=seed)
+
+
+def _step_lenses(c, cam, t):
+    """Drawn under her hand: her sleeve may pass over a leader line, never over a lens."""
+    rim = (P.MANHOLE_A[0] + 14.0, P.MANHOLE_A[1] + 14.0)               # off the chevron, toward the lens
+    _step_lens(c, cam, t, T_LENS1, rim, LENS1_C, _lid_face, 31)
+    ring = (P.GUARD_POST[0], P.GUARD_POST[1] + P.RING_R)                # the timing ring's south edge
+    _step_lens(c, cam, t, T_LENS3, ring, LENS3_C, _guard_face, 32)
+
+
 # ============================================================================ the lens on the dial
 def dial_rot(t):
     return sum(d * deg * ease("inout3", clamp((t - t0) / 0.24)) for t0, d, deg in TURNS)
@@ -472,6 +575,7 @@ def render(f, t, T):
         _dust(c, cam, t)
         _cracker_hand(c, cam, t)
         _knight_hand(c, cam, t)
+        _step_lenses(c, cam, t)
         _chalk_hand(c, cam, t)
         _lens(c, cam, t)
 
@@ -479,7 +583,12 @@ def render(f, t, T):
 def cues(T):
     out = [Cue(0.0, "cut to the plan from above: the theme carries on, light and quick (pizzicato bass, brushes)",
                gain_db=-16),
-           Cue(T_CHEVRON, "chalk tap: the 'down here' chevron on manhole A", gain_db=-10, pan=-0.4)]
+           Cue(T_CHEVRON, "chalk tap: the 'down here' chevron on manhole A", gain_db=-10, pan=-0.4),
+           Cue(T_LENS1[0], "a soft chalk tick: the lens opens on manhole A's lid (a breath of street air)", gain_db=-20,
+               pan=0.3),
+           Cue(T_LENS3[0], "a soft chalk tick: the lens opens on the guard and his light", gain_db=-20, pan=-0.4),
+           Cue(T_MURMUR[0], "the briefing, murmured over the plan: her low voice leads, the Cracker asks, the Knight "
+                            "cuts in (no words, under the score)", gain_db=-30, dur=T_MURMUR[1] - T_MURMUR[0])]
     for name, t0 in NUMERALS:
         out.append(Cue(t0, f"a soft chalk tick: the circled step {name[1]} pops in", gain_db=-19))
     for t0, t1, _, _ in DRAW_IN + ((DRAW_OUT[0], DRAW_OUT[1], 0, 0),):

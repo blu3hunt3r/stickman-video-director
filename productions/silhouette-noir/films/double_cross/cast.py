@@ -173,6 +173,18 @@ def draw(c, who, st, pose, x, floor_y, s=0.5, facing=1, bg=K.NAVY, rim=None, rim
     return {k: c.device_to_user(*v) for k, v in joints.items()}
 
 
+def eye_at(who, st, pose, x, floor_y, s=0.5, facing=1):
+    """Where draw puts `who`'s eye (frame px) for this state and pose: turned with the head about
+    the neck, then with the lean about the pelvis (the sight lines start here)."""
+    F = fig(who)
+    (ex, ey), _, _ = F.eye
+    nx, ny = F.neck
+    e = pd._rot((ex - nx, ey - ny), -pose.head)
+    q = pd._rot((nx + e[0], ny + e[1]), pose.lean)
+    P = st["pelvis"]
+    return (x + s * (P[0] + facing * q[0]), floor_y + s * (P[1] + pose.crouch + q[1]))
+
+
 def _rimmed(fn, rim):
     def g(c, info):
         fn(c, dict(info, rim=rim))

@@ -489,6 +489,47 @@ plain, so each insert plays once, in its own scene.
 - **Slips** keep the palette (no colour split).
 - **Sound:** every insert lands on a hit that is already in the mix, so the sound is unchanged.
 
+## v3: the review fixes and the voices
+
+After v2 the user asked for the whole-film review's fixes, and whether the film should have
+voices. The picture changes are in s01, s02, s03, s09 and s10 (s11 is re-rendered because it
+opens on s10's last frame). s04–s08 are unchanged; s07 and s08 gain the voices below. The
+reframing of s04–s05 that the review also raised was left alone.
+
+| Film time | Scene, local time | What changed |
+|---|---|---|
+| 0:00–0:07 | s01, 0.0–7.0 | It opens on the bank at night, at s04's eye level. Four chalk dots tick in at the corners of its front (0.5–2.0), and dotted lines join them (2.0–2.5): the bank, marked. The street folds flat, back to front: s04's pop-up run backwards (2.5–3.5). The camera tilts up to straight down (2.75–4.0), and the chalk outline lies down onto the paper that was under the street all along, as the night lifts off it (3.0–3.9). The plan rules itself in from that outline (4.0–7.0). |
+| 0:11.1–0:12 | s01, 11.1 | As the X lands, a gold lens opens off it on what it marks: the vault's gold, through its door (a glint at 11.45). s02 closes it. |
+| 0:21–0:24 | s02, 9.0–12.0 | The briefing, wide. The table is seen from its south side, a little above, with the crew round it under the swinging lamp: her at the west end, the Cracker bent over it from the far side, the Knight at the east end. Her chalk taps the X twice (9.25, 9.5), his red look goes down to it (9.6), and hers goes across to him (10.5). She takes the chalk off the X and in toward manhole A (11.0–12.45), where s03 picks it up. |
+| 0:24–0:35 | s03 | Her chalk hand reads as hers: the glove has a bold white edge (three times the others' rim) and a wider cuff line, and the Cracker's cuff is in his gold. Lenses open on step ① (1.05–2.3: manhole A's iron lid in the road, with SEWER cast on it) and on step ③ (5.55–6.75: the guard at his post, his light swinging). |
+| 1:58.1–1:58.8 | s09, 10.12–10.8 | Each of Plan B's marks gets a beat. The camera holds on the red X (10.12–10.58), then whips back to both plans (10.58–10.8) and rests on them a breath before the cut. |
+| 2:11.2–2:13.5 | s10, 7.2–9.5 | Her way out, full frame: the back street, looking north. Manhole B's lid is knocked up off its seat (7.47) and dragged aside (7.6–7.88). She climbs out with her hands planted on the road, then the Cracker. They walk west under the street lamp, with the police lights pooling blue and red on the wall beyond the roofs. Then back to the board (9.5), where the routes straighten into the X (10.0–11.2). |
+
+### The voices
+
+These are the film's only voices. They were generated once (Magnific, ElevenLabs eleven_v3, 114
+credits) and are kept in `audio/gen/`. The words they say are in `mix.py`'s `LINES`, for the
+record.
+
+- **The briefing's murmur** (s02 9.05–10.45; s03 0.1–10.7). Three voices: hers (a low whisper),
+  the Cracker's (dry and old) and the Knight's (low).
+  - They speak the plan, but the mix never lets it be heard as words. Each line is cut into
+    syllables at the dips in its level, and the syllables between its first and last are
+    shuffled. The line is then low-passed (at 1.3, 1.05 and 0.9 kHz) and put in the table's room,
+    about 13–16 dB under the score.
+  - Their voices, pace and cadence survive, but nothing is said, so the film stays wordless.
+  - Who speaks follows the picture. She starts over the X and stops on her look. In s03 she
+    leads down the route; the Cracker hums, then asks as he sets the guard. She answers through
+    the light's sweep, and through right, left, right at the dial. He has opened worse. The
+    Knight cuts in as his hand comes in, and his slam ends it.
+- **The Knight's grunts** (s07 6.4 and 10.12). His own strained voice replaces the synthesised
+  grunt twice: as he heaves up the bags (the gold shifting inside them), and as he throws his
+  weight against the vault door, held for 1.5 s as it swings.
+- **Her breath of a laugh** (s08 4.59). Through her nose, soft and close, as the corner of her
+  mouth lifts, just ahead of the theme's two notes.
+- **The rewind.** The rewind carries the voices too: s09 plays the briefing backwards, and plays
+  it forward at his slam.
+
 ## Sound plan (for the mix)
 
 - **Score: heist jazz at 120 bpm in D minor.**
@@ -509,7 +550,8 @@ plain, so each insert plays once, in its own scene.
     BOOM, gold clinks;
   - the alarm bell, the match strike, the hollow knock, the tracing-paper slide;
   - the rewind whoosh, the car engine and door, sirens.
-- **No new paid generation.** Everything is synthesized or reused.
+- **Paid generation: voices only, from v3.** v1 and v2 used none, and everything else is
+  synthesized or reused. v3 adds the voices' takes (114 credits; see v3 above).
 - **Mix:** −16 LUFS, true peak −1 dB.
 
 ## Technical

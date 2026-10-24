@@ -37,6 +37,7 @@ T_WIND = 2.4                  # he rears back from the door ...
 THUDS = (2.85, 3.3, 3.75)     # ... and beats on it (we cut on the first blow)
 T_GLANCE = 4.3                # her eye drops to the floor ...
 T_SMILE = 4.65                # ... and the corner of her mouth lifts
+T_LAUGH = 4.59                # ... on a breath of a laugh through her nose
 WHIP = (5.1, 5.35)            # the camera whips down after her look
 TAPS = (5.75, 6.25)           # her heel: a tap, then the hollow knock
 T_OPEN = (6.25, 6.85)         # the floor opens into the section, top down
@@ -752,6 +753,7 @@ def cues(T):
             Cue(T_GLANCE + 0.1, "a soft chalk tick: her look drops to the floor", gain_db=-20),
             Cue(T_SMILE, "the corner of her mouth lifts: the theme's first two notes, upright, on the vibraphone",
                 gain_db=-13),
+            Cue(T_LAUGH, "she breathes a laugh through her nose (her own voice: soft, close)", gain_db=-20, pan=-0.2),
             Cue(WHIP[0], "a fast whoosh down", gain_db=-14, dur=WHIP[1] - WHIP[0]),
             Cue(WHIP[1], "chalk: the ring drawn on the floor", gain_db=-20, pan=-0.1),
             Cue(TAPS[0], "her heel taps the floor: a hard click on steel", gain_db=-9, pan=-0.1),
