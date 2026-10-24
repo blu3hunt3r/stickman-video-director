@@ -464,6 +464,31 @@ that scene's own sound backwards and forwards with the picture.
   flew out. **7.0:** the ruby lands as the red dot at the crossing (*the film's last chalk tap*).
 - **7.5:** Black, the red dot a breath longer, gone by 7.9.
 
+## v2: the borrowed shot types
+
+Four of the reference edit's shot types, cut to this film's paper (the reasoning, and what was
+left out, is in `docs/SHOT_TYPES.md`). The helpers are `films/double_cross/shots.py`. Each scene
+keeps its drawing as `render_plain` and lists its `INSERTS`. The s09 rewind replays the scenes
+plain, so each insert plays once, in its own scene.
+
+| Film time | Scene, local time | Shot | What it does |
+|---|---|---|---|
+| 1:03.4 | s05, 11.375 (5 frames) | Punch-in ×6 | The tin can hitting the floor, its clatter rings, the shake. |
+| 1:17.0 | s06, 11.0 (2 frames) | Flash, gold | The seal breaks and the gold floods out. |
+| 1:32.0 | s07, 12.0 (2 frames) | Flash, red | The vault door's BOOM. |
+| 1:32.1 | s07, 12.083 (5 frames) | Silhouette on a sunburst | The Knight black on red rays, held in the lunge that shut them in. |
+| 1:39.3 | s08, 3.29 (5 frames) | Punch-in ×4 | His fist on the door at the second blow, the steel's rings. |
+| 1:48–1:54 | s09, every rewind join (2 frames) | Slip | Strips of the frame slide sideways, heavier the deeper back it goes. |
+| 2:05.6 | s10, 1.625 (5 frames) | Punch-in ×4.5 | The dead headlight on the first cough (it flares at 2.02). |
+| 2:09.9 | s10, 5.917 (2 frames) | Flash, black | Black, then checkmate. |
+| 2:19.9 | s11, 3.875 (5 frames) | Punch-in ×3 | The lens rides the knight's fall as the queen knocks him over. |
+
+- **Punch-ins** are redrawn as vectors at the zoom, so their lines thicken as they come in.
+- **The cut-paper wedges** rush in from the edges in place of manga speed lines.
+- **Flashes** carry no lettering, because the film is wordless.
+- **Slips** keep the palette (no colour split).
+- **Sound:** every insert lands on a hit that is already in the mix, so the sound is unchanged.
+
 ## Sound plan (for the mix)
 
 - **Score: heist jazz at 120 bpm in D minor.**

@@ -23,6 +23,7 @@ from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross import shots as S
 
 # ============================================================================ the street
 T_RUN = 0.2                      # he bursts round the car's tail (the mocap's run and stop)
@@ -478,7 +479,20 @@ def face_shot(c, t):
 
 
 # ============================================================================ render
+def _headlight_frame(t):
+    """The dark headlight in the close shot of the car's nose (frame px)."""
+    return NOSE_CAM.to_frame((Bk.CAR_X - Bk.CAR_L / 2.0 + 4.0, -32.0))
+
+
+INSERTS = (S.Punch(T_COUGH[0], 5, _headlight_frame, 4.5, seed=101),    # the first cough: the dead lamp, close
+         S.Flash(T_MATE - 2.0 / 24.0, 2, K.INK))                    # black, then checkmate
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+def render_plain(f, t, T):
     if t < T_NOSE:
         K.scene_setup(f, K.NAVY)
         with f.screen() as c:

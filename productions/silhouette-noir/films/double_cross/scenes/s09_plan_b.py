@@ -31,6 +31,7 @@ from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross import shots as S
 from films.double_cross.scenes import s02_crew as S2
 from films.double_cross.scenes import s03_plan as S3
 
@@ -633,7 +634,18 @@ def face_shot(c, t):
 
 
 # ============================================================================ render
+# the tape's splices: where the rewind jumps from one scene (or way) to the next, the frame slips,
+# heavier the deeper back it goes; the freeze on her eye only shivers
+JOINS = sorted({a for a, *_ in REWIND} | {b for _, b, *_ in REWIND})
+INSERTS = tuple(S.Slip(j, 2, 0.3 + 0.7 * i / (len(JOINS) - 2), seed=90 + i) for i, j in enumerate(JOINS[:-1])) + \
+    (S.Slip(JOINS[-1], 1, 0.3, seed=99),)
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+def render_plain(f, t, T):
     sh = shown(t)
     if sh is not None:
         kind, sid, st = sh
@@ -641,7 +653,7 @@ def render(f, t, T):
         if mod is None:
             _missing(f, sid)
         else:
-            mod.render(f, st, Ts)
+            getattr(mod, "render_plain", mod.render)(f, st, Ts)      # (their own shots stay theirs)
         with f.screen() as c:
             _rewind_marks(c, t, kind, sid, st, Ts)
         return

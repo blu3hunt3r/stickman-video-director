@@ -18,6 +18,7 @@ from engine.timing import Cue
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross import shots as S
 from films.double_cross.scenes import s01_title as S1
 from films.double_cross.scenes import s09_plan_b as S9
 from films.double_cross.scenes import s10_checkmate as S10
@@ -560,7 +561,23 @@ def title(c, t):
 
 
 # ============================================================================ render
+def _hit_frame(t):
+    """The knight's middle as he goes over (frame px): the lens rides his fall east, the queen's
+    base at the edge of it."""
+    phase, kb, v = knight_state(t)
+    a = math.radians({"stand": 0.0, "tip": v, "lie": 90.0}[phase])
+    h = 0.42 * PIECE_H
+    return table_cam(t).to_view((kb[0] + h * math.sin(a), kb[1]), h * math.cos(a))
+
+
+INSERTS = (S.Punch(T_HIT, 5, _hit_frame, 3.0, seed=111, accent=K.RED),)  # she takes him, close
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+def render_plain(f, t, T):
     if t < T_TABLE:
         K.scene_setup(f, K.NAVY)
         with f.screen() as c:

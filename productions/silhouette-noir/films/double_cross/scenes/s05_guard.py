@@ -26,6 +26,7 @@ from films.double_cross import bank as Bk
 from films.double_cross import cast as C
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross import shots as S
 
 # ---------------------------------------------------------------------------- beats
 FILM_T0 = 52.0
@@ -660,7 +661,20 @@ def _tilt(c, t, tt, pc):
 
 
 # ============================================================================ render
+def _can_frame(t):
+    """The tin can on the frame (frame px)."""
+    can = can_at(t) or (CAN_REST[0], CAN_REST[1], 0.0)
+    return cam_e(t).to_frame((can[0], can[1]))
+
+
+INSERTS = (S.Punch(T_CLATTER - 0.01, 5, _can_frame, 6.0, seed=51),)      # the clatter, close
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+def render_plain(f, t, T):
     K.scene_setup(f, K.DEEP)
     tt = K.twos(t)
     with f.screen() as c:

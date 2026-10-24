@@ -27,6 +27,7 @@ from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross import shots as S
 
 SHOTS = ((0.0, "match"), (2.85, "pound"), (3.9, "eye"), (5.1, "whip"), (5.35, "floor"), (8.0, "roll"))
 T_END = 12.0
@@ -702,7 +703,24 @@ def roll_shot(c, t):
 
 
 # ============================================================================ render
+def _fist_frame(t):
+    """Where his near fist lands on the door at the second blow (frame px): the lens holds there
+    while the fist bounces off it."""
+    th = THUDS[1]
+    z, dx, dy = _pound_cam(th)
+    _, fists = _back_polys(th)
+    x, y = _back_at(fists[0])
+    return (540.0 + (x - 540.0) * z + dx, 1000.0 + (y - 1000.0) * z + dy)
+
+
+INSERTS = (S.Punch(THUDS[1] - 0.01, 5, _fist_frame, 4.0, seed=81),)    # the second blow, close
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+def render_plain(f, t, T):
     name = _shot(t)
     K.scene_setup(f, K.INK)
     with f.screen() as c:

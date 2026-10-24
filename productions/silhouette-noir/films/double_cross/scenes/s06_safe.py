@@ -29,6 +29,7 @@ from films.double_cross import bank as Bk
 from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
+from films.double_cross import shots as S
 
 FILM_T0 = 66.0
 STOPWATCH = ((930.0, 190.0), 62.0)
@@ -404,7 +405,14 @@ def _marks(c, t, cam):
     K.chalk_line(c, [p, (p[0] + 0.5 * r * 0.6, p[1] - 0.5 * r * 0.8)], 1.0, w, K.PAPER, seed=138, alpha=a)
 
 
+INSERTS = (S.Flash(T_SWING[0], 2, K.GOLD),)          # the seal breaks: gold, flat
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+def render_plain(f, t, T):
     K.scene_setup(f, K.DEEP)
     tt = K.twos(t)
     with f.screen() as c:

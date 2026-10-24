@@ -41,6 +41,7 @@ from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross import shots as S
 from films.double_cross.scenes import s06_safe as S6
 
 FILM_T0 = 80.0
@@ -857,8 +858,55 @@ def shot_plan(c, t):
     _dial_lens(c, t, cam)
 
 
-# ============================================================================ render
+# ============================================================================ the slam, as a shape
+BURST_S = 1.55                     # his scale, cut out against the sunburst
+BURST_PELVIS = (630.0, 1500.0)     # where his pelvis stands (x) on the floor (y)
+BURST_EYE = (420.0, 900.0)         # the sunburst's eye, behind his shoulders
+WINE = lerp(K.RED, K.INK, 0.32)
+
+
+def knight_burst(f, t, k):
+    """The slam as a shape: the Knight black against a red sunburst, held in the lunge that shut
+    them in, his hands on the door's rim (a black arc); a thin paper edge, the white of his eye."""
+    K.scene_setup(f, K.RED)
+    tt = T_SHOVE[0] + 0.28 + 0.02 * k                       # the lunge, barely moving
+    st, pose, _ = door_knight(tt, tt)
+    x = BURST_PELVIS[0] - st["pelvis"][0] * BURST_S
+    j = _dry("knight", st, pose, x, -1, BURST_S)
+    hx = min(j["hand_near"][0], j["hand_far"][0])
+    with f.screen() as c:
+        c.save()
+        z = 1.0 + 0.014 * k                                   # it breathes in
+        c.translate(540.0, 960.0)
+        c.scale(z, z)
+        c.translate(-540.0, -960.0)
+        S.sunburst(c, BURST_EYE, (K.RED, WINE), n=26, rot=math.radians(3.0 * k))
+        c.rectangle(-200.0, BURST_PELVIS[1], W + 400.0, H)          # the floor he drives from
+        c.set_source_rgb(*K.INK)
+        c.fill()
+        door_r = 1100.0
+        door_c = (hx + 4.0 - door_r, 900.0)
+        bass.fill_polys(c, [D.circle_pts(door_c, door_r, n=160)], K.INK)
+        c.new_path()
+        c.arc(door_c[0], door_c[1], door_r - 26.0, -0.5, 0.5)
+        c.set_source_rgb(*K.PAPER)
+        c.set_line_width(4.0)
+        c.stroke()
+        C.draw(c, "knight", st, pose, x, BURST_PELVIS[1], BURST_S, -1, bg=K.INK, rim=K.PAPER, rim_w=5.0,
+               light=(0.55, -0.83))
+        c.restore()
+
+
+INSERTS = (S.Flash(T_SLAM, 2, K.RED),                          # BOOM: red, flat
+         S.Insert(T_SLAM + 2.0 / 24.0, 5, knight_burst))      # ... and who did it
+
+
 def render(f, t, T):
+    S.play(f, t, T, render_plain, INSERTS)
+
+
+# ============================================================================ render
+def render_plain(f, t, T):
     K.scene_setup(f, K.DEEP)
     with f.screen() as c:
         if t < X_IN[0]:
