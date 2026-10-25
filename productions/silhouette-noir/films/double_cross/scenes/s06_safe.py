@@ -1,4 +1,4 @@
-"""s06 SAFE (66-80). The vault door, the stethoscope, the lock's gates, the bolts, the gold.
+"""s06 SAFE (80-94). The vault door, the stethoscope, the lock's gates, the bolts, the gold.
   The door (0-3): s05's last frame, matched on the dial: the plan's chalk ring and tick on it
     (step 4) fade off the real dial as the camera pulls back to the great round door. The Cracker
     steps in from the right, presses his stethoscope to the steel beside the dial and takes the

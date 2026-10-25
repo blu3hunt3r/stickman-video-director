@@ -49,6 +49,21 @@ are v4's, 2:32):
 We write the plants into the bible as a table before we draw anything (`films/double_cross/docs/BIBLE.md`,
 "Plants and payoffs").
 
+**Every link in the chain gets a picture.** v4's twist read, but its chain did not. The user could
+not tell what the crew were after, what she took, how the alarm went off, or how the police came.
+Each of those was implied: a red glint, a bell drawn on the plan, cars already waiting in Plan B.
+An implied cause is a missed cause. v5 gives each link a shot and a bar of its own (v5 times,
+2:54):
+- the gold under the X (0:13.1), and her finger on it at the briefing (0:26.5);
+- her tap on the bell (0:47.5);
+- the ruby lifted into the light (1:36.7);
+- the side door bursting open under the bell (1:51.0);
+- the night before in the dot's lens (2:10.2–2:14.2);
+- the rings waking the police (2:31.0–2:34.0);
+- his hands going up (2:39.36).
+
+A plant can be quiet, but the payoff's cause must be on screen.
+
 ### An object that carries the story
 
 Each film has a thing that the story runs through, so the audience can follow the plot by
@@ -246,6 +261,9 @@ rooks.
   - The guard got the same treatment: two more bars, and a near miss (from the Cracker's step to
     the guard's sigh) spread over nine beats where it had five.
   - Bars are cheap. The grid absorbs them, because every later scene simply starts later.
+  - When a beat is missing, not just rushed, add it with its own time. v5 added eight pictures
+    (the gold, the tap, the bell, the ruby, the door, the night before, the police waking, the
+    arrest) and eleven bars for them, so the film grew from 2:32 to 2:54 instead of crowding.
 
 ---
 
@@ -267,6 +285,9 @@ rooks.
   or by spotting it from its words.
 - **Sound can hide a plant.** The chalk tap that leaves her dot (0:38.75) is mixed under the Knight's
   thud, exactly as the picture hides it under his slam.
+- **Sound can lay a plant, too.** In v5 her chalk taps the bell she has drawn on the side door, and
+  it answers with one damped tink: the alarm bell's own note (`bell_tink`). When the bell rings
+  over that door in s07, the ear has heard it before.
 - **The film's own sound is material.** The rewind plays the film's mix backwards, so what you hear
   rewinding is what you heard happening.
 - **Loudness is fixed.** Every wordless film is mastered to -16 LUFS integrated under a true-peak
@@ -338,6 +359,9 @@ needs more air. The limits are what keep that freedom from turning into noise.
     system": DOUBLE CROSS v4. It went back to v2's picture, gave the briefing and the guard two
     bars each, reframed the guard to read at phone size, kept the voices, and made every change
     with the film's own devices.
+  - "hard to understand that its a burglary being planned … what is in her hand how alarm goes
+    off … how police comes and catches": DOUBLE CROSS v5. The story was kept, and each link it
+    asked about got its own picture and bars.
 - **An upgrade starts from the version the user liked.** v3 was built on v2 but replaced its
   opening, its plan and its ending with new ideas; v4 went back to v2's code and changed only what
   the notes named. Compare against that version too: v4's glitch scan is aligned to v2's preview,
@@ -351,4 +375,13 @@ needs more air. The limits are what keep that freedom from turning into noise.
   and steam read as a face. Cast lettering (SEWER) and a lighter iron made it a lid.
 - **Fix causes, then neighbours.** A fix to a scene another scene imports (s06's dial, s02 and s03, s08's
   last frame) means re-checking the importer.
+- **Check every shot of a changed scene, not just the new ones.** In v5, s10's new arrest shot got
+  a helper named `_door(c, g)`. The street shot already had a `_door(t)`, and Python keeps the
+  later definition, so the old shot broke. Every still checked was in the new shots, so the
+  crash only surfaced in the full render. After adding a helper, search the module for its name.
+  Before the full render, take a still from every shot.
+- **Check the meter before you trust it.** In v5 the mix's QA reported -14 dB of limiting where
+  the limiter took 5.3 dB. It divided output by input per sample, and the 4 ms head fade on
+  near-silent samples counted as limiting. Its "mix only" clicks were the efx stem's overflow past
+  a 40-flag cap. A number that moves with nothing audible behind it may be the measurement.
 - **Nothing is committed unreviewed.** Agents never commit; the director looks at the frames first.

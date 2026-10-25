@@ -89,7 +89,7 @@ and only the mocap clips a film uses (force-added). Ignored: `out/`, `qa/`, `__p
 | `opposite` | 0:34.5 (828) | 2 | cut | `opposite_test`, `opposite_v2`, `opposite_v3` previews |
 | `opposite_bass` | 0:36 (864) | 1 | none | `opposite_bass_cut_preview.mp4` |
 | `opposite_full` | 2:24 (3,456) | 11 | hard cuts | `opposite_full_preview.mp4` |
-| `double_cross` | 2:32 (3,648; 2:24 until v4) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2), `double_cross_v3_preview.mp4` (v3), `double_cross_v4_preview.mp4` (v4), `double_cross_v4_phone_preview.mp4` (v4, the 99 MB copy) |
+| `double_cross` | 2:54 (4,176; 2:32 in v4, 2:24 until v4) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2), `double_cross_v3_preview.mp4` (v3), `double_cross_v4_preview.mp4` (v4), `double_cross_v4_phone_preview.mp4` (v4, the 99 MB copy), `double_cross_v5_preview.mp4` (v5) |
 
 The `--film` choices come from `PALETTES` in `engine/palette.py`. (`engine/timing.py` also has a
 `FILMS` tuple of five names; no tool reads it.)
@@ -428,7 +428,7 @@ With hard cuts only (OPPOSITE full, DOUBLE CROSS) there is exactly one segment p
 ### 7.3 Wordless films (OPPOSITE onward)
 
 Each has one `audio/mix.py` that reads the scene modules and is the score, the foley and the mix at
-once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 5,868 (v4).
+once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 6,160 (v5).
 Every wordless mix targets **-16 LUFS**. The true-peak limiter's ceiling is -1.0 dBTP in LANTERN,
 OPPOSITE and the Bass cut, -1.2 in OPPOSITE full and -1.3 in DOUBLE CROSS.
 
@@ -445,8 +445,8 @@ python3 films/double_cross/audio/mix.py --without s06    # treat s06 as missing 
 python3 films/double_cross/audio/mix.py --skip-missing   # leave missing scenes silent instead
 ```
 
-**Output.** 48 kHz stereo, 24-bit PCM, exactly the timeline's length (152 s in v4), digital silence
-from s11's `T_BLACK` (film 151.5) to the end.
+**Output.** 48 kHz stereo, 24-bit PCM, exactly the timeline's length (174 s in v5), digital silence
+from s11's `T_BLACK` (film 173.5) to the end.
 
 **How a scene is played.** One `section(sid)` function per scene (`s01` … `s11`) places sounds
 against that scene's beats.
@@ -496,28 +496,33 @@ real speed (`played()`: a speed ratio of 0.8–1.25) go in as they are, "the tap
 are low-passed at 9 kHz, levelled to -24 dBFS RMS (`REW_RMS`, at most +12 dB of gain) and placed
 at `REW_GAIN = -5` dB.
 
-**Mastering** (`master`): a 30 Hz high-pass; a 0.35 s fade into digital silence at 143.5; gain to
--16 LUFS; a true-peak limiter with a **-1.3 dBTP ceiling**, iterated up to five times until the
-loudness is within 0.05 LU of the target.
+**Mastering** (`master`): a 30 Hz high-pass; a 0.35 s fade into digital silence at s11's
+`T_BLACK` (173.5 in v5); gain to -16 LUFS; a true-peak limiter with a **-1.3 dBTP ceiling**,
+iterated up to five times until the loudness is within 0.05 LU of the target. The most it takes
+is read from the limiter's own gain curve (`return_gain=True`). Dividing the output by the input
+per sample is not a substitute: near-silent samples under the 4 ms head fade read as -14 dB in v5.
 
 **The score.** Heist jazz at 120 bpm in D minor, swing 0.64 (the off-beat eighth at 64 % of the
 beat): walking pizzicato bass, brushes, vibraphone, Harmon-muted trumpets, a cup-muted trombone and
 a low felt piano. THE THEME is four bars on the vibraphone; at the betrayal it returns as its exact
 mirror inversion about D4 (Phrygian, low); in s09 the inversion is inverted again, upright, in D
-major. A dry woodblock ticks every beat from `HEIST_T0` to `HEIST_STOP` (50.0 to 101.5 in v4; `clock`). The bar-by-bar plan is the
-module docstring.
+major. A dry woodblock ticks every beat from `HEIST_T0` to `HEIST_STOP` (56.0 to 109.5 in v5;
+`clock`). The bar-by-bar plan is the module docstring.
 
 **The QA report** (`--qa DIR`) prints:
 
 - the file's length against the film's, integrated loudness, true peak, sample peak, clipped
-  samples, and whether the tail is digitally silent;
+  samples, the master gain and the most the limiter takes, and whether the tail is digitally
+  silent;
 - per scene: LUFS, short-term maximum and peak, with per-bus loudness at the master's gain, and the
   same per bus for the whole film;
 - THE CLOCK: ticks measured on the tick bus against the ticks wanted;
 - the loudest 1 s windows and the placements in them; the biggest peaks into the limiter;
 - silences under -60 dBFS longer than 0.5 s;
 - a click detector, placements cut off loud at their end, and the largest sample step near each
-  cut;
+  cut. The detector sorts its flags by the stem they are in, but each stem's own list stops at
+  its 40 strongest. A busy stem's overflow (efx) is then listed under "the mix only", so score
+  the stems at those times before treating a flag as a mix artefact;
 - cue accounting: realised by the sections, auto-spotted, missed;
 - sync: the worst cue-to-event offset and the measured onsets of labelled hits;
 - music note starts on the swung grid (within 15 ms);
@@ -536,6 +541,12 @@ offset 25 ms, and no measured onset more than a frame out.
 **v4 numbers** (152 s): -16.01 LUFS, true peak -1.30 dBTP, 0 clipped samples; 429 cues, 401
 realised by the sections, 28 auto-spotted (all in s07), 0 missed; worst cue-to-event offset 25 ms,
 worst measured onset 20.1 ms; 103 clock ticks, all within 0.5 ms of the beat.
+
+**v5 numbers** (174 s): -16.01 LUFS, true peak -1.30 dBTP, 0 clipped samples, master gain +7.7 dB
+and at most 5.3 dB of limiting (the side door's BANG); 473 cues, 449 realised by the sections, 24
+auto-spotted (all in s07), 0 missed; worst cue-to-event offset 30 ms, worst measured onset 20.1
+ms; 107 clock ticks, all within 0.5 ms of the beat. Per scene the loudness tracks v4's within
+0.8 LU (s07's short-term maximum -12.3 against -12.5, s10's -11.6 against -12.0).
 
 ---
 
@@ -587,7 +598,9 @@ ffmpeg -v error -y -i films/F/out/F_master.mp4 -i films/F/out/audio_master.wav -
 Measured on the delivered DOUBLE CROSS preview: 1080×1920, 24 fps, 3,456 frames, 144.000 s, H.264
 High at about 7.51 Mb/s, AAC-LC 48 kHz at about 199 kb/s, 7.71 Mb/s overall, 133 MiB (139 MB). After
 the AAC encode it measured -16.1 LUFS with a peak of -0.6 dBFS. The v4 preview: 3,648 frames,
-152.000 s, 7.71 Mb/s overall, 146.6 MB, -16.1 LUFS with a true peak of -1.1 dBFS after AAC.
+152.000 s, 7.71 Mb/s overall, 146.6 MB, -16.1 LUFS with a true peak of -1.1 dBFS after AAC. The
+v5 preview: 4,176 frames, 174.000 s, 7.71 Mb/s overall, 167.7 MB, -16.1 LUFS with a true peak of
+-0.8 dBFS after AAC.
 
 **When a preview plays silent on the phone.** The v4 preview played without sound in the Claude
 app on the user's phone, and so did a 99 MB copy encoded at 5000k
@@ -624,6 +637,7 @@ scenes or the sound.
 | DOUBLE CROSS | at most 2 at a time (the user's limit) | One animator for s04–s07 and one audio agent; the director made s01–s03 and s08–s11. |
 | DOUBLE CROSS v2 (the shot types) | at most 2 in total | The director builds `shots.py` and wires it; a documentation fork writes these docs. |
 | DOUBLE CROSS v4 | none | The director alone: v2's picture restored, s02 and s05 rebuilt, the mix re-timed, the docs. |
+| DOUBLE CROSS v5 | none | The director alone: s01, s02, s03, s07, s09 and s10's new beats, the timeline, the mix, the docs. |
 
 Rules that came out of it (most are in `ANIMATOR_BRIEF.md`):
 

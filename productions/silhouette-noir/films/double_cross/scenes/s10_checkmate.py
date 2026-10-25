@@ -674,7 +674,7 @@ def _cop_head_on(c, x, t):
     _beacon(c, (x, -100.0), t, 655)
 
 
-def _door(c, g):
+def _driver_door(c, g):
     """The driver's door swinging open toward us on its front hinge: side on, it narrows to the
     hinge, its window going with it."""
     h = _X0 + 82.0
@@ -757,7 +757,7 @@ def arrest_shot(c, t):
             _draw_knight(c, st, pose, x, facing, cam)
             c.restore()
         if g > 0.0:
-            _door(c, g)
+            _driver_door(c, g)
         _cop_side(c, COP_W_X, tt, 1, 670)
         _cop_side(c, COP_E_X, tt, -1, 680)
         if free >= 1.0:

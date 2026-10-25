@@ -1,4 +1,4 @@
-"""s08 LOCKED (96-108). Inside the shut vault, in the dark.
+"""s08 LOCKED (114-126). Inside the shut vault, in the dark.
   The match: black, and his ragged breath. A match scratches (sparks), then strikes, and its
     light opens in gold rings on her profile, calm, and on the Cracker beyond her, leaning on
     the door. He rears back ...

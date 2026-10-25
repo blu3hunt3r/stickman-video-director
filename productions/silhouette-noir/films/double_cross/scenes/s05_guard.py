@@ -1,4 +1,4 @@
-"""s05 GUARD (56-74). The corridor, the guard's light, the stealth map, the clank and the cat.
+"""s05 GUARD (62-80). The corridor, the guard's light, the stealth map, the clank and the cat.
 The corridor is framed close, the figures half the frame's height and the corridor floor to
 ceiling filling it, and the camera moves with the action, because a 9:16 frame cannot hold the
 guard and the crew at a size that reads.

@@ -1,4 +1,4 @@
-"""s03 PLAN (24-40). Her chalk draws Plan A, and the three pieces hop along it in file, landing
+"""s03 PLAN (34-50). Her chalk draws Plan A, and the three pieces hop along it in file, landing
 on the beat:
   (1) down manhole A, along the sewer and up the branch to the store-room hatch;
   (2) through the store room to the corridor. The Cracker's old hand sets the guard there (a

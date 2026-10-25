@@ -10,10 +10,10 @@
     closes back onto the dot.
   Back again, to s02: his red look at the X, her white look at him. Freeze: a lens on her eye.
   The plan from above. Her tracing sheet unrolls down over it and Plan B is chalked on it in
-    solid lines, a bar a mark, the camera whipping from one to the next: (1) the trapdoor at the
-    dot and (2) her route down through it, north along the branch to manhole B; (3) his red L
-    out of the side door, the bell there ringing red, and four police cars closing on his car;
-    (4) a red X on the ruby box. Pull back: both plans at once.
+    solid lines, one mark at a time, the camera whipping from one to the next: (1) the trapdoor
+    at the dot and (2) her route down through it, north along the branch to manhole B; (3) his
+    red L out of the side door, the bell there ringing red, and four police cars closing on his
+    car; (4) a red X on the ruby box. Pull back: both plans at once.
   The vault by match light: she lifts the floor tile over the trapdoor; below is black. The
     Cracker stares, then grins. In section they drop through to the sewer and walk north, the
     solid route lighting ahead of her match.

@@ -18,7 +18,7 @@ dates (UTC).
 | 6 | OPPOSITE v1–v3 | 10-23 | 0:32–0:34.5 | Wordless thriller test, one continuous camera | Three previews |
 | 7 | OPPOSITE, the Bass cut | 10-23 | 0:36 | Pure Saul Bass graphic retelling, one scene | Delivered, two review passes |
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
-| 9 | DOUBLE CROSS | 10-23 | 2:32 (v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices) and v4 (v2's picture again, slower, the guard rebuilt) delivered |
+| 9 | DOUBLE CROSS | 10-23 | 2:54 (v4 2:32, v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices), v4 (v2's picture again, slower, the guard rebuilt) and v5 (the double cross made easy to follow) delivered |
 
 ---
 
@@ -223,14 +223,15 @@ detailing and colors and … markers and arrows and dots".
 
 ---
 
-## 9. DOUBLE CROSS (2:32), in depth
+## 9. DOUBLE CROSS (2:54), in depth
 
 The user liked "the way you are connecting things and camera motion and sound effects" and asked
 for a new crime thriller, more innovative, with no more than two agents at a time.
 
 **Film times.** Sections 9.2–9.11 give v1–v3's times (2:24). v4 (9.12) runs 2:32: s02's side
 shot (0:21–0:28) and s05 (0:56–1:14) are re-timed, and every other time from 0:24 is later, by 4 s
-up to s05 and by 8 s from s06 (v1's 1:06).
+up to s05 and by 8 s from s06 (v1's 1:06). v5 (9.13) runs 2:54: s01, s02, s07, s09 and s10 gain
+bars, and against v4 s02 starts 4 s later, s03–s07 6 s, s08–s09 10 s, s10 16 s and s11 22 s.
 
 ### 9.1 The story
 
@@ -321,7 +322,8 @@ The bible's casting table also named clips the code does not use (18_08, 13_33, 
 ### 9.6 Scene by scene (film times from the scene modules' constants)
 
 This is the v1 picture. The v2 inserts that play over it are listed in 9.10, and v3's changes to
-s01–s03, s09 and s10 in 9.11 (withdrawn in v4). v4's s02 and s05 are in 9.12.
+s01–s03, s09 and s10 in 9.11 (withdrawn in v4). v4's s02 and s05 are in 9.12, and v5's changes
+in 9.13.
 
 **s01 TITLE (0:00–0:12).** Four chalk dots tick in at the sheet's corners (0:00.5–0:02.0) and dotted
 lines join them; the blueprint unrolls (0:02.5–0:04.0); the bank rules itself in, one group per beat
@@ -576,7 +578,71 @@ measures normal. A 99 MB copy at 5 Mb/s video, `final/double_cross_v4_phone_prev
 silent too. Both are built like OPPOSITE full's preview, which played with sound on the same
 phone, so the cause is on the playback side (SYSTEM.md section 9).
 
-### 9.13 Files
+### 9.13 v5: the double cross, easy to follow
+
+On 10-25 the user said of v4: "i find it hard to understand that its a burglary being planned and
+the lady initially crosses one and then double crosses the other etc and what is in her hand how
+alarm goes off and how the flashback explains the second exit plan and how police comes and
+catches first". Asked whether to change the story or keep it and make it clear, they chose to
+keep it: the Knight locks the other two in and runs with the gold, she had planned for it, the
+police catch him, she and the Cracker leave by the sewer, and she keeps the ruby.
+
+**Each question gets a picture, and each picture its own bars** (v4's lesson: time, not
+crowding). The film grows to 2:54 (4,176 frames, 87 bars). The bible's v5 table maps each
+question to its answer.
+
+| Film time | Scene | Change |
+|---|---|---|
+| 0:00–0:16 | s01 (16 s) | v3's opening with a bar for each part: the bank at night, its front marked in chalk (0:00.5–0:02.5) and held; the street folds flat into the blueprint (0:04.0–0:06.0); the plan rules itself in (0:06.0–0:09.0); the title X (0:10.0–0:11.5); the X lands on the vault (0:13.0) and a gold lens opens on the gold it marks, glinting twice (0:13.1–0:14.5). |
+| 0:25.9–0:27.9 | s02 (18 s) | A bar close over the plan: her gloved finger taps the X twice (0:26.5, 0:27.0), and the gold beside it glints. |
+| 0:47.0–0:47.7 | s03 | She draws the bell on the side door and taps it (0:47.5): it rocks, with one damped tink, the alarm's own note. |
+| 1:35.5–1:38.6 | s07 (20 s) | The ruby, close: her glove lifts it out of the box into the light (1:36.7–1:37.3), where it flares, and then it goes into her pocket (1:38.0–1:38.6). |
+| 1:50.5–1:54.0 | s07 | His L reaches the side door on the plan and the bell rings (1:50.5). Then the door itself, from the alley: it bursts open (1:51.0), he charges out with the bags, and the bell over it rings and rings as the camera pushes in. |
+| 2:10.2–2:14.2 | s09 (22 s) | The night before, in the dot's lens: she is on a ladder under the vault floor, her torch cuts the trapdoor up through the slab (2:10.95–2:12.3), she pushes the block up a crack, her light on the gold (2:12.45), and sets it back as a tile (2:13.15–2:13.45). |
+| 2:16.6–2:22.4 | s09 | Plan B, one mark at a time, over a bar of D major: (1) the trapdoor (2:17.4); (2) her route to manhole B (2:17.95–2:18.9); (3) his red L to the side door, the bell ringing there, and the police closing on his car (2:19.2–2:20.75); (4) the red X on the ruby box (2:21.35). |
+| 2:30.9–2:36.0 | s10 (18 s) | The alarm calls the police. The bell's rings roll out over the city, one per beat (from 2:31.0). As the first ring reaches each of four dark police cars, its bar switches on (2:32.5, 2:33.0, 2:33.5, 2:34.0), and the first one's lights stop him dead (2:32.55). They slide in like rooks (2:34.0–2:35.5): checkmate (2:36.0). |
+| 2:37.2–2:40.9 | s10 | The arrest: the street, boxed in by police cars under the ringing bell. He climbs out with a sack (2:37.62–2:38.3), looks east and west, lets it drop so the gold spills (2:39.0–2:39.12), and puts his hands up in the light (2:39.36–2:39.72). |
+
+- **The edit.** The heist clock runs from 0:56.0 to 1:49.5 (107 ticks). s09's rewind follows s07's
+  new length, and the freeze on the dot holds while the night before plays in its lens.
+- **The sound.** Two new synths, `bell_tink` (her tap on the bell: the alarm's note, damped) and
+  `torch_cut` (the torch's roar, hiss and sparks).
+  - The ruby lifts on a rising string harmonic and flares on a glassy shimmer (the celesta stays
+    the ruby's in s11).
+  - The side door gets a BANG and the bell over it, 4 dB louder over the push in.
+  - The night before has a deep whoosh into the lens, drips and a drone, the torch, stone
+    grinding, and a reverse whoosh out.
+  - s10's police cars each get a clunk, a thump and a siren whoop, his brakes screech, and at the
+    arrest the bell, the police engines idling, the sack and the gold, and a held low string note
+    under his hands.
+- **Measured.**
+  - -16.01 LUFS, true peak -1.30 dBTP, no clipped samples; the limiter takes at most 5.3 dB (the
+    BANG at 1:51.0).
+  - 473 cues: 449 realised by the sections, 24 auto-spotted (all in s07), 0 missed.
+  - The worst cue-to-event offset is 30 ms, and no measured onset is more than a frame out
+    (worst 20.1 ms).
+  - The clock's 107 ticks are all within 0.5 ms of the beat.
+- **Fixed on the way.**
+  - **s10's first full render crashed.** The arrest's new helper `_door(c, g)` (the driver's door)
+    had the same name as the street shot's `_door(t)`, and the later definition replaced the
+    earlier, so the street shot called it with the wrong arguments. The stills checked had all been
+    in the new shots. It is now `_driver_door`.
+  - **The QA's "limiter at most" read -14 dB** that was not there. It divided output by input per
+    sample, and the 4 ms fade at the head of v5's near-silent first samples counted as limiting. It
+    now reads the limiter's own gain (5.3 dB), and the audio is bit-identical.
+
+Delivered as `final/double_cross_v5_preview.mp4`, encoded as in SYSTEM.md section 9: 4,176
+frames, 174.0 s, 7.71 Mb/s, 167.7 MB, -16.1 LUFS with a true peak of -0.8 dBFS after AAC.
+The glitch scan flags 35 frames:
+- 25 are at frames v4's preview also flags (aligned to v5's times);
+- 9 are at v5's new cuts, wipes and whips: s02's tap insert in and out (0:25.92, 0:27.92), s07's
+  ruby close-up in and out (1:35.5, 1:38.0), the dot's lens opening over the frame (2:10.42,
+  2:10.46), the whip to Plan B's red X (2:21.13, 2:21.21) and the cut to the arrest (2:37.21);
+- one is s10's cut to the car's nose (2:29.5), a designed cut that v4's scan let pass.
+
+A phone-size review of every new beat in the delivered file reads clearly.
+
+### 9.14 Files
 
 | Path | What it is |
 |---|---|
@@ -595,3 +661,4 @@ phone, so the cause is on the playback side (SYSTEM.md section 9).
 | `films/double_cross/final/double_cross_v3_preview.mp4` | The delivered v3 preview, with the review fixes and the voices (not in git). |
 | `films/double_cross/final/double_cross_v4_preview.mp4` | The delivered v4 preview: v2's picture, the briefing given time, the guard rebuilt (not in git). |
 | `films/double_cross/final/double_cross_v4_phone_preview.mp4` | A 99 MB copy of the v4 preview at 5 Mb/s, made while chasing the silent playback; it played silent too (not in git). |
+| `films/double_cross/final/double_cross_v5_preview.mp4` | The delivered v5 preview: the burglary, the ruby, the alarm, the night before and the arrest made plain (not in git). |

@@ -9,8 +9,8 @@
     python3 films/double_cross/audio/mix.py --without s06     # treat s06 as missing (it is played from the bible)
     python3 films/double_cross/audio/mix.py --skip-missing    # leave missing scenes silent instead
 
-48 kHz stereo, exactly the timeline's 152 s, integrated -16 LUFS, true peak under -1 dBTP, and
-digital silence once the picture is black (s11, 151.5 s) to the end.
+48 kHz stereo, exactly the timeline's 174 s, integrated -16 LUFS, true peak under -1 dBTP, and
+digital silence once the picture is black (s11, 173.5 s) to the end.
 
 A missing scene module is played from the bible (its beats and cues as the bible gives them: a
 "stand-in"); a module that does not import, or whose cues() gives no cues yet (a draft), is
@@ -48,61 +48,80 @@ THE THEME (vibraphone; beats in the 16-beat phrase; D Dorian with C# as the lead
         D6/9                   Em9    A13               Gmaj9                  A13       D6/9
 
     bars   film s    scene  the score
-    0- 5     0- 12   s01    four chalk taps count it in; the bass walks in as the blueprint unrolls;
-                            a vibraphone note per ruled line, up the D minor-major chord; the strips
-                            and the stamps hit with the band (the spy chord, D minor-major 7); the X
-                            lands; the bass walks down into the lamp.
-    6-13    12- 28   s02    a bar of vamp, then THE THEME, plainly, vibraphone; the knight's slam on
-                            its third bar; bar 11, the briefing: the band down to a murmur of its
-                            own under her low voice, her finger tapping the plan twice on the beat,
-                            the Cracker's hum; his look, a muted note a semitone off; bar 12, her
-                            look: the band stops on a low held D: she knows; bar 13, the tilt down
-                            onto the plan: the paper rises with it and the bass walks up into s03.
-   14-21    28- 44   s03    THE THEME twice more: vibraphone with a muted trumpet in unison as she
+    0- 7     0- 16   s01    four chalk taps mark the bank's corners; a held low D under the bank at
+                            night; the bass walks in as the street folds into the plan; a vibraphone
+                            note per ruled line, up the D minor-major chord; the strips and the
+                            stamps hit with the band (the spy chord, D minor-major 7); the X lands
+                            and the gold under it shimmers (a vibraphone roll, two glints); the bass
+                            walks down into the lamp.
+    8-16    16- 34   s02    a bar of vamp, then THE THEME, plainly, vibraphone; the knight's slam on
+                            its third bar; bars 13-14, the briefing: the band down to a murmur of its
+                            own under her low voice; close over the plan her finger taps the X twice
+                            on the beat (the gold glints); the Cracker's hum; his look, a muted note
+                            a semitone off; bar 15, her look: the band stops on a low held D: she
+                            knows; bar 16, the tilt down onto the plan: the paper rises with it and
+                            the bass walks up into s03.
+   17-24    34- 50   s03    THE THEME twice more: vibraphone with a muted trumpet in unison as she
                             chalks the route (pieces clack on the beat), then vibraphone alone; it
-                            thins out for the plant (the dot); a swell into the tilt.
-   22-27    44- 56   s04    the pop-up: a rising piano run; the heist groove (trumpet calls the
-                            theme's head, vibraphone answers); from 50.0 THE CLOCK, a dry woodblock
+                            thins out for the plant (the dot); the bell drawn on the side door and
+                            tapped (one damped tink, the alarm's own note) as the theme lands; a
+                            swell into the tilt.
+   25-30    50- 62   s04    the pop-up: a rising piano run; the heist groove (trumpet calls the
+                            theme's head, vibraphone answers); from 56.0 THE CLOCK, a dry woodblock
                             on every beat.
-   28-36    56- 74   s05    the score drops away to the tick (the corridor's room tone, the building
+   31-39    62- 80   s05    the score drops away to the tick (the corridor's room tone, the building
                             humming on D); a breath held in the doorway as the light's patch
                             touches it; the stealth map: a tiptoe bass under the plan's tocks, a
                             vibe note (D, F, A) per piece hopping the gap, walking on up to the
                             CLANK; a whip whoosh to the guard; the score holds its breath (one low
                             muted G#, an arco D under it) as his light finds the cat; the hiss, the
-                            leap, the can; he sighs and walks off; bar 36: the band creeps back for
+                            leap, the can; he sighs and walks off; bar 39: the band creeps back for
                             the push to the dial.
-   37-43    74- 88   s06    the vault door: low piano, an arco D; the dial: a tiptoe pizzicato, the
+   40-46    80- 94   s06    the vault door: low piano, an arco D; the dial: a tiptoe pizzicato, the
                             dial spun under the clock, the gates click D, F, A on their beats and the
                             vibraphone answers on the off-beat; the fence: CLUNK, the chord together;
                             the bolts round the rim: a brush roll; the door swings: a brass swell on
                             B-flat major, onto gold, rising into s07.
-   44-51    88-104   s07    gold: a hot groove; the glint; his look; bars 46-49 THE INVERSION, low
-                            and minor (vibraphone, trombone, piano octaves), peaking from 94 as the
-                            frame splits; its Phrygian close lands, and the vault door BOOMs on the
-                            bar line (100); bars 50-51 the inversion's head again, exposed over the
-                            alarm; the clock stops dead at 101.5.
-   52-57   104-116   s08    sparse: black, ragged breath; the match; muffled pounding; one low note
+   47-56    94-114   s07    gold: a hot groove; bar 48, the ruby: the band drops to a held low D, a
+                            string harmonic rises as she lifts it, a glassy shimmer as it flares
+                            (no celesta); the groove again; his look; bars 50-53 THE INVERSION, low
+                            and minor (vibraphone, trombone, piano octaves), peaking as the frame
+                            splits; its Phrygian close lands, and the vault door BOOMs on the bar
+                            line (108); the inversion's head again, exposed, as his L runs to the
+                            side door; the clock stops dead at 109.5; the alarm; BANG, the side door
+                            flung open under the real bell, growing as the camera pushes in on it,
+                            cut dead into s08's black.
+   57-62   114-126   s08    sparse: black, ragged breath; the match; muffled pounding; one low note
                             for her calm; the hollow knock; the tracing paper; a swell into s09.
-   58-65   116-132   s09    the rewind: the film's own mix (back through s08..s02 as s09's REWIND rows
-                            say), reversed and sped up under a tape scrub and the clock ticking
-                            backwards; it catches and plays his slam and her dot; freezes stop it
-                            dead; Plan B chalked over D major (the police: muted stabs rising a
-                            semitone a car; the red X on a low A); from its cue (on the next beat)
-                            THE THEME upright in D MAJOR, under the vault, the ladder, the cut
-                            running on along the pipe and Plan B's line lighting (rising tings).
-   66-71   132-144   s10    his getaway: the band drives under his run and stops dead on the door's
-                            slam; the starter coughs in the clear; it catches on bar 67 and the
-                            trumpets come in hot on the theme's head; bar 68 a muted stab per police
-                            car, rising a semitone each, the sirens (tuned D-A) braiding over them;
-                            bar 69 CHECKMATE (a hard low stab, a choked cymbal, his heart); bar 70
-                            the theme in D major, soft, as they walk away; bar 71 the X swells on a
-                            held A13 and the theme's last phrase resolves onto s11's D.
-   72-75   144-152   s11    the frame torn open (a paper rip; the sirens cut off) onto D major; ONE
+   63-73   126-148   s09    the rewind: the film's own mix (back through s08..s03 as s09's REWIND
+                            rows say), reversed and sped up under a tape scrub and the clock ticking
+                            backwards; it catches and plays his slam and her dot; a freeze stops it
+                            dead: in the dot's lens the night before, a deep whoosh down into the
+                            shaft, its drips, a low D; her torch roars into the stone twice; the
+                            block grinds up a crack (the gold glints) and knocks back down; a reverse
+                            whoosh; s02's looks again; Plan B chalked over D major, a mark a beat (his
+                            red L on his semitone, the alarm small and far, the police: muted stabs
+                            rising a semitone a car; the red X on a low A); from its cue THE THEME
+                            upright in D MAJOR, under the vault, the ladder, the cut running on along
+                            the pipe and Plan B's line lighting (rising tings).
+   74-82   148-166   s10    his getaway: the band drives under his run and stops dead on the door's
+                            slam; the starter coughs in the clear; it catches on bar 75 and the
+                            trumpets come in hot on the theme's head; the board: the alarm rings on
+                            over the city, a ring a beat; bar 76 the drive stops dead: each ring
+                            wakes a police car (its lights' clunk, a siren whoop, the bass's low D)
+                            and his brakes screech; bar 77 they slide in, a muted stab a car rising a
+                            semitone, the sirens (tuned D-A) braiding; bar 78 CHECKMATE (a hard low
+                            stab, a choked cymbal, his heart); the street: the bell overhead, the
+                            engines idling round him; the door, his step, a sharp breath; the sack
+                            thumps down and the gold clinks out; his hands go up on a held low
+                            string; the pull-back: D major; bar 81 the theme in D major, soft, as
+                            they walk away; the X swells on a held A13 and the theme's last phrase
+                            resolves onto s11's D.
+   83-86   166-174   s11    the frame torn open (a paper rip; the sirens cut off) onto D major; ONE
                             celesta ping on the ruby; dawn: the theme's last two bars in D major,
-                            plainly, the knight tipped over on bar 74; its C# held over A13 as the
+                            plainly, the knight tipped over on bar 85; its C# held over A13 as the
                             camera rises; it resolves as the title lands (the last chord, D6/9); the
-                            red dot's chalk tap with the bass's button; digital silence from 151.5.
+                            red dot's chalk tap with the bass's button; digital silence from 173.5.
 """
 from __future__ import annotations
 
@@ -159,8 +178,8 @@ def _kit_beat(name, default):
         return default
 
 
-HEIST_T0 = _kit_beat("HEIST_T0", 50.0)       # the stopwatch starts (s04): the first tick
-HEIST_STOP = _kit_beat("HEIST_STOP", 101.5)   # it stops dead (s07): no tick from here on
+HEIST_T0 = _kit_beat("HEIST_T0", 56.0)       # the stopwatch starts (s04): the first tick
+HEIST_STOP = _kit_beat("HEIST_STOP", 109.5)   # it stops dead (s07): no tick from here on
 
 # scene trims (dB, every bus): the film's arc, set by meter (see --qa's per-scene table)
 TRIM = dict(s01=-1.4, s02=-2.3, s03=-1.5, s04=-0.6, s05=3.0, s06=1.0, s07=0.4, s08=0.0, s09=-2.0, s10=-1.5, s11=-1.2)
@@ -642,7 +661,7 @@ class Mix:
                 self.edges.append((self.sid, self.t0 + at, label or "", e0, e1, bus))
         if fades and len(x) > n_of(0.008):           # no sound starts or stops on a step (a click)
             x = dsp.fade(x, 0.001, 0.003, shape="lin")
-        trim = 0.0 if bus == "tick" else self.trim     # the clock: one level from 50.0 to 101.5
+        trim = 0.0 if bus == "tick" else self.trim     # the clock: one level from 56.0 to 109.5
         x = (x * db2lin(gain + trim + BUS_TRIM.get(bus, 0.0))).astype(np.float32)
         if hall == "auto":
             hall = HALL_SEND if bus == "music" else None
@@ -1870,6 +1889,21 @@ def alarm_bell(dur, seed=0, f=1174.66):
 
 
 @lru_cache(maxsize=None)
+def bell_tink(seed=0, damp=0.22):
+    """The drawn alarm bell tapped once with the chalk: the gong's own note (D6, as alarm_bell), one
+    strike, its ring cut short (a finger on it): the alarm, muted."""
+    r = rng("tink", seed)
+    n = n_of(0.7)
+    tm = tax(n)
+    f = 1174.66
+    y = np.zeros(n)
+    for ratio, a, t60 in ((1.0, 1.0, 1.1), (2.36, 0.5, 0.7), (3.9, 0.3, 0.45), (5.5, 0.15, 0.3)):
+        y += a * np.sin(TWO_PI * f * ratio * tm + r.uniform(0, 6)) * np.power(10.0, -3.0 * tm / (t60 * damp))
+    dsp.mix_into(y, 0.3 * norm(dsp.sos(r.standard_normal(n_of(0.004)), "highpass", 2500.0, 2)), 0)
+    return norm(dsp.fade(y, 0.0005, 0.05))
+
+
+@lru_cache(maxsize=None)
 def hollow_knock(seed=0):
     """A heel struck on the vault floor, and it sounds hollow: the slab's knock and, under it,
     the void ringing (a cavity's low notes), the pipe below answering."""
@@ -2429,6 +2463,23 @@ def tile_set(seed=0):
     return norm(dsp.fade(x, 0.002, 0.08))
 
 
+@lru_cache(maxsize=None)
+def torch_cut(dur, seed=0):
+    """A cutting torch biting into stone: the gas's rough low roar, its hard hiss, the sparks
+    crackling off the cut; it lights with a pop and is shut off dead."""
+    r = rng("torch", seed, round(dur, 2))
+    n = n_of(dur + 0.08)
+    t = tax(n)
+    env = np.clip(t / 0.04, 0, 1) * np.clip((dur - t) / 0.05, 0, 1)
+    roar = dsp.bandpass(dsp.brown(n, r), 90.0, 700.0, 2) * (1.0 + 0.35 * dsp.smooth_noise(n, 22.0, r))
+    hiss = dsp.bandpass(r.standard_normal(n), 2200.0, 9000.0, 2) * (0.8 + 0.2 * dsp.smooth_noise(n, 30.0, r))
+    sparks = dsp.bandpass(dsp.crackle(n, 380.0, r), 2500.0, 10000.0, 2)
+    y = (0.9 * norm(roar) + 0.7 * norm(hiss) + 0.45 * norm(sparks)) * env
+    pop = sfx._burst(n_of(0.05), r, 120.0, 2500.0, t60=0.02, attack=0.0005)
+    y[:len(pop)] += 0.6 * norm(pop)
+    return norm(y)
+
+
 def sink_whoosh(dur=2.0, seed=0):
     """A low whoosh as the camera sinks through the road into the sewer."""
     return norm(dsp.sos(whip_down(round(dur, 3), seed + 11), "lowpass", 1600.0, 2))
@@ -2778,10 +2829,11 @@ ROOMS = {        # scene -> [(from scene time, reverb, wet dB)]: where its foley
     "s04": [(0.0, "street", -14.0), (6.0, "cell", -8.0)],
     "s05": [(0.0, "court", -12.0)],
     "s06": [(0.0, "hall", -14.0)],
-    "s07": [(0.0, "hall", -12.0), (13.0, "small_room", -20.0)],
+    "s07": [(0.0, "hall", -12.0), (15.0, "small_room", -20.0), (17.0, "street", -12.0)],
     "s08": [(0.0, "cell", -10.0)],
-    "s09": [(0.0, "small_room", -20.0), (10.9, "cell", -10.0), (12.8, "cell", -7.0)],
-    "s10": [(0.0, "street", -12.0), (3.0, "street", -16.0), (7.0, "street", -10.0)],
+    "s09": [(0.0, "small_room", -20.0), (4.2, "cell", -9.0), (8.2, "small_room", -20.0), (16.9, "cell", -10.0),
+            (18.8, "cell", -7.0)],
+    "s10": [(0.0, "street", -12.0), (3.0, "street", -16.0), (9.2, "street", -10.0), (12.92, "street", -16.0)],
     "s11": [(0.0, "street", -16.0), (3.0, "small_room", -18.0)],
 }
 
@@ -2888,30 +2940,47 @@ def section(sid):
     return deco
 
 
-# ============================================================================ s01 TITLE (0-12): bars 0-5
+# ============================================================================ s01 TITLE (0-16): bars 0-7
 @section("s01")
 def s01(m, S):
     L = m.len
-    # four chalk taps count it in (the corners); the 4th is the bar line the bass walks in on
-    dots = m.ats("T_DOTS", (0.0, 0.5, 1.0, 1.5), "chalk tap", "corner", n=4)
+    # the bank's front in chalk: a tap a beat for its four corners, the 4th on the bar line
+    dots = m.ats("T_DOTS", (0.5, 1.0, 1.5, 2.0), "chalk tap", "corner", n=4)
     for k, t in enumerate(dots):
         c = m.cue_near(t, "chalk tap", "corner")
         pan = c["pan"] if c else (-0.6, 0.6, 0.6, -0.6)[k % 4]
-        m.put("efx", roomed(m, chalk_tap(k, 0.8), t, k), t, -11.0, pan=pan, label="chalk tap (the count-in)")
+        m.put("efx", roomed(m, chalk_tap(k, 0.8), t, k), t, -11.0, pan=pan, label="chalk tap: a corner of the bank")
     jn = span(m, "T_JOIN", None, "dotted lines", "dry run", "chalk ticks")
     if jn:
         m.put("efx", roomed(m, chalk_dots(8, jn[1] - jn[0], 11, 0.35), jn[0]), jn[0], -22.0, label="a dry run of chalk ticks")
-    u0, u1 = span(m, "T_UNROLL", (1.5, 3.5), "unroll", "blueprint")
-    m.put("efx", paper_unroll(round(u1 - u0, 2), 1), u0, -13.0, label="the blueprint unrolls", align=None)
+    # the bank at night: the street's air under it all, going as the street folds flat
+    up0, up1 = span(m, "T_UP", (4.25, 6.0), "tilts up", "straight down")
+    na = night_air(round(up1 + 0.3, 2), 2)
+    env = np.clip((up1 + 0.3 - tax(len(na))) / (up1 - up0 + 0.3), 0, 1)
+    m.put("amb", na * env[:, None], 0.0, -23.0, label="night on the street: a distant city, the wind", align=None)
+    # bar 1, the bank marked: the bass's low D with the 4th tap, held (arco) under the dotted lines
+    m.put("music", bass(38, 0.9, 0.6, 3), FB(m, 1), -13.0, pan=-0.1, hall=-24.0)
+    m.put("music", arco(38, 2.1, 0.5, seed=3, attack=0.5, release=0.4), FB(m, 1), -19.0, align=None)
+    # the street folds flat, back to front (s04's pop-up snaps); the camera tilts up over it to the plan
+    for k, (t, _, c) in enumerate(cues_with(m, "folds flat")):
+        m.put("efx", roomed(m, popup(k % 6 + 1), t, k, wet=-20.0), t, c["gain_db"] + CUE_TRIM - 2.0, pan=c["pan"],
+              label="a card folds flat (the street folds away)")
+    m.put("efx", paper_rise(round(up1 - up0, 2), 2), up0, -18.0, label="the camera tilts up over the street to the plan",
+          align=None)
+    ls = m.cue_of("lies down")
+    if ls:
+        t = float(ls["t"])
+        m.put("efx", roomed(m, paper_whoosh(0.3, 9), t), t - 0.15, -29.0, label="the chalk outline lies down on the plan",
+              align=None, sync=t)
     # the bank rules itself in: a chalk stroke a beat, and the vibraphone climbs the spy chord
     gr = g(S, "T_GROUPS", ())
     if gr and all(isinstance(x, (tuple, list)) and len(x) == 2 and _num(x[1]) for x in gr):
         gts = [float(x[1]) for x in gr]
         m.src[(m.sid, "T_GROUPS")] = "module"
     else:
-        gts = list(m.ats(None, (3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5), "ruled", "chalk scratch"))
+        gts = list(m.ats(None, (6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0), "ruled", "chalk scratch"))
     gd = g(S, "GROUP_DUR", 0.42)
-    t_dim = m.at("T_DIM", 7.75, "drops", "breath before")
+    t_dim = m.at("T_DIM", 9.75, "drops", "breath before")
     arp = (62, 65, 69, 73, 74, 77, 81)               # D4 F4 A4 C#5 D5 F5 A5
     for k, t in enumerate(gts):
         m.put("efx", roomed(m, chalk_scratch(round(gd, 2), 20 + k, press=0.9), t, k), t, -16.0,
@@ -2919,61 +2988,73 @@ def s01(m, S):
         ring = float(np.clip(t_dim - 0.1 - t, 0.15, 1.4))
         m.put("music", vibe(arp[k % 7], ring, 0.5 + 0.05 * k, t_abs=m.t0 + t, depth=0.35, hard=0.5, seed=k), t, -15.0,
               pan=-0.3 + 0.1 * k)
-    bassline(m, FB(m, 1), "D2 F2 A2 C#3 | D3 C#3 C3 B2 | Bb2 A2 G2 .", gain=-10.0, vel=0.78, gate=0.9,
+    # bar 2: the bass walks in as the street folds into the plan; the brushes on bars 3 and 4
+    bassline(m, FB(m, 2), "D2 F2 A2 C#3 | D3 C#3 C3 B2 | Bb2 A2 G2 .", gain=-10.0, vel=0.78, gate=0.9,
              label="the bass walks in")
-    drums(m, FB(m, 2), 1, level=-3.0, kick_=False, seed=3)
-    m.put("music", brush_sweep(5, 3), FB(m, 3), -34.0, hall=-24.0, align=None)
+    drums(m, FB(m, 3), 1, level=-3.0, kick_=False, seed=3)
+    m.put("music", brush_sweep(5, 3), FB(m, 4), -34.0, hall=-24.0, align=None)
     for pos, v in ((0, 0.45), (1, 0.8), (1.5, 0.35), (2, 0.55)):
-        m.put("music", brush_tap(int(pos * 2) % 9, 0.0) * v, FB(m, 3) + sw(pos), -30.0, pan=0.15, hall=-22.0)
+        m.put("music", brush_tap(int(pos * 2) % 9, 0.0) * v, FB(m, 4) + sw(pos), -30.0, pan=0.15, hall=-22.0)
     m.mark(t_dim, "the music drops: a breath before the title")
     # the title: two strips slash in and cross (D, then the tritone); the stamps on the spy chord
     pre = float(np.clip(g(S, "STRIP_IN", 0.24), 0.08, 0.6))
-    tw = m.at("T_STRIP_W", 8.0, "white strip", "first strip", "whoosh-thud")
-    tr = m.at("T_STRIP_R", 8.5, "red strip", "second strip", "heavier")
+    tw = m.at("T_STRIP_W", 10.0, "white strip", "first strip", "whoosh-thud")
+    tr = m.at("T_STRIP_R", 10.5, "red strip", "second strip", "heavier")
     m.put("efx", roomed(m, whoosh_thud(round(pre, 3), 1, 0.0), tw), tw - pre, -10.0, pan=0.3,
           label="whoosh-thud: the white strip", sync=tw)
     m.put("efx", roomed(m, whoosh_thud(round(pre, 3), 2, 0.8), tr), tr - pre, -9.0, pan=-0.3,
           label="whoosh-thud: the red strip, heavier", sync=tr)
     hit(m, tw, 38, 0.55, gain=-11.0)
     hit(m, tr, 44, 0.85, gain=-11.0)
-    td = m.at("T_DOUBLE", 9.0, "double")
-    tc = m.at("T_CROSS", 9.5, "stamp: cross", "cross")
+    td = m.at("T_DOUBLE", 11.0, "double")
+    tc = m.at("T_CROSS", 11.5, "stamp: cross", "cross")
     for k, (t, lab) in enumerate(((td, "stamp: DOUBLE"), (tc, "stamp: CROSS"))):
         m.put("efx", roomed(m, stamp(k), t), t, -9.0, label=lab)
         stab(m, t, "DmM7", gain=-12.0, dur=0.22 if k == 0 else 0.55, vel=0.85 + 0.08 * k, seed=10 + k,
              fall=0.0 if k == 0 else 1.0)
-    # the words lift away; the lamp; the X lands on the vault; the bass walks down into s02
-    tl = m.at("T_LIFT", 10.0, "lift away", "lift")
+    # the words lift away; the X lands on the vault; the gold under it; the lamp; the bass walks down into s02
+    tl = m.at("T_LIFT", 12.0, "lift away", "lift")
     m.put("efx", paper_whoosh(0.7, 3), tl, -17.0, label="the words lift away", align=None)
     vibe_chord(m, tl, (65, 69, 72, 76), max(1.0, L - tl), gain=-18.0, vel=0.55, roll=0.04, depth=0.5, seed=4)
-    m.put("music", bass(33, 0.9, 0.7, 2), FB(m, 5), -11.0, pan=-0.1, hall=-24.0)
-    tlamp = m.at("T_LAMP", 10.5, "lamp")
-    m.put("efx", roomed(m, switch_click(1, 0.8), tlamp), tlamp, -25.0, label="the table lamp clicks on")
-    d = L - tlamp
-    m.put("amb", lamp_hum(START[m.sid] + tlamp, d) * np.clip(tax(n_of(d)) / 0.6, 0, 1), tlamp, -44.0, fades=False)
-    tland = m.at("T_LAND", 11.0, "x lands", "lands", "thud")
+    m.put("music", bass(33, 0.9, 0.7, 2), FB(m, 6), -11.0, pan=-0.1, hall=-24.0)
+    tland = m.at("T_LAND", 13.0, "x lands", "lands", "thud")
     m.put("efx", roomed(m, strip_thud(5), tland), tland, -12.0, label="thud: the X lands on the vault")
     m.put("efx", chalk_tap(9, 0.9), tland, -19.0)
     hit(m, tland, 38, 0.45, gain=-12.0)
-    m.put("music", bass(37, 0.4, 0.75, 1), FB(m, 5) + 1.5, -11.0, pan=-0.1, hall=-24.0)     # C#2 -> D (s02)
+    # the gold lens off the X: a vibraphone's rolled fifths (the A), a faint clink; a glint on each beat
+    # (no celesta: its one ping is the ruby's, in s11)
+    tg = m.at("T_GOLD", 13.1, "gold shimmer", "lens opens")
+    for k, (p, dt) in enumerate(((81, 0.0), (88, 0.08), (93, 0.16), (88, 0.3))):          # A5 E6 A6 E6
+        m.put("music", vibe(p, 1.1 - 0.15 * k, 0.5 - 0.06 * k, t_abs=m.t0 + tg + dt, depth=0.6, hard=0.3, seed=20 + k),
+              tg + dt, -19.0, pan=0.45, hall=-16.0, label="the gold lens opens (a vibraphone roll)" if k == 0 else None)
+    m.put("efx", roomed(m, gold_clink(6, 0.6), tg + 0.05), tg + 0.05, -28.0, pan=0.45, label="a faint clink of gold")
+    tgl = g(S, "T_GLINTS", (13.5, 14.5))
+    for k, t in enumerate(tgl[:2]):
+        m.put("music", ting(6 + k, 93 + 2 * k) * (0.6 - 0.08 * k), t, -27.0 - k, pan=0.5, hall=-16.0,
+              label="a glint off the gold" if k == 0 else "a second glint off the gold, higher")
+    tlamp = m.at("T_LAMP", 14.75, "lamp")
+    m.put("efx", roomed(m, switch_click(1, 0.8), tlamp), tlamp, -25.0, label="the table lamp clicks on")
+    d = L - tlamp
+    m.put("amb", lamp_hum(START[m.sid] + tlamp, d) * np.clip(tax(n_of(d)) / 0.6, 0, 1), tlamp, -44.0, fades=False)
+    m.put("music", bass(37, 0.4, 0.75, 1), FB(m, 7) + 1.5, -11.0, pan=-0.1, hall=-24.0)     # C#2 -> D (s02)
 
 
-# ============================================================================ s02 CREW (12-28): bars 6-13
+# ============================================================================ s02 CREW (16-34): bars 8-16
 @section("s02")
 def s02(m, S):
     L = m.len
     m.put("amb", lamp_hum(START[m.sid], L), 0.0, -44.0, fades=False)
-    t7 = FB(m, 7)
-    # bar 6 a vamp; bars 7-10 THE THEME, plainly, on the vibraphone
-    bassline(m, FB(m, 6), "D2 A1 C2 C#2", gain=-10.0, vel=0.72)
-    drums(m, FB(m, 6), 1, level=-5.0, taps=False, kick_=False, seed=1)
-    melody(m, t7 - BEAT, ((0, 1, 57),), gain=-13.0, vel=0.6, seed=7, label="the theme's pickup (her profile)")
-    melody(m, t7, THEME, gain=-12.0, vel=0.78, seed=1, label="THE THEME, plainly (vibraphone)",
+    t9 = FB(m, 9)
+    # bar 8 a vamp; bars 9-12 THE THEME, plainly, on the vibraphone
+    bassline(m, FB(m, 8), "D2 A1 C2 C#2", gain=-10.0, vel=0.72)
+    drums(m, FB(m, 8), 1, level=-5.0, taps=False, kick_=False, seed=1)
+    melody(m, t9 - BEAT, ((0, 1, 57),), gain=-13.0, vel=0.6, seed=7, label="the theme's pickup (her profile)")
+    melody(m, t9, THEME, gain=-12.0, vel=0.78, seed=1, label="THE THEME, plainly (vibraphone)",
            labels={5: "the theme's second phrase lands (the Cracker)"})
-    bassline(m, t7, "minor_a", gain=-10.0, vel=0.8)
-    comp(m, t7, PROG_MINOR, gain=-21.0, vel=0.45, pattern="charleston", seed=1)
-    drums(m, t7, 4, level=-2.0, seed=2)
-    m.cover_span(t7 - BEAT, t7 + 16 * BEAT, "theme", "phrase")
+    bassline(m, t9, "minor_a", gain=-10.0, vel=0.8)
+    comp(m, t9, PROG_MINOR, gain=-21.0, vel=0.45, pattern="charleston", seed=1)
+    drums(m, t9, 4, level=-2.0, seed=2)
+    m.cover_span(t9 - BEAT, t9 + 16 * BEAT, "theme", "phrase")
     # the three pieces, the three faces
     q = m.at("T_QUEEN", 1.0, "queen")
     tsl = m.at("", q - 0.6, "sleeve comes", "cloth")
@@ -2991,7 +3072,7 @@ def s02(m, S):
     tsw = m.at("", tk - 0.3, "heavy sleeve", "swings in")
     m.put("efx", roomed(m, cloth(0.3, 3, heavy=1.0), tsw), tsw, -19.0, pan=0.6, label="a heavy sleeve swings in", align=None)
     m.put("efx", piece_slam(0), tk, -10.0, pan=0.2, label="THUD: the red knight slammed down")
-    hit(m, tk, CHORDS[chord_at(tk, t7, PROG_MINOR)][0], 0.8, gain=-11.0)
+    hit(m, tk, CHORDS[chord_at(tk, t9, PROG_MINOR)][0], 0.8, gain=-11.0)
     tcall = m.at("", 7.5, "knight in the dark", "low muted trumpet")
     m.put("music", brass(57, 0.85, 0.6, seed=3, mute="harmon", scoop=True, vib=True), tcall, -17.0, pan=0.25,
           label="a low muted trumpet note (the Knight)")
@@ -3003,53 +3084,58 @@ def s02(m, S):
     ch = span(m, "", (9.0, 14.0), "chain", "creaks")
     m.put("efx", roomed(m, chain_creak(round(ch[1] - ch[0], 2), 1), ch[0]), ch[0], -28.0, pan=0.1,
           label="the lamp's chain creaks", align=None)
-    # bar 11, the briefing: the band down to a murmur of its own (the bass on 1 and 3, the sweep, a
-    # soft D minor 9) under her low voice; her gloved finger taps the plan twice on the beat (here);
-    # the Cracker hums
-    thl = m.at("T_HIS_LOOK", 11.5, "his look", "semitone")
-    t11 = FB(m, 11)
-    bassline(m, t11, "D2 . A1 .", gain=-14.0, vel=0.6, gate=0.8)
-    drums(m, t11, 1, level=-8.0, taps=False, kick_=False, hat=True, seed=5)
-    comp(m, t11, (("Dm9", 4),), gain=-27.0, vel=0.3, pattern="sparse", seed=9)
-    mu0, mu1 = span(m, "T_MURMUR", (9.25, 11.3), "her low voice", "briefing")
+    # bars 13-14, the briefing: the band down to a murmur of its own (the bass on 1 and 3, the sweep,
+    # a soft D minor 9) under her low voice; close over the plan, her gloved finger taps the X twice on
+    # the beat (here: the gold it marks glints); the Cracker hums
+    thl = m.at("T_HIS_LOOK", 13.5, "his look", "semitone")
+    t13 = FB(m, 13)
+    bassline(m, t13, "D2 . A1 . | D2 . A1 .", gain=-14.0, vel=0.6, gate=0.8)
+    drums(m, t13, 2, level=-8.0, taps=False, kick_=False, hat=True, seed=5)
+    comp(m, t13, (("Dm9", 8),), gain=-27.0, vel=0.3, pattern="sparse", seed=9)
+    mu0, mu1 = span(m, "T_MURMUR", (9.25, 12.3), "her low voice", "briefing")
     say(m, "her", 0, mu0, -17.5, fit=min(mu1, thl - 0.05) - mu0,
         label="her low voice: the briefing begins (a murmur, no words)")
-    for k, (t, _, c) in enumerate(cues_with(m, "finger taps")):
-        m.put("efx", roomed(m, finger_tap(11 + k, 0.6 - 0.15 * k), t), t, -12.0 - 2.0 * k,
-              pan=cpan(m, t, "finger taps", default=-0.35), label="her gloved finger taps the plan")
-    tnd = m.at("T_NOD", 10.75, "hums", "hm")
+    tin = m.at("", 9.9, "sleeve comes in over the paper")
+    m.put("efx", roomed(m, cloth(0.4, 4), tin), tin, -25.0, pan=-0.5, label="cloth: her sleeve over the plan", align=None)
+    taps = cues_with(m, "finger taps")
+    for k, (t, _, c) in enumerate(taps):
+        m.put("efx", roomed(m, finger_tap(11 + k, 0.7 - 0.12 * k), t), t, -10.5 - 1.5 * k,
+              pan=cpan(m, t, "finger taps", default=-0.1), label="her gloved finger taps the X")
+    tgg = m.at("", (taps[-1][0] if taps else 11.0) + 0.05, "glint off the gold")
+    m.put("music", ting(4, 91) * 0.65, tgg, -24.0, pan=-0.2, hall=-16.0, label="a glint off the gold (ting)")
+    tnd = m.at("T_NOD", 12.25, "hums", "hm")
     say(m, "cracker", 1, tnd, -20.5, label="the Cracker hums: hm (his voice, low)")
-    # bar 11's last beat, his look: a muted note a semitone off; bar 12, her look: the band stops on
+    # bar 14's last beat, his look: a muted note a semitone off; bar 15, her look: the band stops on
     # a low held D: she knows
     m.put("music", brass(63, 0.7, 0.55, seed=5, mute="harmon", scoop=False, vib=False, fall=0.5), thl, -17.5, pan=0.2,
           label="his look: a muted note a semitone off")
-    the = m.at("T_HER_LOOK", 12.5, "her look", "she knows", "low held")
-    t0, t1 = span(m, "T_TILT", (14.0, 16.0), "tilts down", "rising paper whoosh")
+    the = m.at("T_HER_LOOK", 14.5, "her look", "she knows", "low held")
+    t0, t1 = span(m, "T_TILT", (16.0, 18.0), "tilts down", "rising paper whoosh")
     hold = max(0.8, t1 - 1.0 - the)       # it lets go as the bass walks up
     m.put("music", arco(38, hold, 0.75, seed=1, attack=0.35, release=0.6), the, -13.0, pan=-0.05,
           label="a low held note: she knows", align=None)
     m.put("music", piano(26, hold, 0.45, 1), the, -18.0, pan=-0.1)
     m.put("music", piano(38, hold, 0.4, 2), the, -20.0, pan=-0.1)
-    tch = m.at("T_CHALK", 14.0, "picks up the chalk", "chalk")
+    tch = m.at("T_CHALK", 16.0, "picks up the chalk", "chalk")
     m.put("efx", roomed(m, chalk_scratch(0.12, 40, press=0.5), tch), tch, -23.0, pan=-0.6, label="she picks up the chalk")
-    # bar 13, the tilt down onto the plan: the paper rises with it (the film's tilts all sound so);
-    # the brushes come back and the bass walks up into the theme (s03, bar 14)
+    # bar 16, the tilt down onto the plan: the paper rises with it (the film's tilts all sound so);
+    # the brushes come back and the bass walks up into the theme (s03, bar 17)
     m.put("efx", paper_rise(round(t1 - t0, 2), 3), t0, -19.0,
           label="a rising paper whoosh: the camera tilts down onto the plan", align=None)
-    t13 = FB(m, 13)
-    m.put("music", brush_sweep(6, 4), t13, -36.0, hall=-24.0, align=None)
+    t16 = FB(m, 16)
+    m.put("music", brush_sweep(6, 4), t16, -36.0, hall=-24.0, align=None)
     for pos, v in ((2, 0.4), (3, 0.6), (3.5, 0.45)):
-        m.put("music", brush_tap((11 + int(pos * 2)) % 9, 0.0) * v, t13 + sw(pos), -29.0, pan=0.15, hall=-22.0)
-    bassline(m, t13, ". . A1 C#2", gain=-10.5, vel=0.7, swell=(0.85, 1.0))
+        m.put("music", brush_tap((11 + int(pos * 2)) % 9, 0.0) * v, t16 + sw(pos), -29.0, pan=0.15, hall=-22.0)
+    bassline(m, t16, ". . A1 C#2", gain=-10.5, vel=0.7, swell=(0.85, 1.0))
 
 
-# ============================================================================ s03 PLAN (28-44): bars 14-21
+# ============================================================================ s03 PLAN (34-50): bars 17-24
 def _s03_bible(m, S):
     """s03 from the bible (its stand-in): the theme twice, the drawn bell, the plant, a swell into
     the tilt."""
     L = m.len
     m.put("amb", lamp_hum(START[m.sid], L), 0.0, -44.0, fades=False)
-    t0 = FB(m, 14)
+    t0 = FB(m, 17)
     # THE THEME: vibraphone and a muted trumpet in unison as she chalks the route
     melody(m, t0, THEME, gain=-12.5, vel=0.75, seed=2, label="THE THEME: vibraphone and muted trumpet")
     melody(m, t0, THEME, inst="tpt", gain=-17.5, vel=0.62, seed=2, legato=0.9)
@@ -3057,7 +3143,7 @@ def _s03_bible(m, S):
     comp(m, t0, PROG_MINOR, gain=-21.0, vel=0.45, pattern="push", seed=3)
     drums(m, t0, 4, level=-2.0, seed=4)
     # ... and again on the vibraphone alone, thinning out for the plant
-    t1 = FB(m, 18)
+    t1 = FB(m, 21)
     melody(m, t1, THEME, gain=-12.5, vel=0.72, seed=3, label="THE THEME: the vibraphone alone")
     bassline(m, t1, "D2 E2 F2 A2 | Bb2 D2 F2 Ab2 | G2 ~ D2 ~ | A1 ~ ~ ~", gain=-10.5, vel=0.75)
     comp(m, t1, PROG_MINOR[:3], gain=-22.0, vel=0.4, pattern="sparse", seed=4)
@@ -3065,10 +3151,11 @@ def _s03_bible(m, S):
     drums(m, t1 + 2 * BAR, 1, level=-8.0, taps=False, kick_=False, seed=6)
     m.cover_span(t0, t1 + 16 * BEAT, "theme", "phrase")
     # the drawn bell (it will ring in s07): a chalk loop and the faintest ting, on its pitch
-    tbell = m.at("T_BELL", 12.8, "bell", win=2.5)
+    tbell = m.at("T_BELL", 13.0, "bell", win=2.5)
     m.put("efx", roomed(m, chalk_scratch(0.3, 78, circle=True, press=0.6), tbell), tbell, -24.0,
           label="a small bell drawn on the side door")
-    m.put("music", ting(5, 86), tbell + 0.25, -34.0, pan=0.5, hall=-18.0)
+    ttap = m.at("T_BELL_TAP", tbell + 0.5, "taps the little bell", "damped tink")
+    m.put("efx", roomed(m, bell_tink(1), ttap), ttap, -19.0, pan=0.5, label="her chalk taps the little bell: one damped tink")
     # the plant: as her hand lifts away, a soft tap: a dot on the sewer line under the vault
     tp = m.at("T_PLANT", 14.0, "plant", "soft tap", "small dot", "dot on the sewer", win=2.5)
     m.put("efx", roomed(m, chalk_tap(77, 0.35), tp), tp, -20.0, label="the plant: a soft tap (the dot)")
@@ -3080,18 +3167,19 @@ def _s03_bible(m, S):
 
 @section("s03")
 def s03(m, S):
-    """Bars 14-17: THE THEME carries on, light and quick (vibraphone and a muted trumpet, pizzicato
+    """Bars 17-20: THE THEME carries on, light and quick (vibraphone and a muted trumpet, pizzicato
     bass, brushes) while her chalk draws the route and the pieces hop along it on the beat; the
-    guard's light ticks the timing (a low wooden tock). Bar 18: a vamp; the door clunks open and
-    a bright accent as the arrow lands on the X. Bar 19: the band stops for the Knight's slam, and
-    the low brass foreshadows the inversion: D down to G. Bars 20-21: the theme's last bar lands on
-    a held D minor 9 as the plan is done; a paper whoosh rises into the tilt (s04)."""
+    guard's light ticks the timing (a low wooden tock). Bar 21: a vamp; the door clunks open and
+    a bright accent as the arrow lands on the X. Bar 22: the band stops for the Knight's slam, and
+    the low brass foreshadows the inversion: D down to G. Bars 23-24: the bell on the side door,
+    tapped (one damped tink, the alarm's own note); the theme's last bar lands on a held D minor 9 as
+    the plan is done; a paper whoosh rises into the tilt (s04)."""
     if isinstance(S, Stub):
         return _s03_bible(m, S)
     L = m.len
     m.put("amb", lamp_hum(START[m.sid], L), 0.0, -44.0, fades=False)
-    # bars 14-17: the theme
-    t14 = FB(m, 14)
+    # bars 17-20: the theme
+    t14 = FB(m, 17)
     melody(m, t14, THEME, gain=-12.5, vel=0.75, seed=2,
            label="THE THEME carries on, light and quick (vibraphone, muted trumpet)")
     melody(m, t14, THEME, inst="tpt", gain=-18.5, vel=0.6, seed=2, legato=0.9)
@@ -3148,8 +3236,8 @@ def s03(m, S):
     tck = m.at("T_CLICK", 8.0, "clunk", "bolt draws back")
     m.put("efx", roomed(m, fence_clunk(1), tck), tck, -10.5, label="CLUNK: the bolt draws back")
     m.put("efx", roomed(m, vault_groan(1.3, 4), tck + 0.08), tck + 0.08, -24.0, pan=0.2, align=None)
-    # bar 18: the vamp; the arrow lands on the X: a bright accent
-    t18 = FB(m, 18)
+    # bar 21: the vamp; the arrow lands on the X: a bright accent
+    t18 = FB(m, 21)
     bassline(m, t18, "D2 F2 A2 C3", gain=-10.5, vel=0.78)
     comp(m, t18, (("Dm9", 4),), gain=-22.0, vel=0.4, pattern="push", seed=8)
     drums(m, t18, 1, level=-4.0, seed=5)
@@ -3158,7 +3246,7 @@ def s03(m, S):
     vibe_chord(m, tx, (81, 86, 88), 1.4, gain=-15.5, vel=0.7, roll=0.0, hard=0.85, depth=0.3, seed=21,
                label="a bright accent in the score (vibraphone, ride bell)")
     m.put("music", ride(2, bell=1.0), tx, -21.0, pan=0.3, hall=-20.0)
-    # bar 19: the Knight's red hand: the band stops; THUD; the low brass, D down to G
+    # bar 22: the Knight's red hand: the band stops; THUD; the low brass, D down to G
     tgr = m.at("T_GRAB", 10.2, "snatched")
     tsw = m.at("", tgr - 0.35, "heavy sleeve", "swings in")
     m.put("efx", roomed(m, cloth(0.3, 7, heavy=1.0), tsw), tsw, -18.0, pan=0.6, label="a heavy sleeve swings in fast",
@@ -3188,8 +3276,8 @@ def s03(m, S):
     melody(m, tth, ((0, 1, 62), (1, 1.5, 55)), inst="tbn", gain=-15.0, vel=0.75, seed=12,
            label="the low brass: D down to G, the inversion's first step (a foreshadowing)")
     m.put("music", arco(31, 0.85, 0.6, seed=12, attack=0.08, release=0.3), tth + BEAT, -17.0, pan=-0.05, align=None)
-    # bar 20: the way out, the car, the bell; the theme's last bar lands on a held chord
-    t20 = FB(m, 20)
+    # bar 23: the way out, the car, the bell; the theme's last bar lands on a held chord
+    t20 = FB(m, 23)
     cp = m.cue_of("held chord", "plan is done")
     tl = t20 + round(((float(cp["t"]) if cp else 13.5) - t20) / BEAT) * BEAT      # on the beat nearest the cue
     tl = float(np.clip(tl, t20 + 3 * BEAT, L - 1.0))
@@ -3210,8 +3298,13 @@ def s03(m, S):
           label="a chalk 'tock': the car drawn by the street")
     tbell = m.at("T_BELL", 13.0, "bell on the side door", "bell")
     m.put("efx", roomed(m, chalk_scratch(0.22, 78, circle=True, press=0.5), tbell), tbell, -23.0, pan=0.5,
-          label="a tiny chalk scratch: a bell on the side door (no ring)", align=None)
-    # bar 21: the tilt: a paper whoosh rises, a cymbal swells into s04's pop-up
+          label="a tiny chalk scratch: a bell on the side door", align=None)
+    # ... and her chalk taps it: one damped tink, the alarm bell's own note (D6), muted: it rings
+    # for real in s07, when the Knight bursts through that door
+    ttap = m.at("T_BELL_TAP", tbell + 0.5, "taps the little bell", "damped tink")
+    m.put("efx", roomed(m, bell_tink(1), ttap), ttap, -18.0, pan=0.55, label="her chalk taps the little bell: one damped tink")
+    m.put("efx", chalk_tap(82, 0.45), ttap, -27.0, pan=0.55)
+    # bar 24: the tilt: a paper whoosh rises, a cymbal swells into s04's pop-up
     tv = g(S, "T_TILT", 14.0) if _num(getattr(S, "T_TILT", None)) else g(S, "T_TILT", (14.0, 16.0))[0]
     cw = m.cue_of("rising paper whoosh", "tilts down")
     w0 = float(cw["t"]) if cw else tv + 0.4
@@ -3220,7 +3313,7 @@ def s03(m, S):
     m.put("music", cym_swell(round(max(0.5, L - tv), 2), 2), tv, -26.0, align=None)
 
 
-# ============================================================================ s04 NIGHT (44-56): bars 22-27
+# ============================================================================ s04 NIGHT (50-62): bars 25-30
 def _s04_bible(m, S):
     """s04 from the bible (its stand-in)."""
     L = m.len
@@ -3237,7 +3330,7 @@ def _s04_bible(m, S):
               label="paper pops: the walls fold up" if k == 0 else None)
     run = (38, 41, 45, 49, 50, 53, 57, 61, 62, 65, 69, 73)
     for k, p in enumerate(run):
-        m.put("music", piano(p, 0.35, 0.45 + 0.03 * k, k), FB(m, 22) + k * BEAT * 2 / 6.0, -15.0, pan=-0.25 + 0.04 * k,
+        m.put("music", piano(p, 0.35, 0.45 + 0.03 * k, k), FB(m, 25) + k * BEAT * 2 / 6.0, -15.0, pan=-0.25 + 0.04 * k,
               label="a rising piano run (the pop-up)" if k == 0 else None)
     tmoon = m.at("T_MOON", 1.5, "moon")
     vibe_chord(m, tmoon, (81, 86), 1.6, gain=-19.0, vel=0.5, roll=0.06, depth=0.55, seed=9, label="the moon pops up")
@@ -3246,13 +3339,13 @@ def _s04_bible(m, S):
         m.put("efx", roomed(m, switch_click(4 + k, 0.7), tlamps + 0.25 * k), tlamps + 0.25 * k, -24.0, pan=(-0.5, 0.5)[k],
               label="the street lamps come on" if k == 0 else None)
     # the heist groove: the trumpet calls the theme's head, the vibraphone answers
-    t23 = FB(m, 23)
-    m.put("music", piano(74, 1.2, 0.6, 3), t23, -15.0, pan=0.2)
-    bassline(m, t23, "vamp", gain=-10.0, vel=0.8)
-    drums(m, t23, 2, level=-2.0, seed=7)
-    comp(m, t23, (("Dm6", 4), ("Dm6", 4)), gain=-22.0, vel=0.42, pattern="push", seed=5)
-    melody(m, t23, THEME, inst="tpt", gain=-14.5, vel=0.75, seed=4, stop=4, label="the trumpet calls the theme's head")
-    melody(m, t23, THEME, gain=-14.0, vel=0.65, start=4, stop=9, seed=5)
+    t26 = FB(m, 26)
+    m.put("music", piano(74, 1.2, 0.6, 3), t26, -15.0, pan=0.2)
+    bassline(m, t26, "vamp", gain=-10.0, vel=0.8)
+    drums(m, t26, 2, level=-2.0, seed=7)
+    comp(m, t26, (("Dm6", 4), ("Dm6", 4)), gain=-22.0, vel=0.42, pattern="push", seed=5)
+    melody(m, t26, THEME, inst="tpt", gain=-14.5, vel=0.75, seed=4, stop=4, label="the trumpet calls the theme's head")
+    melody(m, t26, THEME, gain=-14.0, vel=0.65, start=4, stop=9, seed=5)
     curb = span(m, "T_CURB", (3.0, 4.5), "curb", "arrive", "steps along")
     steps(m, "her", curb[0], curb[1], 0.5, gain=-22.0, pan=-0.3, room_="street", label="their steps along the curb")
     steps(m, "knight", curb[0] + 0.25, curb[1], 0.5, gain=-21.0, pan=0.2, room_="street", k0=3)
@@ -3264,14 +3357,14 @@ def _s04_bible(m, S):
     for k, t in enumerate(m.ats("T_DOWN", (5.0, 5.5, 6.0), "goes down", "one goes down", "down the rungs", n=3)):
         m.put("efx", rev(rung(k), -10.0, k, "cell"), t, -17.0, pan=-0.1, label="a rung: one goes down")
         m.put("feet", footstep(("her", "cracker", "knight")[k % 3], k, "cell"), t + 0.18 - STEP_PRE, -22.0)
-    # the sewer: the groove goes dark; the clock starts (50.0)
-    t25 = FB(m, 25)
-    bassline(m, t25, "vamp2", gain=-11.0, vel=0.72)
-    bassline(m, t25 + 2 * BAR, "A1 ~ E2 .", gain=-11.0, vel=0.7)
-    drums(m, t25, 3, level=-6.0, kick_=False, seed=8)
-    vibe_chord(m, t25, (53, 57, 59, 64), 3.8, gain=-20.0, vel=0.5, depth=0.55, seed=6)
-    vibe_chord(m, t25 + 2 * BAR, (55, 58, 61, 65), 1.8, gain=-20.0, vel=0.5, depth=0.55, seed=7)
-    melody(m, t25 + 2 * BAR, ((0, 1, 69), (1, 1, 67), (2, 1, 65), (3, 0.5, 64)), inst="tpt", gain=-16.5, vel=0.6, seed=9)
+    # the sewer: the groove goes dark; the clock starts (56.0)
+    t28 = FB(m, 28)
+    bassline(m, t28, "vamp2", gain=-11.0, vel=0.72)
+    bassline(m, t28 + 2 * BAR, "A1 ~ E2 .", gain=-11.0, vel=0.7)
+    drums(m, t28, 3, level=-6.0, kick_=False, seed=8)
+    vibe_chord(m, t28, (53, 57, 59, 64), 3.8, gain=-20.0, vel=0.5, depth=0.55, seed=6)
+    vibe_chord(m, t28 + 2 * BAR, (55, 58, 61, 65), 1.8, gain=-20.0, vel=0.5, depth=0.55, seed=7)
+    melody(m, t28 + 2 * BAR, ((0, 1, 69), (1, 1, 67), (2, 1, 65), (3, 0.5, 64)), inst="tpt", gain=-16.5, vel=0.6, seed=9)
     if 0.0 <= HEIST_T0 - m.t0 < L:
         m.mark(HEIST_T0 - m.t0, "the stopwatch starts: the clock")
     m.cover("stopwatch", "the clock", "ticks")
@@ -3302,12 +3395,12 @@ def cpan(m, t, *words, default=0.0):
 
 @section("s04")
 def s04(m, S):
-    """Bar 22, the pop-up: the lamp goes out and the night comes up; a piano run climbs the spy
+    """Bar 25, the pop-up: the lamp goes out and the night comes up; a piano run climbs the spy
     chord as the walls rise, the crew pop up out of the plan a beat apart and the street's cards
-    snap up. Bars 23-24, the street: the heist groove, the trumpet calls the theme's head; the band
+    snap up. Bars 26-27, the street: the heist groove, the trumpet calls the theme's head; the band
     stops for the manhole (the vibraphone answers alone over the hook and the scrape) and hits
-    the CLANK on beat 4. Bar 25: the clock starts on the bar line (50.0), one down the rungs a
-    beat; the groove goes dark. Bars 26-27, the sewer: water, drips, the climb, the hatch."""
+    the CLANK on beat 4. Bar 28: the clock starts on the bar line (56.0), one down the rungs a
+    beat; the groove goes dark. Bars 29-30, the sewer: water, drips, the climb, the hatch."""
     if isinstance(S, Stub):
         return _s04_bible(m, S)
     L = m.len
@@ -3325,7 +3418,7 @@ def s04(m, S):
     u = tax(len(na))
     env = np.clip(u / 1.2, 0, 1) * np.clip((c1 + 0.4 - tl0 - u) / max(0.5, c1 - c0), 0, 1)
     m.put("amb", na * env[:, None], tl0, -29.0, label="night air comes up: a distant city, a far siren, wind", align=None)
-    # bar 22: the walls rise (the paper carries on from s03's whoosh); the pieces sink; the pops
+    # bar 25: the walls rise (the paper carries on from s03's whoosh); the pieces sink; the pops
     cw = m.cue_of("rising paper whoosh", "walls rise")
     w0, wd = (float(cw["t"]), float(cw.get("dur") or 2.8)) if cw else (0.0, 2.8)
     m.put("efx", paper_carry(round(wd, 2), 3), w0, -17.0, label="the walls rise: the paper whoosh carries on", align=None)
@@ -3338,7 +3431,7 @@ def s04(m, S):
               label="a paper pop-up snap")
     run = (38, 41, 45, 49, 50, 53, 57, 61, 62, 65, 69, 73)
     for k, p in enumerate(run):
-        m.put("music", piano(p, 0.35, 0.45 + 0.03 * k, k), FB(m, 22) + k * BEAT * 2 / 6.0, -15.0, pan=-0.25 + 0.04 * k,
+        m.put("music", piano(p, 0.35, 0.45 + 0.03 * k, k), FB(m, 25) + k * BEAT * 2 / 6.0, -15.0, pan=-0.25 + 0.04 * k,
               label="a rising piano run (the pop-up)" if k == 0 else None)
     pops = dict(g(S, "POPS", {}))
     tmoon = float(pops["moon"]) if _num(pops.get("moon")) else 3.5
@@ -3353,18 +3446,18 @@ def s04(m, S):
                "cracker" if ("cracker" in s or "shuffl" in s or "old man" in s) else "her")
         m.put("feet", footstep(who, k, "street", seed=k % 5), t - STEP_PRE, c["gain_db"] + CUE_TRIM, pan=c["pan"],
               label=f"footstep ({who})", sync=t)
-    # bars 23-24: the groove; the trumpet calls the theme's head; stop-time for the manhole
-    t23, t24 = FB(m, 23), FB(m, 24)
-    m.put("music", piano(74, 1.2, 0.6, 3), t23, -15.0, pan=0.2)
-    bassline(m, t23, "D2 F2 A2 B2 | C3 B2", gain=-10.0, vel=0.8)
-    drums(m, t23, 1, level=-2.0, seed=7)
+    # bars 26-27: the groove; the trumpet calls the theme's head; stop-time for the manhole
+    t26, t27 = FB(m, 26), FB(m, 27)
+    m.put("music", piano(74, 1.2, 0.6, 3), t26, -15.0, pan=0.2)
+    bassline(m, t26, "D2 F2 A2 B2 | C3 B2", gain=-10.0, vel=0.8)
+    drums(m, t26, 1, level=-2.0, seed=7)
     for pos, v in ((0, 0.5), (1, 0.85)):
-        m.put("music", brush_tap((pos + 3) % 9, 0.3 if pos else 0.0) * v, t24 + pos * BEAT, -29.0, pan=0.15, hall=-22.0)
-    m.put("music", kick(1, 0.25), t24, -31.0, hall=None)
-    comp(m, t23, (("Dm6", 4),), gain=-22.0, vel=0.42, pattern="push", seed=5)
-    comp(m, t24, (("Dm6", 2),), gain=-22.0, vel=0.4, pattern="sparse", seed=6)
-    melody(m, t23, THEME, inst="tpt", gain=-14.5, vel=0.75, seed=4, stop=4, label="the trumpet calls the theme's head")
-    melody(m, t23, THEME, gain=-14.5, vel=0.62, start=4, stop=8, seed=5)
+        m.put("music", brush_tap((pos + 3) % 9, 0.3 if pos else 0.0) * v, t27 + pos * BEAT, -29.0, pan=0.15, hall=-22.0)
+    m.put("music", kick(1, 0.25), t27, -31.0, hall=None)
+    comp(m, t26, (("Dm6", 4),), gain=-22.0, vel=0.42, pattern="push", seed=5)
+    comp(m, t27, (("Dm6", 2),), gain=-22.0, vel=0.4, pattern="sparse", seed=6)
+    melody(m, t26, THEME, inst="tpt", gain=-14.5, vel=0.75, seed=4, stop=4, label="the trumpet calls the theme's head")
+    melody(m, t26, THEME, gain=-14.5, vel=0.62, start=4, stop=8, seed=5)
     tturn = m.at("T_TURN", 3.5, "coat rustles", "turns back")
     m.put("efx", roomed(m, cloth(0.45, 6, heavy=1.0), tturn), tturn, -24.0, pan=cpan(m, tturn, "coat"),
           label="a heavy coat rustles: the Knight turns back", align=None)
@@ -3380,7 +3473,7 @@ def s04(m, S):
     m.put("efx", rev(manhole_clank(1), -12.0, 2, "street"), tcl, -11.0, pan=cpan(m, tcl, "clank"),
           label="CLANK: the iron lid falls flat on the road")
     hit(m, tcl, 45, 0.6, gain=-14.5)
-    # bar 25, the descent: the camera sinks; one down the rungs a beat, a splash each at the foot
+    # bar 28, the descent: the camera sinks; one down the rungs a beat, a splash each at the foot
     cwh = m.cue_of("low whoosh", "camera sinks")
     k0, kd = (float(cwh["t"]), float(cwh.get("dur") or 2.0)) if cwh else (c0, 2.0)
     m.put("efx", sink_whoosh(round(kd, 2), 2), k0, -19.0, label="a low whoosh: the camera sinks into the sewer", align=None)
@@ -3405,14 +3498,14 @@ def s04(m, S):
     s0_ = c0 + 0.4
     m.put("amb", dsp.fade(sewer_bed(round(L - s0_ + 0.3, 2), 1), 1.0, 0.0), s0_, -31.0,
           label="the sewer: the channel, the air of the pipe", align=None)
-    t25 = FB(m, 25)
-    bassline(m, t25, "vamp2", gain=-11.0, vel=0.72)
-    bassline(m, t25 + 2 * BAR, "A1 ~ E2 .", gain=-11.0, vel=0.7)
-    drums(m, t25, 3, level=-6.0, kick_=False, seed=8)
-    vibe_chord(m, t25, (53, 57, 59, 64), 3.8, gain=-20.0, vel=0.5, depth=0.55, seed=6)
-    vibe_chord(m, t25 + 2 * BAR, (55, 58, 61, 65), 1.8, gain=-20.0, vel=0.5, depth=0.55, seed=7)
-    melody(m, t25 + 2 * BAR, ((0, 1, 69), (1, 1, 67), (2, 1, 65), (3, 0.5, 64)), inst="tpt", gain=-16.5, vel=0.6, seed=9)
-    # bars 26-27: the window in the bank's wall; she climbs; the hatch
+    t28 = FB(m, 28)
+    bassline(m, t28, "vamp2", gain=-11.0, vel=0.72)
+    bassline(m, t28 + 2 * BAR, "A1 ~ E2 .", gain=-11.0, vel=0.7)
+    drums(m, t28, 3, level=-6.0, kick_=False, seed=8)
+    vibe_chord(m, t28, (53, 57, 59, 64), 3.8, gain=-20.0, vel=0.5, depth=0.55, seed=6)
+    vibe_chord(m, t28 + 2 * BAR, (55, 58, 61, 65), 1.8, gain=-20.0, vel=0.5, depth=0.55, seed=7)
+    melody(m, t28 + 2 * BAR, ((0, 1, 69), (1, 1, 67), (2, 1, 65), (3, 0.5, 64)), inst="tpt", gain=-16.5, vel=0.6, seed=9)
+    # bars 29-30: the window in the bank's wall; she climbs; the hatch
     win0 = float(g(S, "T_WINDOW", (9.8, 10.6))[0])
     m.put("efx", roomed(m, chalk_scratch(0.4, 61, press=0.6), win0), win0, -22.0, pan=cpan(m, win0, "window"),
           label="a soft chalk scratch: the cutaway window", align=None)
@@ -3432,25 +3525,25 @@ def s04(m, S):
           label="thud: the hatch falls open on the store room floor")
 
 
-# ============================================================================ s05 GUARD (56-74): bars 28-36
+# ============================================================================ s05 GUARD (62-80): bars 31-39
 @section("s05")
 def s05(m, S):
-    """Bars 28-29, the corridor: the score drops away to the clock's tick alone, a dark held
+    """Bars 31-32, the corridor: the score drops away to the clock's tick alone, a dark held
     corridor (its room tone, the building humming low on D); his light clicks on, his hard heels,
     his belt creaking as the light swings; the camera follows the beam to the doorway, where a
-    breath is held as its patch touches the edge. Bars 30-32, the stealth map: the corridor folds
+    breath is held as its patch touches the edge. Bars 33-35, the stealth map: the corridor folds
     down into the plan; a tiptoe bass under the plan's timing (a low tock at each end of the
     swing); each piece hops the gap on the beat with a vibraphone note (D, F, A rising); it
-    unfolds. Bars 33-34, the near miss, a beat at a time: the tiptoe walks up to the CLANK; the
+    unfolds. Bars 36-37, the near miss, a beat at a time: the tiptoe walks up to the CLANK; the
     camera whips to the guard; the score holds its breath (one low muted note on a D pedal) as his
-    light finds the cat; the hiss, the leap, the can. Bar 35: he breathes out and walks off; the
-    crew slip into the dark. Bar 36: the band creeps back as the camera pushes down to the dial
+    light finds the cat; the hiss, the leap, the can. Bar 38: he breathes out and walks off; the
+    crew slip into the dark. Bar 39: the band creeps back as the camera pushes down to the dial
     (step 4)."""
     if isinstance(S, Stub):
         return _s05_bible(m, S)
     L = m.len
     clock(m)
-    t30, t36 = FB(m, 30), FB(m, 36)
+    t33, t39 = FB(m, 33), FB(m, 39)
     # the corridor: the score drops away to the tick; the room tone; the building hums, low, on D
     cd = m.cue_of("score drops away", "drops away to the heist clock")
     td = float(cd["t"]) if cd else 0.0
@@ -3478,7 +3571,7 @@ def s05(m, S):
     for t, _, c in cues_with(m, "breath held in the doorway"):
         m.put("vox", space(dsp.sos(breath("held"), "lowpass", 2600.0, 2), "court", -14.0), t, c["gain_db"] + CUE_TRIM + 4.0,
               pan=c["pan"], label="a breath held in the doorway (his light's patch at its edge)", align=None, key=True)
-    # bar 30: the corridor folds down into the plan (paper); the plan's timing; the pieces hop the gap
+    # bar 33: the corridor folds down into the plan (paper); the plan's timing; the pieces hop the gap
     tu0, tu1 = g(S, "T_TILT_UP", (4.0, 5.0))
     m.put("efx", paper_whoosh(round(tu1 - tu0, 2), 21), tu0, cgain(m, tu0, "paper fold", default=-18.0) - 6.0,
           label="a paper fold and a soft whoosh: the corridor folds down into the plan", align=None)
@@ -3486,8 +3579,8 @@ def s05(m, S):
     for k, (t, _, c) in enumerate(cues_with(m, "low wooden tock")):
         m.put("efx", tock(k % 3), t, c["gain_db"] + CUE_TRIM - 1.0, pan=c["pan"], label="a low wooden tock (the plan's timing)")
     # the tiptoe bass from the tilt, a note on 1 and 3, walking on up to the clank
-    bassline(m, t30, "D2 . A1 . | D2 . A1 . | F2 . A1 . | D2", gain=-12.5, vel=0.7, stacc=0.13, label="the tiptoe bass")
-    drums(m, t30, 3, level=-11.0, taps=False, kick_=False, hat=True, seed=9)
+    bassline(m, t33, "D2 . A1 . | D2 . A1 . | F2 . A1 . | D2", gain=-12.5, vel=0.7, stacc=0.13, label="the tiptoe bass")
+    drums(m, t33, 3, level=-11.0, taps=False, kick_=False, hat=True, seed=9)
     notes = (74, 77, 81)
     for k, (t, _, c) in enumerate(cues_with(m, "piece clack")):
         m.put("efx", piece_clack(50 + k, 0.35), t, c["gain_db"] + CUE_TRIM - 4.0, pan=c["pan"],
@@ -3543,7 +3636,7 @@ def s05(m, S):
     tca = m.at("T_CLATTER", 13.5, "clatter")
     m.put("efx", roomed(m, cut(can_clatter(1), 1.7, 0.5), tca), tca, -13.0, pan=cpan(m, tca, "clatter", default=0.55),
           label="CLATTER: the tin can hits the floor and rolls away")
-    # bar 35: he breathes out, half a laugh; turns away and walks off; the crew slip into the dark
+    # bar 38: he breathes out, half a laugh; turns away and walks off; the crew slip into the dark
     tsi = m.at("T_SIGH", 14.0, "breathes out", "sigh")
     m.put("vox", space(breath("out"), "court", -14.0, lp=3000.0), tsi, cgain(m, tsi, "breathes out", default=-18.0) - 3.0,
           pan=cpan(m, tsi, "breathes out", default=-0.3), label="the guard breathes out: a relieved sigh", align=None,
@@ -3572,10 +3665,10 @@ def s05(m, S):
           label="a chalk tap and a quick chalk circle: the plan's mark on the dial")
     m.put("efx", roomed(m, chalk_scratch(0.3, 42, circle=True), tdi + 0.12), tdi + 0.12, -24.0, align=None)
     m.put("music", ting(3, 86) * 0.7, tdi, -22.0, hall=-16.0)
-    # bar 36: the band creeps back in (a walk up the minor seventh into the dial)
-    bassline(m, t36, "D2 F2 A2 C3", gain=-11.5, vel=0.68, label="the band creeps back")
-    drums(m, t36, 1, level=-8.0, kick_=False, seed=10)
-    melody(m, t36, ((1.5, 0.5, 62), (2, 0.5, 65), (2.5, 0.5, 69), (3, 1, 72)), gain=-17.0, vel=0.52, seed=11)
+    # bar 39: the band creeps back in (a walk up the minor seventh into the dial)
+    bassline(m, t39, "D2 F2 A2 C3", gain=-11.5, vel=0.68, label="the band creeps back")
+    drums(m, t39, 1, level=-8.0, kick_=False, seed=10)
+    melody(m, t39, ((1.5, 0.5, 62), (2, 0.5, 65), (2.5, 0.5, 69), (3, 1, 72)), gain=-17.0, vel=0.52, seed=11)
 
 
 def _s05_bible(m, S):
@@ -3590,9 +3683,9 @@ def _s05_bible(m, S):
     steps(m, "guard", gw[0], gw[1], 1.0, gain=-16.0, pan=-0.45, room_="court", label="the guard's slow steps")
     m.put("vox", breath("held"), 2.75, -27.0, pan=0.2, align=None)
     # the stealth map: a tiptoe bass; a vibraphone note for each piece that crosses
-    t30 = FB(m, 30)
-    bassline(m, t30, "D2 . A1 . | D2 . A1 . | F2 . A1 .", gain=-12.0, vel=0.7, stacc=0.13, label="the tiptoe bass")
-    drums(m, t30, 3, level=-10.0, taps=False, kick_=False, seed=9)
+    t33 = FB(m, 33)
+    bassline(m, t33, "D2 . A1 . | D2 . A1 . | F2 . A1 .", gain=-12.0, vel=0.7, stacc=0.13, label="the tiptoe bass")
+    drums(m, t33, 3, level=-10.0, taps=False, kick_=False, seed=9)
     for k, t in enumerate(m.ats("T_CROSSING", (6.0, 6.5, 7.0), "crosses", "cross", "gap", n=3)):
         m.put("efx", piece_clack(50 + k, 0.15), t, -24.0, pan=(-0.3, 0.0, 0.3)[k % 3], label="a piece crosses the gap")
         m.put("music", vibe((74, 77, 81)[k % 3], 0.8, 0.6, t_abs=m.t0 + t, seed=k), t, -15.0, pan=(-0.3, 0.0, 0.3)[k % 3])
@@ -3619,34 +3712,34 @@ def _s05_bible(m, S):
     steps(m, "guard", ws[0], ws[1], 1.0, gain=-21.0, pan=-0.6, room_="court", label="the guard walks on", k0=11)
     steps(m, "her", ws[0] + 0.5, ws[1], 0.5, gain=-26.0, pan=0.2, room_="court", k0=2)
     # the band comes back
-    t36 = FB(m, 36)
-    bassline(m, t36, "D2 F2 A2 C3", gain=-11.0, vel=0.72, label="the band comes back")
-    drums(m, t36, 1, level=-6.0, kick_=False, seed=10)
-    melody(m, t36, ((1.5, 0.5, 62), (2, 0.5, 65), (2.5, 0.5, 69), (3, 1, 72)), gain=-16.0, vel=0.55, seed=11)
+    t39 = FB(m, 39)
+    bassline(m, t39, "D2 F2 A2 C3", gain=-11.0, vel=0.72, label="the band comes back")
+    drums(m, t39, 1, level=-6.0, kick_=False, seed=10)
+    melody(m, t39, ((1.5, 0.5, 62), (2, 0.5, 65), (2.5, 0.5, 69), (3, 1, 72)), gain=-16.0, vel=0.55, seed=11)
 
 
-# ============================================================================ s06 SAFE (74-88): bars 37-43
+# ============================================================================ s06 SAFE (80-94): bars 40-46
 @section("s06")
 def s06(m, S):
-    """Bar 37, the door: low piano and an arco D under the clock; the Cracker's soft steps on the
-    steel floor, the chest-piece on the steel, his fingers on the knob. Bars 38-41, the lock: a
+    """Bar 40, the door: low piano and an arco D under the clock; the Cracker's soft steps on the
+    steel floor, the chest-piece on the steel, his fingers on the knob. Bars 41-44, the lock: a
     tiptoe pizzicato on 1 and 3; the cutaway (a paper cut, quick chalk); the dial spun right, left,
     right (heard through the stethoscope); each gate clicks on its beat (D, F, A; a ripple up the
     tube) and the vibraphone answers on the swung off-beat; the chalk line, step 4; CLUNK on the
-    fence with the chord together (D minor, the low piano). Bar 42, the door: the wheel and the
+    fence with the chord together (D minor, the low piano). Bar 45, the door: the wheel and the
     twelve bolts round the rim (a brush roll); his heave; the hinge groans and the brass swells on
-    B-flat (onto gold), rising into s07's downbeat; bar 43, the door settles."""
+    B-flat (onto gold), rising into s07's downbeat; bar 46, the door settles."""
     if isinstance(S, Stub):
         return _s06_bible(m, S)
     L = m.len
     clock(m)
-    t37, t38, t41 = FB(m, 37), FB(m, 38), FB(m, 41)
-    # bar 37: the door; low piano, the vibraphone's D minor 9, an arco D under it all
-    m.put("music", piano(38, 3.6, 0.55, 1), t37, -14.0, pan=-0.1, label="the vault door: low piano")
-    m.put("music", piano(26, 3.6, 0.5, 2), t37, -16.0, pan=-0.1)
-    vibe_chord(m, t37, (53, 57, 60, 64), 3.0, gain=-20.0, vel=0.5, motor=0.0, seed=8)
+    t40, t41, t44 = FB(m, 40), FB(m, 41), FB(m, 44)
+    # bar 40: the door; low piano, the vibraphone's D minor 9, an arco D under it all
+    m.put("music", piano(38, 3.6, 0.55, 1), t40, -14.0, pan=-0.1, label="the vault door: low piano")
+    m.put("music", piano(26, 3.6, 0.5, 2), t40, -16.0, pan=-0.1)
+    vibe_chord(m, t40, (53, 57, 60, 64), 3.0, gain=-20.0, vel=0.5, motor=0.0, seed=8)
     tfe = float(g(S, "T_FENCE", 9.5))
-    m.put("music", arco(26, round(max(1.0, tfe - t37 - 0.4), 2), 0.5, seed=2, attack=1.2, release=0.8), t37 + 0.5, -19.0,
+    m.put("music", arco(26, round(max(1.0, tfe - t40 - 0.4), 2), 0.5, seed=2, attack=1.2, release=0.8), t40 + 0.5, -19.0,
           align=None)
     # his steps in on the steel floor; the chest-piece to the steel; his fingers on the knob
     for k, (t, _, c) in enumerate(cues_with(m, "soft step", "steel-plated floor", "step on the steel")):
@@ -3661,8 +3754,8 @@ def s06(m, S):
     tkb = m.at("", float(g(S, "T_KNOB", (1.9, 2.5))[1]), "knurled knob", "faint tick")
     m.put("efx", roomed(m, knob_tick(1), tkb), tkb, cgain(m, tkb, "knob", "faint tick", default=-28.0) - 2.0,
           pan=cpan(m, tkb, "knob", "faint tick"), label="fingers settle on the dial's knob: a faint tick")
-    # bars 38-41: the lock; a tiptoe pizzicato on 1 and 3 under the clock
-    bassline(m, t38, "D2 . A1 . | D2 . A1 . | F2 . A1 . | D2 . . .", gain=-14.0, vel=0.62, stacc=0.13,
+    # bars 41-44: the lock; a tiptoe pizzicato on 1 and 3 under the clock
+    bassline(m, t41, "D2 . A1 . | D2 . A1 . | F2 . A1 . | D2 . . .", gain=-14.0, vel=0.62, stacc=0.13,
              label="the tiptoe bass (the lock)")
     tcu = m.at("", float(g(S, "T_CU", 3.0)), "paper cut", "chalk sketch", "cut away")
     m.put("efx", roomed(m, paper_torn(0.3, 3), tcu), tcu, cgain(m, tcu, "paper cut", "chalk sketch", default=-20.0) - 2.0,
@@ -3705,7 +3798,7 @@ def s06(m, S):
     b0, b1 = g(S, "T_BOLT", (9.6, 9.95))
     m.put("efx", roomed(m, bolt_slide(round(max(0.15, b1 - b0), 2), 1), b0), b0, cgain(m, b0, "bolt draws back", default=-15.0) - 2.0,
           pan=cpan(m, b0, "bolt draws back", default=0.6), label="the lock's bolt draws back: a short heavy slide", align=None)
-    # bar 42, the door: the chest-piece let go; the wheel; the twelve bolts round the rim; his heave
+    # bar 45, the door: the chest-piece let go; the wheel; the twelve bolts round the rim; his heave
     tlg = m.at("", float(g(S, "T_LET_GO", (10.0, 10.3))[0]) + 0.15, "chest-piece drops", "taps his coat")
     m.put("efx", roomed(m, coat_tap(2), tlg), tlg, cgain(m, tlg, "chest-piece drops", "coat", default=-28.0) - 2.0,
           pan=cpan(m, tlg, "chest-piece drops", "coat"), label="the chest-piece drops on its tube and taps his coat")
@@ -3741,11 +3834,11 @@ def _s06_bible(m, S):
     """s06 from the bible (its stand-in)."""
     L = m.len
     clock(m)
-    t37 = FB(m, 37)
-    m.put("music", piano(38, 3.6, 0.55, 1), t37, -14.0, pan=-0.1, label="the vault door: low piano")
-    m.put("music", piano(26, 3.6, 0.5, 2), t37, -16.0, pan=-0.1)
-    vibe_chord(m, t37, (53, 57, 60, 64), 3.0, gain=-19.0, vel=0.5, motor=0.0, seed=8)
-    m.put("music", arco(26, 9.0, 0.5, seed=2, attack=1.2, release=0.8), t37 + 0.5, -19.0, align=None)
+    t40 = FB(m, 40)
+    m.put("music", piano(38, 3.6, 0.55, 1), t40, -14.0, pan=-0.1, label="the vault door: low piano")
+    m.put("music", piano(26, 3.6, 0.5, 2), t40, -16.0, pan=-0.1)
+    vibe_chord(m, t40, (53, 57, 60, 64), 3.0, gain=-19.0, vel=0.5, motor=0.0, seed=8)
+    m.put("music", arco(26, 9.0, 0.5, seed=2, attack=1.2, release=0.8), t40 + 0.5, -19.0, align=None)
     tkn = m.at("T_KNEEL", 0.5, "kneels", "kneel", opt=True)
     if tkn is not None:
         m.put("efx", roomed(m, cloth(0.4, 6, heavy=0.4), tkn), tkn, -22.0, label="the Cracker kneels", align=None)
@@ -3790,7 +3883,7 @@ def _s06_bible(m, S):
     m.cover_span(d0, L, "brass", "swell", "gold light")
 
 
-# ============================================================================ s07 CROSS (88-104): bars 44-51
+# ============================================================================ s07 CROSS (94-114): bars 47-56
 @section("s07")
 def s07(m, S):
     L = m.len
@@ -3798,17 +3891,45 @@ def s07(m, S):
     for t, d, c in (cues_with(m, "room tone") if m._module() else ()):      # a bed the module names
         m.put("amb", bed("room_tone", round(max(1.0, d or 4.0), 2), 6, fin=0.05, fout=0.3), t,
               c["gain_db"] + CUE_TRIM - 9.0, label="the vault's room tone", align=None)
-    t44 = FB(m, 44)
-    # gold: a hot groove (the ride, trumpet stabs on the off-beats)
-    m.put("music", crash(3, 2.6), t44, -24.0, pan=0.3, hall=-20.0, label="gold: the groove")
-    bassline(m, t44, "D2 E2 F2 A2 | Bb2 D2 F2 Ab2", gain=-9.5, vel=0.85)
-    drums(m, t44, 2, level=0.0, ride_=True, sweep=False, seed=11)
-    comp(m, t44, (("Dm6", 4), ("Bb7", 4)), gain=-20.0, vel=0.5, pattern="push", seed=6)
-    for k, (b, sym) in enumerate(((1.5, "Dm6"), (3.5, "Dm6"), (5.5, "Bb7"), (7.5, "Bb7"))):
-        stab(m, t44 + sw(b), sym, gain=-17.0, dur=0.14, vel=0.75, seed=30 + k, low=False)
+    t47, t48, t49 = FB(m, 47), FB(m, 48), FB(m, 49)
+    # bar 47, gold: a hot groove (the ride, trumpet stabs on the off-beats)
+    m.put("music", crash(3, 2.6), t47, -24.0, pan=0.3, hall=-20.0, label="gold: the groove")
+    bassline(m, t47, "D2 E2 F2 A2", gain=-9.5, vel=0.85)
+    drums(m, t47, 1, level=0.0, ride_=True, sweep=False, seed=11)
+    comp(m, t47, (("Dm6", 4),), gain=-20.0, vel=0.5, pattern="push", seed=6)
+    # bar 48, the ruby (close on her box): the band drops out to a held low D and a cold open
+    # fifth on the vibraphone; her glove, the stone, a string harmonic rising as she lifts it into
+    # the light, a glassy shimmer as it flares (no celesta: its one ping is the ruby's in s11)
+    m.put("music", arco(38, 2.1, 0.5, seed=4, attack=0.3, release=0.5), t48, -18.0, pan=-0.05, align=None)
+    vibe_chord(m, t48, (62, 69, 76), 2.0, gain=-22.0, vel=0.4, roll=0.03, depth=0.6, hard=0.3, seed=24)
+    tin = m.at("", 2.0, "gloved hand comes in", "leather creak", win=0.5)
+    m.put("efx", roomed(m, glove_creak(4, 0.35), tin), tin, -25.0, pan=-0.4, label="her glove comes in: a soft leather creak",
+          align=None)
+    tpin = m.at("", 2.6, "close on the ruby", "stone on leather", win=0.5)
+    m.put("efx", roomed(m, knob_tick(2), tpin), tpin, -23.0, pan=0.0, label="her finger and thumb close on the ruby")
+    tlr = m.at("T_LIFT_R", 2.7, "lifts it out into the light")
+    tfl = m.at("T_FLARE", 3.0, "flares")
+    m.put("music", arco(86, round(tfl - tlr + 1.0, 2), 0.32, seed=9, attack=0.45, release=0.5, bright=2000.0), tlr, -23.0,
+          pan=0.05, label="she lifts it into the light: a soft rising string harmonic", align=None)
+    m.put("music", arco(81, round(tfl - tlr + 0.8, 2), 0.25, seed=10, attack=0.4, release=0.5, bright=1500.0), tlr, -29.0,
+          pan=-0.05, align=None)
+    vibe_chord(m, tfl, (81, 86, 88, 93), 1.4, gain=-20.0, vel=0.5, roll=0.03, hard=0.7, depth=0.7, seed=25,
+               label="the ruby flares: a bright glassy shimmer")
+    m.put("music", ting(9, 98) * 0.5, tfl + 0.02, -28.0, pan=-0.05, hall=-14.0)
+    taw = m.at("", 3.65, "takes it away", "cloth swish", win=0.5)
+    m.put("efx", roomed(m, cloth(0.25, 9), taw), taw, -24.0, pan=-0.5, label="her hand takes it away: a cloth swish", align=None)
+    tpk = m.at("", 4.4, "into her coat pocket", win=0.6)
+    m.put("efx", roomed(m, cloth(0.4, 10), tpk), tpk, -27.0, pan=-0.45, label="into her coat pocket: a soft rustle", align=None)
+    # bar 49: the groove comes back as the bars go on into the sack
+    bassline(m, t49, "Bb2 D2 F2 Ab2", gain=-9.5, vel=0.85)
+    drums(m, t49, 1, level=0.0, ride_=True, sweep=False, seed=13)
+    comp(m, t49, (("Bb7", 4),), gain=-20.0, vel=0.5, pattern="push", seed=8)
+    for k, (t0, b, sym) in enumerate(((t47, 1.5, "Dm6"), (t47, 3.5, "Dm6"), (t49, 1.5, "Bb7"), (t49, 3.5, "Bb7"))):
+        stab(m, t0 + sw(b), sym, gain=-17.0, dur=0.14, vel=0.75, seed=30 + k, low=False)
+    swing_c = [(t, c) for t, _, c in cues_with(m, "gold clinking in them")]
     if m._module() and getattr(S, "T_GOLD", None) is None:       # the module's own clinks and bags
         gold = tuple(t for t, _, c in cues_with(m, "clink", "gold bar", "bars", "into a bag", "into the bag", "stacks")
-                     if not any(w in c["sfx"].lower() for w in ("look", "light", "tone", "hum", "glint", "sight")))
+                     if not any(w in c["sfx"].lower() for w in ("look", "light", "tone", "hum", "glint", "sight", "swing")))
     else:
         gold = m.ats("T_GOLD", (0.5, 1.0, 1.75, 3.0, 3.5), "gold", "clink", "bag", "bars", opt=True)
     for k, t in enumerate(gold):
@@ -3823,35 +3944,39 @@ def s07(m, S):
     if tgl is not None:
         m.put("music", vibe(81, 0.9, 0.35, t_abs=m.t0 + tgl, depth=0.6, hard=0.2, seed=2), tgl, -21.0, pan=0.45,
               label="a tiny red glint", hall=-14.0)
-    # bars 46-49: THE THEME INVERTED, low and minor, from his look; it peaks from the X-split
-    t46 = FB(m, 46)
-    tlook = m.at("T_LOOK", 4.0, "his red look", "sight line", "look", opt=True)
-    melody(m, t46, INVERSION, inst="tbn", gain=-12.5, vel=0.72, seed=12, legato=0.96,
+    tpg = m.at("", 9.42, "glint in her pocket", opt=True)
+    if tpg is not None:          # the same glint, from her pocket: the ruby is hers now
+        m.put("music", vibe(81, 0.8, 0.3, t_abs=m.t0 + tpg, depth=0.6, hard=0.2, seed=3), tpg, -23.0, pan=-0.6,
+              label="a tiny red glint in her pocket", hall=-14.0)
+    # bars 50-53: THE THEME INVERTED, low and minor, from his look; it peaks from the X-split
+    t50 = FB(m, 50)
+    tlook = m.at("T_LOOK", 6.4, "his red look", "sight line", "look", opt=True)
+    melody(m, t50, INVERSION, inst="tbn", gain=-12.5, vel=0.72, seed=12, legato=0.96,
            label="THE THEME INVERTED (trombone, low): his look")
-    if tlook is not None and abs(tlook - t46) > FRAME:
+    if tlook is not None and abs(tlook - t50) > FRAME:
         m.put("music", brass(51, 0.6, 0.5, seed=13, mute="cup", scoop=False), tlook, -19.0, pan=0.2, label="his look")
-    melody(m, t46, INVERSION, inst="piano", gain=-17.0, vel=0.5, seed=13, octave=-1)
-    melody(m, t46, INVERSION, inst="piano", gain=-19.5, vel=0.42, seed=14)
-    tx = m.at("T_SPLIT", 6.0, "x-split", "split", "diagonals", opt=True)
-    melody(m, t46, INVERSION, gain=-14.5, vel=0.7, octave=1, motor=0.0, hard=0.4, start=4, seed=15)
-    bassline(m, t46, "inv", gain=-9.5, vel=0.82, swell=(0.7, 1.0))
-    comp(m, t46 + BAR, PROG_INV[1:], gain=-21.0, vel=0.48, pattern="whole", seed=7)
-    drums(m, t46 + BAR, 3, level=-1.0, seed=12, slap=0.4)
-    m.cover_span(t46, t46 + 16 * BEAT, "theme", "invert", "inversion")
+    melody(m, t50, INVERSION, inst="piano", gain=-17.0, vel=0.5, seed=13, octave=-1)
+    melody(m, t50, INVERSION, inst="piano", gain=-19.5, vel=0.42, seed=14)
+    tx = m.at("T_SPLIT", 8.0, "x-split", "split", "diagonals", opt=True)
+    melody(m, t50, INVERSION, gain=-14.5, vel=0.7, octave=1, motor=0.0, hard=0.4, start=4, seed=15)
+    bassline(m, t50, "inv", gain=-9.5, vel=0.82, swell=(0.7, 1.0))
+    comp(m, t50 + BAR, PROG_INV[1:], gain=-21.0, vel=0.48, pattern="whole", seed=7)
+    drums(m, t50 + BAR, 3, level=-1.0, seed=12, slap=0.4)
+    m.cover_span(t50, t50 + 16 * BEAT, "theme", "invert", "inversion")
     for k in range(2 if tx is not None else 0):
         w = fx("whip", seed=40 + k)
         m.put("efx", w, tx + 0.12 * k - peak_at(w), -14.0 + 2 * k, pan=(-0.4, 0.4)[k], sync=tx + 0.12 * k, align="peak",
               label="the X-split: the frame cut on both diagonals" if k == 0 else None)
-    tred = m.at("T_RED", 8.0, "seams turn red", "he moves", opt=True)
+    tred = m.at("T_RED", 10.5, "seams turn red", "he moves", opt=True)
     if tred is not None:
         m.put("music", brass(63, 0.9, 0.55, seed=16, mute="harmon", scoop=False, vib=False, fall=1.0), tred, -18.0,
               pan=0.3, label="he moves: the seams turn red (the semitone)")
     # the Knight's strained grunts, his own voice: the bags heaved up (the gold shifts inside them);
     # his weight thrown against the vault door, held as it swings
     for k, (dflt, words, cut_, lab) in enumerate((
-            (6.4, ("heaves up the two heavy bags",), (5.06, 5.76, 0.168),
+            (8.4, ("heaves up the two heavy bags",), (5.06, 5.76, 0.168),
              "he heaves up the two heavy bags: a strained grunt (his voice); the gold shifts inside them"),
-            (10.12, ("throws his weight",), (0.10, 1.64, 0.257),
+            (12.12, ("throws his weight",), (0.10, 1.64, 0.257),
              "he throws his weight against the vault door: a strained grunt (his voice)"))):
         tg_ = m.at("", dflt, *words, win=0.3)
         a, b, on = cut_
@@ -3863,15 +3988,15 @@ def s07(m, S):
                 m.put("efx", roomed(m, dsp.sos(gold_clink(60 + j, 1.0), "lowpass", 1600.0, 2), tg_ + 0.06 + 0.07 * j),
                       tg_ + 0.06 + 0.07 * j, -25.0 - 2.0 * j, pan=(-0.15, 0.15)[j], align=None)
     # the door shut: the groan; BOOM on the bar line; the dial spins red; the bolts shoot home
-    ss = span(m, "T_SHUT", (10.0, 12.0), "door shut", "swings the door", "groan", "shut", opt=True)
+    ss = span(m, "T_SHUT", (12.0, 14.0), "door shut", "swings the door", "groan", "shut", opt=True)
     if ss is not None:
         s0, s1 = ss
         m.put("efx", roomed(m, vault_groan(round(s1 - s0, 2), 2), s0, wet=-10.0), s0, -10.0,
               label="he swings the door shut", align=None)
-    tb = m.at("T_BOOM", 12.0, "boom", "slams")
+    tb = m.at("T_BOOM", 14.0, "boom", "slams")
     m.put("efx", vault_boom(1), tb, -8.0, label="BOOM: the vault door slams")
     hit(m, tb, 38, 1.0, gain=-12.0)
-    tds = m.at("T_DIAL_RED", 12.25, "dial spins", "spins", opt=True)
+    tds = m.at("T_DIAL_RED", 14.25, "dial spins", "spins", opt=True)
     if tds is not None:
         m.put("efx", roomed(m, dial_ratchet(0.45, 7, 40.0), tds), tds, -15.0, label="the dial spins in red", align=None)
     homes = [(t, c) for t, _, c in cues_with(m, "shoots home", "shoot home", "shot home", "bolt home", "bolts home")]
@@ -3881,34 +4006,71 @@ def s07(m, S):
                   label="a bolt shoots home (the rolling run)", sync=t, align="peak")
         tbh = homes[0][0]
     else:
-        tbh = m.at("T_BOLTS_HOME", 12.6, "shoot home", "bolts", opt=True)
+        tbh = m.at("T_BOLTS_HOME", 14.6, "shoot home", "bolts", opt=True)
         if tbh is not None:
             m.put("efx", roomed(m, bolt_run(10, 0.4, 3, home=True), tbh), tbh, -10.0, label="the bolts shoot home")
         else:
             tbh = tb + 0.6
-    # bars 50-51: the inversion's head again, exposed, over the alarm; the clock stops dead (101.5)
-    t50 = FB(m, 50) + 2 * BEAT          # after the BOOM's black: it creeps in on the half bar (101.0)
-    melody(m, t50, INVERSION, inst="tbn", gain=-13.5, vel=0.66, stop=6, seed=17, label="the inversion's head, exposed")
-    melody(m, t50, INVERSION, gain=-16.5, vel=0.55, stop=6, octave=1, motor=0.0, hard=0.35, seed=18)
-    m.put("music", arco(26, max(0.5, L - tbh - 0.3), 0.6, seed=3, attack=0.5, release=0.3), tbh, -16.0, align=None)
-    m.cover_span(t50, L, "theme", "invert", "inversion")
+    # bar 54's half bar: the inversion's head again, exposed, as his L runs to the side door; the
+    # clock stops dead (109.5)
+    tside = m.at("T_SIDE", 17.0, "bang", "side door flung")
+    t54 = FB(m, 54) + 2 * BEAT          # after the BOOM's black: it creeps in on the half bar (15.0)
+    melody(m, t54, INVERSION, inst="tbn", gain=-13.5, vel=0.66, stop=4, seed=17, label="the inversion's head, exposed")
+    melody(m, t54, INVERSION, gain=-16.5, vel=0.55, stop=4, octave=1, motor=0.0, hard=0.35, seed=18)
+    m.put("music", arco(26, max(0.5, tside - tbh), 0.6, seed=3, attack=0.5, release=0.3), tbh, -16.0, align=None)
+    m.cover_span(t54, tside, "theme", "invert", "inversion")
     if 0.0 <= HEIST_STOP - m.t0 < L:
         m.mark(HEIST_STOP - m.t0, "the clock stops dead")
     m.cover("stopwatch")
-    rl = span(m, "T_ROUTE_L", (13.0, 14.0), "red route", "in an l", "leaves the chalk route", opt=True)
+    rl = span(m, "T_ROUTE_L", (15.2, 16.5), "red route", "in an l", "leaves the chalk route", opt=True)
     r0, r1 = rl if rl is not None else (0.0, 0.0)
     for k in range(2 if rl is not None else 0):
         a = r0 + k * (r1 - r0) / 2
         m.put("efx", roomed(m, chalk_scratch(round((r1 - r0) / 2 - 0.05, 2), 70 + k, press=1.0), a), a, -19.0,
               pan=0.2 * k, label="his red route: an L" if k == 0 else None)
-    for k, t in enumerate(m.ats("T_HOPS", (13.5, 14.0, 14.5), "knight hops", "hops", n=3, opt=True)):
+    for k, t in enumerate(m.ats("T_HOPS", (15.2, 15.5, 16.0), "knight hops", "hops", n=3, opt=True)):
         m.put("efx", piece_clack(80 + k, 0.8), t, -14.0, pan=0.3 + 0.1 * k, label="the red knight hops")
-    a0 = m.at("T_ALARM", 14.5, "alarm")
-    al = roomed(m, alarm_bell(max(0.3, L - a0), 1), a0, wet=-16.0)[:n_of(L - a0)]
-    m.put("efx", dsp.fade(al, 0.0, 0.03), a0, -17.0, pan=0.35, label="alarm bell")
+    # the alarm: the drawn bell on the side door rings (on the plan, red ripples), then, cut to the
+    # door itself, BANG: he bursts out under the real bell, ringing right over him; it grows as the
+    # camera pushes in on it, and cuts dead into s08's black
+    a0 = m.at("T_ALARM", 16.5, "alarm")
+    al = alarm_bell(round(L - a0 + 0.1, 2), 1)
+    k1 = n_of(max(0.05, tside - a0))
+    m.put("efx", dsp.fade(roomed(m, al[:k1 + n_of(0.02)], a0, wet=-16.0), 0.0, 0.02), a0, -20.0, pan=0.35,
+          label="alarm bell")
+    p0, p1 = span(m, "T_BELL_PUSH", (17.7, 20.0), "pushes in on the ringing bell", "louder, nearer")
+    near = al[k1:n_of(L - a0)]
+    tt = tside + tax(len(near))
+    near = near * db2lin(4.0 * np.clip((tt - p0) / max(0.1, p1 - p0), 0.0, 1.0))           # +4 dB over the push
+    m.put("efx", dsp.fade(roomed(m, near, tside, wet=-18.0), 0.0, 0.03), tside, -17.0, pan=0.05,
+          label="the alarm bell right over the door, louder and nearer as the camera pushes in", align=None)
+    m.put("music", cym_swell(round(L - p0, 2), 5), p0, -24.0, label="the push in on the ringing bell", align=None)
+    bang = np.zeros(n_of(1.6))
+    dsp.mix_into(bang, norm(wood_thunk(3, 1.6)), 0)
+    dsp.mix_into(bang, 0.8 * norm(mono(fx("impact", seed=7, size=0.35))[: n_of(1.6)]), 0)
+    dsp.mix_into(bang, 0.5 * norm(door_thud(1)), n_of(0.09))            # it hits the wall
+    m.put("efx", roomed(m, norm(bang), tside, wet=-12.0), tside, -12.0, pan=0.1,
+          label="BANG: the side door flung open against the wall")
+    hit(m, tside, 38, 0.95, gain=-13.0)
+    stab(m, tside, "DmM7", gain=-14.0, dur=0.5, vel=0.95, seed=41, fall=1.0)
+    # the trap is sprung: under the bell, a low D trembling and the Eb a semitone over it, swelling
+    m.put("music", arco(26, round(L - tside - 0.35, 2), 0.55, seed=11, attack=0.6, release=0.05), tside + 0.3, -17.0,
+          align=None)
+    m.put("music", arco(39, round(L - tside - 0.85, 2), 0.4, seed=12, attack=1.4, release=0.05), tside + 0.8, -22.0,
+          pan=0.15, align=None)
+    m.put("music", cut(brush_roll(round(L - p0, 2), 6), L - p0, 0.03), p0, -26.0, pan=0.1, align=None)
+    # his run on the alley's cobbles, the gold clinking in the two bags
+    for k, (t, _, c) in enumerate(cues_with(m, "heavy run on the alley")):
+        m.put("feet", footstep("knight", 20 + k, "street", seed=k % 5), t - STEP_PRE, c["gain_db"] + CUE_TRIM,
+              pan=c["pan"], label="footstep: his run on the cobbles", sync=t)
+    for k, (t, c) in enumerate(swing_c[:1]):
+        for j in range(3):
+            tj = t + 0.3 * j
+            m.put("efx", roomed(m, gold_clink(70 + j, 0.5), tj), tj, -21.0 - 1.5 * j, pan=c["pan"] + 0.1 * j,
+                  label="the bags swing, the gold clinking in them" if j == 0 else None)
 
 
-# ============================================================================ s08 LOCKED (104-116): bars 52-57
+# ============================================================================ s08 LOCKED (114-126): bars 57-62
 @section("s08")
 def s08(m, S):
     """Sparse. Black: his ragged breathing, close, the alarm muffled away beyond the steel; a match
@@ -4026,7 +4188,7 @@ def s08(m, S):
     m.put("music", cym_swell(round(L - tg0, 2), 5), tg0, -24.0, align=None)
 
 
-# ============================================================================ s09 PLAN B (116-132): bars 58-65
+# ============================================================================ s09 PLAN B (126-148): bars 63-73
 REWIND_BIBLE = ((0.0, 0.4, "s07", 13.0, 11.8), (0.4, 0.8, "s06", 12.0, 10.8), (0.8, 1.2, "s05", 11.0, 9.8),
                 (1.2, 1.6, "s04", 5.0, 3.8), (1.6, 2.0, "s03", 15.6, 14.4), (2.0, 3.0, "s03", 13.6, 14.6))
 
@@ -4075,13 +4237,13 @@ def _s09_bible(m, S):
     # the overlay: Plan B drawn in solid chalk over a rising vamp in D MAJOR
     s0, s1 = span(m, "T_SLIDE", (5.0, 6.5), "tracing", "slides", "overlay")
     m.put("efx", tracing_slide(round(s1 - s0, 2), 2), s0, -15.0, label="the tracing sheet slides over the plan", align=None)
-    t61 = FB(m, 61)
+    t61 = FB(m, 66)
     bassline(m, t61, "D2 F#2 A2 B2", gain=-11.0, vel=0.7, swell=(0.6, 0.9))
     vibe_chord(m, t61, (54, 59, 64, 69), 1.9, gain=-18.0, vel=0.55, depth=0.5, seed=13, label="D major: the vamp")
     m.put("music", brush_sweep(7, 4), t61, -33.0, hall=-24.0, align=None)
     m.put("music", cym_swell(1.95, 8), t61, -27.0, align=None)
-    # bars 62-65: THE THEME upright, in D major (the inversion inverted)
-    t62 = FB(m, 62)
+    # bars 67-70: THE THEME upright, in D major (the inversion inverted)
+    t62 = FB(m, 67)
     melody(m, t62, THEME_MAJOR, gain=-12.0, vel=0.78, seed=19, label="THE THEME upright, in D major")
     melody(m, t62, THEME_MAJOR, inst="tpt", gain=-17.0, vel=0.6, seed=19, mute="open", legato=0.92)
     bassline(m, t62, "major", gain=-10.0, vel=0.8)
@@ -4105,14 +4267,18 @@ def _s09_bible(m, S):
 
 @section("s09")
 def s09(m, S):
-    """The rewind (0-6.6): the film's own sound, cut where the picture rewinds to (a post-pass),
+    """The rewind (0-3.5): the film's own sound, cut where the picture rewinds to (a post-pass),
     under the tape's whoosh and the heist clock ticking backwards; the tape catches and plays his
-    slam and her dot; freezes stop the sound dead (a ting on the dot); s02's looks played again.
-    Plan B (6.6-10.4): D major under the chalk; the police chalked in with muted stabs rising a
-    semitone a car; the red X on a low A. Then THE THEME, upright, in D major, from its cue (on
-    its own beat), under the vault by match light, the tile, his chuckle, the floor torn away in
-    section, the slides down the iron ladder (a splash each), the cut tearing on along the pipe,
-    and Plan B's line lighting the way out (rising tings)."""
+    slam and her dot; a freeze stops the sound dead (a ting on the dot). The night before, in the
+    dot's lens (4.2-8.2): a deep whoosh down into the shaft under the vault, its drips and a low
+    held D; her cutting torch roars into the stone twice; the block shoved up a crack (stone
+    grinding, a glint off the gold), let back down (a dull knock); a reverse whoosh as the lens
+    closes. s02's looks played again. Plan B (10.6-15.75), one mark a beat: D major under the
+    chalk; his red L (his semitone), the alarm small and far on the plan, the police chalked in
+    with muted stabs rising a semitone a car; the red X on a low A. Then THE THEME, upright, in D
+    major, from its cue (on its own beat), under the vault by match light, the tile, his chuckle,
+    the floor torn away in section, the slides down the iron ladder (a splash each), the cut
+    tearing on along the pipe, and Plan B's line lighting the way out (rising tings)."""
     if isinstance(S, Stub):
         return _s09_bible(m, S)
     L = m.len
@@ -4157,23 +4323,64 @@ def s09(m, S):
         m.put("efx", switch_click(5 + k, 1.3), a, -22.0, label="freeze: a tape pause, the sound stops dead")
     tl1 = m.at("T_LENS1", 3.55, "lens opens on the chalk dot", "ting")
     m.put("music", ting(4, 86), tl1, -13.0, pan=-0.1, label="a ting: the lens opens on the chalk dot", hall=-14.0)
-    tl2 = m.at("T_LENS2", 6.05, "lens opens on her eye")
+    # the night before, in the dot's lens: down into the shaft under the vault; her torch cuts the
+    # trapdoor from below; the block pushed up a crack (the gold above) and set back: only a tile
+    dv0, dv1 = span(m, "T_DIVE", (4.2, 4.7), "deep soft whoosh", "night before")
+    sh0, _ = span(m, "T_SHUT", (7.7, 8.2), "reverse whoosh", "closes back")
+    m.put("efx", sink_whoosh(round(dv1 - dv0 + 0.5, 2), 4), dv0, -16.0,
+          label="the lens opens over the frame: a deep soft whoosh down into the dark", align=None)
+    m.put("efx", cut(mono(fx("sub_drop", seed=3)), 1.2, 0.3), dv1 - 0.05, -24.0)
+    bd = round(sh0 - dv1 + 0.3, 2)
+    m.put("amb", dsp.fade(dsp.sos(sewer_bed(bd, 4), "lowpass", 900.0, 2), 0.25, 0.3), dv1, -33.0,
+          label="the shaft under the vault: drips echoing, a low held drone", align=None)
+    m.put("music", arco(26, round(sh0 - dv1 - 0.2, 2), 0.5, seed=21, attack=0.8, release=0.5), dv1, -19.0, align=None)
+    m.put("music", arco(38, round(sh0 - dv1 - 0.6, 2), 0.3, seed=22, attack=1.2, release=0.5), dv1 + 0.4, -25.0,
+          pan=0.1, align=None)
+    for k, dt in enumerate((0.25, 1.05, 1.9, 2.6)):
+        if dv1 + dt < sh0 - 0.1:
+            m.put("efx", roomed(m, drip(30 + k), dv1 + dt, wet=-8.0), dv1 + dt, -27.0 - (k % 2), pan=0.4 * math.sin(2.1 * k))
+    for k, (t, d, c) in enumerate(cues_with(m, "cutting torch")):
+        dd = round(max(0.2, d or 0.6), 2)
+        m.put("efx", roomed(m, torch_cut(dd, k), t, wet=-10.0), t, c["gain_db"] + CUE_TRIM - 1.0, pan=c["pan"],
+              label="a cutting torch roars into the stone: a hard hiss, a crackle of sparks")
+        m.put("efx", cut(mono(fx("ember_sizzle", seed=10 + k)), dd, 0.05), t + 0.03, c["gain_db"] + CUE_TRIM - 9.0,
+              pan=c["pan"], align=None)
+    pu0, pu1 = g(S, "T_PUSH_UP", (6.45, 6.85))
+    m.put("efx", roomed(m, tile_scrape(2), pu0, wet=-10.0), pu0, -12.5, pan=0.05,
+          label="the cut block shoved up a crack: stone grinding", align=None)
+    m.put("music", ting(8, 93) * 0.55, pu1, -24.0, pan=0.0, hall=-14.0, label="a glint on the gold above: a faint shimmer")
+    vibe_chord(m, pu1, (81, 88), 1.0, gain=-26.0, vel=0.35, roll=0.05, depth=0.7, hard=0.2, seed=26)
+    tsb = m.at("", float(g(S, "T_SET_BACK", (7.15, 7.45))[1]) - 0.05, "let down into its place", "dull soft knock")
+    m.put("efx", roomed(m, tile_set(2), tsb, wet=-10.0), tsb, -15.0, pan=0.05, label="the block let down into its place: a dull knock")
+    rw = np.ascontiguousarray(sink_whoosh(0.5, 5)[::-1])
+    m.put("efx", rw, sh0, -18.0, label="the lens closes back onto the dot: a reverse whoosh", align=None)
+    tl2 = m.at("T_LENS2", 10.05, "lens opens on her eye")
     m.put("efx", roomed(m, chalk_tap(74, 0.3), tl2), tl2, -21.0, label="a soft chalk tick: the lens opens on her eye")
     # Plan B: the tracing sheet; the trapdoor; her route; the police; the red X
-    sl0, sl1 = span(m, "T_SHEET", (6.6, 7.15), "tracing paper unrolling", "unrolling over")
+    sl0, sl1 = span(m, "T_SHEET", (10.6, 11.15), "tracing paper unrolling", "unrolling over")
     m.put("efx", tracing_slide(round(sl1 - sl0 + 0.25, 2), 2), sl0, -15.0, label="tracing paper unrolling over the plan",
           align=None)
-    b10, b11 = span(m, "T_B1", (7.4, 7.85), "four quick strokes", "a square")
+    b10, b11 = span(m, "T_B1", (11.4, 11.85), "four quick strokes", "a square")
     for j in range(4):
         tj = b10 + j * (b11 - b10) / 4
         m.put("efx", roomed(m, chalk_scratch(round(0.8 * (b11 - b10) / 4, 2), 100 + j, press=0.9), tj), tj, -18.0,
               pan=0.15 * (-1) ** j, label="chalk: four quick strokes, a square" if j == 0 else None, align=None)
-    b20, b21 = span(m, "T_B2", (7.95, 8.9), "one long sure stroke", "long sure stroke")
+    b20, b21 = span(m, "T_B2", (11.95, 12.9), "one long sure stroke", "long sure stroke")
     m.put("efx", roomed(m, chalk_scratch(round(b21 - b20, 2), 104, press=1.0), b20), b20, -17.0,
           label="chalk: one long sure stroke", align=None)
     for k, (t, _, c) in enumerate(cues_with(m, "whip whoosh")):
         m.put("efx", fx("whip", seed=60 + k), t, -19.0, pan=c["pan"], label="a whip whoosh", align=None)
-    cops = m.ats("T_COPS", (9.15, 9.35, 9.55, 9.75), "police car chalked", "muted trumpet stab")
+    # (3) his red L out of the side door to his car (his semitone); the bell there rings, small and
+    # far, red ripples over the city; then the police, a car a half beat, boxing his car in
+    lr0, lr1 = span(m, "T_L", (13.2, 13.9), "red chalk", "struck out fast")
+    m.put("efx", roomed(m, chalk_scratch(round(lr1 - lr0, 2), 106, press=1.0), lr0), lr0, -16.0, pan=0.3,
+          label="red chalk: his route struck out fast to the side door and his car", align=None)
+    m.put("music", brass(63, 0.45, 0.5, seed=23, mute="harmon", scoop=False, vib=False, fall=0.5), lr0, -19.0, pan=0.25)
+    tab = m.at("T_ALARM_B", 13.62, "small and far", "alarm bell")
+    ab = dsp.sos(alarm_bell(1.6, 4), "lowpass", 3500.0, 2) * np.clip((1.6 - tax(n_of(1.6))) / 0.5, 0, 1)
+    m.put("efx", roomed(m, ab, tab, wet=-14.0), tab, -25.0, pan=0.35,
+          label="the alarm bell, small and far, on the plan", align=None)
+    cops = m.ats("T_COPS", (14.0, 14.25, 14.5, 14.75), "police car chalked", "muted trumpet stab")
     for k, t in enumerate(cops):
         c = m.cue_near(t, "police", "stab")
         sym = ("Bb7", "B7", "C7", "C#7")[k % 4]
@@ -4181,20 +4388,25 @@ def s09(m, S):
              label=f"a muted trumpet stab: a police car chalked in ({sym})", low=False, pan=0.3)
         m.put("music", bass(CHORDS[sym][0], 0.18, 0.8, 70 + k), t, -12.0, pan=-0.1, hall=-24.0)
         m.put("efx", roomed(m, chalk_tap(110 + k, 0.5), t), t, -25.0, pan=0.4)
-    xb = g(S, "T_B4", (10.12, 10.32))
+    xb = g(S, "T_B4", (15.35, 15.55))
     tx = m.at("", float(xb[0]), "red x on the ruby", "two hard chalk slashes")
     for j, tj in enumerate((tx, tx + max(0.08, (float(xb[1]) - tx) / 2))):
         m.put("efx", roomed(m, chalk_scratch(0.09, 120 + j, press=1.0), tj), tj, -15.0, pan=0.2 * (1 - 2 * j),
               label="two hard chalk slashes: the red X" if j == 0 else None, align=None)
     hit(m, tx, 45, 0.7, gain=-12.0, label="a low stab (A): the red X on the ruby box")
     # the music under Plan B, on the theme's beat: D major, a walk up, G major 9 into the police
-    tcue = m.at("", 10.4, "theme returns upright", "in the major")
+    tcue = m.at("", 15.75, "theme returns upright", "in the major")
     tth = math.ceil((m.t0 + tcue - FRAME) / BEAT - 1e-9) * BEAT - m.t0      # the theme keeps the film's beat
     if tth - tcue > FRAME:                     # on the cue itself: a grace note (C#) into its first D
         m.put("music", vibe(61, 0.14, 0.55, t_abs=m.t0 + tcue, depth=0.45, hard=0.5, seed=18), tcue, -15.0,
               label="the theme returns upright, in the major: a grace note into it")
         m.put("music", brass(61, 0.12, 0.45, seed=18, mute="open", scoop=False, vib=False), tcue, -21.0)
     gb = tth - 8 * BEAT
+    if gb - sl0 > 1.0:                         # the sheet comes down a bar early: D major under it already
+        vibe_chord(m, sl0, (54, 59, 64, 69), round(gb - sl0 + 0.2, 2), gain=-20.0, vel=0.45, roll=0.05, depth=0.5,
+                   seed=12, label="Plan B: D major, under the sheet")
+        m.put("music", bass(38, 0.9, 0.62, 12), sl0, -13.0, pan=-0.1, hall=-24.0)
+        m.put("music", brush_sweep(9, 4), sl0, -35.0, hall=-24.0, align=None)
     vibe_chord(m, max(sl0, gb), (54, 59, 64, 69), 1.8, gain=-19.0, vel=0.5, roll=0.05, depth=0.5, seed=13,
                label="Plan B: D major")
     bassline(m, gb + BEAT, "D2 F#2 A2 B2 A2", gain=-11.5, vel=0.7, swell=(0.6, 0.9))
@@ -4212,31 +4424,31 @@ def s09(m, S):
     drums(m, tth, 3, level=-3.0, seed=15, until=L - 0.1)
     m.cover_span(tth - FRAME, L, "theme returns", "in the major")
     # the vault by match light: the tile, his glint and chuckle; the floor cut away; the drop
-    tv = m.at("T_VAULT", 10.9, "match's small hiss", "dark vault")
+    tv = m.at("T_VAULT", 16.9, "match's small hiss", "dark vault")
     m.put("amb", flame_bed(round(L - tv + 0.2, 2), 2), tv, -34.0, pan=-0.2, label="the match's small hiss in the dark vault",
           align=None)
-    ti0, ti1 = g(S, "T_TILE", (11.2, 11.95))
+    ti0, ti1 = g(S, "T_TILE", (17.12, 17.8))
     m.put("efx", roomed(m, tile_scrape(1), ti0), ti0, -13.0, pan=cpan(m, ti0, "tile", default=0.1),
           label="a stone tile scraped up out of the floor", align=None)
     tset = m.at("", float(ti1) - 0.15, "tile laid down", "dull clunk")
     m.put("efx", roomed(m, tile_set(1), tset), tset, -15.0, pan=cpan(m, tset, "clunk", default=0.25),
           label="the tile laid down: a dull clunk")
-    tgl = m.at("", float(g(S, "T_GLINT", (12.15, 12.45))[0]), "light crosses his spectacles", "spectacles")
+    tgl = m.at("", float(g(S, "T_GLINT", (18.0, 18.3))[0]), "light crosses his spectacles", "spectacles")
     m.put("music", ting(1, 93) * 0.8, tgl, -20.0, pan=0.3, label="a ting: the light crosses his spectacles", hall=-16.0)
-    tgr = m.at("T_GRIN", 12.42, "chuckle")
+    tgr = m.at("T_GRIN", 18.28, "chuckle")
     m.put("vox", roomed(m, chuckle(1), tgr), tgr, -19.0, pan=0.25, label="a low dry chuckle", align=None, key=True)
-    ct0, ct1 = g(S, "T_CUT", (12.8, 13.35))
+    ct0, ct1 = g(S, "T_CUT", (18.7, 19.25))
     m.put("efx", paper_torn(round(float(ct1) - float(ct0), 2), 1), ct0, -17.0,
           label="paper torn down: the floor cut away into section", align=None)
     m.put("amb", dsp.fade(dsp.sos(sewer_bed(round(L - float(ct0) + 0.3, 2), 3), "lowpass", 1200.0, 2), 0.6, 0.1), ct0,
           -34.0, align=None)
     # she gets up and steps into the hole; he steps to it
-    r0 = float(g(S, "T_RISE", (12.66, 13.15))[0])
+    r0 = float(g(S, "T_RISE", (18.66, 19.15))[0])
     m.put("efx", roomed(m, cloth(0.4, 23, heavy=0.4), r0), r0, -28.0, pan=-0.05, align=None)
-    sh0 = float(g(S, "T_STEP_HIM", (13.25, 13.8))[0])
-    m.put("feet", footstep("cracker", 3, "cell", seed=3), sh0 - STEP_PRE, -25.0, pan=0.15, sync=sh0)
+    hs0 = float(g(S, "T_STEP_HIM", (19.25, 19.8))[0])
+    m.put("feet", footstep("cracker", 3, "cell", seed=3), hs0 - STEP_PRE, -25.0, pan=0.15, sync=hs0)
     # down the iron ladder, her then him: gloves and a coat on the rails, a splash at the foot
-    slides = g(S, "T_SLIDE", ((13.15, 13.8), (13.85, 14.45)))
+    slides = g(S, "T_SLIDE", ((19.15, 19.8), (19.85, 20.45)))
     for k, pr in enumerate(slides):
         try:
             d0, d1 = float(pr[0]), float(pr[1])
@@ -4252,14 +4464,14 @@ def s09(m, S):
         m.put("efx", splash_drop(k), ts, ((cs_["gain_db"] + CUE_TRIM) if cs_ else -11.0) - 1.0,
               pan=float(cs_["pan"]) if cs_ else 0.0,
               label="a splash in shallow water, echoing in the pipe" if k == 0 else "a heavier splash, echoing")
-    tu0 = float(g(S, "T_TURN", (13.92, 14.1))[0])
+    tu0 = float(g(S, "T_TURN", (19.92, 20.1))[0])
     m.put("efx", roomed(m, paper_whoosh(0.18, 31), tu0), tu0, -31.0, pan=-0.1, align=None)
     # the cut runs on north along the pipe, ahead of her; Plan B's line lights the way (rising tings)
-    rv0, rv1 = span(m, "T_REVEAL", (14.1, 15.7), "torn on along the pipe")
+    rv0, rv1 = span(m, "T_REVEAL", (20.1, 21.7), "torn on along the pipe")
     cr_ = m.cue_near(rv0, "torn on", win=0.1)
     m.put("efx", paper_tear_run(round(rv1 - rv0, 2), 2), rv0, ((cr_["gain_db"] + CUE_TRIM) if cr_ else -19.0) - 1.0,
           pan=float(cr_["pan"]) if cr_ else -0.3, label="paper torn on along the pipe", align=None)
-    li0, li1 = span(m, "T_LIT", (15.15, 15.75), "rising chime", "lights the way")
+    li0, li1 = span(m, "T_LIT", (21.15, 21.75), "rising chime", "lights the way")
     for j, p in enumerate((86, 90, 93, 98)):
         tj = li0 + j * (li1 - li0) / 4
         m.put("music", ting(5 + j, p) * (0.95 - 0.1 * j), tj, -19.0 - 0.5 * j, pan=-0.3 + 0.12 * j, hall=-14.0,
@@ -4269,20 +4481,25 @@ def s09(m, S):
               label="a footstep in shallow water")
 
 
-# ============================================================================ s10 CHECKMATE (132-144): bars 66-71
+# ============================================================================ s10 CHECKMATE (148-166): bars 74-82
 @section("s10")
 def s10(m, S):
-    """Bar 66, the getaway: the alarm bell hard and high; he bursts round the car, the band driving
+    """Bar 74, the getaway: the alarm bell hard and high; he bursts round the car, the band driving
     under him; the band stops on the door's slam and the starter grinds and coughs in the clear.
-    Bar 67: the engine catches on the bar line and the band comes in hot (the trumpets on the
-    theme's head an octave up); the tyres, the headlight's white, the board. Bar 68: four police
-    cars slide in, one a beat, a muted stab each rising a semitone (Plan B's chalk come true); the
-    sirens, tuned to the theme's fifth, braid over them. Bar 69: CHECKMATE on the bar line, a hard
-    low stab and a choked cymbal; his heart. Bars 70-71, the pull-back: manhole B; two figures walk
-    away under the theme in D major (the sirens braided into it, receding); the routes swell into
-    the X on a held A13; the theme's last phrase resolves into s11's D."""
+    Bar 75: the engine catches on the bar line and the band comes in hot (the trumpets on the
+    theme's head an octave up); the tyres, the headlight's white, the board. There the alarm rings
+    on over the city, a ring a beat rolling outward; bar 76: the drive stops dead as the first ring
+    wakes the police car ahead (its lights' clunk, a siren whoop) and his brakes screech; the other
+    three wake on the beat, a whoop each over the bass's low D; bar 77: they slide in, one a beat, a
+    muted stab each rising a semitone (Plan B's chalk come true); the sirens, tuned to the theme's
+    fifth, braid in as they wake. Bar 78: CHECKMATE on the bar line, a hard low stab and a choked
+    cymbal; his heart. The street: the bell overhead, the engines idling round him; the door, his
+    step, a sharp breath; the sack thumps down and the gold clinks out; his hands go up on a held
+    low string. Bars 80-82, the pull-back: manhole B; two figures walk away under the theme in D
+    major (the sirens receding); the routes swell into the X on a held A13; the theme's last phrase
+    resolves into s11's D."""
     L = m.len
-    t66, t67, t68, t69, t70, t71 = (FB(m, b) for b in range(66, 72))
+    t74, t75, t76, t77, t78, t81 = (FB(m, b) for b in (74, 75, 76, 77, 78, 81))
     tn = float(g(S, "T_NOSE", 1.46))
     tbd = float(g(S, "T_BOARD", 2.92))
     # the street: the alarm bell hard and high in the alley (further off on the car's nose); night air
@@ -4325,12 +4542,12 @@ def s10(m, S):
     tsl = float(g(S, "T_SLAM", (1.32, 1.42))[0])
     m.put("efx", roomed(m, fx("car_door_close", seed=1), tsl), tsl, cgain(m, tsl, "car door", default=-8.0) - 3.0,
           pan=cpan(m, tsl, "car door", default=0.3), label="a car door slammed hard")
-    # bar 66: the band drives under the run and stops on the slam
-    bassline(m, t66, "D2 D2 A1", gain=-10.0, vel=0.9, gate=0.7, label="his getaway: the drive")
+    # bar 74: the band drives under the run and stops on the slam
+    bassline(m, t74, "D2 D2 A1", gain=-10.0, vel=0.9, gate=0.7, label="his getaway: the drive")
     for k in range(3):
-        m.put("music", kick(k % 3, 0.5), t66 + k * BEAT, -25.0, hall=None)
-    drums(m, t66, 1, level=0.0, ride_=True, sweep=False, kick_=False, seed=15, slap=0.6, until=tsl - 0.02)
-    melody(m, t66, THEME, inst="tpt", gain=-13.5, vel=0.9, octave=1, mute="open", stop=2, seed=21,
+        m.put("music", kick(k % 3, 0.5), t74 + k * BEAT, -25.0, hall=None)
+    drums(m, t74, 1, level=0.0, ride_=True, sweep=False, kick_=False, seed=15, slap=0.6, until=tsl - 0.02)
+    melody(m, t74, THEME, inst="tpt", gain=-13.5, vel=0.9, octave=1, mute="open", stop=2, seed=21,
            label="the trumpets, hot: the theme's first notes")
     stab(m, tsl, "DmM7", gain=-13.0, dur=0.25, vel=0.95, seed=55, sync=tsl)
     m.put("music", kick(2, 0.8), tsl, -21.0, hall=None)
@@ -4349,78 +4566,152 @@ def s10(m, S):
     tfl = float(g(S, "T_FLASH", (2.68, 2.92))[0])
     wh = dsp.sos(fx("whoosh", seed=3, size=0.5), "highpass", 1200.0, 2)
     m.put("efx", wh, tfl, cgain(m, tfl, "white whoosh", default=-14.0) - 6.0, label="a white whoosh", align=None)
-    # bar 67: the engine catches on the bar line, the band in, hot
-    hit(m, t67, 38, 0.9, gain=-12.0, label="the band comes in hot (the engine catches)")
-    m.put("music", crash(3, 2.4), t67, -21.0, pan=0.2, hall=-18.0)
-    bassline(m, t67, "D2 D2 A1 C2", gain=-10.0, vel=0.9, gate=0.7)
+    # bar 75: the engine catches on the bar line, the band in, hot
+    hit(m, t75, 38, 0.9, gain=-12.0, label="the band comes in hot (the engine catches)")
+    m.put("music", crash(3, 2.4), t75, -21.0, pan=0.2, hall=-18.0)
+    bassline(m, t75, "D2 D2 A1 C2", gain=-10.0, vel=0.9, gate=0.7)
     for k in range(4):
-        m.put("music", kick(k % 3, 0.5), t67 + k * BEAT, -25.0, hall=None)
-    drums(m, t67, 1, level=0.0, ride_=True, sweep=False, kick_=False, seed=16, slap=0.6)
-    melody(m, t67, THEME, inst="tpt", gain=-12.5, vel=0.9, octave=1, mute="open", stop=4, seed=22, fall_last=2.0,
+        m.put("music", kick(k % 3, 0.5), t75 + k * BEAT, -25.0, hall=None)
+    drums(m, t75, 1, level=0.0, ride_=True, sweep=False, kick_=False, seed=16, slap=0.6)
+    melody(m, t75, THEME, inst="tpt", gain=-12.5, vel=0.9, octave=1, mute="open", stop=4, seed=22, fall_last=2.0,
            label="the trumpets, hot, on the theme's head")
-    melody(m, t67, THEME, inst="tpt", gain=-16.5, vel=0.75, stop=4, seed=23)
+    melody(m, t75, THEME, inst="tpt", gain=-16.5, vel=0.75, stop=4, seed=23)
     sp0 = float(g(S, "T_SPEED", (3.15, 3.55))[0])
     cw = m.cue_near(sp0, "racing away", win=0.1)
     m.put("efx", dsp.sos(fx("car_away", dur=max(1.2, float(cw.get("dur") or 0.8) + 0.8) if cw else 1.6, seed=2),
                          "lowpass", 5000.0, 2), sp0, cgain(m, sp0, "racing away", default=-16.0) - 5.0, pan=0.1,
           label="the engine racing away", align=None)
-    # bar 68: the police slide in, one a beat: a muted stab each, rising a semitone (Plan B's chalk)
-    cops = [float(x) for x in g(S, "T_COPS", (4.0, 4.5, 5.0, 5.5))]
-    for k, tc in enumerate(cops):
-        c = m.cue_near(tc - 0.2, "police car", win=0.25)
-        tw = float(c["t"]) if c else tc - 0.2
-        pn = float(c["pan"]) if c else (-0.7, 0.0, 0.7, 0.0)[k % 4]
-        m.put("efx", car_slide(k, 0.36), tc - 0.36, -21.0, pan=pn, align=None)
-        m.put("efx", police_whoop(k, hz(81) if k % 2 else hz(74)), tw, (c["gain_db"] + CUE_TRIM - 12.0) if c else -21.0,
-              pan=pn, label="a police car sliding in: a siren whoop")
+    # the board: the alarm rings on over the city, a ring a beat rolling outward, until checkmate
+    trg = float(g(S, "T_RINGS", 3.0))
+    tm_ = m.at("T_MATE", 8.0, "checkmate")
+    rd = round(tm_ - trg + 0.5, 2)
+    ar = alarm_bell(rd, 5)
+    v = tax(len(ar))
+    acc = 0.55 + 0.45 * np.exp(-np.mod(v, BEAT) / 0.18)                 # each ring rolling out
+    ar = dsp.sos(ar, "lowpass", 5000.0, 2) * acc * np.clip(v / 0.05, 0, 1) * np.clip((rd - v) / 0.5, 0, 1)
+    m.put("efx", roomed(m, ar, trg, wet=-16.0), trg, -20.0, pan=0.0,
+          label="the alarm bell ringing on over the city, a ring a beat rolling outward", align=None)
+    # bar 76: the drive runs one beat on, and stops dead: the first ring wakes the police car ahead
+    # (its lights: a clunk, a siren whoop) and his brakes screech; the other three wake, one a beat
+    wakes = [float(x) for x in g(S, "T_WAKE", (4.5, 5.0, 5.5, 6.0))]
+    cops = [float(x) for x in g(S, "T_COPS", (6.0, 6.5, 7.0, 7.5))]
+    bassline(m, t76, "D2", gain=-10.0, vel=0.9, gate=0.7)
+    m.put("music", kick(0, 0.5), t76, -25.0, hall=None)
+    drums(m, t76, 1, level=0.0, ride_=True, sweep=False, kick_=False, seed=17, slap=0.6, until=wakes[0] - 0.02)
+    tbr = float(g(S, "T_BRAKE", 4.55))
+    m.put("efx", roomed(m, tyre_squeal(0.5, 2, 2300.0, 0.25), tbr), tbr, cgain(m, tbr, "brakes", default=-13.0) - 6.0,
+          pan=cpan(m, tbr, "brakes", default=-0.2), label="brakes screeching: his car stops dead", align=None)
+    m.put("efx", bed("engine_idle", round(tm_ - tbr, 2), 3, fin=0.3, fout=0.4), tbr + 0.3, -36.0, pan=-0.2, align=None)
+    for k, tw in enumerate(wakes):
+        pn = cpan(m, tw, "lights switching on", default=(-0.7, 0.0, 0.7, 0.0)[k % 4])
+        m.put("efx", roomed(m, switch_click(8 + k, 0.5), tw), tw, -17.0, pan=pn,
+              label="a police car's lights switching on: a clunk")
+        m.put("efx", 0.5 * sfx._thump(n_of(0.15), 120.0, 70.0, 0.005, 0.06), tw, -23.0, pan=pn)
+        m.put("efx", roomed(m, police_whoop(k, hz(74) if k % 2 == 0 else hz(81)), tw + 0.04), tw + 0.04, -18.0, pan=pn,
+              label="a siren whoop", align=None)
+        m.put("music", bass(38, 0.3, 0.75, 60 + k), tw, -14.0, pan=-0.1, hall=-24.0)
+        m.put("music", kick(k % 3, 0.45), tw, -25.0, hall=None)
+    m.put("music", arco(38, round(tm_ - tbr - 0.1, 2), 0.55, seed=13, attack=1.6, release=0.1), tbr, -18.0, align=None)
+    # bar 77: they slide in nose first, one a beat: a muted stab each, rising a semitone (Plan B's chalk)
+    for k, (tw, tc) in enumerate(zip(wakes, cops)):
+        pn = cpan(m, tc - 0.2, "sliding in", default=(-0.7, 0.0, 0.7, 0.0)[k % 4])
+        sd = round(max(0.3, tc - tw - 0.12), 2)
+        m.put("efx", car_slide(k, sd), tw + 0.12, -21.0, pan=pn, align=None)
+        ts = m.at("", tc - 0.2, "sliding in", win=0.1)
+        m.put("efx", roomed(m, tyre_squeal(0.3, 10 + k, 2100.0, 0.2), ts), ts, -20.0, pan=pn,
+              label="a police car sliding in: tyres", align=None)
         sym = ("Bb7", "B7", "C7", "C#7")[k % 4]
         stab(m, tc, sym, gain=-12.0 + 0.5 * k, dur=0.22, vel=0.9, seed=50 + k, pan=0.6 * pn,
              label=f"a police car arrives: a muted stab ({sym})")
         m.put("music", kick(k % 3, 0.6), tc, -23.0, hall=None)
-    m.put("music", brush_roll(round(t69 - cops[0], 2), 4), cops[0], -26.0, pan=0.15, hall=-22.0, align=None)
-    tbr = m.at("", cops[0] + 0.05, "brakes screeching")
-    m.put("efx", roomed(m, tyre_squeal(0.5, 2, 2300.0, 0.25), tbr), tbr, cgain(m, tbr, "brakes", default=-13.0) - 6.0,
-          pan=cpan(m, tbr, "brakes", default=-0.2), label="brakes screeching", align=None)
-    # the sirens, tuned D-A (the theme's first fifth), braiding: rising to checkmate, then receding
-    tx0, tx1 = g(S, "T_X", (10.0, 11.2))
-    tbk = float(g(S, "T_BACK", 7.2))
-    sd = max(1.0, L - cops[0])
-    sir = sirens(round(sd, 2), 3)
-    v = tax(len(sir)) + cops[0]
-    env = (np.clip((v - cops[0]) / max(0.5, t69 - cops[0]), 0, 1) ** 0.7 *
-           db2lin(-9.0 * np.clip((v - tbk) / 1.8, 0, 1) - 6.0 * np.clip((v - tx0) / max(0.3, tx1 - tx0), 0, 1)) *
-           np.clip((L - v) / 0.012, 0, 1))          # far off to the last frame: s11's rip cuts them off
-    m.put("efx", roomed(m, sir * env[:, None], cops[0], wet=-14.0), cops[0], cgain(m, cops[0], "sirens", default=-15.0) - 6.0,
-          label="sirens braiding together, rising (tuned D-A)", align=None)
-    # bar 69: CHECKMATE: a hard low stab and a choked cymbal; the held spy chord; his heart, his breath
-    tm_ = m.at("T_MATE", 6.0, "checkmate")
+    m.put("music", brush_roll(round(tm_ - cops[0], 2), 4), cops[0], -26.0, pan=0.15, hall=-22.0, align=None)
+    # the sirens, tuned D-A (the theme's first fifth), braiding in as the cars wake: up to checkmate,
+    # down under his face, on round him in the street, receding from the pull-back
+    tx0, tx1 = g(S, "T_X", (15.72, 16.92))
+    tbk = float(g(S, "T_BACK", 12.92))
+    tfa0, tfa1 = g(S, "T_FACE", (8.42, 9.2))
+    for j, (ta, gj) in enumerate(((wakes[0], 0.0), (wakes[min(2, len(wakes) - 1)], -3.0))):
+        sd = max(1.0, L - ta)
+        sir = sirens(round(sd, 2), 3 + 2 * j)
+        v = tax(len(sir)) + ta
+        env = (np.clip((v - ta) / max(0.5, tm_ - ta), 0, 1) ** 0.7 *
+               db2lin(-6.0 * np.clip((v - tfa0) / 0.1, 0, 1) * np.clip((tfa1 - v) / 0.15, 0, 1)
+                      - 3.0 * np.clip((v - tfa1) / 0.2, 0, 1)
+                      - 6.0 * np.clip((v - tbk) / 1.8, 0, 1) - 6.0 * np.clip((v - tx0) / max(0.3, tx1 - tx0), 0, 1)) *
+               np.clip((L - v) / 0.012, 0, 1))          # far off to the last frame: s11's rip cuts them off
+        m.put("efx", roomed(m, sir * env[:, None], ta, wet=-14.0), ta,
+              cgain(m, wakes[0], "sirens", default=-15.0) - 6.0 + gj,
+              label="sirens braiding together, rising (tuned D-A)" if j == 0 else None, align=None)
+    # bar 78: CHECKMATE: a hard low stab and a choked cymbal; the held spy chord; his heart, his breath
     stab(m, tm_, "DmM7", gain=-11.5, dur=0.5, vel=1.0, seed=60, label="checkmate: a hard low stab")
     hit(m, tm_, 38, 0.95, gain=-13.5)
     m.put("music", choked(crash(7, 1.0), 0.2), tm_, -15.0, pan=0.2, hall=-18.0)
     vibe_chord(m, tm_ + 0.02, CHORDS["DmM7"][1], 1.6, gain=-20.0, vel=0.55, depth=0.6, seed=14)
     m.put("music", arco(38, 1.4, 0.6, seed=7, attack=0.1, release=0.4), tm_, -17.0, align=None)
-    f0, f1 = g(S, "T_FACE", (6.42, 7.2))
-    hb = fx("heartbeat", dur=round(f1 - f0 + 0.2, 2), seed=1, bpm=118)
-    m.put("efx", hb, f0, cgain(m, f0, "heartbeat", default=-12.0) + 2.0, label="a heartbeat thump", align=None)
-    m.put("vox", breath("in"), f0 + 0.08, -19.0, pan=0.05, align=None, key=True)
-    # the pull-back: the lens on manhole B (a ting); its lid dragged aside; two figures walk away
-    tle = float(g(S, "T_LENS", (7.85, 9.85))[0])
+    tha = float(g(S, "T_HANDS", (11.36, 11.72))[0])
+    tarr = float(g(S, "T_ARREST", 9.2))
+    hb = fx("heartbeat", dur=round(tha - tfa0 + 0.1, 2), seed=1, bpm=118)
+    v = tax(len(hb)) + tfa0
+    hb = hb * (db2lin(-7.0 * np.clip((v - tarr) / 0.1, 0, 1)) * np.clip((tha + 0.1 - v) / 0.3, 0, 1))[:, None]
+    m.put("efx", hb, tfa0, cgain(m, tfa0, "heartbeat", default=-12.0) + 2.0,
+          label="a heartbeat thump (on under the arrest, until his hands go up)", align=None)
+    m.put("vox", breath("in"), tfa0 + 0.08, -19.0, pan=0.05, align=None, key=True)
+    # the street: boxed in; the bell overhead, the police engines idling round him
+    ad = round(tbk + 1.6 - tarr, 2)
+    al = alarm_bell(ad, 6)
+    v = tax(len(al)) + tarr
+    al = al * np.clip((v - tarr) / 0.03, 0, 1) * db2lin(-10.0 * np.clip((v - tbk) / 1.5, 0, 1)) * np.clip((tbk + 1.6 - v) / 0.1, 0, 1)
+    m.put("amb", rev(al, -12.0, 4, "street"), tarr, -19.0, pan=0.3,
+          label="the alarm bell ringing above the street; police engines idling round him", align=None)
+    for k, pn in enumerate((-0.6, 0.55, 0.1)):
+        d_ = round(tbk + 1.2 - tarr, 2)
+        idl = bed("engine_idle", d_, 4 + k, fin=0.1, fout=0.8)
+        v = tax(len(idl)) + tarr
+        idl = idl * db2lin(-8.0 * np.clip((v - tbk) / 1.2, 0, 1))[:, None]
+        m.put("amb", idl, tarr, -30.0 - 2.0 * k, pan=pn, align=None)
+    tdo = float(g(S, "T_DOOR", (9.62, 9.8))[0])
+    m.put("efx", roomed(m, fx("car_door_open", seed=2), tdo), tdo, cgain(m, tdo, "car door", default=-9.0) - 2.0, pan=-0.1,
+          label="a car door shoved open")
+    tst = m.at("", float(g(S, "T_CLIMB", (9.8, 10.3))[0]) + 0.3, "heavy step onto the cobbles")
+    m.put("feet", footstep("knight", 30, "street", seed=2), tst - STEP_PRE, cgain(m, tst, "heavy step", default=-13.0),
+          pan=-0.05, label="a heavy step onto the cobbles", sync=tst)
+    tle_ = float(g(S, "T_LOOK_E", 10.5))
+    m.put("vox", roomed(m, breath("gasp"), tle_), tle_, -21.0, pan=0.2, label="a sharp breath", align=None, key=True)
+    tdr = m.at("", float(g(S, "T_DROP", 11.0)) + 0.12, "sack of gold thumps")
+    m.put("efx", roomed(m, gold_bag(9), tdr), tdr, cgain(m, tdr, "sack of gold", default=-8.0) - 2.0, pan=0.05,
+          label="a heavy sack of gold thumps onto the cobbles")
+    m.put("efx", roomed(m, mono(fx("land_thud", seed=4)), tdr), tdr, -18.0, pan=0.05)
+    for j, dt in enumerate((0.22, 0.38)):
+        m.put("efx", roomed(m, gold_clink(80 + j, 0.2), tdr + dt), tdr + dt, -16.0 - 2.0 * j, pan=0.15 + 0.1 * j,
+              label="two bars clink out onto the cobbles" if j == 0 else None)
+    # his hands go up: his coat; a held low string (the D, its fifth) into the pull-back
+    m.put("efx", roomed(m, cloth(0.4, 31, heavy=1.0), tha), tha, -22.0, pan=0.0, label="his coat as his hands go up",
+          align=None)
+    hd = round(tbk - tha + 0.5, 2)
+    m.put("music", arco(38, hd, 0.6, seed=14, attack=0.3, release=0.8), tha, -15.5,
+          label="his hands go up: a held low string note", align=None)
+    m.put("music", arco(45, hd, 0.4, seed=15, attack=0.5, release=0.8), tha + 0.1, -21.0, pan=0.1, align=None)
+    # the pull-back: D major comes up; the lens on manhole B (a ting); its lid dragged aside; two
+    # figures walk away
+    vibe_chord(m, tbk, (62, 66, 69, 76), 1.5, gain=-22.0, vel=0.45, roll=0.05, depth=0.5, seed=16,
+               label="the pull-back: D major comes up")
+    tle = float(g(S, "T_LENS", (13.57, 15.57))[0])
     m.put("music", ting(2, 93) * 0.7, tle, -23.0, pan=-0.2, hall=-16.0)
-    tlid = float(g(S, "T_LID", (7.95, 8.25))[0])
+    tlid = float(g(S, "T_LID", (13.67, 13.97))[0])
     m.put("efx", rev(manhole_scrape(0.35, 2), -8.0, 4, "street"), tlid, cgain(m, tlid, "manhole", default=-14.0) - 8.0,
           pan=cpan(m, tlid, "manhole", default=-0.2), label="an iron manhole cover dragged aside", align=None)
     cwk = m.cue_of("footsteps walking away", "walking away")
-    w0 = float(cwk["t"]) if cwk else float(g(S, "T_UP", (8.2, 8.45))[0]) + 0.3
+    w0 = float(cwk["t"]) if cwk else float(g(S, "T_UP", (13.92, 14.17))[0]) + 0.3
     w1 = float(tx0)
     steps(m, "her", w0, w1, 0.5, gain=-27.0, pan=-0.3, room_="street", label="two pairs of soft footsteps walking away",
           k0=4)
     steps(m, "cracker", w0 + 0.25, w1, 0.5, gain=-29.0, pan=-0.25, room_="street", k0=6)
-    # bar 70: the theme in D major, soft, braided with the receding sirens (D-A)
-    melody(m, t70, THEME_MAJOR, gain=-15.0, vel=0.6, stop=4, seed=23, label="the theme in D major, soft (they walk)")
-    bassline(m, t70, "D2 ~ A1 ~", gain=-12.0, vel=0.65)
-    comp(m, t70, (("D69", 4),), gain=-23.0, vel=0.4, pattern="whole", seed=10)
-    drums(m, t70, 1, level=-10.0, taps=False, kick_=False, seed=16)
-    # bar 71: the routes straighten into the X: two long strokes swelling into a held A13 ...
+    # bar 81: the theme in D major, soft, braided with the receding sirens (D-A)
+    melody(m, t81, THEME_MAJOR, gain=-15.0, vel=0.6, stop=4, seed=23, label="the theme in D major, soft (they walk)")
+    bassline(m, t81, "D2 ~ A1 ~", gain=-12.0, vel=0.65)
+    comp(m, t81, (("D69", 4),), gain=-23.0, vel=0.4, pattern="whole", seed=10)
+    drums(m, t81, 1, level=-10.0, taps=False, kick_=False, seed=16)
+    # the routes straighten into the X: two long strokes swelling into a held A13 ...
     for j, pn in enumerate((-0.3, 0.3)):
         m.put("efx", roomed(m, chalk_scratch(round(tx1 - tx0, 2), 92 + j, press=0.8), tx0), tx0, -21.0, pan=pn,
               label="two long strokes of chalk swelling into a held chord" if j == 0 else None, align=None)
@@ -4437,21 +4728,21 @@ def s10(m, S):
               tj, -14.5, label="the theme's last phrase, resolving" if j == 0 else None)
         m.put("music", brass(p, d * 0.9, 0.5, seed=30 + j, mute="harmon", scoop=False, vib=j == 3), tj, -21.0, pan=0.15)
     m.put("music", bass(33, 0.5, 0.7, 4), tlp, -13.0, hall=-24.0)
-    m.cover_span(t70, L, "theme", "major", "last phrase")
+    m.cover_span(t81, L, "theme", "major", "last phrase")
 
 
-# ============================================================================ s11 END (144-152): bars 72-75
+# ============================================================================ s11 END (166-174): bars 83-86
 @section("s11")
 def s11(m, S):
-    """Bar 72, the street under the lamp: s10's X tears the frame open (a paper rip; the sirens cut
+    """Bar 83, the street under the lamp: s10's X tears the frame open (a paper rip; the sirens cut
     off) onto D major, s10's last phrase resolved on its downbeat; her glove opens one finger after
     another, and the ruby's glint is the ONE celesta ping (A6); the glove creaks shut on it. Bars
-    69-70, dawn at the table: the theme's last two bars in D major, plainly, on the vibraphone; the
-    queen's base clicks the knight's and he goes over on bar 74's downbeat (clack, roll); its C# is
-    held over A13 as the camera rises and the chalk X lifts off. Bar 75: it resolves on D as the
+    84-85, dawn at the table: the theme's last two bars in D major, plainly, on the vibraphone; the
+    queen's base clicks the knight's and he goes over on bar 85's downbeat (clack, roll); its C# is
+    held over A13 as the camera rises and the chalk X lifts off. Bar 86: it resolves on D as the
     title X lands (the last chord, D6/9); DOUBLE and CROSS slide back in; the red dot's chalk tap,
-    the film's last, with the bass's button on D; black, and digital silence from 151.5."""
-    t72, t73, t74, t75 = (FB(m, b) for b in range(72, 76))
+    the film's last, with the bass's button on D; black, and digital silence from 173.5."""
+    t83, t84, t85, t86 = (FB(m, b) for b in range(83, 87))
     tend = silence_from() - m.t0
     ttab = float(g(S, "T_TABLE", 3.0))
     # the split: the frame torn open along s10's X, the four pieces whooshing apart (s10's sirens
@@ -4463,11 +4754,11 @@ def s11(m, S):
         d = round(max(0.3, sp1 - sp0 - dt + 0.05), 2)
         m.put("efx", paper_whoosh(d, 30 + k), sp0 + dt, -22.0 - 1.0 * k, pan=pn,
               label="the four pieces whoosh apart" if k == 0 else None, align=None)
-    # bar 72: D major under s10's resolution (its D4 on this downbeat): the vibraphone's D6/9, the
+    # bar 83: D major under s10's resolution (its D4 on this downbeat): the vibraphone's D6/9, the
     # bass's D, the arco under it
-    vibe_chord(m, t72, CHORDS["D69"][1], 2.1, gain=-21.0, vel=0.5, depth=0.5, seed=15, label="D major (D6/9)")
-    m.put("music", bass(38, 0.9, 0.62, 5), t72, -14.0, pan=-0.1, hall=-24.0)
-    m.put("music", arco(38, 2.3, 0.55, seed=5, attack=0.4, release=0.6), t72, -18.0, align=None)
+    vibe_chord(m, t83, CHORDS["D69"][1], 2.1, gain=-21.0, vel=0.5, depth=0.5, seed=15, label="D major (D6/9)")
+    m.put("music", bass(38, 0.9, 0.62, 5), t83, -14.0, pan=-0.1, hall=-24.0)
+    m.put("music", arco(38, 2.3, 0.55, seed=5, attack=0.4, release=0.6), t83, -18.0, align=None)
     # the street under the lamp: its low electric hum, the city far off, a far drip
     cst = m.cue_of("night street", "electric hum")
     s0 = float(cst["t"]) if cst else 0.3
@@ -4520,24 +4811,24 @@ def s11(m, S):
     ttip = m.at("T_TIP", 4.0, "tips the knight", "clack, roll")
     m.put("efx", roomed(m, piece_tip(1), ttip), ttip, cgain(m, ttip, "tips", default=-10.0) - 1.0,
           pan=cpan(m, ttip, "tips", default=0.2), label="she tips the knight over: clack, roll")
-    # bars 73-74: the theme's last two bars in D major, plainly (the vibraphone), over Gmaj9 and
+    # bars 84-85: the theme's last two bars in D major, plainly (the vibraphone), over Gmaj9 and
     # A13; its C# held over the A13 as the camera rises, into the title
-    melody(m, t73 - 8 * BEAT, THEME_MAJOR, gain=-13.0, vel=0.66, start=8, stop=13, seed=24,
+    melody(m, t84 - 8 * BEAT, THEME_MAJOR, gain=-13.0, vel=0.66, start=8, stop=13, seed=24,
            label="the theme's last bars, in D major")
-    bassline(m, t73, "G2 ~ B1 ~", gain=-12.0, vel=0.66)
-    comp(m, t73, (("Gmaj9", 4),), gain=-22.0, vel=0.42, pattern="sparse", seed=9)
-    drums(m, t73, 1, level=-12.0, taps=False, kick_=False, hat=False, seed=17)
+    bassline(m, t84, "G2 ~ B1 ~", gain=-12.0, vel=0.66)
+    comp(m, t84, (("Gmaj9", 4),), gain=-22.0, vel=0.42, pattern="sparse", seed=9)
+    drums(m, t84, 1, level=-12.0, taps=False, kick_=False, hat=False, seed=17)
     ttl = m.at("T_TITLE", 6.0, "title x lands", "last chord")
-    tcs = t73 - 8 * BEAT + sw(13)
+    tcs = t84 - 8 * BEAT + sw(13)
     tres = float(np.clip(ttl, tcs + 0.4, tend - 0.6))           # it resolves as the title lands
     hold = round(tres - tcs, 3)
     m.put("music", vibe(61, hold + 0.1, 0.62, t_abs=m.t0 + tcs, depth=0.5, hard=0.5, seed=40), tcs, -13.5,
           label="its C#, held over A13")
     m.put("music", brass(61, hold, 0.5, seed=40, mute="harmon", scoop=False, vib=True, attack=0.12), tcs, -23.0, pan=0.15)
-    m.put("music", bass(33, 0.9, 0.7, 6), t74, -12.5, pan=-0.1, hall=-24.0)
-    m.put("music", arco(33, round(tres - t74 + 0.1, 2), 0.55, seed=6, attack=0.3, release=0.25), t74, -18.0, align=None)
-    vibe_chord(m, t74, (55, 59, 66), round(tres - t74 + 0.15, 2), gain=-21.0, vel=0.45, depth=0.55, seed=19)
-    m.put("music", piano(45, 1.6, 0.42, 7), t74, -23.0, pan=-0.1)
+    m.put("music", bass(33, 0.9, 0.7, 6), t85, -12.5, pan=-0.1, hall=-24.0)
+    m.put("music", arco(33, round(tres - t85 + 0.1, 2), 0.55, seed=6, attack=0.3, release=0.25), t85, -18.0, align=None)
+    vibe_chord(m, t85, (55, 59, 66), round(tres - t85 + 0.15, 2), gain=-21.0, vel=0.45, depth=0.55, seed=19)
+    m.put("music", piano(45, 1.6, 0.42, 7), t85, -23.0, pan=-0.1)
     m.put("music", cym_swell(round(max(0.5, tres - r0), 2), 11), r0, -30.0, align=None)
     # the camera rises: an airy swell; the chalk X lifts off the vault and grows into the title
     m.put("efx", air_swell(round(max(0.4, r1 - r0), 2), 3), r0, cgain(m, r0, "airy", "camera rises", default=-22.0) - 6.0,
@@ -4547,7 +4838,7 @@ def s11(m, S):
     m.put("efx", paper_whoosh(round(max(0.3, g1 - g0 + 0.05), 2), 41), g0, wg - 6.0,
           label="whoosh: the chalk X lifts off the vault and grows into the title", align=None)
     m.put("efx", fx("whoosh", seed=42, size=0.2), g0 - 0.05, wg - 11.0, align=None)
-    # bar 75: the title X lands: the last chord, D6/9, and the theme's D
+    # bar 86: the title X lands: the last chord, D6/9, and the theme's D
     ring = max(0.3, tend - tres)
     vibe_chord(m, tres, (54, 59, 64, 69, 76), ring, gain=-16.0, vel=0.62, roll=0.03, depth=0.45, seed=16,
                label="the title X lands: the last chord (D6/9)")
@@ -5489,7 +5780,7 @@ def master(mix, t_silence, target=-16.0, ceiling=-1.3):
     gain = target - dsp.loudness_integrated(mix)
     out = mix
     for _ in range(5):
-        out = dsp.limiter(mix * db2lin(gain), ceiling_db=ceiling)
+        out, g = dsp.limiter(mix * db2lin(gain), ceiling_db=ceiling, return_gain=True)
         lufs = dsp.loudness_integrated(out)
         if abs(lufs - target) < 0.05:
             break
@@ -5497,8 +5788,9 @@ def master(mix, t_silence, target=-16.0, ceiling=-1.3):
     out[a:] = 0.0
     out = dsp.fade(out, 0.004, 0.0)
     master.gain = gain
-    master.gr = float(np.min(dsp.lin2db(np.maximum(np.abs(out).max(axis=1), 1e-9)
-                                        / np.maximum(np.abs(mix * db2lin(gain)).max(axis=1), 1e-9))))
+    # the limiter's own gain: an out/in ratio per sample reads the 4 ms head fade on near-silent
+    # samples as -14 dB of limiting
+    master.gr = float(dsp.lin2db(max(float(g.min()), 1e-9)))
     return out[:N]
 
 

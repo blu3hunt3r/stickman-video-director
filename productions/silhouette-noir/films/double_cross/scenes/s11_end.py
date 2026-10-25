@@ -1,4 +1,4 @@
-"""s11 END (136-144). The X that closes s10 splits the frame open along its own strokes, the four
+"""s11 END (166-174). The X that closes s10 splits the frame open along its own strokes, the four
 pieces flying apart, and in the gap, under a street lamp, is her gloved fist: X marks the spot. It
 opens on the ruby, which glints (an X of light: the one celesta ping), and she closes her hand on
 it. Dawn at the table: her hand brings the white queen in low and takes the red knight with it,
