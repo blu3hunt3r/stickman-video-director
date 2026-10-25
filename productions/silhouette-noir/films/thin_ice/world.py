@@ -1317,12 +1317,13 @@ def wire_y(i, x, lift=0.0, lift_x=540.0):
 
 
 def draw_fence(c, t, cam=None, moonlit=1.0, search=None, lift=0.0, lift_x=540.0, tower_lamp=0.0, hut_light=1.0,
-               scrap=None, stars_on=True, drift=True, moon_out=1.0, posts_shadow=None):
+               scrap=None, stars_on=True, drift=True, moon_out=1.0, posts_shadow=None, under=None, mid=None):
     """The fence view. search: (x, y, rx) of the searchlight's lit patch on the zone's snow (frame
     px at zoom 1) or None; tower_lamp: the lamp's beam angle (deg, 0 = straight down the zone).
     lift: the bottom wire lifted (px). scrap: (x, y) the scrap of coat on the barb, or None.
     moon_out 0..1: the cloud slides off the moon. posts_shadow: 0..1 length of the posts' long
-    moon shadows toward the camera."""
+    moon shadows toward the camera. under(c) draws on the zone, behind the posts and wires (the
+    far side of the fence); mid(c) between the wires and the drift (this side of the fence)."""
     cam = cam or FenceCam()
     snow_c = lerp(K.SNOW_DIM, SNOW, moonlit)
     far_snow = lerp(snow_c, STEEL, 0.25)
@@ -1333,7 +1334,7 @@ def draw_fence(c, t, cam=None, moonlit=1.0, search=None, lift=0.0, lift_x=540.0,
     mp = cam.xf(MOON_FENCE, 0.05)
     K.moon(c, mp, r=62.0 * cam.s(0.05))
     if moon_out < 1.0:
-        K.cloud(c, (mp[0] - 520.0 * ease("inout", moon_out) + 30.0, mp[1] + 10.0), 560.0 * cam.s(0.05),
+        K.cloud(c, (mp[0] - 520.0 * ease("inout", moon_out) + 30.0, mp[1] + 32.0 * cam.s(0.05)), 560.0 * cam.s(0.05),
                 120.0 * cam.s(0.05), lerp(NIGHT, STEEL, 0.55), seed=4)
     # the zone's snow up to the woods
     hz = cam.xf((0.0, HORIZON_FENCE), 0.2)[1]
@@ -1361,7 +1362,9 @@ def draw_fence(c, t, cam=None, moonlit=1.0, search=None, lift=0.0, lift_x=540.0,
             a = cam.xf((x, FENCE_Y), 1.0)
             b = cam.xf((x + 40.0, FENCE_Y + 700.0 * posts_shadow), 1.15)
             K.poly(c, [(a[0] - 9 * cam.s(), a[1]), (a[0] + 9 * cam.s(), a[1]), (b[0] + 16 * cam.s(1.15), b[1]),
-                       (b[0] - 16 * cam.s(1.15), b[1])], lerp(snow_c, SHADOW, 0.6))
+                       (b[0] - 16 * cam.s(1.15), b[1])], lerp(snow_c, SHADOW, 0.85))
+    if under is not None:
+        under(c)
     # the fence
     for x in POSTS:
         top = cam.xf((x, FENCE_TOP), 1.0)
@@ -1387,15 +1390,21 @@ def draw_fence(c, t, cam=None, moonlit=1.0, search=None, lift=0.0, lift_x=540.0,
         flut = 6.0 * math.sin(t * 7.0) * s
         K.poly(c, [(p[0] - 6 * s, p[1]), (p[0] + 30 * s, p[1] + 6 * s + flut), (p[0] + 22 * s, p[1] + 34 * s + flut),
                    (p[0] - 2 * s, p[1] + 22 * s)], INK)
+    if mid is not None:
+        mid(c)
     # the drift in front (where they crouch)
     if drift:
-        pts = []
-        for j in range(41):
-            x = -60.0 + 1200.0 * j / 40.0
-            y = 1500.0 - 120.0 * math.exp(-((x - 430.0) / 260.0) ** 2) - 30.0 * math.sin(x * 0.01)
-            pts.append(cam.xf((x, y), 1.3))
-        pts += [cam.xf((1140.0, 2100.0), 1.3), cam.xf((-60.0, 2100.0), 1.3)]
-        K.poly(c, pts, lerp(snow_c, PAPER, 0.18))
+        K.poly(c, drift_poly(cam), lerp(snow_c, PAPER, 0.18))
+
+
+def drift_y(x):
+    """The drift's crest (frame y at zoom 1, drift layer) at frame x."""
+    return 1500.0 - 120.0 * math.exp(-((x - 430.0) / 260.0) ** 2) - 30.0 * math.sin(x * 0.01)
+
+
+def drift_poly(cam):
+    pts = [cam.xf((x, drift_y(x)), 1.3) for x in (-60.0 + 1200.0 * j / 40.0 for j in range(41))]
+    return pts + [cam.xf((1140.0, 2100.0), 1.3), cam.xf((-60.0, 2100.0), 1.3)]
 
 
 def tower_lamp_px(cam):

@@ -280,8 +280,8 @@ Times are scene-local seconds. *Sound cues are in italics.* "Plan" means the str
    draws a border, the tower, its searchlight patch starting to sweep (7.0), the guardhouse window
    (7.5), and two tiny figures at the fence, one with a red fleck at the neck (8.0) (*a plucked
    note per element, rising*).
-7. **8.0–10.0:** Hold on the map. The searchlight's patch sweeps along the wire and passes just
-   north of them (9.0); snow still falls.
+7. **8.0–10.0:** Hold on the map. The searchlight's patch sweeps the far end of the zone, by the
+   tower (its swing will reach them in s02); snow still falls.
 8. **10.0–11.0:** **The snow stops** (the last flakes settle; *the wind drops away to a still,
    cold quiet*). The moon stays behind the cloud: it comes out in s02.
 9. **11.0–14.0:** Push in (eased, about 2.3×) to everything they face, in s02's layout seen from
@@ -291,32 +291,40 @@ Times are scene-local seconds. *Sound cues are in italics.* "Plan" means the str
 
 ### s02 FENCE (14–32)
 
-The fence view, from behind them, looking north. Their shadows come toward us.
+The fence view, from behind them, looking north; two close-ups of her profile; two pages. Once the
+moon is out, every shadow comes toward us.
 
-1. **0.0–2.0:** Wide. The mother and girl crouched behind a drift at the bottom of the frame,
-   backs to us; the fence across the frame; the tower left, the guardhouse right, the woods
-   beyond. The last flake falls past the mother's face (*wind; the searchlight motor's hum, far*).
-2. **2.0–4.0:** Closer (a jump-in on 2.0). She holds out her mitten; nothing falls. She looks up:
-   the moon comes out of the cloud, and every fence post throws a long shadow toward us. Her
-   breath puffs stop (*a held breath*).
-3. **4.0–6.0:** The searchlight's beam sweeps along the fence toward them. She pulls the girl
-   flat behind the drift; the lit patch slides over the drift's crest above their heads and on
-   (*the motor; a clank as it reverses*).
-4. **6.0–8.0:** She lifts the bottom wire between two barbs; the girl crawls under it, away from
-   us (*wire creak, snow*).
-5. **8.0–10.0:** *Tinkle, tinkle, tinkle:* three notes of the lullaby. CU: in the snow beside the
-   girl's pocket the little music box has sprung open, its paper dancer turning. The mother's
-   mitten slaps the lid shut (9.0, *snap*). CU her profile: finger to lips (9.25–10.0).
-6. **10.0–12.0:** Wide again. The searchlight swings back toward them; they lie flat, the girl
-   beyond the wire, the mother this side. The lit patch slides over them; for a moment the red
-   scarf burns in it. It moves on (*the motor; the heartbeat for two beats*).
-7. **12.0–14.0:** The mother crawls under; her coat catches on a barb; she tugs; it rips (12.75,
-   *rip*). CU (13.0–14.0): a dark scrap of cloth left on the barb, stirring.
-8. **14.0–16.0:** They get up and run for the trees, hand in hand, smaller and smaller (*their
-   steps in the snow, two rhythms*).
-9. **16.0–18.0:** The page: from above, two lines of footprints, big and small, leading from the
-   fence into the trees; the scrap on the wire; the long shadow of the tower across the snow.
-   Hold. Cut.
+1. **0.0–2.0:** Wide. The mother and girl crouched in front of a drift at the bottom of the
+   frame, backs to us; the fence across the frame; the tower left (its beam off to the west), the
+   guardhouse right, the woods beyond; the moon behind its cloud. The last flake falls past the
+   mother's head; their breath (*faint wind; the searchlight motor's hum, far*).
+2. **2.0–3.0:** CU her profile. She holds out her mitten, palm up; nothing falls. She looks up
+   (2.7); the cloud's edge silvers.
+3. **3.0–4.0:** The fence view, closer. The moon slides out of the cloud; the snow brightens;
+   every post throws a long shadow toward us, and so do they. Her breath puffs stop (3.3, *a held
+   breath*). At the left edge the searchlight's patch comes along the zone.
+4. **4.0–6.0:** Wide. The patch slides toward them. She pulls the girl down flat (4.3–4.75); its
+   near edge rides over the drift's crest above them (passing at 5.0) and on east (*the motor
+   swells as the beam passes*).
+5. **6.0–8.0:** Closer, on the gap. She lifts the bottom wire; the girl crawls under it on her
+   belly, away from us, and lies flat beyond it; she lets the wire down (*wire creak, snow*).
+6. **8.0–10.0:** The searchlight reverses at the east end of its swing (8.0, *a far clank*). CU:
+   in the snow beyond the wire the little music box that slipped from the girl's pocket springs
+   open (8.25): *tinkle, tinkle, tinkle* (8.25, 8.5, 8.75), its paper dancer turning. The
+   mother's mitten comes under the wire and slaps the lid shut (9.0, *snap*). CU her profile,
+   the mitten pressed to her lips (9.25–10.0).
+7. **10.0–12.0:** The page, from above: the girl flat beyond the wire, the mother this side. The
+   beam swings back; its patch slides over them right to left; the red scarf burns in it (*the
+   heartbeat, 10.75 and 11.25*). It moves on.
+8. **12.0–14.0:** Closer, on the gap: the mother crawls under on her belly; her coat catches on a
+   barb (12.4); she tugs twice; it rips (12.75, *rip*) and the wire springs back. CU
+   (13.0–14.0): the dark scrap of cloth left on the barb, stirring; the wire still quivering.
+9. **14.0–16.0:** Wide: they run for the trees hand in hand, their long shadows trailing back to
+   us, their prints behind them, smaller and smaller (*their steps in the snow, two rhythms*).
+10. **16.0–18.0:** The page: from above, the trail they came by, half filled by the snowfall, to
+    the drift; the crawl marks under the wire; two lines of footprints, big and small, from the
+    wire into the path's mouth in the black woods; the scrap on the wire; the tower and its long
+    shadow. Hold. Cut.
 
 ### s03 GUARD (32–48)
 

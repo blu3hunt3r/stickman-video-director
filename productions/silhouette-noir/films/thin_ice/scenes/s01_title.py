@@ -17,8 +17,8 @@ map; the snow stops; push in on two figures at the fence.
             through it), the fence (drawn as the map draws a border), the tower and its searchlight
             (7.0), the guardhouse (7.5); the thread fades (7.5-8.0) as two tiny figures appear at
             the fence, a red fleck at one's neck (8.0): the thread was the scarf.
-  8.0-10.0  Hold on the map; the searchlight sweeps and passes just north of them (9.0); snow falls
-            on the page.
+  8.0-10.0  Hold on the map; the searchlight sweeps the far end of the zone, by the tower; snow
+            falls on the page.
   10.0-11.0 The snow stops (the last flakes land; the wind drops). The moon stays behind the cloud
             until s02.
   11.0-14.0 Push in (eased, about 2.3 times) to everything they face in one frame, s02's layout seen
