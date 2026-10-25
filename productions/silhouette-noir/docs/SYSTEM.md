@@ -18,7 +18,7 @@ manual are relative to ROOT unless they start with `productions/`. Run every com
 | [../STYLE.md](../STYLE.md) | The trilogy's binding style contract (ten rules: silhouettes, fog, light, eyes, the one red, Bass graphics, camera, motion, texture, performance). |
 | [../engine/API.md](../engine/API.md) | The scene author's API: contract, `SceneTiming`, `Frame` and camera, drawing, people, physics, render and QA commands. |
 | [ANIMATOR_BRIEF.md](ANIMATOR_BRIEF.md) | The brief given to animator agents on the trilogy: read order, the bar, process, rules, final report. |
-| Film bibles | `films/double_cross/docs/BIBLE.md`, `films/opposite_full/docs/BIBLE.md`, `films/salvage/docs/bible.md`, `films/shadowplay/docs/bible.md`, `films/red/docs/bible.md` (the trilogy also has `script.txt`). |
+| Film bibles | `films/double_cross/docs/BIBLE.md`, `films/double_cross_opposite/docs/BIBLE.md`, `films/opposite_full/docs/BIBLE.md`, `films/salvage/docs/bible.md`, `films/shadowplay/docs/bible.md`, `films/red/docs/bible.md` (the trilogy also has `script.txt`). |
 | `productions/nobody-has-a-face/README.md` | The first film (stickman noir). It has its own engine, bible (`docs/production-bible.md`) and tools. |
 
 ---
@@ -90,6 +90,7 @@ and only the mocap clips a film uses (force-added). Ignored: `out/`, `qa/`, `__p
 | `opposite_bass` | 0:36 (864) | 1 | none | `opposite_bass_cut_preview.mp4` |
 | `opposite_full` | 2:24 (3,456) | 11 | hard cuts | `opposite_full_preview.mp4` |
 | `double_cross` | 2:54 (4,176; 2:32 in v4, 2:24 until v4) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2), `double_cross_v3_preview.mp4` (v3), `double_cross_v4_preview.mp4` (v4), `double_cross_v4_phone_preview.mp4` (v4, the 99 MB copy), `double_cross_v5_preview.mp4` (v5) |
+| `double_cross_opposite` | 2:54 (4,176) | 11 | hard cuts | `double_cross_opposite_preview.mp4` |
 
 The `--film` choices come from `PALETTES` in `engine/palette.py`. (`engine/timing.py` also has a
 `FILMS` tuple of five names; no tool reads it.)
@@ -638,6 +639,7 @@ scenes or the sound.
 | DOUBLE CROSS v2 (the shot types) | at most 2 in total | The director builds `shots.py` and wires it; a documentation fork writes these docs. |
 | DOUBLE CROSS v4 | none | The director alone: v2's picture restored, s02 and s05 rebuilt, the mix re-timed, the docs. |
 | DOUBLE CROSS v5 | none | The director alone: s01, s02, s03, s07, s09 and s10's new beats, the timeline, the mix, the docs. |
+| DOUBLE CROSS, the OPPOSITE cut | 2 in total (the user's limit) | One animator for s04–s07 and one audio agent; the director made the bible, the foundation, s01–s03 and s08–s11. |
 
 Rules that came out of it (most are in `ANIMATOR_BRIEF.md`):
 

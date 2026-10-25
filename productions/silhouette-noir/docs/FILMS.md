@@ -1,8 +1,8 @@
 # The films
 
 Every story made so far, in the order we made it: what it is, how it is built, the devices it uses,
-what it added to the system, and where its files are. DOUBLE CROSS, the latest, is covered in depth
-at the end.
+what it added to the system, and where its files are. DOUBLE CROSS is covered in depth in section 9,
+and its OPPOSITE cut, the latest, in section 10.
 
 Paths are relative to `productions/silhouette-noir/` unless they start with `productions/`.
 Film times are given as m:ss.ss (film seconds); "local" means scene seconds. Dates are commit
@@ -19,6 +19,7 @@ dates (UTC).
 | 7 | OPPOSITE, the Bass cut | 10-23 | 0:36 | Pure Saul Bass graphic retelling, one scene | Delivered, two review passes |
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
 | 9 | DOUBLE CROSS | 10-23 | 2:54 (v4 2:32, v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices), v4 (v2's picture again, slower, the guard rebuilt) and v5 (the double cross made easy to follow) delivered |
+| 10 | DOUBLE CROSS, the OPPOSITE cut | 10-25 | 2:54 | DOUBLE CROSS v5's story in OPPOSITE's grammar, wordless, 11 scenes | In progress (s07 and the mix being made) |
 
 ---
 
@@ -662,3 +663,125 @@ A phone-size review of every new beat in the delivered file reads clearly.
 | `films/double_cross/final/double_cross_v4_preview.mp4` | The delivered v4 preview: v2's picture, the briefing given time, the guard rebuilt (not in git). |
 | `films/double_cross/final/double_cross_v4_phone_preview.mp4` | A 99 MB copy of the v4 preview at 5 Mb/s, made while chasing the silent playback; it played silent too (not in git). |
 | `films/double_cross/final/double_cross_v5_preview.mp4` | The delivered v5 preview: the burglary, the ruby, the alarm, the night before and the arrest made plain (not in git). |
+
+---
+
+## 10. DOUBLE CROSS, the OPPOSITE cut (2:54)
+
+The user asked: "Make a version of double cross with opposite style properly". This is DOUBLE
+CROSS v5's story told in OPPOSITE (full)'s grammar, from a new bible
+(`films/double_cross_opposite/docs/BIBLE.md`), made with two agents in total.
+
+### 10.1 What it takes from each film
+
+- **From DOUBLE CROSS (v5):** the story, the cast, the plants and payoffs, and v5's clarity. Each
+  question the user asked about v4 still gets a picture of its own:
+  - the burglary being planned;
+  - what is in her hand (the ruby);
+  - how the alarm goes off;
+  - how the night before explains her way out;
+  - how the police come and catch him.
+- **From OPPOSITE:** how it is told:
+  - the camera is an eye: who looks at what tells the story, each look a dotted sight line in its
+    owner's colour;
+  - a flat Bass elevation and section of one street, two buildings facing across it;
+  - over-the-shoulder shots that mirror each other (hers at the crew's window in s02, his at the
+    bank's curb in s10), a split-screen mirror (s03), a dive into an eye (s08), POVs (s07, s09), a
+    Vertigo shaft (s04);
+  - eased push-ins and jump-ins on the beat; one Dutch tilt (the Cracker's panic, s08);
+  - three marker rings (the gold, the vault, him) and the rest of the annotation layer;
+  - AMBER lamplight on a teal NIGHT; crisp cut paper; no blur.
+- **Left out** (the blueprint version's devices): the tilting plan camera, the pop-up world, the
+  chess pieces and the chessboard city, BLUE paper and chalk, circled step numbers, the stopwatch,
+  punch-ins, flashes, slips, the sunburst, the X-split, whips, motion blur, the rewind and the
+  tracing paper.
+
+### 10.2 The story
+
+Midnight, in a room high in a tenement: three thieves plan. Across the street is the bank, with
+its guard's lamp low behind barred windows, an alarm bell over its side door and a manhole in the
+road. Her look goes to the guard, the bell, the manhole. On the plan her finger traces the way in,
+taps the bell (not that way) and taps the vault twice, and a red ring closes round the gold. His
+look goes to the gold and his jagged arm reaches for it. Her look goes into his eye, and then,
+when nobody is watching, down to the sewer under the vault. She pulls the lamp's cord.
+
+Down the manhole, along the sewer, up through a hatch, past the guard's flashlight (a clank, a
+cat, a tin can). The Cracker opens the vault on gold. She pockets a ruby from one small box, and
+no one sees. The Knight shuts the vault on the other two, spins the dial, and bursts out through
+the side door with the gold; the alarm bell rings.
+
+A match flares. The Cracker panics; she is calm. Through the walls she hears the bell and smiles.
+We dive into her eye, to the night before: she cut a trapdoor up through the vault floor and set
+it back as a tile. Her heel knocks: hollow. They go down into the sewer, and above them the
+Knight's engine coughs while the bell wakes the street; she passes right under him. The police box
+him in, every look in the street converges on him, the third red ring closes round him, and he
+puts his hands up. Over his shoulder a manhole lifts at the tenement's curb: she climbs out, meets
+his look, pats her pocket and walks away. The ruby opens on her palm.
+
+**DOUBLE CROSS and OPPOSITE:** he crosses the crew, and she had crossed him first. The film's
+first look is hers, from the window at the bank; its last is his, from the bank's curb at her
+window.
+
+### 10.3 Form and foundation
+
+- **Form.** 11 scenes, hard cuts on the beat (120 bpm), every scene starting on a bar line: s01
+  title 0:00, s02 crew 0:14, s03 plan 0:30, s04 night 0:48, s05 guard 1:02, s06 safe 1:20, s07
+  cross 1:34, s08 locked 1:54, s09 plan B 2:08, s10 checkmate 2:26, s11 end 2:46. 2:54, 4,176
+  frames.
+- **`kit.py`:** OPPOSITE's palette (`INK`, `PAPER`, `AMBER`, `RED`, `NIGHT`, `STEEL`, `DEEP`,
+  `SHUT`, `POLICE`), `scene_setup`, and OPPOSITE full's annotation devices re-exported.
+- **`street.py`:** the one street, in elevation (`St.draw_elevation`) and in section. Every state is
+  an argument: the lit windows, the guard's light, the clock, the bell, the side door, the car,
+  both manhole lids, the street lamp, the figures, the sewer under the road, the trapdoor's shaft.
+  So every scene draws the same street at its own moment.
+- **`bank.py`, `cast.py`, `faces.py`:** DOUBLE CROSS's night sets, figures and profiles, forked
+  into this palette. **`room.py`:** the crew's room.
+
+### 10.4 Scene by scene (film times from the scene modules' constants)
+
+| Scene | What it shows |
+|---|---|
+| s01 TITLE (0:00–0:14) | A red dot ticks in the black (0:00.25–0:00.75). The Psycho bars race, DOUBLE and CROSS assemble, and a paper strip and a red strip cross into an X (0:02.75, 0:03.0). The halves part and the letters become windows (0:04.3). Night falls (0:05.5) and the moon drops in. The cutaway: the storeys open from the street up (0:06.75–0:07.75), the road opens down to the sewer (0:08.0–0:09.0) and the vault's gold glows (0:08.5). The city goes to bed light by light (0:09.0–0:10.5), leaving the crew's room, the guard's lamp and the gold. The push in on the crew's room (0:11.5–0:14.0). |
+| s02 CREW (0:14–0:30) | The room, wide, at 11:58. Three profile cameos on the beat: her (0:16.0), the Cracker (0:17.5, a glint on his spectacles), the Knight (0:19.0, his ember brightens). Over her shoulder, her look goes to the guard's window (0:21.0), to the bell (0:22.25; a lens and one damped tink at 0:22.6) and to manhole A (0:23.5; a dot ring). She turns from the window (0:24.75), spreads the plan (0:26.0) and begins (0:28.0). |
+| s03 PLAN (0:30–0:48) | Straight down on the plan: her finger traces the way in (0:30.5–0:33.25), taps the bell (0:33.75: not that way) and the vault twice (0:34.5, 0:35.0), and the first marker ring closes round the gold (0:35.0–0:35.4). The looks: his to the gold (0:36.0), the Cracker's to the vault door (0:36.5), hers to his face (0:37.25) and then down to the sewer under the vault (0:38.25), where a ripple answers. The golden arm grows across the table (0:39.6–0:40.6) and snaps back (0:41.0). The split mirror (0:42.0): her look crosses into his eye (0:42.6) as the halves press in on the beat. She pulls the lamp's cord (0:46.3): dark. |
+| s04 NIGHT (0:48–1:02) | TODO-s04 |
+| s05 GUARD (1:02–1:20) | TODO-s05 |
+| s06 SAFE (1:20–1:34) | TODO-s06 |
+| s07 CROSS (1:34–1:54) | TODO-s07 |
+| s08 LOCKED (1:54–2:08) | Black; a match strikes (1:55.6) on her calm profile. The Cracker's panic, with the film's one Dutch tilt (1:56.0), and his fists on the door (1:57.5, 1:58.0, 1:58.5). Level again: the bell, faint, through the walls (2:00.0); the corner of her mouth lifts (2:00.9). The dive into her eye (2:02.0–2:02.5), to the night before: she cuts up through the vault floor (2:03.0–2:04.35), pushes the block up into the gold's light (2:04.5) and sets it back as a tile (2:05.2–2:05.5). Out of her eye (2:06.0); her heel taps and the floor knocks hollow (2:06.75). |
+| s09 PLAN B (2:08–2:26) | She lifts the tile (2:08.2) and the Cracker's match lights his grin (2:10.4). The shaft, in section: they slide down into the sewer (2:11.2–2:13.6). The street, in section (2:15.0): the Knight flings the sacks into his car and the engine coughs (2:16.0–2:17.7), while the bell's strokes wake the tenement storey by storey (2:17.5–2:19.0). He gets out onto the gully grating and kicks the tyre, and she stops right under him: her view up through the grating at his boots (2:19.0–2:20.55). The engine catches (2:20.0). They climb manhole B's shaft (2:23.0–2:24.35) as the police lights begin to sweep. |
+| s10 CHECKMATE (2:26–2:46) | His car lurches off and a police car swings in nose to nose (2:26.45); another slides in behind (2:27.15). His face in the side window, his eyes darting (2:29.0). The section: every look in the street goes to him, the neighbours', the city's and the police light's (2:31.0–2:34.0), and the third marker ring closes round him (2:35.0). The bank's front: he climbs out with a sack, drops it so the gold spills (2:37.75) and puts his hands up (2:38.1). Over his shoulder, manhole B's lid slides off at the tenement's curb (2:39.4); she climbs out and the Cracker after her. Their looks meet (2:41.2); she pats her pocket, a red glint (2:41.8), and walks away. The pull-back to the whole block (2:43.0–2:45.8). |
+| s11 END (2:46–2:54) | Her palm opens on the ruby (2:46.4). It glints (2:47.5, the celesta's only note) and her fist closes (2:48.2). The elevation's windows fly into the title (from 2:48.52); DOUBLE CROSS stamps on black (2:49.25) and the strips cross into an X (2:49.5, 2:49.75). The title is cut along the red strip and the halves fly apart (2:50.0–2:50.45). The red dot beats twice (2:51.45, 2:52.05) and is gone (2:52.95). Silence from 2:53.5. |
+
+### 10.5 Sound
+
+TODO-audio
+
+### 10.6 Production and what it introduced
+
+- **Team.** The director wrote the bible and the foundation, made s01–s03 and s08–s11, reviewed
+  every frame, rendered, encoded and committed. One animator made s04–s07 and one audio agent made
+  the mix: two agents in total, the user's limit.
+- **Retelling in another film's grammar.** The story and sets come from one film and the camera and
+  handwriting from another. The bible lists what is kept from each and what is left out.
+- **One street with every state an argument** (`street.py`), drawn by eight of the eleven scenes.
+- **The ending runs the opening backwards.** OPPOSITE's title turns letters into windows; s11 turns
+  the street's windows back into DOUBLE CROSS's letters.
+- **Scenes calling scenes.** s10 turns heads with s09's `_turn`; s11 builds its title from s01's
+  glyphs.
+
+TODO-delivery
+
+### 10.7 Files
+
+| Path | What it is |
+|---|---|
+| `films/double_cross_opposite/docs/BIBLE.md` | The bible: the story, plants, cast, look, the annotation layer, the world, the timeline, the beats, the sound plan. |
+| `films/double_cross_opposite/kit.py` | The palette, `scene_setup`, OPPOSITE full's annotation devices re-exported. |
+| `films/double_cross_opposite/street.py` | The street in elevation and in section. |
+| `films/double_cross_opposite/bank.py`, `cast.py`, `faces.py` | DOUBLE CROSS's night sets, figures and profiles, in this palette. |
+| `films/double_cross_opposite/room.py` | The crew's room. |
+| `films/double_cross_opposite/scenes/s01_title.py` … `s11_end.py` | The eleven scenes. |
+| `films/double_cross_opposite/timeline/build_timeline.py`, `timeline.json` | The edit: eleven scenes, hard cuts. |
+| `films/double_cross_opposite/audio/mix.py` | TODO-mix |
+| `films/double_cross_opposite/final/double_cross_opposite_preview.mp4` | The delivered preview (not in git). |
