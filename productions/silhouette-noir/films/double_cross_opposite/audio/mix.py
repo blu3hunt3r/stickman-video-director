@@ -1216,7 +1216,7 @@ def s01(m, S):
 
 # ============================================================================ s02 CREW (14-30)
 def clock_level_s02(t):
-    return -19.0 if t < 2.0 else -21.0 if t < 6.5 else -26.0 if t < 11.5 else -21.0
+    return -18.0 if t < 2.0 else -21.0 if t < 6.5 else -26.0 if t < 11.5 else -21.0
 
 
 @section("s02")
@@ -1233,10 +1233,10 @@ def s02(m, S):
 
     # the room: the wall clock on every beat, the lamp's chain, the room's own tone
     wall_clock(m, 0.0, L, clock_level_s02)
-    m.put("efx", roomed(m, DC.chain_creak(2.0, 1), 0.0), 0.0, cgain(m, 0.0, "chain", default=-16.0) - 8.0, pan=0.1,
+    m.put("efx", roomed(m, DC.chain_creak(2.0, 1), 0.0), 0.0, cgain(m, 0.0, "chain", default=-16.0) - 4.0, pan=0.1,
           label="the lamp's chain", align=None)
     m.put("efx", roomed(m, DC.chain_creak(2.4, 2), 11.6), 11.6, -27.0, pan=0.1)
-    m.put("amb", bed("room_tone", L, 21, lp=2500.0), 0.0, -34.0)
+    m.put("amb", bed("room_tone", L, 21, lp=2500.0), 0.0, -30.0)
     tc = m.at("", 0.6, "cigarette", "faint crackle")
     m.put("efx", cut(fx("ember_sizzle", seed=2), 0.9, 0.3), tc, cgain(m, tc, "crackle", default=-22.0) - 2.0, pan=0.35,
           label="the cigarette's crackle", align=None)

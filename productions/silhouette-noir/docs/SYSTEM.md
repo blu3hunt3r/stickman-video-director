@@ -429,9 +429,16 @@ With hard cuts only (OPPOSITE full, DOUBLE CROSS) there is exactly one segment p
 ### 7.3 Wordless films (OPPOSITE onward)
 
 Each has one `audio/mix.py` that reads the scene modules and is the score, the foley and the mix at
-once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 6,160 (v5).
-Every wordless mix targets **-16 LUFS**. The true-peak limiter's ceiling is -1.0 dBTP in LANTERN,
-OPPOSITE and the Bass cut, -1.2 in OPPOSITE full and -1.3 in DOUBLE CROSS.
+once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 6,160 (v5),
+DOUBLE CROSS's OPPOSITE cut 3,491. Every wordless mix targets **-16 LUFS**. The true-peak limiter's
+ceiling is -1.0 dBTP in LANTERN, OPPOSITE and the Bass cut, -1.2 in OPPOSITE full, -1.3 in DOUBLE
+CROSS and -1.4 in its OPPOSITE cut (where -1.3 measured -1.29 in ffmpeg).
+
+**A floor for phone speakers.** Keep the short-term loudness (3 s) above about -29 LUFS until the
+final silence. DOUBLE CROSS v5's lowest reading is -28.9. The OPPOSITE cut's first master fell to
+-37.3 in the heist's hush, which a phone speaker plays as a dropout; lifting the sustained beds
+(room tone, the clock, a held string) fixed it without raising a single hit. Measure with
+`ffmpeg -v verbose -i out/audio_master.wav -af ebur128=framelog=verbose -f null -` (the `S:` column).
 
 ### 7.4 The DOUBLE CROSS mix in detail (`films/double_cross/audio/mix.py`)
 

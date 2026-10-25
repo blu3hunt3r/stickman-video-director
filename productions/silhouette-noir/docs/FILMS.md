@@ -755,7 +755,35 @@ window.
 
 ### 10.5 Sound
 
-TODO-audio
+`films/double_cross_opposite/audio/mix.py` (3,491 lines, made by the audio agent) is the score, the
+foley, the voices and the master in one file. It is locked to the scene modules: every beat a
+section uses is read on every run from its scene's constants, or else from its own cue's words.
+
+- **The score.** Herrmann strings at 120 bpm in D minor on the Psycho chord (D F A C#). Her note is
+  D, high; his is C#, low, a semitone and octaves under hers.
+  - THE THEME (DOUBLE CROSS's tune) is plucked under the plan.
+  - At the betrayal it is inverted, low in the cellos and basses, its last D held onto the BOOM
+    (1:48.0).
+  - It turns upright again from the dive into her eye, and plays in D major at the end.
+- **Sources.** Nothing new was generated: there is no paid audio in this film.
+  - The strings, harp, bells and celesta are OPPOSITE full's instruments; the foley is DOUBLE
+    CROSS's synths.
+  - Recordings: OPPOSITE's breaths, gasps, steps, a handle and stairs, and DOUBLE CROSS's voice
+    takes (her murmur, its syllables shuffled so it never says a word; the Knight's grunts; her
+    breath of a laugh).
+  - The police are cars: sirens, engines, brakes, doors.
+- **The celesta plays once**, on the ruby's glint in s11 (2:47.5). The mix refuses a second note.
+- **Cues.** All 458 scene cues are realised: 347 by the scene sections, 111 from their words. Of
+  321 measured hits the worst is 18.9 ms off, none by a frame. Both clocks tick on every beat,
+  within 0.7 ms.
+- **The master.** 48 kHz stereo 24-bit, 174.000 s: -16.0 LUFS integrated, a true peak of -1.4 dBTP
+  (the limiter's ceiling is -1.4, since -1.3 read -1.29 in ffmpeg), digital silence from 2:53.5.
+  - It builds from a hushed heist to a loud end. Per scene: s01 -17.5, s02 -19.5, s03 -17.6,
+    s04 -20.7, s05 -20.6, s06 -20.1, s07 -15.7, s08 -15.3, s09 -13.7, s10 -14.0, s11 -14.6 LUFS.
+- **The floor.** The first master fell to -37.3 LUFS short-term (3 s) in the heist's hush (the
+  dial, 1:24.7), quiet enough to sound like a dropout on a phone speaker. The room tone and the
+  bank's tick went up 3 dB, and a soft held string bed (D and A, a high A harmonic) now runs under
+  the stealth. The lowest short-term reading is -28.9 LUFS, the same as DOUBLE CROSS v5's floor.
 
 ### 10.6 Production and what it introduced
 
@@ -783,5 +811,5 @@ TODO-delivery
 | `films/double_cross_opposite/room.py` | The crew's room. |
 | `films/double_cross_opposite/scenes/s01_title.py` … `s11_end.py` | The eleven scenes. |
 | `films/double_cross_opposite/timeline/build_timeline.py`, `timeline.json` | The edit: eleven scenes, hard cuts. |
-| `films/double_cross_opposite/audio/mix.py` | TODO-mix |
+| `films/double_cross_opposite/audio/mix.py` | The score, foley, voices and master, locked to the scene modules (`--qa`, `--only`, `--stems`, `--without`, `--skip-missing`). |
 | `films/double_cross_opposite/final/double_cross_opposite_preview.mp4` | The delivered preview (not in git). |
