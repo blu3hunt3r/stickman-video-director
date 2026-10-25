@@ -146,4 +146,4 @@ DOUBLE_CROSS = Palette(
 
 PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN, "opposite": OPPOSITE,
             "opposite_bass": OPPOSITE, "opposite_full": OPPOSITE,
-            "double_cross": DOUBLE_CROSS}
+            "double_cross": DOUBLE_CROSS, "double_cross_opposite": OPPOSITE}
