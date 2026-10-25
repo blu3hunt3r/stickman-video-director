@@ -80,40 +80,6 @@ G_FLAT = (40.58, -129.15)
 
 
 # ============================================================================ the fence view
-def _par(d):
-    """Parallax of a ground point d metres beyond the wire (the fence 1.0, the drift 1.3)."""
-    return clamp(1.0 - 0.23 * d, 0.5, 1.45)
-
-
-def _at(cam, x, d):
-    """Frame point and px per metre of map x, d metres beyond the wire."""
-    par = _par(d)
-    return cam.xf(L.fv(x, d), par), L.fv_s(d) * cam.s(par)
-
-
-def _search_fv(ft):
-    """The searchlight's patch on the zone, as the fence view paints it: (x, y, r) px at zoom 1."""
-    x = L.search_x(ft)
-    u = (x - W.CROSS[0]) / L.SWEEP_A
-    return (540.0 + (x - L.FV_X) * 110.0, 1000.0 - 60.0 * u * u, 420.0)
-
-
-def _beam_fv(c, cam, sp, a=1.0):
-    sx, sy, sr = sp
-    K.beam(c, W.tower_lamp_px(cam), cam.xf((sx - sr * 0.75, sy), 0.5), cam.xf((sx + sr * 0.75, sy), 0.5), K.PAPER,
-           alpha=0.12 * a)
-
-
-def _clip_drift(c, cam):
-    pts = W.drift_poly(cam)
-    c.new_path()
-    c.move_to(*pts[0])
-    for p in pts[1:]:
-        c.line_to(*p)
-    c.close_path()
-    c.clip()
-
-
 def _crest_light(c, cam, ft):
     """The patch's near edge riding over the drift's crest (only near the crossing)."""
     x = L.search_x(ft)
@@ -124,25 +90,9 @@ def _crest_light(c, cam, ft):
     k = L.fv_s(-1.5)
     cx = 540.0 + (x - L.FV_X) * k
     c.save()
-    _clip_drift(c, cam)
+    L.clip_drift(c, cam)
     K.lit_patch(c, cam.xf((cx, W.drift_y(cx) - 6.0), 1.3), math.sqrt(half) * k * cam.s(1.3), 64.0 * cam.s(1.3),
                 alpha=0.85)
-    c.restore()
-
-
-def _post_shadows_on_drift(c, cam, ps, color):
-    """The posts' long shadows carry on over the drift toward us."""
-    a_ = clamp((ps - 0.3) / 0.7)
-    if a_ <= 0.0:
-        return
-    c.save()
-    _clip_drift(c, cam)
-    for x in W.POSTS:
-        a = cam.xf((x, W.FENCE_Y), 1.0)
-        b = cam.xf((x + 40.0, W.FENCE_Y + 700.0), 1.15)
-        e = (a[0] + (b[0] - a[0]) * 2.4, a[1] + (b[1] - a[1]) * 2.4)
-        w0, w1 = 16.0 * cam.s(1.15), 46.0 * cam.s(1.3)
-        K.poly(c, [(b[0] - w0, b[1]), (b[0] + w0, b[1]), (e[0] + w1, e[1]), (e[0] - w1, e[1])], color, a_)
     c.restore()
 
 
@@ -170,12 +120,12 @@ def _fence_near(c, t, cam):
     moon_u = ease("inout", clamp((t - T_MOON[0]) / (T_MOON[1] - T_MOON[0])))
     lit = ease("inout", clamp((t - T_LIT[0]) / (T_LIT[1] - T_LIT[0])))
     ps = ease("out", clamp((t - T_POSTS[0]) / (T_POSTS[1] - T_POSTS[0])))
-    sp = _search_fv(ft)
+    sp = L.search_fv(ft)
     W.draw_fence(c, ft, cam, moonlit=lit, search=sp, moon_out=moon_u, posts_shadow=ps if ps > 0.0 else None,
-                 under=lambda c_: _beam_fv(c_, cam, sp))
+                 under=lambda c_: L.beam_fv(c_, cam, sp))
     snow_c = lerp(K.SNOW_DIM, W.SNOW, lit)
     shade_c = lerp(lerp(snow_c, K.PAPER, 0.18), K.SHADOW, 0.85)
-    _post_shadows_on_drift(c, cam, ps, shade_c)
+    L.post_shadows_on_drift(c, cam, ps, shade_c)
     _crest_light(c, cam, ft)
     rim = lerp(lerp(K.STEEL, K.NIGHT, 0.25), K.PAPER, lit)
     s = L.fv_s(NEAR_D) * cam.s(1.45)
@@ -204,16 +154,6 @@ def _fence_near(c, t, cam):
 
 
 # ---------------------------------------------------------------------------- E: under the wire
-SHADE_FV = lerp(W.SNOW, K.SHADOW, 0.9)
-
-
-def _shadow_fv(c, cam, x, d, h, w, color=SHADE_FV):
-    """A figure's long moon shadow on the snow, falling back toward us (h: its height, m)."""
-    ln = 1.5 * h
-    K.poly(c, [_at(cam, x - w, d)[0], _at(cam, x + w, d)[0], _at(cam, x + w * 1.3 + 0.1 * ln, d - ln)[0],
-               _at(cam, x - w * 1.3 + 0.1 * ln, d - ln)[0]], color)
-
-
 def _shot_lift(c, t):
     ft = FILM_T0 + t
     cam = W.FenceCam(1.8 + 0.05 * (t - T_E), (540.0, 1240.0))
@@ -224,32 +164,32 @@ def _shot_lift(c, t):
     gd = lerp(-0.6, G_FAR[1], ease("sine", cu))
     gx = lerp(G_X, G_FAR[0], cu)
     gpose = "crawl" if cu < 1.0 else "flat"
-    sp = _search_fv(ft)
-    m_at, m_s = _at(cam, M_X, -0.4)
+    sp = L.search_fv(ft)
+    m_at, m_s = L.fv_at(cam, M_X, -0.4)
     wire_pt = cam.xf((LIFT_G, W.wire_y(4, LIFT_G, lift, LIFT_G)), 1.0)
     reach = clamp((t - T_E) / 0.12) * (1.0 - clamp((t - T_LOWER[1]) / 0.05))
     rest = (m_at[0] + 0.3 * m_s, m_at[1] - 0.25 * m_s)
     hand = (lerp(rest[0], wire_pt[0], reach), lerp(rest[1], wire_pt[1], reach)) if reach > 0.0 else None
 
     def girl(c_):
-        _shadow_fv(c_, cam, gx, gd, 0.25 if gpose == "flat" else 0.3, 0.16)
-        p, s = _at(cam, gx, gd)
+        L.shadow_fv(c_, cam, gx, gd, 0.25 if gpose == "flat" else 0.3, 0.16)
+        p, s = L.fv_at(cam, gx, gd)
         L.back(c_, "girl", p, s, gpose, ft, (t - T_CRAWL[0]) / 0.55 if gpose == "crawl" else 1.0, rim=K.PAPER,
                rim_w=3.0)
 
     def under(c_):
-        _beam_fv(c_, cam, sp)
+        L.beam_fv(c_, cam, sp)
         if gd >= -0.2:
             girl(c_)
 
     def mid(c_):
-        _shadow_fv(c_, cam, M_X, -0.4, 1.0, 0.3)
+        L.shadow_fv(c_, cam, M_X, -0.4, 1.0, 0.3)
         L.back(c_, "mother", m_at, m_s, "crouch", ft, 1.0, rim=K.PAPER, rim_w=3.5, hand=hand)
         if gd < -0.2:
             girl(c_)
 
     W.draw_fence(c, ft, cam, moonlit=1.0, search=sp, lift=lift, lift_x=LIFT_G, posts_shadow=1.0, under=under, mid=mid)
-    _post_shadows_on_drift(c, cam, 1.0, lerp(lerp(W.SNOW, K.PAPER, 0.18), K.SHADOW, 0.85))
+    L.post_shadows_on_drift(c, cam, 1.0, lerp(lerp(W.SNOW, K.PAPER, 0.18), K.SHADOW, 0.85))
 
 
 # ---------------------------------------------------------------------------- I: the snag
@@ -274,8 +214,8 @@ def _shot_snag(c, t):
         q = t - T_RIP
         lift = 30.0 * math.exp(-5.0 * q) * math.cos(2.0 * math.pi * 7.0 * q)
     def mother(c_):
-        _shadow_fv(c_, cam, x, d, 0.3, 0.26)
-        p, s = _at(cam, x, d)
+        L.shadow_fv(c_, cam, x, d, 0.3, 0.26)
+        p, s = L.fv_at(cam, x, d)
         if T_SNAG <= t < T_RIP:
             # the coat's hem caught on the barb, stretched back to it
             b = cam.xf((SNAG_X, W.wire_y(4, SNAG_X, lift, SNAG_X)), 1.0)
@@ -283,8 +223,8 @@ def _shot_snag(c, t):
         L.back(c_, "mother", p, s, "crawl", ft, (t - T_I) / 0.6, rim=K.PAPER, rim_w=3.5)
 
     def under(c_):
-        _shadow_fv(c_, cam, G_FAR[0], G_FAR[1], 0.25, 0.16)
-        p, s = _at(cam, *G_FAR)
+        L.shadow_fv(c_, cam, G_FAR[0], G_FAR[1], 0.25, 0.16)
+        p, s = L.fv_at(cam, *G_FAR)
         L.back(c_, "girl", p, s, "flat", ft, 1.0, rim=K.PAPER, rim_w=3.0)
         if d >= -0.3:
             mother(c_)
@@ -293,9 +233,9 @@ def _shot_snag(c, t):
         if d < -0.3:
             mother(c_)
 
-    W.draw_fence(c, ft, cam, moonlit=1.0, search=_search_fv(ft), lift=lift, lift_x=SNAG_X, posts_shadow=1.0,
+    W.draw_fence(c, ft, cam, moonlit=1.0, search=L.search_fv(ft), lift=lift, lift_x=SNAG_X, posts_shadow=1.0,
                  under=under, mid=mid, scrap=(SNAG_X, W.wire_y(4, SNAG_X, lift, SNAG_X) + 2.0) if t >= T_RIP else None)
-    _post_shadows_on_drift(c, cam, 1.0, lerp(lerp(W.SNOW, K.PAPER, 0.18), K.SHADOW, 0.85))
+    L.post_shadows_on_drift(c, cam, 1.0, lerp(lerp(W.SNOW, K.PAPER, 0.18), K.SHADOW, 0.85))
 
 
 # ---------------------------------------------------------------------------- K: into the zone
@@ -332,29 +272,29 @@ def _shot_run(c, t):
     ft = FILM_T0 + t
     cam = W.FenceCam(1.0, (540.0, 1300.0))
     print_c = lerp(W.SNOW, K.SHADOW, 0.85)
-    sp = _search_fv(ft)
+    sp = L.search_fv(ft)
 
     def under(c_):
-        _beam_fv(c_, cam, sp)
+        L.beam_fv(c_, cam, sp)
         for who in ("mother", "girl"):
             for x, d in _run_prints(who, t):
-                p, s = _at(cam, x, d)
+                p, s = L.fv_at(cam, x, d)
                 K.ellipse(c_, p, (0.08 if who == "mother" else 0.06) * s, 0.035 * s, print_c)
         marks = {}
         for who in ("girl", "mother"):
             x, d = _runner(who, t)
-            _shadow_fv(c_, cam, x, d, 1.7 if who == "mother" else 1.15, 0.17 if who == "mother" else 0.12)
-            p, s = _at(cam, x, d)
+            L.shadow_fv(c_, cam, x, d, 1.7 if who == "mother" else 1.15, 0.17 if who == "mother" else 0.12)
+            p, s = L.fv_at(cam, x, d)
             ph = (t - T_K) / (0.66 if who == "mother" else 0.48)
             hand = None
             if who == "mother":
-                gp, gs = _at(cam, *_runner("girl", t))
+                gp, gs = L.fv_at(cam, *_runner("girl", t))
                 hand = (gp[0] - 0.16 * gs, gp[1] - 0.6 * gs)
             marks[who] = L.back(c_, who, p, s, "run", ft, ph, rim=K.PAPER, rim_w=2.5, hand=hand)
 
     W.draw_fence(c, ft, cam, moonlit=1.0, search=sp, posts_shadow=1.0, under=under,
                  scrap=(SNAG_X, W.wire_y(4, SNAG_X) + 2.0))
-    _post_shadows_on_drift(c, cam, 1.0, lerp(lerp(W.SNOW, K.PAPER, 0.18), K.SHADOW, 0.85))
+    L.post_shadows_on_drift(c, cam, 1.0, lerp(lerp(W.SNOW, K.PAPER, 0.18), K.SHADOW, 0.85))
 
 
 # ============================================================================ close-ups
@@ -503,13 +443,13 @@ def _cu_scrap(c, t):
 PRINT_C = lerp(W.SHADOW, K.INK, 0.3)      # the prints at the page's smaller sizes
 
 
-def _page_prints(c, cam, color=W.SHADOW):
+def approach_prints(c, cam, color=W.SHADOW):
     """The trail they came by (s01), half filled by the snowfall, the older the more."""
     for n0, n1, cov in ((-138.0, -133.2, 0.08), (-144.0, -138.0, 0.2), (-152.0, -144.0, 0.35), (-170.0, -152.0, 0.5)):
         W.draw_prints(c, cam, [q for q in APPROACH if n0 <= q[1] < n1], cover=cov, page=W.SNOW, color=color)
 
 
-def _woods_edge(c, cam, n_edge=-117.4):
+def woods_edge(c, cam, n_edge=-117.4):
     """The woods' edge along the top of the page: one cut-paper canopy with a fringe of spruce tips,
     and the path's mouth where their trail goes in."""
     x0, x1, n0, n1 = cam.bounds(4.0)
@@ -524,7 +464,7 @@ def _woods_edge(c, cam, n_edge=-117.4):
            seed=23, taper=(1.0, 0.7))
 
 
-def _trough_top(c, cam, pts, w):
+def trough_top(c, cam, pts, w):
     K.band(c, cam.pts(pts), lerp(W.SNOW, W.SHADOW, 0.7), w * cam.ppm, seed=31)
 
 
@@ -562,9 +502,9 @@ def _page_light(c, t):
     K.beam(c, cam.px(W.TOWER), cam.px((sp[0] + side[0], sp[1] + side[1])), cam.px((sp[0] - side[0], sp[1] - side[1])),
            K.PAPER, alpha=0.14)
     W.search_patch(c, cam, sp, 2.4, alpha=0.88, heading=L.search_heading(ft))
-    _page_prints(c, cam)
+    approach_prints(c, cam)
     W.draw_prints(c, cam, WIRE_PRINTS, page=W.SNOW, color=W.SHADOW)
-    _trough_top(c, cam, TROUGH_G, 0.32)
+    trough_top(c, cam, TROUGH_G, 0.32)
     W.draw_fence_top(c, cam, ft, shade_c, scrap=False)
     for i in range(-24, 25):        # the barbs, seen from above
         p = cam.px((40.3 + 0.24 * i + 0.03 * K._sn(i, 4), W.FENCE_N))
@@ -589,7 +529,7 @@ def _page_end(c, t):
     shade_c = lerp(W.SNOW, W.SHADOW, 0.55)
     # at this size the woods' long shadows would flood the zone: the page keeps the tower's and the posts'
     W.draw_page(c, cam, ft, moonlit=1.0, prints=(), scrap=False, woods_on=False, shadows=0.0)
-    _woods_edge(c, cam)
+    woods_edge(c, cam)
     # the beam far off west
     sp = (L.search_x(ft), L.search_n(ft))
     d = (sp[0] - W.TOWER[0], sp[1] - W.TOWER[1])
@@ -600,10 +540,10 @@ def _page_end(c, t):
     W.search_patch(c, cam, sp, 4.2, alpha=0.8, heading=L.search_heading(ft))
     W.draw_tower_top(c, cam, shade_c)
     W.draw_fence_top(c, cam, ft, shade_c, scrap=False)
-    _page_prints(c, cam, PRINT_C)
+    approach_prints(c, cam, PRINT_C)
     W.draw_prints(c, cam, W.FENCE_PRINTS, page=W.SNOW, color=PRINT_C)
-    _trough_top(c, cam, TROUGH_G, 0.32)
-    _trough_top(c, cam, TROUGH_M, 0.42)
+    trough_top(c, cam, TROUGH_G, 0.32)
+    trough_top(c, cam, TROUGH_M, 0.42)
     # the scrap on the wire, a fleck the page keeps
     p = cam.px(W.SCRAP)
     r = 0.4 * cam.ppm

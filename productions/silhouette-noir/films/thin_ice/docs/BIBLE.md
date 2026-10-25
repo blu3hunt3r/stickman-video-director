@@ -328,23 +328,30 @@ moon is out, every shadow comes toward us.
 
 ### s03 GUARD (32–48)
 
-1. **0.0–2.0:** The guardhouse in section: a small hut, the stove's firebox glowing `AMBER`, a
-   window full of night, the bench, the rifle against the wall, the lantern lit on the floor.
-   The guard warms his hands at the stove (*the stove's crackle; the wind outside*).
-2. **2.0–5.0:** He takes out his pocket watch. CU: it springs open (2.5, *click*): the face (11:58)
-   and, in the lid, a small oval photograph of a girl in a pompom hat. His thumb moves over it.
-   He closes it (4.5, *click*) (*the watch's tick, close; a low string note*).
-3. **5.0–7.0:** He stands, pulls on his ushanka, slings the rifle, takes the lantern and opens the
-   door: snow blows in (*the door, the wind louder*).
-4. **7.0–10.0:** The fence view (s02's camera). Beyond the wire he walks along the fence from the
-   right, the lantern swinging, its pool on the snow (*heavy hobnailed steps*). He stops at the
-   scrap. CU (9.0–10.0): his gloved fingers lift it off the barb in the lantern light.
-5. **10.0–12.0:** The page: he lowers the lantern and its pool finds the prints, big and small,
-   leading away. He kneels; his glove touches a small print.
-6. **12.0–14.0:** He stands and blows his whistle (12.0, *shrill, twice*; whistle rays). Far off,
-   lanterns wake one by one (12.5, 13.0, 13.5) and the searchlight swings toward the woods.
-7. **14.0–16.0:** He follows the prints into the woods, away from us, his lantern's pool shrinking
-   between the trees. Cut.
+1. **0.0–2.0:** The guardhouse in section under the moon: a small hut, snow on its roof, smoke
+   leaning from the pipe; the stove's firebox glowing `AMBER`, a window full of night, the bench,
+   the lantern lit on the floor. The guard warms his hands at the stove (*the stove's crackle;
+   the wind outside*).
+2. **2.0–5.0:** He takes out his pocket watch. CU (2.4–4.75): it springs open in his glove (2.5,
+   *click*): the face (11:58, the seconds ticking) and, in the lid, a small oval photograph of a
+   girl in a pompom hat. His other thumb moves over it. He closes it (4.5, *click*) (*the watch's
+   tick, close; a low string note*).
+3. **5.0–7.0:** The hut: he pockets it, turns, stoops for the lantern and crosses to the door;
+   the wind flings it open (6.2), snow streams across the floor, the fire flares; he goes out
+   into the night with the lantern (*the door, the wind louder*).
+4. **7.0–10.0:** The fence view (s02's camera, closer). Beyond the wire he walks along the fence
+   from the right, the lantern swinging, its pool on the snow, his long shadow reaching back to
+   us (*heavy hobnailed steps*). He stops at the scrap and raises the lantern. CU (9.0–10.0): his
+   gloved fingers lift it off the barb in the lantern light.
+5. **10.0–12.0:** The page: he lowers the lantern and its pool slides over the prints, big and
+   small, leading away north. CU from above (11.0–12.0): two prints, a woman's and a child's; his
+   glove touches the small one.
+6. **12.0–14.0:** CU his profile: he blows his whistle (12.0, 12.4, *shrill, twice*; whistle
+   rays). The page, wide (12.75–14.0): far off along the fence lanterns wake one by one (13.0,
+   13.25, 13.5, *far whistles answering*); the searchlight leaves its sweep and swings north over
+   the woods.
+7. **14.0–16.0:** The page: he follows their prints into the woods; the trees close over him and
+   his lantern's glow sinks into the black, smaller and smaller. Cut.
 
 ### s04 TRACKS (48–64) · animator
 

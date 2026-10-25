@@ -186,6 +186,67 @@ def fv_s(d):
     return FV_F / (FV_D + d)
 
 
+# ---------------------------------------------------------------------------- fence-view helpers
+def fv_par(d):
+    """Parallax of a ground point d metres beyond the wire (the fence 1.0, the drift 1.3)."""
+    return clamp(1.0 - 0.23 * d, 0.5, 1.45)
+
+
+def fv_at(cam, x, d):
+    """Frame point and px per metre of map x, d metres beyond the wire."""
+    par = fv_par(d)
+    return cam.xf(fv(x, d), par), fv_s(d) * cam.s(par)
+
+
+def search_fv(ft):
+    """The searchlight's patch on the zone, as the fence view paints it: (x, y, r) px at zoom 1."""
+    x = search_x(ft)
+    u = (x - W.CROSS[0]) / SWEEP_A
+    return (540.0 + (x - FV_X) * 110.0, 1000.0 - 60.0 * u * u, 420.0)
+
+
+def beam_fv(c, cam, sp, a=1.0):
+    sx, sy, sr = sp
+    K.beam(c, W.tower_lamp_px(cam), cam.xf((sx - sr * 0.75, sy), 0.5), cam.xf((sx + sr * 0.75, sy), 0.5), K.PAPER,
+           alpha=0.12 * a)
+
+
+def clip_drift(c, cam):
+    pts = W.drift_poly(cam)
+    c.new_path()
+    c.move_to(*pts[0])
+    for p in pts[1:]:
+        c.line_to(*p)
+    c.close_path()
+    c.clip()
+
+
+def post_shadows_on_drift(c, cam, ps, color):
+    """The posts' long shadows carry on over the drift toward us."""
+    a_ = clamp((ps - 0.3) / 0.7)
+    if a_ <= 0.0:
+        return
+    c.save()
+    clip_drift(c, cam)
+    for x in W.POSTS:
+        a = cam.xf((x, W.FENCE_Y), 1.0)
+        b = cam.xf((x + 40.0, W.FENCE_Y + 700.0), 1.15)
+        e = (a[0] + (b[0] - a[0]) * 2.4, a[1] + (b[1] - a[1]) * 2.4)
+        w0, w1 = 16.0 * cam.s(1.15), 46.0 * cam.s(1.3)
+        K.poly(c, [(b[0] - w0, b[1]), (b[0] + w0, b[1]), (e[0] + w1, e[1]), (e[0] - w1, e[1])], color, a_)
+    c.restore()
+
+
+SHADE_FV = lerp(W.SNOW, K.SHADOW, 0.9)
+
+
+def shadow_fv(c, cam, x, d, h, w, color=SHADE_FV):
+    """A figure's long moon shadow on the snow, falling back toward us (h: its height, m)."""
+    ln = 1.5 * h
+    K.poly(c, [fv_at(cam, x - w, d)[0], fv_at(cam, x + w, d)[0], fv_at(cam, x + w * 1.3 + 0.1 * ln, d - ln)[0],
+               fv_at(cam, x - w * 1.3 + 0.1 * ln, d - ln)[0]], color)
+
+
 # ============================================================================ figures from behind
 def _e(cx, cy, rx, ry, n=22):
     return [(cx + rx * math.cos(6.283 * i / n), cy + ry * math.sin(6.283 * i / n)) for i in range(n)]
