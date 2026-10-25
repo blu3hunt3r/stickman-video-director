@@ -811,7 +811,7 @@ def bank_lerp(a, b, u):
 def bank_at(t, keys):
     """A keyed Bank camera: keys [(t, Bank[, ease]), ...]."""
     a, b, u = _seg(t, keys)
-    return bank_lerp(a, b, u)
+    return bank_lerp(a[1], b[1], u)
 
 
 def _ridge_n(x):

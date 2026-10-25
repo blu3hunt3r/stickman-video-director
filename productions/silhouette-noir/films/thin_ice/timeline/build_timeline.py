@@ -21,7 +21,7 @@ SCENES = [
     ("s09", "choice", 14.0, None),
     ("s10", "scarf", 18.0, None),
     ("s11", "mercy", 18.0, None),
-    ("s12", "other_side", 14.0, None),
+    ("s12", "other_side", 16.0, None),
 ]
 PLACE = {}
 

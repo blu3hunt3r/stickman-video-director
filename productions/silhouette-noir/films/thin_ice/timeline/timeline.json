@@ -1,8 +1,8 @@
 {
  "film": "thin_ice",
  "fps": 24,
- "duration": 186.0,
- "frames": 4464,
+ "duration": 188.0,
+ "frames": 4512,
  "vo_src": "audio/vo/narration_full.wav",
  "scenes": [
   {
@@ -174,8 +174,8 @@
    "id": "s12",
    "slug": "other_side",
    "start": 172.0,
-   "duration": 14.0,
-   "frames": 336,
+   "duration": 16.0,
+   "frames": 384,
    "prev": "s11",
    "next": null,
    "trans_out": null,

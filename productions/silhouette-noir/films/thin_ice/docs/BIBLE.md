@@ -1,6 +1,6 @@
 # THIN ICE
 
-A 3:06 vertical (1080×1920, 24 fps) wordless thriller in Saul Bass cut paper. Scored, no voices
+A 3:08 vertical (1080×1920, 24 fps) wordless thriller in Saul Bass cut paper. Scored, no voices
 but breath.
 
 **Logline.** On a winter night a mother carries her small daughter across a frozen border river,
@@ -260,9 +260,9 @@ time = scene start + scene time.
 | s09 | choice | 122 | 14 | director | her eyes; the split: the way out, the drowning man; she turns to go; the girl holds out the scarf |
 | s10 | scarf | 136 | 18 | director | along the trunk; the red line falls short, then reaches; the pull; out of the water; the bank |
 | s11 | mercy | 154 | 18 | director | the watch; the photograph and the girl; whistles; go; the scarf given back; the lie; snow |
-| s12 | other_side | 172 | 14 | director | the crossing in falling snow; the farmhouse door; the lullaby; the page goes blank; the red thread |
+| s12 | other_side | 172 | 16 | director | the crossing in falling snow; the farmhouse door; the lullaby; the page goes blank; the red thread |
 
-3:06, 4,464 frames, 93 bars.
+3:08, 4,512 frames, 94 bars.
 
 ## Scene by scene
 
@@ -510,38 +510,52 @@ moon is out, every shadow comes toward us.
 
 ### s11 MERCY (154–172)
 
-1. **0.0–2.0:** He lies in the snow, shaking. She stands with the girl behind her, ready to run.
-2. **2.0–4.0:** He fumbles inside his coat. She flinches and pulls the girl behind her.
-3. **4.0–7.0:** It is the watch. CU: it opens; water runs out; the hands have stopped (12:31);
-   in the lid, the wet photograph of his daughter in her pompom hat (*no tick*).
-4. **7.0–9.0:** Match cut: the photograph's girl, then the real girl in her pompom hat, the same
-   size and place in frame, looking at him. His face. He closes the watch.
-5. **9.0–11.0:** Whistles. Lanterns in the trees, close (three). The mother spins round.
-6. **11.0–13.0:** He gets up on one knee and points upstream along the bank, under the willows: go.
-   He takes the red scarf from her hands and winds it round the girl's neck.
-7. **13.0–15.0:** They go, upstream into the reeds, the girl looking back over her mother's
-   shoulder. He watches.
-8. **15.0–18.0:** The other guards come down to the bank with their lanterns. He stands over the
-   hole that the trail leads into, dripping. He points at it and shakes his head. The lanterns
-   lower; one guard takes off his hat. The first snowflakes fall through the lantern light. Last
-   frame: that.
+1. **0.0–3.0:** The section at the bank, as s10 left it. He lies on his back in the snow, knees
+   drawn up, hugging himself, shaking. She gets up from the girl and stands between them, the scarf
+   in her fist. His glove goes inside his coat (1.6); she flinches and sweeps the girl behind her.
+   The glove comes out and something small catches the moon (2.6).
+2. **3.0–5.6:** CU: the watch in his wet glove. His thumb on the crown, the lid springs open
+   (3.42); water runs out of the case; the hands have stopped (12:31); in the lid, the wet
+   photograph of his daughter in her pompom hat (*no tick*). A push in on the photograph.
+3. **5.6–6.6:** Match cut: the photograph's oval becomes the moon behind the real girl, face-on,
+   the same size and place in frame, looking at him. She blinks.
+4. **6.6–7.7:** His face on the snow, turned toward her; his eyes soften. He shuts the watch.
+5. **7.7–9.3:** The river view. Three whistles from the trees; three lanterns come out of the
+   woods, close. The mother spins round to them, the girl tucked in behind her; he comes up on an
+   elbow.
+6. **9.3–11.6:** He gets up on one knee and points upstream along the bank: go (a dotted sight
+   line). The girl takes the scarf from her mother's fist, crosses to him and holds it out to
+   him. He takes it, and winds it round her neck: the scarf given back.
+7. **11.6–13.4:** Her mother crouches; the girl climbs onto her back. They go, along the edge of
+   the root plate and in behind it, the girl looking back over her mother's shoulder, the red the
+   last thing to go. He gets to his feet and watches, alone.
+8. **13.4–15.4:** The page. The lanterns come down out of the woods at a run to the head of the
+   false trail; he walks there from the slope. The searchlight swings down the river and stops on
+   the hole; he points along the trail at it. Upstream in the reeds a dark shape with a red dot
+   goes west.
+9. **15.4–18.0:** The bank view: the four of them from behind at the head of the trail, the hole
+   lit ahead, his hat floating in it. He shakes his head. The lanterns lower; the guard beside him
+   takes off his hat. The first snow falls through the lantern light. Last frame: that.
 
-### s12 OTHER SIDE (172–186)
+### s12 OTHER SIDE (172–188)
 
-1. **0.0–4.0:** Upstream, the white crossing in falling snow: the mother, carrying the girl,
-   crosses (profile, small, moving right). Far downstream the searchlight's beam rests on the
-   lanterns at the hole. Behind her, her prints begin to fill.
+1. **0.0–4.0:** The river view, looking upstream, in falling snow. On the near bank the guards
+   stand at the head of the false trail in the searchlight's beam: lanterns lowered, one with his
+   hat in his hands, him wet through and hunched. Far out on the white ice beyond them the mother,
+   carrying the girl, crosses (profile, small, moving right); behind her, her prints begin to
+   fill.
 2. **4.0–7.0:** The far bank: the farmhouse. The door opens and warm light falls across the snow;
    a woman with a shawl waves them in; they climb the bank and walk into the light; the door
-   closes (7.0).
+   closes (6.95).
 3. **7.0–9.5:** The farmhouse window from outside, in falling snow: inside, the girl's silhouette
    opens the music box and the lullaby plays, all of it this time (*the music box, alone, then
    the strings under it in A major*).
 4. **9.5–12.5:** The page, the camera rising: snow falls on the river; the false trail, the hole,
    the scarf's drag mark, the real prints upstream soften and vanish into the white. The page is
    blank.
-5. **12.5–14.0:** The title re-forms on the white: THIN ICE, cracked, and the red thread holding
-   it. Snow settles over everything but the red thread. Black (13.75). Silence.
+5. **12.5–16.0:** The title re-forms on the white: THIN ICE, cracked, and the red thread holding
+   it, and holds. Snow settles over everything but the red thread (13.7–14.5); a slow push in on
+   the thread alone. Black (15.75). Silence.
 
 ## Sound plan (for the mix)
 
@@ -560,7 +574,7 @@ moon is out, every shadow comes toward us.
   - s10: the strings build under the pull; a release when he is out.
   - s11: quiet; the watch makes no sound; the whistles; a low chord under the lie; the first
     flakes with a shimmer.
-  - s12: the lullaby; the strings resolve to A major; silence from 13.75.
+  - s12: the lullaby; the strings resolve to A major and hold under the title; silence from 15.75.
 - **The ice** (the film's signature, synthesised): deep groans and booms; dispersive "pew"
   chirps (a sweep from high to low in 0.1–0.4 s, the sound of lake ice); sharp cracks; the break
   and the plunge; small crunches as the edge breaks; the stone's crack and plop.
@@ -575,7 +589,7 @@ moon is out, every shadow comes toward us.
   effort. **No new paid generation.**
 - **Mix:** −16 LUFS integrated, true peak ≤ −1.3 dBTP, short-term loudness kept above about −29
   LUFS everywhere except the designed silences (s08's beat after the crack; the end), digital
-  silence from s12 13.75 to the end.
+  silence from s12 15.75 to the end.
 
 ## Technical
 
