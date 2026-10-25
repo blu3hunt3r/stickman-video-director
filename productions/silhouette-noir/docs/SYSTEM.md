@@ -572,16 +572,15 @@ How we review:
    (CRF 15 segments joined without re-encoding).
 2. **Sound master:** `python3 films/F/audio/mix.py` → `films/F/out/audio_master.wav`.
 3. **Preview** (OPPOSITE full, DOUBLE CROSS): a two-pass x264 encode at a fixed bitrate, muxed with
-   AAC. The bitrate is 5000k since DOUBLE CROSS v4 (see "Keep a delivered preview near 100 MB"
-   below); every earlier preview was encoded at `-b:v 7500k -maxrate 11000k -bufsize 15000k`:
+   AAC:
 
 ```
 P=<scratch dir>/x264pass
 ffmpeg -v error -y -i films/F/out/F_master.mp4 -map 0:v:0 \
-  -c:v libx264 -preset slow -b:v 5000k -maxrate 7500k -bufsize 10000k -profile:v high -pix_fmt yuv420p \
+  -c:v libx264 -preset slow -b:v 7500k -maxrate 11000k -bufsize 15000k -profile:v high -pix_fmt yuv420p \
   -pass 1 -passlogfile $P -an -f mp4 /dev/null
 ffmpeg -v error -y -i films/F/out/F_master.mp4 -i films/F/out/audio_master.wav -map 0:v:0 -map 1:a:0 \
-  -c:v libx264 -preset slow -b:v 5000k -maxrate 7500k -bufsize 10000k -profile:v high -pix_fmt yuv420p \
+  -c:v libx264 -preset slow -b:v 7500k -maxrate 11000k -bufsize 15000k -profile:v high -pix_fmt yuv420p \
   -pass 2 -passlogfile $P -c:a aac -b:a 192k -movflags +faststart -shortest films/F/final/F_preview.mp4
 ```
 
@@ -590,16 +589,16 @@ High at about 7.51 Mb/s, AAC-LC 48 kHz at about 199 kb/s, 7.71 Mb/s overall, 133
 the AAC encode it measured -16.1 LUFS with a peak of -0.6 dBFS. The v4 preview: 3,648 frames,
 152.000 s, 7.71 Mb/s overall, 146.6 MB, -16.1 LUFS with a true peak of -1.1 dBFS after AAC.
 
-**Keep a delivered preview near 100 MB.** The 146.6 MB v4 preview played without sound in the
-Claude app on the user's phone. Its audio track is fine: laid out exactly like v3's (AAC-LC,
-stereo, the default track), -16.1 LUFS, and -19.3 LUFS summed to mono, so nothing cancels on a
-phone speaker. Every earlier preview, at 139 MB or less, played with sound. The cause is not
-confirmed; v4 was re-sent as a smaller copy, `final/double_cross_v4_phone_preview.mp4`, the same
-encode at 5000k: 5.01 Mb/s video, 5.21 Mb/s overall, 99.0 MB, the soundtrack unchanged (-16.1
-LUFS, peak -1.1 dBFS). Against the master its SSIM (Y) is 0.926 (0.943 at 7500k) and its PSNR (Y)
-38.5 dB (39.7 dB). The loss is even across the eleven scenes (0.013 to 0.022 SSIM), and at 1:1 it
-shows only as softer paper grain; at full frame the two look the same. 5000k makes a 2:30 film
-about 100 MB; lower it for a longer film.
+**When a preview plays silent on the phone.** The v4 preview played without sound in the Claude
+app on the user's phone, and so did a 99 MB copy encoded at 5000k
+(`final/double_cross_v4_phone_preview.mp4`). Both files carry the soundtrack. Their MP4 boxes match
+OPPOSITE full's box for box (the same AAC-LC 48 kHz stereo track, enabled, with the same edit
+lists and interleave), and OPPOSITE full, at 138.7 MB, played with sound on the same phone. The
+sound measures -16.1 LUFS, -19.3 LUFS summed to mono, and through a 400 Hz high-pass (a phone
+speaker) it is only about 2 dB quieter than OPPOSITE full. So the cause is on the playback side
+(the phone's silent switch, its media volume, a Bluetooth device, or the app's player), not the
+file, and a smaller encode does not help. Before re-encoding anything, check the delivered file
+against a preview the user has heard.
 
 **The trilogy's delivery script** is `tools/deliver.py --film {salvage,shadowplay,red}
 video|audio|captions|mux|poster|qa|all`. `captions` writes `final/<film>.en.srt` (and an ASS file

@@ -572,8 +572,9 @@ v4's times), and nothing is new. In s02 the six flags are its designed cuts (tab
 side shot). s05, one continuous shot, has none.
 
 That file played without sound in the Claude app on the user's phone, though its soundtrack
-measures normal, so v4 was re-sent as `final/double_cross_v4_phone_preview.mp4`: the same master
-and soundtrack encoded at 5 Mb/s video, 99.0 MB (SYSTEM.md section 9).
+measures normal. A 99 MB copy at 5 Mb/s video, `final/double_cross_v4_phone_preview.mp4`, played
+silent too. Both are built like OPPOSITE full's preview, which played with sound on the same
+phone, so the cause is on the playback side (SYSTEM.md section 9).
 
 ### 9.13 Files
 
@@ -593,4 +594,4 @@ and soundtrack encoded at 5 Mb/s video, 99.0 MB (SYSTEM.md section 9).
 | `films/double_cross/final/double_cross_v2_preview.mp4` | The delivered v2 preview, with the shot types (not in git). |
 | `films/double_cross/final/double_cross_v3_preview.mp4` | The delivered v3 preview, with the review fixes and the voices (not in git). |
 | `films/double_cross/final/double_cross_v4_preview.mp4` | The delivered v4 preview: v2's picture, the briefing given time, the guard rebuilt (not in git). |
-| `films/double_cross/final/double_cross_v4_phone_preview.mp4` | The v4 preview re-encoded at 5 Mb/s (99.0 MB) after the 146.6 MB file played without sound on the user's phone (not in git). |
+| `films/double_cross/final/double_cross_v4_phone_preview.mp4` | A 99 MB copy of the v4 preview at 5 Mb/s, made while chasing the silent playback; it played silent too (not in git). |
