@@ -1,21 +1,32 @@
-"""s10 CHECKMATE (124-136). The Knight gets away, and the city closes on him like a chessboard.
+"""s10 CHECKMATE (148-166). The Knight gets away, the alarm calls the police, and the city closes
+on him like a chessboard.
   The front street at night, the alarm bell ringing red high in the alley. The Knight bursts
     round the car's tail with two heavy sacks, heaves them in through the open rear door and
     slams it. Close on the car's nose: the engine coughs, the headlight flares, the car
     lurches off and the light fills the frame.
   The city from above: its blocks are the squares of a chessboard, with the blueprint of the
-    bank in the middle. His car (red-edged) lurches out at the end of his red trail. From the
-    four ends of the streets four police cars slide in nose first like rooks, one per beat
-    (W, N, E, S: exactly as she chalked them in Plan B), bars flashing. A red marker ring
-    closes round him: checkmate. The camera rolls (his panic).
+    bank in the middle. His car (red-edged) lurches out at the end of his red trail. The bell
+    by the bank's side door rings red, and its rings run out over the city, one per beat. Four
+    police cars wait dark down the four streets round him; as the first ring reaches each, its
+    bar switches on, one per beat (W, N, E, S: exactly as she chalked them in Plan B), and the
+    first one's lights, dead ahead, stop him. They slide in nose first like rooks, one per
+    beat. A red marker ring closes round him: checkmate. The camera rolls (his panic).
   His face in the car window, washed red and blue, eyes darting.
+  The street again, boxed in: a police car nose to nose with his, one nose to tail, the third's
+    bar flashing over his roof from the alley, every lamp on him, the bell still ringing above.
+    He shoves the door open and climbs out with a sack, looks east, looks west, lets the sack
+    go (the gold spills on the road) and puts his hands up in the light.
   The pull-back: manhole B's lid slides off, two small chalk figures climb out and walk west
     along the back street, her white route lighting behind them. Then his red route and her
     white one straighten into two strokes crossing over the bank: an X.
 """
 import math
+from functools import lru_cache
+
+import cairo
 
 from engine import bass
+from engine import paperdoll as pd
 from engine.core import clamp, ease, hash01, lerp
 from engine.timing import Cue
 from films.double_cross import bank as Bk
@@ -42,26 +53,39 @@ DOOR_IN = (1005.0, -54.0)        # the rear door's opening (set px)
 
 # ============================================================================ the board
 T_BOARD = 2.92
-T_SPEED = (3.15, 3.55)           # his car lurches forward along the front street
-T_COPS = (4.0, 4.5, 5.0, 5.5)    # the police slide in, one per beat
-T_MATE = 6.0                     # the red ring: checkmate
-T_ROLL = (6.0, 6.42)             # the camera rolls: his panic
-T_FACE = (6.42, 7.2)
-T_BACK = 7.2                     # the pull-back
-T_LID = (7.95, 8.25)             # manhole B's lid slides off
-T_UP = (8.2, 8.45)               # she climbs out; he follows
-T_X = (10.0, 11.2)               # the routes straighten into the X
+T_SPEED = (3.15, 3.55)           # his car lurches forward along the front street ...
+T_BRAKE = 4.55                   # ... and stops dead: lights ahead (the first police car's)
+T_RINGS = 3.0                    # the bell's rings run out over the city, one per beat ...
+RING_V = 400.0                   # ... this fast (plan px / s)
+RING_R0 = 30.0
+RING_LIFE = 3.4
+T_WAKE = (4.5, 5.0, 5.5, 6.0)    # as the first ring reaches each police car, its bar switches on ...
+T_COPS = (6.0, 6.5, 7.0, 7.5)    # ... and it slides in nose first, one per beat
+T_MATE = 8.0                     # the red ring: checkmate
+T_ROLL = (8.0, 8.42)             # the camera rolls: his panic
+T_FACE = (8.42, 9.2)
+T_ARREST = 9.2                   # the street again: boxed in, hands up
+T_BACK = 12.92                   # the pull-back
+T_LID = (13.67, 13.97)           # manhole B's lid slides off
+T_UP = (13.92, 14.17)            # she climbs out; he follows
+T_LENS = (13.57, 15.57)          # a lens on manhole B: the two climbing out
+T_X = (15.72, 16.92)             # the routes straighten into the X
+T_END = 18.0
 CAR_HOME = P.CAR
 CAR_STOP = (P.CAR[0] - 30.0, P.CAR[1])
-# (direction from his car, distance at rest, approach angle of travel): W, N, E, S as in Plan B
-COPS = (((-1.0, 0.0), 100.0), ((0.0, -1.0), 82.0), ((1.0, 0.0), 100.0), ((0.0, 1.0), 82.0))
-COP_RUN = 2300.0                 # how far down its street each police car starts
 STREETS_X = tuple(120.0 + 837.0 * k for k in range(-3, 5))     # the north-south streets (centres)
 STREETS_Y = tuple(280.0 + 1120.0 * k for k in range(-3, 5))    # the east-west streets
 STREET_W = 100.0
-BOARD_KEYS = ((2.92, (560.0, 1150.0, 0.36, 0.0)), (3.6, (690.0, 1260.0, 0.42, 0.0)),
-              (5.9, (900.0, 1400.0, 1.0, 0.0)), (6.42, (900.0, 1400.0, 1.16, -10.0)))
-BACK_KEYS = ((7.2, (900.0, 1400.0, 1.16, -10.0)), (8.5, (560.0, 920.0, 0.6, 0.0)), (12.0, (548.0, 880.0, 0.56, 0.0)))
+CROSS_X = STREETS_X[4]           # the cross street at his car's tail (the alley's): N and S come down it
+# each police car's rest, nose in, and its heading (degrees): W, N, E, S as in Plan B
+COP_REST = (((CAR_STOP[0] - 120.0, CAR_STOP[1]), 0.0), ((CROSS_X, CAR_STOP[1] - 94.0), 90.0),
+            ((CAR_STOP[0] + 120.0, CAR_STOP[1]), 180.0), ((CROSS_X, CAR_STOP[1] + 94.0), 270.0))
+MATE_C = (CAR_STOP[0] + 15.0, CAR_STOP[1])     # the box's middle
+BOARD_KEYS = ((T_BOARD, (930.0, 1240.0, 1.0, 0.0)), (3.1, (930.0, 1240.0, 1.0, 0.0)),
+              (4.4, (1165.0, 1265.0, 0.6, 0.0)), (6.0, (1150.0, 1290.0, 0.58, 0.0)),
+              (7.9, (MATE_C[0], MATE_C[1], 1.0, 0.0)), (T_FACE[0], (MATE_C[0], MATE_C[1], 1.16, -10.0)))
+BACK_KEYS = ((T_BACK, (MATE_C[0], MATE_C[1], 1.2, 0.0)), (T_BACK + 1.3, (560.0, 920.0, 0.6, 0.0)),
+             (T_BACK + 4.8, (548.0, 880.0, 0.56, 0.0)))
 WALK_V = 150.0                   # plan px / s: two small figures walking west
 HER_ROUTE = P.ROUTE_B
 HIS_ROUTE = list(P.ROUTE_KNIGHT) + [CAR_STOP]
@@ -252,25 +276,59 @@ def draw_board(c, t, dim=0.0):
 
 
 def car_at(t):
-    """His car's centre on the plan."""
+    """His car's centre on the plan: the lurch forward, a creep, and the dead stop at the lights
+    ahead (its nose dips)."""
     u = ease("inout", clamp((t - T_SPEED[0]) / (T_SPEED[1] - T_SPEED[0])))
-    jolt = 0.0
-    if t >= T_COPS[0]:                                     # braking hard as the first car blocks him
-        a = clamp((t - T_COPS[0]) / 0.3)
-        jolt = 10.0 * math.sin(math.pi * a) * (1.0 - a)
-    return (lerp(CAR_HOME[0], CAR_STOP[0], u) + jolt, CAR_HOME[1])
+    x = lerp(CAR_HOME[0], CAR_STOP[0] + 10.0, u)
+    x -= 10.0 * ease("in", clamp((t - T_SPEED[1]) / (T_BRAKE - T_SPEED[1])))
+    a = clamp((t - T_BRAKE) / 0.3)
+    if 0.0 < a < 1.0:
+        x -= 8.0 * math.sin(math.pi * a) * (1.0 - a)
+    return (x, CAR_HOME[1])
+
+
+def _park(i):
+    """Where police car i waits, dark, down its street: as far from the bell as the first ring
+    has spread by T_WAKE[i]."""
+    (rx, ry), ang = COP_REST[i]
+    d = RING_R0 + RING_V * (T_WAKE[i] - T_RINGS)
+    back = (-math.cos(math.radians(ang)), -math.sin(math.radians(ang)))
+    ox, oy = rx - P.BELL_AT[0], ry - P.BELL_AT[1]
+    b = ox * back[0] + oy * back[1]
+    s = -b + math.sqrt(b * b - (ox * ox + oy * oy - d * d))
+    return (rx + back[0] * s, ry + back[1] * s)
+
+
+PARK = tuple(_park(i) for i in range(4))
 
 
 def cop_at(i, t):
-    """(centre, heading degrees, arrived 0..1) of police car i."""
-    (dx, dy), d1 = COPS[i]
-    k = t - T_COPS[i] + 0.36
-    u = clamp(k / 0.36)
-    run = COP_RUN * (1.0 - ease("outback", u)) if u < 1.0 else 0.0
-    d = d1 + run
-    cx, cy = CAR_STOP
-    p = (cx + dx * d, cy + dy * d)
-    return p, math.degrees(math.atan2(-dy, -dx)), u
+    """(centre, heading degrees, how far in 0..1) of police car i: dark at PARK[i]; from a beat
+    after its bar switches on, down its street to its rest, rocking on its nose as it stops."""
+    rest, ang = COP_REST[i]
+    t0 = T_WAKE[i] + 0.12
+    u = clamp((t - t0) / (T_COPS[i] - t0))
+    g = ease("inout3", u)
+    p = (lerp(PARK[i][0], rest[0], g), lerp(PARK[i][1], rest[1], g))
+    a = clamp((t - T_COPS[i]) / 0.3)
+    if 0.0 < a < 1.0:
+        k = 10.0 * math.sin(math.pi * a) * (1.0 - a)
+        p = (p[0] + math.cos(math.radians(ang)) * k, p[1] + math.sin(math.radians(ang)) * k)
+    return p, ang, u
+
+
+def _alarm(c, t):
+    """The bell by the side door, ringing on the board: its rings run out over the city, one per
+    beat (where the first ring has got to, the alarm has been heard). They fade at checkmate."""
+    fade = 1.0 - clamp((t - (T_MATE - 0.1)) / 0.3)
+    for k in range(int((t - T_RINGS) / K.BEAT) + 1 if fade > 0.0 else 0):
+        age = t - (T_RINGS + k * K.BEAT)
+        if not 0.0 <= age < RING_LIFE:
+            continue
+        a = age / RING_LIFE
+        bass.ring(c, P.BELL_AT, RING_R0 + RING_V * age, 12.0 * (1.0 - 0.6 * a), K.RED, seed=2300 + k,
+                  alpha=0.85 * (1.0 - a) * fade)
+    K.bell(c, P.BELL_AT, P.BELL_S * 1.25, K.RED, seed=2237, ring=18.0 * math.sin(2.0 * math.pi * 9.0 * t))
 
 
 def _his_car(c, t, cam):
@@ -281,32 +339,52 @@ def _his_car(c, t, cam):
     K.car(c, p, 180.0, 0.9, K.INK, K.RED, ew=5.0)
 
 
+def _bar_off(c, p, ang, s):
+    """A police car's light bar, dark."""
+    c.save()
+    c.translate(*p)
+    c.rotate(math.radians(ang))
+    c.scale(s, s)
+    bass.fill_polys(c, [bass.cut_rect(-6.0, -20.0, 6.0, 20.0, seed=85, amp=0.3)], lerp(K.INK, K.STEEL, 0.4))
+    c.restore()
+
+
 def _cops(c, t):
+    """The four police cars: dark down their streets; the bar on (with a pop and a flash of rings)
+    as the alarm reaches each; then sliding in nose first, like rooks, streaks behind."""
     for i in range(4):
-        if t < T_COPS[i] - 0.36:
-            continue
         p, ang, u = cop_at(i, t)
-        if u < 1.0:                                        # streaks behind it as it slides in
+        if 0.0 < u < 1.0:                                  # streaks behind it as it slides in
+            q, _, _ = cop_at(i, t - 1.0 / 24.0)
+            L = min(420.0, 0.2 * 24.0 * math.hypot(p[0] - q[0], p[1] - q[1]))
             back = (-math.cos(math.radians(ang)), -math.sin(math.radians(ang)))
-            for j in range(3):
+            for j in range(3 if L > 8.0 else 0):
                 off = (j - 1) * 16.0
                 n = (-back[1] * off, back[0] * off)
                 a = (p[0] + back[0] * 70.0 + n[0], p[1] + back[1] * 70.0 + n[1])
-                b = (a[0] + back[0] * 420.0 * (1.0 - u), a[1] + back[1] * 420.0 * (1.0 - u))
+                b = (a[0] + back[0] * L, a[1] + back[1] * L)
                 K.chalk_line(c, [a, b], 1.0, 4.0, K.PAPER, seed=70 + i * 3 + j, alpha=0.45)
+        if t < T_WAKE[i]:
+            K.car(c, p, ang, 0.9, K.INK, K.STEEL, ew=3.5)
+            _bar_off(c, p, ang, 0.9)
+            continue
+        w = clamp((t - T_WAKE[i]) / 0.3)
+        col = K.POLICE if i % 2 == 0 else K.RED
+        if w < 1.0:                                        # the bar switching on: a flash
+            K.dot(c, p, 100.0 * (0.5 + 0.5 * w), col, seed=86 + i, alpha=0.55 * (1.0 - w))
         K.car(c, p, ang, 0.9, K.INK, K.PAPER, ew=4.0)
-        K.police_lights(c, p, ang, t, s=0.9, beams=u >= 1.0, seed=80 + i)
+        K.police_lights(c, p, ang, t, s=0.9 * (1.0 + 0.8 * math.sin(math.pi * w)), beams=True, seed=80 + i)
+        K.ripple(c, p, t, T_WAKE[i], col, n=2, every=0.14, life=0.55, r0=30.0, r1=240.0, width=10.0)
         if u >= 1.0:
-            K.ripple(c, p, t, T_COPS[i], K.POLICE if i % 2 == 0 else K.RED, n=2, every=0.14, life=0.5, r0=20.0,
-                     r1=120.0, width=5.0)
+            K.ripple(c, p, t, T_COPS[i], col, n=2, every=0.14, life=0.5, r0=20.0, r1=120.0, width=5.0)
 
 
 def _ring(c, t):
     u = ease("out3", clamp((t - T_MATE) / 0.3))
     if u > 0.0:
-        K.marker_ring(c, CAR_STOP, 168.0, 132.0, u, K.RED, width=16.0, seed=90)
+        K.marker_ring(c, MATE_C, 212.0, 172.0, u, K.RED, width=16.0, seed=90)
     if t >= T_MATE + 0.3:
-        K.ripple(c, CAR_STOP, t, T_MATE + 0.3, K.RED, n=2, every=0.2, life=0.7, r0=150.0, r1=300.0, width=6.0)
+        K.ripple(c, MATE_C, t, T_MATE + 0.3, K.RED, n=2, every=0.2, life=0.7, r0=190.0, r1=360.0, width=6.0)
 
 
 # ============================================================================ the pull-back
@@ -374,9 +452,6 @@ def _her_route(c, t):
     K.route(c, HER_ROUTE, clamp(s / L), K.PAPER, solid=True, width=7.0, head=26.0, seed=380)
 
 
-T_LENS = (7.85, 9.85)            # a lens on manhole B: the two climbing out
-
-
 def _lens(c, t, cam):
     """A lens on manhole B while they climb out and walk off west (the board, closer)."""
     u = clamp((t - T_LENS[0]) / 0.3) * (1.0 - clamp((t - (T_LENS[1] - 0.25)) / 0.25))
@@ -432,6 +507,7 @@ def board_shot(c, t):
             _her_route(c, t)
             _lid(c, t)
             _walkers(c, t)
+        _alarm(c, t)
         _his_car(c, t, cam)
         _cops(c, t)
         _ring(c, t)
@@ -478,6 +554,221 @@ def face_shot(c, t):
     c.restore()
 
 
+# ============================================================================ the arrest (the street again)
+T_DOOR = (9.62, 9.8)             # he shoves the driver's door open ...
+T_CLIMB = (9.8, 10.3)            # ... and climbs out with a sack, into the light
+T_LOOK_E = 10.5                  # a look east, at the car behind ...
+T_LOOK_W = 10.82                 # ... and west again, at the one in front
+T_DROP = 11.0                    # he lets the sack go: it thumps down and the gold spills
+T_HANDS = (11.36, 11.72)         # hands up
+HIS_X = Bk.CAR_X - 30.0          # his car, stopped (the board's lurch)
+COP_W_X = HIS_X - Bk.CAR_L - 12.0      # a police car nose to his nose ...
+COP_E_X = HIS_X + Bk.CAR_L + 12.0      # ... one nose to his tail ...
+COP_N_X = CROSS_X                      # ... and one come down the alley, head on behind his car
+T_CLOSE = 11.3                   # cut in close as the sack topples: the hands go up in the medium shot
+ARREST_CAM = (Bk.Cam(HIS_X, -196.0, 1.8), Bk.Cam(HIS_X - 8.0, -172.0, 2.05))
+SEAT = (HIS_X + 10.0, 210.0)     # in the driver's seat: his pelvis (set x), how far it sinks (fig units)
+OUT_X = HIS_X - 16.0             # out on the road
+CLOSE_CAM = (Bk.Cam(OUT_X - 4.0, -140.0, 3.2), Bk.Cam(OUT_X - 4.0, -136.0, 3.6))
+_X0 = HIS_X - Bk.CAR_L / 2.0     # his car's nose
+WINDOW = [(_X0 + 98.0, -84.0), (_X0 + 116.0, -90.0), (_X0 + 150.0, -90.0), (_X0 + 150.0, -60.0), (_X0 + 84.0, -60.0)]
+DOOR_HOLE = [(_X0 + 84.0, -60.0), (_X0 + 98.0, -84.0), (_X0 + 116.0, -90.0), (_X0 + 150.0, -90.0),
+             (_X0 + 150.0, -20.0), (_X0 + 84.0, -20.0)]
+
+
+def arrest_cam(t):
+    if t < T_CLOSE:
+        return Bk.Cam.lerp(*ARREST_CAM, ease("inout", clamp((t - T_ARREST) / (T_CLOSE - T_ARREST))))
+    return Bk.Cam.lerp(*CLOSE_CAM, ease("out", clamp((t - T_CLOSE) / (T_BACK - T_CLOSE))))
+
+
+def arrest_knight(t):
+    """(state, pose, x, facing, sack held) of the Knight in the arrest: sunk in the driver's seat,
+    his head darting; out of the door with a sack, ducking under the roof; a look east and west;
+    the sack let go; hands up (trembling)."""
+    st = C.standing("knight")
+    climb = ease("inout", clamp((t - T_CLIMB[0]) / (T_CLIMB[1] - T_CLIMB[0])))
+    if t < T_CLIMB[0]:
+        facing = (-1, 1, -1, -1, 1)[int((t - T_ARREST) / 0.17) % 5]
+    else:
+        facing = 1 if T_LOOK_E <= t < T_LOOK_W else -1
+    hands = ease("outback", clamp((t - T_HANDS[0]) / (T_HANDS[1] - T_HANDS[0])))
+    shake = 1.5 * math.sin(2.0 * math.pi * 7.0 * t) * clamp((t - T_HANDS[1]) / 0.2)
+    look = 8.0 if T_LOOK_E - 0.1 <= t < T_LOOK_W + 0.2 else 0.0
+    lean = 4.0 + 10.0 * (1.0 - climb) + 22.0 * math.sin(math.pi * climb)
+    pose = pd.Pose(lean=lerp(lean, -4.0, hands), head=lerp(-6.0 + look, 8.0, hands), crouch=SEAT[1] * (1.0 - climb))
+    let_go = ease("out", clamp((t - T_DROP) / 0.2))
+    pose.arms["near"] = ("ang", lerp(8.0 + 8.0 * let_go, 156.0 + shake, hands), lerp(12.0, 16.0, hands))
+    pose.arms["far"] = ("ang", lerp(lerp(64.0, 12.0, climb), 178.0 - shake, hands),
+                        lerp(lerp(40.0, 16.0, climb), 2.0, hands))
+    held = t < T_DROP
+    if held:
+        pose.hold = {"near": Bk.hold_sack(1.0, seed=43, floor=0.0)}
+    return st, pose, lerp(SEAT[0], OUT_X, climb), facing, held
+
+
+def _draw_knight(c, st, pose, x, facing, cam):
+    """Him in the crossed lamps: lit white from the west, red (his own) from the east."""
+    w = 5.0 / cam.zoom
+    C.draw(c, "knight", st, pose, x, 0.0, Bk.FIG_S, facing, bg=K.NAVY, rim=K.PAPER, rim_w=w, light=(-1.0, -0.25))
+    return C.draw(c, "knight", st, pose, x, 0.0, Bk.FIG_S, facing, bg=K.NAVY, rim=K.RED, rim_w=w, light=(1.0, -0.25))
+
+
+def _beacon(c, p, t, seed, s=1.0):
+    """A police car's roof light seen side on (set px, p the middle of its base): the red and blue
+    halves flashing in turn, and their two turning beams sweeping the street."""
+    blue_on = (t * 3.0 + hash01(seed, 9)) % 1.0 < 0.5
+    rot = math.radians((t * 260.0 + 97.0 * seed) % 360.0)
+    top = (p[0], p[1] - 6.0 * s)
+    for col, off in ((K.POLICE, 0.0), (K.RED, math.pi)):
+        a = rot + off
+        L = 560.0 * abs(math.cos(a)) * s
+        if L > 20.0:
+            d = 1.0 if math.cos(a) > 0.0 else -1.0
+            bass.fill_polys(c, [bass.orient([top, (top[0] + d * L, top[1] - 0.18 * L), (top[0] + d * L, top[1] + 0.18 * L)],
+                                            True)], col, 0.14)
+        if math.sin(a) < -0.85:                            # turned toward us: a flare
+            Bk.disc(c, top, 46.0 * s, col, seed=seed + 3, n=24, alpha=0.3)
+    Bk.rect(c, (p[0] - 14.0 * s, p[1] - 12.0 * s, p[0], p[1]), K.RED, seed=seed + 1, amp=0.3,
+            alpha=0.45 if blue_on else 1.0)
+    Bk.rect(c, (p[0], p[1] - 12.0 * s, p[0] + 14.0 * s, p[1]), K.POLICE, seed=seed + 2, amp=0.3,
+            alpha=1.0 if blue_on else 0.45)
+    Bk.disc(c, (p[0] + (7.0 if blue_on else -7.0) * s, top[1]), 24.0 * s, K.POLICE if blue_on else K.RED,
+            seed=seed + 4, n=20, alpha=0.3)
+
+
+def _cop_side(c, x, t, nose, seed):
+    """A police car side on (set px), nose -1 west / +1 east: INK edged white, a white band along
+    its doors, its headlight full on and thrown along the street, its bar flashing on the roof."""
+    rim, shell, wins = Bk._car_polys()
+    x0, x1 = -Bk.CAR_L / 2.0, Bk.CAR_L / 2.0
+    c.save()
+    c.translate(x, 0.0)
+    c.scale(-nose, 1.0)                                    # the polygons are drawn nose west
+    reach = 430.0
+    bass.fill_polys(c, [bass.orient([(x0 + 4.0, -38.0), (x0 + 4.0, -26.0), (x0 - reach, 8.0), (x0 - reach, -80.0)],
+                                    True)], K.PAPER, 0.08)
+    bass.fill_polys(c, [bass.orient([(x0 + 4.0, -36.0), (x0 + 4.0, -28.0), (x0 - reach * 0.7, -10.0),
+                                     (x0 - reach * 0.7, -52.0)], True)], K.PAPER, 0.08)
+    bass.fill_polys(c, [rim], K.PAPER)
+    bass.fill_polys(c, [shell], K.INK)
+    bass.fill_polys(c, wins, Bk.GLASS)
+    Bk.band(c, (x0 + 84.0, -46.0), (x1 - 34.0, -46.0), 9.0, K.PAPER, seed=seed)
+    for i, wx in enumerate((x0 + 52.0, x1 - 50.0)):
+        Bk.disc(c, (wx, -18.0), 20.0, K.INK, seed=seed + 1 + i, n=28)
+        Bk.disc(c, (wx, -18.0), 8.0, K.STEEL, seed=seed + 3 + i, n=16)
+    Bk.disc(c, (x0 + 4.0, -32.0), 7.0, K.PAPER, seed=seed + 5, n=14)
+    Bk.disc(c, (x0 + 4.0, -32.0), 24.0, K.PAPER, seed=seed + 6, n=24, alpha=0.3)
+    c.restore()
+    _beacon(c, (x - nose * 15.0, -94.0), t, seed + 7)
+
+
+def _cop_head_on(c, x, t):
+    """The police car come down the alley, head on behind his car: hidden by it but for its roof
+    and its bar."""
+    body = [(x - 56.0, -10.0), (x - 56.0, -50.0), (x - 46.0, -64.0), (x - 38.0, -100.0), (x + 38.0, -100.0),
+            (x + 46.0, -64.0), (x + 56.0, -50.0), (x + 56.0, -10.0)]
+    Bk.poly(c, [(px, py - 3.0) for px, py in body], K.STEEL, seed=651)
+    Bk.poly(c, body, K.INK, seed=652)
+    Bk.poly(c, [(x - 33.0, -94.0), (x + 33.0, -94.0), (x + 40.0, -68.0), (x - 40.0, -68.0)], Bk.GLASS, seed=653)
+    _beacon(c, (x, -100.0), t, 655)
+
+
+def _door(c, g):
+    """The driver's door swinging open toward us on its front hinge: side on, it narrows to the
+    hinge, its window going with it."""
+    h = _X0 + 82.0
+    if g >= 1.0:
+        Bk.band(c, (h, -92.0), (h, -16.0), 5.0, K.INK, seed=662)
+        return
+
+    def sq(p):
+        return (h + (p[0] - h) * (1.0 - g), p[1])
+    Bk.poly(c, [sq(p) for p in [(h, -92.0), (_X0 + 152.0, -92.0), (_X0 + 152.0, -16.0), (h, -16.0)]], K.INK, seed=663,
+            amp=0.2)
+    Bk.poly(c, [sq(p) for p in WINDOW], Bk.GLASS, seed=664, amp=0.2)
+
+
+@lru_cache(maxsize=1)
+def _drop_from():
+    """Where the sack hangs from his fist as he lets it go (set px)."""
+    st, pose, x, facing, _ = arrest_knight(T_DROP - 1e-3)
+    surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, 4, 4)
+    return C.draw(cairo.Context(surf), "knight", st, pose, x, 0.0, Bk.FIG_S, facing, rim=False)["hand_near"]
+
+
+def _dropped(c, t):
+    """The sack let go: it drops, thumps down, topples west, and two gold bars slide out of its
+    mouth onto the road, glinting in the lamps."""
+    if t < T_DROP:
+        return
+    hx, hy = _drop_from()
+    foot = min(-0.5, hy + 44.0)                            # the sack's foot as it hung
+    k = t - T_DROP
+    t_land = math.sqrt(2.0 * -foot / Bk.G_DRIP)
+    y = min(0.0, foot + 0.5 * Bk.G_DRIP * k * k)
+    tip = ease("outback", clamp((k - t_land) / 0.22))
+    c.save()
+    c.translate(hx - 20.0, y)
+    c.rotate(math.radians(-84.0 * tip))
+    Bk.sack(c, (20.0, 0.0), 1.0, s=1.0, color=K.INK, rim=K.RED, seed=43)
+    c.restore()
+    mouth = (hx - 20.0 - 46.0 * tip, -20.0 * tip + y)
+    for j in range(2):
+        u = ease("out3", clamp((k - t_land - 0.12 - 0.08 * j) / 0.3))
+        if u <= 0.0:
+            continue
+        rest = (hx - 78.0 - 30.0 * j, 0.0)
+        p = (lerp(mouth[0], rest[0], u), lerp(mouth[1], rest[1], u))
+        Bk.bar(c, p, 0.9, angle=lerp(-30.0, -6.0 + 10.0 * j, u))
+        g = clamp((k - t_land - 0.4 - 0.15 * j) / 0.35)
+        if 0.0 < g < 1.0:
+            K.twinkle(c, (p[0] + 4.0, p[1] - 8.0), 18.0, K.PAPER, u=math.sin(math.pi * g), rot=15.0 * j)
+
+
+def arrest_shot(c, t):
+    """The street, boxed in (north-looking): police cars nose to nose and nose to tail with his, a
+    third head on in the alley behind it, every lamp and bar on him; the bell ringing above. He
+    climbs out, looks round, lets the sack go and puts his hands up."""
+    tt = K.twos(t)
+    cam = arrest_cam(t)
+    Bk.front_street(c, cam, t, bell=1.0, lamp=1.0, car_on=False)
+    _bell_ripples(c, cam, t)
+    st, pose, x, facing, held = arrest_knight(tt)
+    g = ease("out", clamp((tt - T_DOOR[0]) / (T_DOOR[1] - T_DOOR[0])))
+    free = ease("in", clamp((tt - T_CLIMB[0]) / 0.15))     # his clip opening out as he climbs out
+    with cam.on(c):
+        _cop_head_on(c, COP_N_X, tt)
+        Bk.car(c, t, headlights=0.7, x=HIS_X)
+        for k in (-1, 1):                                  # the alley car's lamps, glaring round his tail
+            Bk.disc(c, (COP_N_X + 38.0 * k, -38.0), 54.0, K.PAPER, seed=660 + k, n=28, alpha=0.1)
+        if g > 0.0:                                        # the dark of the car, the door open
+            Bk.poly(c, DOOR_HOLE, K.DEEP, seed=661, amp=0.2)
+        if free < 1.0:                                     # in the seat: through the glass, then the open door
+            c.save()
+            c.new_path()
+            if free <= 0.0:
+                bass.draw.poly(c, WINDOW if g <= 0.0 else DOOR_HOLE)
+            else:
+                r = (lerp(_X0 + 84.0, _X0 - 600.0, free), lerp(-90.0, -900.0, free), lerp(_X0 + 150.0, _X0 + 800.0, free),
+                     lerp(-20.0, 400.0, free))
+                c.rectangle(r[0], r[1], r[2] - r[0], r[3] - r[1])
+            c.clip()
+            _draw_knight(c, st, pose, x, facing, cam)
+            c.restore()
+        if g > 0.0:
+            _door(c, g)
+        _cop_side(c, COP_W_X, tt, 1, 670)
+        _cop_side(c, COP_E_X, tt, -1, 680)
+        if free >= 1.0:
+            _draw_knight(c, st, pose, x, facing, cam)
+        _dropped(c, tt)
+    blue = (tt * 3.0) % 1.0 < 0.5                          # the bars' light over everything, by turns
+    K.pool(c, (160.0, 900.0) if blue else (920.0, 900.0), 640.0, 1000.0, K.POLICE, 0.07, steps=3)
+    K.pool(c, (920.0, 900.0) if blue else (160.0, 900.0), 640.0, 1000.0, K.RED, 0.06, steps=3)
+    K.pool(c, (540.0, 2250.0), 1000.0, 700.0, K.RED if blue else K.POLICE, 0.05, steps=3)   # the fourth, behind us
+
+
 # ============================================================================ render
 def _headlight_frame(t):
     """The dark headlight in the close shot of the car's nose (frame px)."""
@@ -503,6 +794,11 @@ def render_plain(f, t, T):
         with f.screen() as c:
             nose_shot(c, t)
         return
+    if T_ARREST <= t < T_BACK:
+        K.scene_setup(f, K.NAVY)
+        with f.screen() as c:
+            arrest_shot(c, t)
+        return
     K.scene_setup(f, K.INK)
     with f.screen() as c:
         if T_FACE[0] <= t < T_FACE[1]:
@@ -526,14 +822,24 @@ def cues(T):
            Cue(T_LURCH[0], "tyres squealing as the car lurches off", gain_db=-8, pan=-0.4),
            Cue(T_FLASH[0], "a white whoosh", gain_db=-12),
            Cue(T_SPEED[0], "the engine racing away", gain_db=-14, dur=0.8)]
-    for i, tc in enumerate(T_COPS):
+    out += [Cue(T_RINGS, "the alarm bell ringing on over the city, every ring rolling outward", gain_db=-12,
+                dur=T_MATE - T_RINGS),
+            Cue(T_BRAKE, "brakes screeching: his car stops dead", gain_db=-10, pan=-0.2)]
+    for i, (tw, tc) in enumerate(zip(T_WAKE, T_COPS)):
         pan = (-0.7, 0.0, 0.7, 0.0)[i]
-        out.append(Cue(tc - 0.2, "a police car sliding in: a muted trumpet stab and a siren whoop", gain_db=-7,
-                       pan=pan))
-    out += [Cue(T_COPS[0] + 0.05, "brakes screeching", gain_db=-11, pan=-0.2),
-            Cue(T_COPS[0], "sirens braiding together, rising", gain_db=-13, dur=T.duration - T_COPS[0]),
+        out.append(Cue(tw, "a police car's lights switching on: a clunk and a siren whoop", gain_db=-9, pan=pan))
+        out.append(Cue(tc - 0.2, "a police car sliding in: a muted trumpet stab and tyres", gain_db=-7, pan=pan))
+    out += [Cue(T_WAKE[0], "sirens braiding together, rising", gain_db=-13, dur=T_BACK - T_WAKE[0]),
             Cue(T_MATE, "checkmate: a hard low stab and a choked cymbal", gain_db=-5),
             Cue(T_FACE[0], "a heartbeat thump; his breath catching", gain_db=-10, dur=T_FACE[1] - T_FACE[0]),
+            Cue(T_ARREST, "the alarm bell ringing above the street; police engines idling round him", gain_db=-12,
+                dur=T_BACK - T_ARREST),
+            Cue(T_DOOR[0], "a car door shoved open", gain_db=-9, pan=-0.1),
+            Cue(T_CLIMB[0] + 0.3, "a heavy step onto the cobbles", gain_db=-13),
+            Cue(T_LOOK_E, "a sharp breath", gain_db=-15, pan=0.2),
+            Cue(T_DROP + 0.12, "a heavy sack of gold thumps onto the cobbles; two bars clink out", gain_db=-8),
+            Cue(T_HANDS[0], "his coat rustling as his hands go up; a held low string note", gain_db=-12,
+                dur=T_BACK - T_HANDS[0]),
             Cue(T_LID[0], "an iron manhole cover dragged aside", gain_db=-12, pan=-0.2),
             Cue(T_UP[0] + 0.3, "two pairs of soft footsteps walking away on the cobbles", gain_db=-17, pan=-0.3,
                 dur=T_X[0] - T_UP[0]),

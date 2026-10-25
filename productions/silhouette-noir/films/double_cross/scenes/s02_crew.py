@@ -1,16 +1,20 @@
-"""s02 CREW (12-28). Three hands set three pieces at the start of the route, and after each, the
+"""s02 CREW (16-34). Three hands set three pieces at the start of the route, and after each, the
 face that goes with it, each in its own light, a lens on a leader line joining the face to its
 piece on the plan:
   the Architect, her gloved hand, the white queen; her profile on the lamp's gold;
   the Cracker, an old hand in a shirt cuff, the gold bishop; his profile on steel, a glint;
   the Knight, a heavy hand that slams the red knight down (the others jump); his profile in the
   dark, lit red by his cigarette.
-Then the table from the side under the swinging lamp, with time to read it (9-16): the three
-pieces stand on the plan at her end. She leans in, talking low, and taps the plan beside them
-twice: here (10.0, 10.5); the Cracker nods. His red look goes down to the X (11.5) and hers goes
-across to him (12.5). She knows. She picks up the chalk (14.0), and the camera tilts down over
-the table onto the plan (14-16), the pieces where they stand and her chalk coming in: s03 begins
-on that frame.
+Then the table from the side under the swinging lamp, with time to read it (9-18): the three
+pieces stand on the plan at her end. She leans in, talking low, and we cut in close over the
+plan (9.9-11.9): her gloved fingers come in over the vault and tap the X twice, here (10.5,
+11.0), and the gold beside it glints. Back at the side, she straightens and the Cracker nods.
+His red look goes down to the X (13.5) and hers goes across to him (14.5). She knows. She picks
+up the chalk (16.0), and the camera tilts down over the table onto the plan (16-18), the pieces
+where they stand and her chalk coming in: s03 begins on that frame.
+
+s01's gold lens is still open on the first frame; it closes as the table comes in (0.35-0.55).
+v5 adds the close tap on the X (a bar of its own) so the briefing reads as a plan for the gold.
 """
 import math
 
@@ -22,10 +26,11 @@ from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
+from films.double_cross.scenes import s01_title as S1
 
 # shots
 SHOTS = ((0.0, "table_q"), (1.5, "her"), (3.5, "table_b"), (4.5, "cracker"), (6.5, "table_k"), (7.5, "knight"),
-         (9.0, "side"))
+         (9.0, "side"), (9.9, "tap"), (11.9, "side"))
 T_QUEEN = 1.0             # the queen is set (clack)
 T_HER_CALL = 2.0          # the lens joins her to her piece
 T_BISHOP = 4.0            # the bishop is set (clack)
@@ -36,15 +41,16 @@ T_DRAW = 8.0              # he draws on the cigarette (the ember flares)
 T_KN_CALL = 7.9
 T_EXHALE = 8.5
 T_LEAN = (9.4, 9.95)      # she leans in over the plan, talking low ...
-T_MURMUR = (9.25, 11.3)   # (her voice, murmured: the briefing begins)
-T_TAPS = (10.0, 10.5)     # ... and taps it beside the pieces, twice: here
-T_BACK = (10.7, 11.2)     # she straightens
-T_NOD = 10.75             # the Cracker nods
-T_HIS_LOOK = 11.5         # his red look to the X
-T_HER_LOOK = 12.5         # her white look to him: she knows
-T_REACH = 13.5            # she reaches for the chalk
-T_CHALK = 14.0            # she has it
-T_TILT = (14.0, 16.0)     # the camera tilts down over the table onto the plan (s03's first frame)
+T_MURMUR = (9.25, 12.3)   # (her voice, murmured: the briefing begins)
+T_INSERT = (9.9, 11.9)    # ... close over the plan: her gloved fingers come in over the vault ...
+T_TAPS = (10.5, 11.0)     # ... and tap the X, twice: here (the gold glints on the second)
+T_BACK = (11.9, 12.4)     # back at the side: she straightens
+T_NOD = 12.25             # the Cracker nods
+T_HIS_LOOK = 13.5         # his red look to the X
+T_HER_LOOK = 14.5         # her white look to him: she knows
+T_REACH = 15.5            # she reaches for the chalk
+T_CHALK = 16.0            # she has it
+T_TILT = (16.0, 18.0)     # the camera tilts down over the table onto the plan (s03's first frame)
 
 # where the pieces stand at the start of the route (plan px), round manhole A
 Q_AT = (214.0, 1414.0)
@@ -128,6 +134,9 @@ def _plan_as_titled(c):
 def table_shot(c, t):
     cam = table_cam(t)
     P.table(c, cam, 1.0, 1.0, 0.0, on_plan=_plan_as_titled)
+    if t < S1.GOLD_SHUT[1]:                             # s01's gold lens off the X, closing
+        u = 1.0 - clamp((t - S1.GOLD_SHUT[0]) / (S1.GOLD_SHUT[1] - S1.GOLD_SHUT[0]))
+        S1.gold_lens(c, cam.to_view(P.X_VAULT), u, S1_LEN + t)
     jl, jt = _jump(t)
     standing = []
     if t >= T_QUEEN:
@@ -197,6 +206,50 @@ def face_shot(c, t, who, t0):
         inside = _lens_of(piece[1], piece[0], piece[2], piece[3])
         K.callout(c, m["eye"], centre, 150.0, lambda cc: inside(cc, centre), u=cu, color=ring, ring_w=9.0, dot_r=8.0,
                   line_w=4.0, seed=31)
+
+
+# ============================================================================ the tap on the X (v5)
+S1_LEN = 16.0                                     # s01's length: its gold lens runs on its own clock
+TAP_CAM = (P.PlanCam(506.0, 574.0, 2.2, 62.0, -6.0), P.PlanCam(514.0, 570.0, 2.42, 64.0, -6.0))
+TAP_WRIST = (-760.0, 1150.0, 430.0)               # her forearm comes in from her end, below the gold
+TAP_HOVER = 74.0                                  # how high her fingertips hover between taps (plan px)
+TAP_GLINTS = ((484.0, 475.0, 0.05), (424.0, 496.0, 0.2))   # gold bar corners that catch the light after the second tap
+
+
+def tap_cam(t):
+    return P.PlanCam.lerp(TAP_CAM[0], TAP_CAM[1], ease("inout", clamp((t - T_INSERT[0]) / (T_INSERT[1] - T_INSERT[0]))))
+
+
+def _tap_height(t):
+    """Her fingertips' height over the X (plan px), and how far in her hand has come (0 off the
+    frame, 1 over the X): in (9.9-10.35), two taps on the beat, out (11.35-11.9)."""
+    come = ease("out3", clamp((t - T_INSERT[0]) / 0.45)) * (1.0 - ease("in3", clamp((t - 11.35) / 0.5)))
+    dip = max(math.exp(-((t - tt) / 0.075) ** 2) for tt in T_TAPS)
+    return TAP_HOVER * (1.0 - dip) + 160.0 * (1.0 - come), come
+
+
+def tap_shot(c, t):
+    """Close over the plan on the table, under the lamp: the vault, its gold and the X; her gloved
+    fingers come in and tap the X twice; a chalk-dust ring off each tap, a glint off the gold."""
+    cam = tap_cam(t)
+    P.table(c, cam, 1.0, 1.0, 0.0, on_plan=_plan_as_titled)
+    for tt in T_TAPS:
+        if tt <= t < tt + 0.6:
+            K.ripple(c, cam.to_view(P.X_VAULT), t, tt, K.PAPER, n=1, life=0.55, r0=18.0 * cam.zoom, r1=62.0 * cam.zoom,
+                     width=4.0)
+    for i, (gx, gy, dt) in enumerate(TAP_GLINTS):
+        k = (t - (T_TAPS[1] + dt)) / 0.5
+        if 0.0 < k < 1.0:
+            K.twinkle(c, cam.to_view((gx, gy)), (44.0 - 12.0 * i) * cam.zoom * math.sin(math.pi * k), K.PAPER,
+                      rot=12.0 * k)
+    hz, come = _tap_height(t)
+    if come <= 0.0:
+        return
+    from films.double_cross.scenes import s03_plan as S3
+    tip = (P.X_VAULT[0] + 0.0, P.X_VAULT[1] + 4.0)
+    wr = cam.to_view((tip[0] + TAP_WRIST[0], tip[1] + TAP_WRIST[1]), TAP_WRIST[2])
+    grip = cam.to_view(tip, hz)
+    S3._shadowed(c, cam, tip, hz, lambda cc: F.hand(cc, "architect", wr, grip, S3._hand_scale(cam), point=True))
 
 
 # ============================================================================ the table from the side
@@ -372,6 +425,8 @@ def render(f, t, T):
     with f.screen() as c:
         if name.startswith("table"):
             table_shot(c, t)
+        elif name == "tap":
+            tap_shot(c, t)
         elif name == "side":
             side_shot(c, t)
         else:
@@ -396,8 +451,11 @@ def cues(T):
         Cue(9.0, "the table from the side: the lamp's chain creaks as it swings", gain_db=-22, dur=T_TILT[0] - 9.0),
         Cue(T_MURMUR[0], "her low voice: the briefing begins (a murmur, no words)", gain_db=-20, pan=-0.25,
             dur=T_MURMUR[1] - T_MURMUR[0]),
-        Cue(T_TAPS[0], "her gloved finger taps the plan: here", gain_db=-16, pan=-0.35),
-        Cue(T_TAPS[1], "her gloved finger taps the plan again", gain_db=-18, pan=-0.35),
+        Cue(T_INSERT[0], "close over the plan: her sleeve comes in over the paper", gain_db=-22, pan=-0.5),
+        Cue(T_TAPS[0], "her gloved finger taps the X: here (a knock through the paper into the table)", gain_db=-14,
+            pan=-0.1),
+        Cue(T_TAPS[1], "her gloved finger taps the X again", gain_db=-15, pan=-0.1),
+        Cue(T_TAPS[1] + 0.05, "a glint off the gold (ting)", gain_db=-20, pan=-0.2),
         Cue(T_NOD, "the Cracker hums: hm (his voice, low)", gain_db=-22, pan=0.25),
         Cue(T_HIS_LOOK, "his look to the X: a low muted note, a semitone off", gain_db=-14),
         Cue(T_HER_LOOK, "her look to him: a low held note (she knows)", gain_db=-12, dur=T_TILT[0] - T_HER_LOOK),

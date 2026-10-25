@@ -11,7 +11,8 @@ street. Everyone looks there: the others jump, and the vault door claps shut on 
 In that same instant her hand, lifting away from the vault, touches the sewer line under it and
 leaves a dot (the plant, never pointed at; s09 rewinds to this frame).
   (5) She draws the way out along the street to him, his car, and a little bell on the side
-      door.
+      door; then she taps the bell with her chalk (13.5): it rocks, a damped tink and a ripple
+      (v5: the plant for the alarm s07 rings).
 The plan is done. The camera starts to tilt down into it, and s04 carries on the move from
 P.HANDOFF_34.
 """
@@ -48,6 +49,7 @@ T_DOT = T_THUD                  # her chalk touches the sewer line under the vau
 T_MURMUR = (0.1, 10.7)          # the briefing, murmured over the plan (no words), up to his slam
 T_CAR = 12.45
 T_BELL = 13.0
+T_BELL_TAP = 13.5               # ... and she taps it: it rocks with a damped tink
 T_TILT = 14.0                   # the camera begins the tilt down (s04 continues it)
 
 HOP = 0.3                       # a hop lands on its beat
@@ -169,6 +171,15 @@ def plan_prog(t):
     return g
 
 
+def _bell(c, t, g):
+    """The bell on the side door, chalked on at T_BELL; her tap on T_BELL_TAP rocks it."""
+    if g <= 0.0:
+        return
+    k = clamp((t - T_BELL_TAP) / 0.8)
+    ring = 22.0 * math.sin(3.0 * math.pi * k) * (1.0 - k) if t >= T_BELL_TAP else 0.0
+    K.bell(c, P.BELL_AT, P.BELL_S * ease("outback", g), K.PAPER, seed=120, ring=ring)
+
+
 def _ring_hand(c, t):
     """The timing ring's hand: a dot running round it once a swing (plan px)."""
     a = SWEEP_AMP and abs(sweep(t)) / SWEEP_AMP
@@ -284,8 +295,10 @@ def _her_moves():
         (11.5, 12.4, "route_out", None),
         (12.4, 12.6, "go", (P.CAR, 0.0, P.CAR, 6.0, 0.0)),
         (12.6, 13.0, "go", (P.CAR, 6.0, P.BELL_AT, 0.0, 60.0)),
-        (13.0, 13.3, "go", (P.BELL_AT, 0.0, P.BELL_AT, 8.0, 0.0)),
-        (13.3, 14.2, "go", (P.BELL_AT, 8.0, (-300.0, 1350.0), 420.0, 0.0)),
+        (13.0, 13.3, "go", (P.BELL_AT, 0.0, P.BELL_AT, 34.0, 0.0)),               # the bell drawn; up ...
+        (13.3, T_BELL_TAP, "go", (P.BELL_AT, 34.0, P.BELL_AT, 0.0, 0.0)),        # ... and a tap on it
+        (T_BELL_TAP, 13.7, "go", (P.BELL_AT, 0.0, P.BELL_AT, 24.0, 0.0)),
+        (13.7, 14.5, "go", (P.BELL_AT, 24.0, (-300.0, 1350.0), 420.0, 0.0)),
     )
 
 
@@ -461,7 +474,8 @@ def render(f, t, T):
     prog, ang, door = plan_prog(t), sweep(t), door_at(t)
 
     def on_plan(c):
-        P.draw_plan_a(c, 1.0, ang, prog, door)
+        P.draw_plan_a(c, 1.0, ang, dict(prog, bell=0.0), door)
+        _bell(c, t, prog["bell"])
         _ring_hand(c, t)
 
     with f.screen() as c:
@@ -469,6 +483,9 @@ def render(f, t, T):
         if T_X <= t < T_X + 0.6:                            # the route's arrow lands on the X
             K.ripple(c, cam.to_view(P.X_VAULT), t, T_X, K.PAPER, n=1, life=0.5, r0=26.0 * cam.zoom,
                      r1=70.0 * cam.zoom, width=4.0)
+        if T_BELL_TAP <= t < T_BELL_TAP + 0.8:              # the tap on the bell
+            K.ripple(c, cam.to_view(P.BELL_AT), t, T_BELL_TAP, K.PAPER, n=2, every=0.2, life=0.6, r0=24.0 * cam.zoom,
+                     r1=110.0 * cam.zoom, width=5.0)
         _draw_pieces(c, cam, t)
         _dust(c, cam, t)
         _cracker_hand(c, cam, t)
@@ -514,7 +531,9 @@ def cues(T):
             Cue(T_DOT, "a soft chalk tap under the thud: the dot (buried in the mix, never heard over it)",
                 gain_db=-26, pan=-0.2),
             Cue(T_CAR, "a chalk 'tock': the car drawn by the street", gain_db=-13, pan=0.5),
-            Cue(T_BELL, "a tiny chalk scratch: a bell on the side door (no ring)", gain_db=-18, pan=0.5),
+            Cue(T_BELL, "a tiny chalk scratch: a bell on the side door", gain_db=-18, pan=0.5),
+            Cue(T_BELL_TAP, "her chalk taps the little bell: one damped tink (the alarm bell's own note, muted)",
+                gain_db=-14, pan=0.55),
             Cue(13.6, "the plan is done: the theme lands on a held chord", gain_db=-14, dur=2.4),
             Cue(T_TILT + 0.4, "a rising paper whoosh: the camera tilts down into the plan (it carries into s04)",
                 gain_db=-12, dur=T.duration - T_TILT - 0.4)]

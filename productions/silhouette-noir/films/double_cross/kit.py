@@ -69,7 +69,7 @@ def film_start(sid):
 
 # film-time beats every scene agrees on
 HEIST_T0 = film_start("s04") + 6.0       # the stopwatch starts (s04, the sewer)
-HEIST_STOP = film_start("s07") + 13.5    # it stops dead: he has crossed them (s07)
+HEIST_STOP = film_start("s07") + 15.5    # it stops dead: he has crossed them (s07)
 
 
 def _sn(*a):

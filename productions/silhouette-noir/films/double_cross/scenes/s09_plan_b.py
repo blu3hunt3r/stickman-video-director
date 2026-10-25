@@ -1,13 +1,19 @@
-"""s09 PLAN B (108-124). The film rewinds to what we missed, and her tracing sheet shows Plan B.
+"""s09 PLAN B (126-148). The film rewinds to what we missed, and her tracing sheet shows Plan B.
   The rewind: under chalk streaks and a double chevron, the heist clock spinning back, the film
     runs backwards through s08, s07, s06, s05 and s04 into s03 and lands on the plant. Played
     forward: the Knight slams his piece down and her chalk, lifting off the vault, leaves the
     dot. Freeze: a lens snaps round the dot, on the sewer line inside the vault.
+  The night before (4.2-8.2, v5): the lens opens over the whole frame, onto the floor of the
+    vault in section and the shaft under it: she is on the ladder under the slab, and her torch
+    cuts up through it, two cuts in a shower of sparks. She pushes the cut block up a crack (her
+    light falls on the gold) and sets it back: from above it is only a floor tile. The lens
+    closes back onto the dot.
   Back again, to s02: his red look at the X, her white look at him. Freeze: a lens on her eye.
   The plan from above. Her tracing sheet unrolls down over it and Plan B is chalked on it in
-    solid lines, the camera whipping from one to the next: (1) the trapdoor at the dot; (2) her
-    route down through it, north along the branch to manhole B and off the sheet; (3) four
-    police cars closing on his car; (4) a red X on the ruby box. Pull back: both plans at once.
+    solid lines, a bar a mark, the camera whipping from one to the next: (1) the trapdoor at the
+    dot and (2) her route down through it, north along the branch to manhole B; (3) his red L
+    out of the side door, the bell there ringing red, and four police cars closing on his car;
+    (4) a red X on the ruby box. Pull back: both plans at once.
   The vault by match light: she lifts the floor tile over the trapdoor; below is black. The
     Cracker stares, then grins. In section they drop through to the sewer and walk north, the
     solid route lighting ahead of her match.
@@ -41,51 +47,67 @@ FILM = "double_cross"
 # (t0, t1, scene, scene t0, scene t1): from t0 to t1 the picture is that scene run from its t0
 # to its t1 (backwards when t1 < t0)
 REWIND = ((0.15, 0.55, "s08", 12.0, 0.0),
-          (0.55, 0.95, "s07", 16.0, 0.0),
+          (0.55, 0.95, "s07", 20.0, 0.0),
           (0.95, 1.35, "s06", 14.0, 0.0),
           (1.35, 1.75, "s05", 18.0, 0.0),
           (1.75, 2.15, "s04", 12.0, 0.0),
           (2.15, 2.45, "s03", 16.0, 12.0),
           (2.45, 2.75, "s03", 12.0, 10.05),
           (2.75, 3.5, "s03", 10.05, 10.8),         # played: his slam, her dot
-          (4.2, 4.33, "s03", 10.8, 0.0),
-          (4.33, 4.45, "s02", 16.0, 11.3),
-          (4.45, 6.15, "s02", 11.3, 13.0))         # played: his look at the X, hers at him
-# (t0, t1, scene, scene t): a frame held
-FREEZES = ((0.0, 0.15, "s08", 12.0), (3.5, 4.2, "s03", 10.8), (6.15, 6.6, "s02", 13.0))
+          (8.2, 8.33, "s03", 10.8, 0.0),
+          (8.33, 8.45, "s02", 18.0, 13.3),
+          (8.45, 10.15, "s02", 13.3, 15.0))        # played: his look at the X, hers at him
+# (t0, t1, scene, scene t): a frame held (the night before plays in the dot's lens over the second)
+FREEZES = ((0.0, 0.15, "s08", 12.0), (3.5, 8.2, "s03", 10.8), (10.15, 10.6, "s02", 15.0))
 T_PLAY = 2.75
 T_LENS1 = 3.55          # the lens on the dot
-T_LENS2 = 6.05          # the lens on her eye
+T_LENS2 = 10.05         # the lens on her eye
+
+# ============================================================================ the night before (v5)
+T_DIVE = (4.2, 4.7)                      # the dot's lens opens over the frame: under the vault, the night before
+KERFS = ((Bk.TILE_U[0] + 2.0, 4.95, 5.55), (Bk.TILE_U[1] - 2.0, 5.7, 6.3))   # (u, t0, t1): her torch's two cuts
+T_PUSH_UP = (6.45, 6.85)                 # she pushes the cut block up a crack: her light on the gold
+T_SET_BACK = (7.15, 7.45)                # she sets it back: from above, only a floor tile
+T_SHUT = (7.7, 8.2)                      # the lens closes back onto the dot
+LENS_C = (770.0, 420.0)                  # the dot's lens (as _dot_lens draws it)
+LENS_R = 200.0
+FB_X = Bk.TRAP_U - 8.0                   # her on the ladder under the slab (set px)
+FB_FEET = 174.0
+BLOCK = (Bk.TILE_U[0] + 2.0, Bk.TILE_U[1] - 2.0)   # the block she cuts out of the slab (u)
+FB_SLAB = lerp(K.INK, K.STEEL, 0.4)      # the floor's slab, seen in section
 
 # ============================================================================ Plan B
-T_PLAN = 6.6
-T_SHEET = (6.6, 7.15)                    # the tracing sheet unrolls down over the plan
-T_B1 = (7.4, 7.85)                       # (1) the trapdoor
-T_B2 = (7.95, 8.9)                       # (2) her route
-T_COPS = (9.15, 9.35, 9.55, 9.75)        # (3) the police cars, on the half beats
-T_B4 = (10.12, 10.32)                    # (4) the red X
-PLAN_KEYS = ((6.6, (540.0, 960.0, 1.0)), (7.1, (540.0, 960.0, 1.0)), (7.4, (455.0, 620.0, 2.1)),
-             (7.95, (455.0, 620.0, 2.1)), (8.9, (300.0, 430.0, 1.85)), (9.1, (905.0, 1385.0, 1.8)),
-             (9.95, (905.0, 1385.0, 1.8)), (10.12, (672.0, 534.0, 2.3)), (10.4, (672.0, 534.0, 2.3)),
-             (10.9, (540.0, 960.0, 1.04)))
+T_PLAN = 10.6
+T_SHEET = (10.6, 11.15)                  # the tracing sheet unrolls down over the plan
+T_B1 = (11.4, 11.85)                     # (1) the trapdoor
+T_B2 = (11.95, 12.9)                     # (2) her route
+T_L = (13.2, 13.9)                       # (3) his red L, out of the side door to his car ...
+T_ALARM_B = 13.62                        # ... the bell there rings red as the line passes it ...
+T_COPS = (14.0, 14.25, 14.5, 14.75)      # ... and the police cars close on his car, on the half beats
+T_B4 = (15.35, 15.55)                    # (4) the red X
+PLAN_KEYS = ((10.6, (540.0, 960.0, 1.0)), (11.1, (540.0, 960.0, 1.0)), (11.4, (455.0, 620.0, 2.1)),
+             (11.95, (455.0, 620.0, 2.1)), (12.9, (300.0, 430.0, 1.85)), (13.15, (810.0, 1180.0, 1.5)),
+             (15.0, (810.0, 1180.0, 1.5)), (15.2, (672.0, 534.0, 2.3)), (15.75, (672.0, 534.0, 2.3)),
+             (16.4, (540.0, 960.0, 1.04)))
 SHEET_B = (40.0, 120.0, 1064.0, 1800.0)  # her tracing sheet (plan px)
 COPS = ((-1.0, 0.0, 100.0), (0.0, -1.0, 80.0), (1.0, 0.0, 100.0), (0.0, 1.0, 80.0))   # W, N, E, S of his car
 
 # ============================================================================ the vault
-T_VAULT = 10.9
-T_TILE = (11.12, 11.8)                   # she lifts the tile and lays it aside: below is black
-T_FACE = (11.92, 12.66)                  # the Cracker's face: he stares ...
-T_GLINT = (12.0, 12.3)
-T_GRIN = 12.28                           # ... and grins
-T_SECTION = 12.66                        # back on the vault, the floor cut away under it
-T_CUT = (12.7, 13.25)
-T_RISE = (12.66, 13.15)                  # she gets up and steps into the hole
-T_SLIDE = ((13.15, 13.8), (13.85, 14.45))   # down the ladder: her, him
-T_TURN = (13.92, 14.1)                   # in the water she turns north (a cut-paper turn)
-T_STEP_HIM = (13.25, 13.8)               # he steps to the hole
-T_GO = (14.05, 14.55)                    # they set off north (left): her, him
-T_REVEAL = (14.1, 15.7)                  # the cut runs on north ahead of her, to manhole B
-T_LIT = (15.15, 15.75)                   # Plan B's line lights up the rest of the way, to the street
+T_VAULT = 16.9
+T_TILE = (17.12, 17.8)                   # she lifts the tile and lays it aside: below is black
+T_FACE = (17.92, 18.66)                  # the Cracker's face: he stares ...
+T_GLINT = (18.0, 18.3)
+T_GRIN = 18.28                           # ... and grins
+T_SECTION = 18.66                        # back on the vault, the floor cut away under it
+T_CUT = (18.7, 19.25)
+T_RISE = (18.66, 19.15)                  # she gets up and steps into the hole
+T_SLIDE = ((19.15, 19.8), (19.85, 20.45))   # down the ladder: her, him
+T_TURN = (19.92, 20.1)                   # in the water she turns north (a cut-paper turn)
+T_STEP_HIM = (19.25, 19.8)               # he steps to the hole
+T_GO = (20.05, 20.55)                    # they set off north (left): her, him
+T_REVEAL = (20.1, 21.7)                  # the cut runs on north ahead of her, to manhole B
+T_LIT = (21.15, 21.75)                   # Plan B's line lights up the rest of the way, to the street
+T_END = 22.0
 HER_U, HIM_U = 556.0, 652.0
 TRAP = Bk.TRAP_U
 FOOT_W = Bk.BRANCH_WATER + 8.0           # feet in the water
@@ -192,6 +214,146 @@ def _dot_lens(c, t):
               line_w=4.0, seed=2140)
 
 
+def _fb_open(t):
+    """How far the dot's lens has opened over the frame: 0 the lens .. 1 the whole frame."""
+    return ease("inout", clamp((t - T_DIVE[0]) / (T_DIVE[1] - T_DIVE[0]))) * \
+        (1.0 - ease("inout", clamp((t - T_SHUT[0]) / 0.35)))
+
+
+def _fb_cam(k):
+    """The section camera inside the lens: the trapdoor's place at the lens's centre, easing to
+    the frame's as the lens opens."""
+    z = lerp(2.4, 4.2, k)
+    fx, fy = lerp(LENS_C[0], 540.0, k), lerp(LENS_C[1], 820.0, k)
+    return Bk.Cam(Bk.TRAP_U - (fx - 540.0) / z, Bk.VSLAB - (fy - 960.0) / z, z)
+
+
+def _kerf_at(t):
+    """(u, progress) of the cut her torch is on (progress 0 at the slab's underside .. 1 through),
+    or None while it is off."""
+    for u, a, b in KERFS:
+        if a <= t < b:
+            return u, (t - a) / (b - a)
+    if KERFS[0][2] <= t < KERFS[1][1]:
+        k = (t - KERFS[0][2]) / (KERFS[1][1] - KERFS[0][2])
+        return lerp(KERFS[0][0], KERFS[1][0], ease("inout", k)), None
+    return None
+
+
+def _block_lift(t):
+    return 14.0 * ease("out3", clamp((t - T_PUSH_UP[0]) / (T_PUSH_UP[1] - T_PUSH_UP[0]))) * \
+        (1.0 - ease("inout", clamp((t - T_SET_BACK[0]) / (T_SET_BACK[1] - T_SET_BACK[0]))))
+
+
+def _fb_her(t):
+    """(st, pose, torch): her on the rungs under the slab, reaching up; torch: (grip, nozzle) set
+    px while she holds it (None once it hangs off her belt)."""
+    st, pose = Bk.ladder_pose("architect", 0.0, 1)
+    k = _kerf_at(t)
+    rung = (FB_X + 22.0, FB_FEET - 70.0)
+    pose.arms["far"] = _ik(rung, FB_X, FB_FEET)
+    if t < T_PUSH_UP[0] - 0.12 and t >= KERFS[0][1] - 0.4:
+        u = k[0] if k is not None else (KERFS[0][0] if t < KERFS[0][1] else KERFS[1][0])
+        nozzle = (u, Bk.VSLAB + 7.0)
+        grip = (u - 5.0, Bk.VSLAB + 30.0)
+        pose.arms["near"] = _ik(grip, FB_X, FB_FEET)
+        pose.head = 22.0                                   # looking up at the cut
+        return st, pose, (grip, nozzle)
+    lift = _block_lift(t)
+    up = clamp((t - (T_PUSH_UP[0] - 0.12)) / 0.12) * (1.0 - ease("inout", clamp((t - T_SET_BACK[1]) / 0.3)))
+    palm = ((BLOCK[0] + BLOCK[1]) / 2.0, Bk.VSLAB - lift + 2.0)
+    rest = (FB_X + 20.0, FB_FEET - 60.0)
+    pose.arms["near"] = _ik((lerp(rest[0], palm[0], up), lerp(rest[1], palm[1], up)), FB_X, FB_FEET)
+    pose.head = 22.0 * up
+    return st, pose, None
+
+
+def _sparks(c, cut, t):
+    """A shower of sparks off the torch's cut (set px): short streaks falling and fading."""
+    for i in range(18):
+        ph = (t * 2.6 + hash01(i, 2501)) % 1.0
+        age = 0.55 * ph
+        vx = 140.0 * (hash01(i, 2502) - 0.5)
+        vy = -50.0 + 70.0 * hash01(i, 2503)
+        x = cut[0] + vx * age
+        y = cut[1] + vy * age + 0.5 * 700.0 * age * age
+        tail = (x - vx * 0.035, y - (vy + 700.0 * age) * 0.035)
+        col = K.PAPER if i % 3 == 0 else K.GOLD
+        bass.line_band(c, [tail, (x, y)], col, width=1.6, seed=2504 + i, alpha=0.95 * (1.0 - ph))
+
+
+def _night_before(c, t, cam):
+    """The section under the vault the night before (frame px, through `cam`)."""
+    k = _kerf_at(t)
+    lift = _block_lift(t)
+    Bk.vault(c, cam, t, light="dark", door=0.0, box=0.0, tile=0.0, floor_cut=1.0, gold=1.0)
+    st, pose, torch = _fb_her(t)
+    with cam.on(c):
+        top = Bk.VSLAB
+        x0, x1 = BLOCK
+        Bk.rect(c, (Bk.VAULT_U[0] - 30.0, 0.0, Bk.VAULT_U[1] + 30.0, top), FB_SLAB, amp=0.2)    # the floor's slab
+        Bk.band(c, (Bk.VAULT_U[0] - 30.0, 0.0), (Bk.VAULT_U[1] + 30.0, 0.0), 2.0, lerp(FB_SLAB, K.PAPER, 0.25),
+                seed=2509)
+        if k is not None and k[1] is not None:              # the torch lights the slab round the cut
+            K.pool(c, (k[0], top - 6.0), 46.0, 30.0, K.GOLD, 0.2, steps=3)
+        for u, a, b in KERFS:                              # the cuts climbing up through the slab: a dark slit,
+            g = clamp((t - a) / (b - a))                   # glowing hot near the torch
+            if g > 0.0 and lift <= 0.0:
+                tip = top - top * g
+                Bk.band(c, (u, top), (u, tip), 3.0, K.INK, seed=2510)
+                hot = 1.0 - clamp((t - b) / 0.6)
+                if hot > 0.0:
+                    Bk.band(c, (u, min(top, tip + 12.0)), (u, tip), 3.0, lerp(K.GOLD, K.PAPER, 0.4), seed=2514,
+                            alpha=hot)
+        if lift > 0.0:                                     # the cut block, pushed up a crack
+            Bk.rect(c, (x0 - 1.5, -2.0, x1 + 1.5, top), K.INK, amp=0.0)
+            Bk.rect(c, (x0, -lift - 1.0, x1, top - lift), FB_SLAB, amp=0.1)
+            Bk.band(c, (x0, -lift - 1.0), (x1, -lift - 1.0), 2.0, lerp(FB_SLAB, K.PAPER, 0.25), seed=2511)
+            g = lift / 14.0
+            for gx in (x0 - 1.0, x1 + 1.0):                # light through the crack, and up onto the gold
+                Bk.band(c, (gx, top - lift), (gx, -lift), 2.5, lerp(K.GOLD, K.PAPER, 0.5), seed=2515, alpha=g)
+                K.pool(c, (gx, -lift - 4.0), 70.0 * g, 46.0 * g, K.GOLD, 0.22, steps=3)
+            for i, (bx, by) in enumerate(((548.0, -14.0), (530.0, -30.0), (556.0, -40.0))):
+                K.twinkle(c, (bx, by), 9.0 * g * (0.7 + 0.3 * math.sin(t * 9.0 + i)), K.PAPER, rot=20.0 * i + 30.0 * t)
+        C.draw(c, "architect", st, pose, FB_X, FB_FEET, Bk.FIG_S, 1, bg=K.INK, rim=K.GOLD, rim_w=4.0 / cam.zoom,
+               light=(0.4, -0.9))
+        if torch is not None:
+            grip, nozzle = torch
+            Bk.band(c, grip, nozzle, 4.0, lerp(K.STEEL, K.INK, 0.2), seed=2512)
+            if k is not None and k[1] is not None:         # the jet up into the cut, the sparks off it
+                cut = (k[0], top - top * k[1])
+                K.pool(c, nozzle, 70.0, 70.0, K.GOLD, 0.16, steps=3)
+                fl = 1.0 + 0.15 * math.sin(K.twos(t) * 41.0)
+                w = 3.4
+                bass.fill_polys(c, [bass.orient([(nozzle[0] - w, nozzle[1]), (nozzle[0] + w, nozzle[1]),
+                                                 (cut[0], cut[1] - 4.0 * fl)], True)], K.PAPER)
+                K.dot(c, cut, 3.6 * fl, K.GOLD, seed=2513)
+                _sparks(c, cut, t)
+
+
+def _fb_lens(c, t):
+    """The dot's lens opening over the frame onto the night before, and closing back."""
+    k = _fb_open(t)
+    anchor = S3.cam_at(10.8).to_view(P.DOT, 0.0)
+    R = lerp(LENS_R, 1800.0, k)
+    a = 1.0 - clamp((t - T_DIVE[0]) / 0.25) if t < T_DIVE[1] else 0.0     # the plan inside fades to the section
+    cam = _fb_cam(k)
+
+    def inside(cc):
+        _night_before(cc, t, cam)
+        if a > 0.0:
+            cc.push_group()
+            lc = P.PlanCam(492.0, 584.0, 1.8, 90.0, 0.0, fx=LENS_C[0], fy=LENS_C[1])
+            K.fill(cc, K.DEEP)
+            P.table(cc, lc, 1.0, 1.0, 1.0)
+            cc.pop_group_to_source()
+            cc.paint_with_alpha(a)
+    u = 1.0 - clamp((t - (T_SHUT[0] + 0.35)) / (T_SHUT[1] - T_SHUT[0] - 0.35))
+    K.callout(c, anchor, LENS_C, R, inside, u=u, color=K.PAPER, ring_w=9.0, dot_r=9.0, line_w=4.0, seed=2140)
+    if k > 0.6:
+        _finder(c, clamp((k - 0.6) / 0.4))
+
+
 @lru_cache(maxsize=1)
 def _her_eye_s02():
     s = cairo.ImageSurface(cairo.FORMAT_ARGB32, 8, 8)
@@ -232,7 +394,10 @@ def _rewind_marks(c, t, kind, sid, st, Ts):
             _clock(c, Ts.start + st, a)
         elif sid == "s03":
             _finder(c)
-            _dot_lens(c, t)
+            if t < T_DIVE[0]:
+                _dot_lens(c, t)
+            else:
+                _fb_lens(c, t)
         else:
             _finder(c)
             _eye_lens(c, t)
@@ -311,6 +476,22 @@ def _route_b(c, t):
     _badge(c, "2", (520.0, 420.0), (u - 0.3) / 0.25, 2234)
 
 
+def _his_l_b(c, t):
+    """(3) his red L: out of the vault, down the corridor and out of the side door to his car; the
+    bell on the side door rings red as the line passes it."""
+    u = ease("inout", clamp((t - T_L[0]) / (T_L[1] - T_L[0])))
+    if u <= 0.0:
+        return
+    K.route(c, P.ROUTE_KNIGHT, u, K.RED, solid=True, width=7.0, head=30.0, seed=2236)
+    if t >= T_ALARM_B:
+        K.bell(c, P.BELL_AT, P.BELL_S * (1.0 + 0.2 * math.sin(math.pi * clamp((t - T_ALARM_B) / 0.2))), K.RED,
+               seed=2237, ring=18.0 * math.sin(2.0 * math.pi * 9.0 * (t - T_ALARM_B)))
+        n = int((t - T_ALARM_B) / K.BEAT) + 1
+        for k in range(max(0, n - 3), n):                  # its ripples run out over the city, on every beat
+            K.ripple(c, P.BELL_AT, t, T_ALARM_B + k * K.BEAT, K.RED, n=2, every=0.12, life=1.0, r0=20.0, r1=420.0,
+                     width=5.0, seed=2238 + 2 * k, alpha=0.8)
+
+
 def _cops_b(c, t):
     """The police, at his car from the four streets: chalk cars sliding in nose first, like
     rooks, their bars flashing."""
@@ -346,6 +527,7 @@ def _plan_b(c, t):
     if t >= T_SHEET[1]:
         _trapdoor_b(c, t)
         _route_b(c, t)
+        _his_l_b(c, t)
         _cops_b(c, t)
         _ruby_b(c, t)
 
@@ -400,8 +582,8 @@ _WALKERS = {}
 def _walker(who):
     if who not in _WALKERS:
         t_go = T_GO[0] if who == "architect" else T_GO[1]
-        _WALKERS[who] = pd.Walker(C.fig(who), 0.0, speed=((t_go, 0.0), (t_go + 0.3, WALK_V), (17.0, WALK_V)),
-                                  t0=t_go - 1.0, t1=17.0)
+        _WALKERS[who] = pd.Walker(C.fig(who), 0.0, speed=((t_go, 0.0), (t_go + 0.3, WALK_V), (T_END + 1.0, WALK_V)),
+                                  t0=t_go - 1.0, t1=T_END + 1.0)
     return _WALKERS[who]
 
 
@@ -410,7 +592,7 @@ def steps(who):
     wk = _walker(who)
     t_go = T_GO[0] if who == "architect" else T_GO[1]
     x0 = TRAP + (6.0 if who == "architect" else -6.0)
-    return [(tt, x0 - fx * Bk.FIG_S) for tt, side, fx in Bk.footfalls(lambda u: (wk.state(u), None), t_go, 16.0)]
+    return [(tt, x0 - fx * Bk.FIG_S) for tt, side, fx in Bk.footfalls(lambda u: (wk.state(u), None), t_go, T_END)]
 
 
 def _wading(who, t, x0, t_land):
@@ -556,7 +738,7 @@ def vault_cam(t):
     if t < T_SECTION:
         return CAM_TILE
     cam = Bk.Cam.lerp(CAM_TILE, CAM_SECT, ease("inout", clamp((t - T_SECTION) / 0.95)))
-    w = ease("inout", clamp((t - 13.9) / (16.0 - 13.9)))
+    w = ease("inout", clamp((t - (T_END - 2.1)) / 2.1))
     return Bk.Cam.lerp(cam, CAM_END, w) if w > 0.0 else cam
 
 
@@ -676,19 +858,34 @@ def cues(T):
            Cue(T_PLAY, "the tape catches and plays: a soft click", gain_db=-14),
            Cue(3.5, "freeze: the sound stops dead (a tape pause)", gain_db=-16),
            Cue(T_LENS1, "a ting: the lens opens on the chalk dot", gain_db=-9),
-           Cue(4.2, "a short rewind whoosh", gain_db=-11, dur=0.25),
-           Cue(6.15, "freeze", gain_db=-18),
+           Cue(T_DIVE[0], "the lens opens over the frame: a deep soft whoosh down into the dark (the night before)",
+               gain_db=-12, dur=T_DIVE[1] - T_DIVE[0]),
+           Cue(T_DIVE[1], "the shaft under the vault: drips echoing, a low held drone", gain_db=-22,
+               dur=T_SHUT[0] - T_DIVE[1])]
+    for u, a, b in KERFS:
+        out.append(Cue(a, "a cutting torch roars into the stone: a hard hiss and a crackle of sparks", gain_db=-11,
+                       pan=0.05, dur=b - a))
+    out += [Cue(T_PUSH_UP[0], "the cut block shoved up a crack: a grinding scrape of stone", gain_db=-12, pan=0.05),
+            Cue(T_PUSH_UP[1], "a glint on the gold above: a faint high shimmer", gain_db=-20),
+            Cue(T_SET_BACK[1] - 0.05, "the block let down into its place: a dull soft knock", gain_db=-14),
+            Cue(T_SHUT[0], "the lens closes back onto the dot: a reverse whoosh", gain_db=-13, dur=T_SHUT[1] - T_SHUT[0]),
+            Cue(8.2, "a short rewind whoosh", gain_db=-11, dur=0.25),
+            Cue(10.15, "freeze", gain_db=-18),
            Cue(T_LENS2, "a soft chalk tick: the lens opens on her eye", gain_db=-16),
            Cue(T_SHEET[0], "tracing paper unrolling over the blueprint", gain_db=-11, dur=T_SHEET[1] - T_SHEET[0]),
            Cue(T_B1[0], "chalk: four quick strokes, a square", gain_db=-14, dur=T_B1[1] - T_B1[0]),
            Cue(T_B2[0], "chalk: one long sure stroke", gain_db=-13, dur=T_B2[1] - T_B2[0]),
-           Cue(8.9, "a whip whoosh", gain_db=-14, dur=0.2)]
+            Cue(12.95, "a whip whoosh", gain_db=-14, dur=0.2),
+            Cue(T_L[0], "red chalk: his route struck out fast to the side door and on to his car", gain_db=-13,
+                pan=0.3, dur=T_L[1] - T_L[0]),
+            Cue(T_ALARM_B, "the alarm bell, small and far, on the plan: red ripples out over the city", gain_db=-12,
+                pan=0.35, dur=T_COPS[-1] + 0.4 - T_ALARM_B)]
     for i, tc in enumerate(T_COPS):
         out.append(Cue(tc, "a muted trumpet stab: a police car chalked in", gain_db=-10 - i, pan=0.4))
-    out += [Cue(9.95, "a whip whoosh", gain_db=-14, dur=0.17),
+    out += [Cue(15.05, "a whip whoosh", gain_db=-14, dur=0.17),
             Cue(T_B4[0], "two hard chalk slashes and a low stab: the red X on the ruby box", gain_db=-8, pan=0.2),
-            Cue(10.4, "the theme returns upright, in the major (vibraphone and walking bass)", gain_db=-11,
-                dur=T.duration - 10.4),
+            Cue(15.75, "the theme returns upright, in the major (vibraphone and walking bass)", gain_db=-11,
+                dur=T.duration - 15.75),
             Cue(T_VAULT, "the match's small hiss in the dark vault", gain_db=-22, dur=T.duration - T_VAULT),
             Cue(T_TILE[0], "a stone tile scraped up out of the floor", gain_db=-10, pan=0.1),
             Cue(T_TILE[1] - 0.15, "the tile laid down on the floor: a dull clunk", gain_db=-12, pan=0.25),

@@ -39,6 +39,7 @@ GUARD_POST = (240.0, 900.0)
 INTERSECTION = (200.0, 860.0, 880.0, 940.0)
 SIDE_DOOR = (910.0, 1100.0)
 BELL_AT = (944.0, 1060.0)              # the alarm bell, outside the side door
+BELL_S = 1.7                           # its size on the plan (v5: up from 1.0, to read on a phone)
 CAR = (930.0, 1400.0)                  # the getaway car, at the alley's mouth
 RUBY = (680.0, 518.0)                  # the one deposit box that matters
 TRAPDOOR = (450.0, 600.0)              # under the vault floor, on the sewer branch (Plan B)
@@ -246,6 +247,21 @@ def deposit_boxes(c, color=K.PAPER, seed=0, alpha=0.7):
         K.chalk_line(c, [(x0, y), (x1, y)], 1.0, 2.0, color, seed + 2 + r, alpha)
 
 
+GOLD_BARS = (398.0, 474.0, 30.0, 21.0, 26.0, 15.0)    # x0, y0, pitch x, pitch y, bar w, bar h: 3 x 3 in the vault's west half
+
+
+def gold_bars(c, seed=0, alpha=0.92):
+    """The gold, seen from above: three rows of three bars in gold, each with a pale shine along
+    its top edge (v5: v1-v4 drew them as faint chalk, and the X seemed to mark an empty room)."""
+    x0, y0, px, py, w, h = GOLD_BARS
+    for i in range(3):
+        for j in range(3):
+            bx, by = x0 + px * i, y0 + py * j
+            bass.fill_polys(c, [bass.cut_rect(bx, by, bx + w, by + h, seed=seed + i * 3 + j, amp=0.3)], K.GOLD, alpha)
+            bass.fill_polys(c, [[(bx + 3.0, by + 2.0), (bx + w - 3.0, by + 2.0), (bx + w - 3.0, by + 4.5), (bx + 3.0, by + 4.5)]],
+                            K.PAPER, 0.55 * alpha)
+
+
 def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0, sewer_edge=K.BLUE):
     """The bank, streets and sewer in chalk (plan px). u: {group: progress 0..1} to draw groups
     on (the title); missing groups are fully drawn. door: the vault door's swing (0 shut)."""
@@ -277,11 +293,7 @@ def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0, sewer_edge
     if g["vault"] >= 1.0:
         vault_door(c, door, color, seed + 50)
         deposit_boxes(c, color, seed + 60)
-        for i in range(3):                                # gold: three stacks of bars
-            for j in range(3):
-                bx, by = 400.0 + 27.0 * i, 478.0 + 19.0 * j
-                bass.fill_polys(c, [bass.cut_rect(bx, by, bx + 22.0, by + 13.0, seed=seed + 80 + i * 3 + j, amp=0.3)],
-                                color, 0.5)
+        gold_bars(c, seed + 80)
     if g["rooms"] >= 1.0:
         _arc(c, (STORE_DOOR[0], 1170.0), 40.0, 270.0, 180.0, 1.0, 2.0, color, seed + 90)   # the store room door
         hs = 18.0
@@ -295,7 +307,7 @@ def draw_plan(c, u=None, door=0.0, bell=False, color=K.PAPER, seed=0, sewer_edge
         for hinge, a0, a1 in (((700.0, BANK[3]), 0.0, -90.0), ((790.0, BANK[3]), 180.0, 270.0)):   # the front doors
             _arc(c, hinge, 45.0, a0, a1, g["side"], 2.0, color, seed + 111)
     if bell:
-        K.bell(c, BELL_AT, 1.0, color, seed + 120)
+        K.bell(c, BELL_AT, BELL_S, color, seed + 120)
 
 
 def draw_walls_3d(c, cam, h=1.0, face=K.NAVY, side=K.STEEL, top=K.PAPER, edge=K.PAPER, ew=2.5, alpha=1.0,
@@ -432,7 +444,7 @@ def draw_plan_a(c, a=1.0, cone_ang=0.0, prog=None, door=0.0, x=True):
     if g["car"] > 0.0:
         K.car(c, CAR, 180.0, 0.8 * ease("outback", g["car"]), K.INK, K.PAPER, alpha=a)
     if g["bell"] > 0.0:
-        K.bell(c, BELL_AT, ease("outback", g["bell"]), K.PAPER, seed=120, alpha=a)
+        K.bell(c, BELL_AT, BELL_S * ease("outback", g["bell"]), K.PAPER, seed=120, alpha=a)
     if g["dot"] > 0.0:
         K.dot(c, DOT, 9.0 * ease("outback", g["dot"]), K.PAPER, alpha=a)
 

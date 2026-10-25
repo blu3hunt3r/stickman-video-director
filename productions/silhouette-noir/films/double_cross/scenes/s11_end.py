@@ -43,7 +43,7 @@ T_DOT = 7.0                      # the ruby lands as the red dot at the crossing
 T_BLACK = 7.5                    # black; the dot a breath longer
 T_DOT_OUT = (7.62, 7.9)
 
-S10_LAST = 12.0 - 1.0 / 24.0     # s10's last frame: the X
+S10_LAST = S10.T_END - 1.0 / 24.0     # s10's last frame: the X
 X_C = S10.X_CENTRE               # where the X crossed (frame px)
 _DIAG = math.atan2(K.H, K.W)
 

@@ -274,16 +274,21 @@ _PINCH = [(-175, -100), (-128, -114), (-78, -116), (-36, -106), (-6, -90), (16, 
 _OPEN = [(-175, -100), (-128, -114), (-78, -116), (-36, -108), (0, -96), (30, -80), (52, -60), (60, -36), (54, -22),
          (42, -22), (38, -40), (24, -56), (-6, -58), (-26, -46), (-38, -26), (-44, -10), (-56, -6), (-66, -18),
          (-72, -34), (-82, -22), (-100, -14), (-122, -22), (-150, -38), (-175, -46)]
+# a finger pointing (v5: her tap on the X), the fingertip at (0, 0): the back of the hand, the
+# index finger straight out and down to the tip, the other fingers curled under, the thumb tucked
+_POINT = [(-175, -100), (-130, -110), (-92, -104), (-66, -86), (-42, -58), (-22, -32), (-8, -14), (2, -4), (2, 6),
+          (-8, 8), (-22, -6), (-38, -24), (-50, -34), (-58, -18), (-70, -4), (-88, 0), (-104, -6), (-114, -18),
+          (-128, -24), (-150, -38), (-175, -46)]
 HAND_LEN = 235.0            # hand units from the wrist to the fingertip
 
 
-def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.05, rim=None):
+def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.05, rim=None, point=False):
     """A hand reaching in from `wrist` (frame px, off the frame) to pinch a piece's crown (or a
     stick of chalk) at `grip`, seen from the side: the coat sleeve (widening toward the camera
     by `flare` per unit of length), the back of the hand, finger and thumb closing on the grip.
     open_u 0..1 opens them (letting go). s: px per hand unit (HAND_LEN * s is the hand's length;
     a hand is about one and a half chess pieces tall). rim: the rim's colour (default: the
-    owner's; GOLD by a match)."""
+    owner's; GOLD by a match). point: the index finger out, its tip at `grip` (a tap)."""
     spec = dict(HANDS[who])
     if rim is not None:
         spec["rim"] = rim
@@ -293,7 +298,10 @@ def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.0
     # the hand is drawn with its back up: flip it when the forearm comes from the right
     flip = -1.0 if math.cos(ang) < 0.0 else 1.0
     o = clamp(open_u)
-    pts = spline([(lerp(a[0], b[0], o), lerp(a[1], b[1], o)) for a, b in zip(_PINCH, _OPEN)], n=3)
+    if point:
+        pts = spline(_POINT, n=3)
+    else:
+        pts = spline([(lerp(a[0], b[0], o), lerp(a[1], b[1], o)) for a, b in zip(_PINCH, _OPEN)], n=3)
     L = math.hypot(dx, dy)
     c.save()
     c.translate(*grip)

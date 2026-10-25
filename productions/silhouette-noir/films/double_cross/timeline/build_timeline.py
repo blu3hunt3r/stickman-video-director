@@ -10,16 +10,16 @@ from engine.timing import build, summary  # noqa: E402
 
 FILM = "double_cross"
 SCENES = [
-    ("s01", "title", 12.0, None),
-    ("s02", "crew", 16.0, None),
+    ("s01", "title", 16.0, None),
+    ("s02", "crew", 18.0, None),
     ("s03", "plan", 16.0, None),
     ("s04", "night", 12.0, None),
     ("s05", "guard", 18.0, None),
     ("s06", "safe", 14.0, None),
-    ("s07", "cross", 16.0, None),
+    ("s07", "cross", 20.0, None),
     ("s08", "locked", 12.0, None),
-    ("s09", "plan_b", 16.0, None),
-    ("s10", "checkmate", 12.0, None),
+    ("s09", "plan_b", 22.0, None),
+    ("s10", "checkmate", 18.0, None),
     ("s11", "end", 8.0, None),
 ]
 PLACE = {}

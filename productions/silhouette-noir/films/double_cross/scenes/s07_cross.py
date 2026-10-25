@@ -1,29 +1,36 @@
-"""s07 CROSS (80-96). The gold, the ruby, his look, the X-split, the door, the dial in red, his L.
-  The vault (0-6), one take inside on gold (east-looking section): the Knight crouched at the
-    gold dropping bars into a sack while the Cracker, kneeling, hands them over; behind them the
-    Architect at the deposit wall. The camera eases in on her: she opens one small box, something
-    RED glints, she takes it and pockets it with her back to them. No one sees. The camera eases
-    over to him: he pulls the sack shut and stands over the two full bags. His RED look goes to
-    the bags; he turns (a cut-paper turn), and it goes to the open door, carrying the camera.
-  The X (6-10): the four panels cut in round the clock and the frame is split on both
+"""s07 CROSS (94-114). The gold, the ruby, his look, the X-split, the door, the dial in red, his L,
+the alarm.
+  The vault (0-8), inside on gold (east-looking section): the Knight crouched at the gold
+    dropping bars into a sack while the Cracker, kneeling, hands them over; behind them the
+    Architect at the deposit wall. The camera eases in on her: she opens one small box ...
+  The ruby (1.5-4.0, v5): ... and we cut in close on it: a ruby on a dark cushion, glowing red;
+    it glints. Her gloved hand comes in, finger and thumb close on it, and she lifts it out into
+    the light, where it flares; her hand pulls it away. Back on her: she slips it into her
+    pocket with her back to them. No one sees. The camera eases over to him: he pulls the sack
+    shut and stands over the two full bags. His RED look goes to the bags; he turns (a
+    cut-paper turn), and it goes to the open door, carrying the camera.
+  The X (8-12): the four panels cut in round the clock and the frame is split on both
     diagonals: top, him heaving up the two bags; right, the Cracker kneeling, turning a bar in
     the light; bottom, the door's edge from the corridor, the gold beyond; left, her shutting the
-    little box and patting her pocket (a red glint). He moves off toward the door (8.5): the seams
-    turn RED, and his shadow comes out of the gold in the bottom panel.
-  The door (10-12): the panels fly off and the bottom one is the frame. Outside, north-looking, he
+    little box and patting her pocket (a red glint). He moves off toward the door (10.5): the
+    seams turn RED, and his shadow comes out of the gold in the bottom panel.
+  The door (12-14): the panels fly off and the bottom one is the frame. Outside, north-looking, he
     drives the great door shut with a lunge, lets go and steps back to watch it swing; the
     ellipse widens back to a circle, the gold narrowing to a sliver; through the gap the two
-    inside turn too late. BOOM on the bar line (12.0): black; in the dark the rim's bolts shoot
+    inside turn too late. BOOM on the bar line (14.0): black; in the dark the rim's bolts shoot
     home.
-  The dial (12.2-13): s06's close-up in RED with s06's lock run backwards: his gloved hand on the
+  The dial (14.2-15): s06's close-up in RED with s06's lock run backwards: his gloved hand on the
     knob, the lock's bolt shoots home (a red ripple), the fence lifts, the gates' line is rubbed
     out and the dial spins the gates away; he lets go.
-  His L (13-16): matched on the dial: the plan, top-down, comes up round the red close-up, which
+  His L (15-17): matched on the dial: the plan, top-down, comes up round the red close-up, which
     shrinks to a lens and closes onto the plan's chalk dial (same place); the camera then glides
     after him. The red knight drops onto the vault door and hops along his
     RED route: down the chalk route, then off it in an L (east, then down the alley) to the car.
-    The stopwatch stops dead as he turns off the route (13.5) and its hand turns RED. Landing at
-    the side door he sets off the bell: red ripples over the plan, on every beat to the end.
+    The stopwatch stops dead as he turns off the route (15.5) and its hand turns RED. Landing at
+    the side door (16.5) he sets off the bell she chalked there in s03: it rings red.
+  The alarm (17-20, v5): the side door itself, from the alley (west-looking): it bursts open, the
+    Knight charges out with the two bags and runs for the street; over the door the alarm bell
+    rings and rings, red ripples on every beat, and the camera pushes in on it.
 
 Pure in t (s09 rewinds this scene).
 """
@@ -43,6 +50,7 @@ from films.double_cross import kit as K
 from films.double_cross import plan as P
 from films.double_cross import shots as S
 from films.double_cross.scenes import s06_safe as S6
+from films.double_cross.scenes import s11_end as S11
 
 FILM_T0 = K.film_start("s07")
 STOPWATCH = ((930.0, 190.0), 62.0)
@@ -50,56 +58,69 @@ FS = Bk.FIG_S
 FV = S6.FIG_V                      # the cast at the vault door (s06's cheat)
 W, H = 1080.0, 1920.0
 
-# ---------------------------------------------------------------------------- beats: the vault (0-6)
-T_SCOOPS = ((0.1, 0.8), (0.9, 1.6), (1.7, 2.4), (2.5, 3.2))   # a bar from his hands into the sack
+# ---------------------------------------------------------------------------- beats: the vault (0-8)
+T_SCOOPS = ((0.1, 0.8), (0.9, 1.6), (3.7, 4.4), (4.5, 5.2))   # a bar from his hands into the sack
 T_REACH = (0.35, 0.95)             # her hand to the little box's handle
 T_BOX = (0.95, 1.5)                # it opens
 T_PUSH_HER = (1.0, 2.2)            # the camera eases in on her
+T_RUBY = (1.5, 4.0)                # v5: cut in close on the open box (shot_ruby)
 T_GLINT = (1.5, 1.95)              # something RED glints in it
-T_TAKE = (2.0, 2.35)               # she takes it ...
-T_POCKET = (2.35, 3.0)             # ... into her coat pocket, her back to them
-T_TO_HIM = (3.15, 4.1)             # the camera eases over to him
-T_CINCH = (3.3, 3.75)              # he pulls the sack's neck shut
-T_RISE = (3.75, 4.35)              # and stands over the two bags
-T_LOOK_BAGS = (4.4, 4.82)          # his RED look at the bags (on, off) ...
-T_TURN = (4.9, 5.1)                # ... he turns (a cut-paper turn) ...
-T_LOOK_DOOR = 5.1                  # ... and looks at the open door, held
-T_X = 6.0                          # cut: the X-split
+T_TAKE = (3.6, 4.0)                # she takes it (the close-up shows it) ...
+T_POCKET = (4.0, 4.6)              # ... into her coat pocket, her back to them
+T_TO_HIM = (5.15, 6.1)             # the camera eases over to him
+T_CINCH = (5.3, 5.75)              # he pulls the sack's neck shut
+T_RISE = (5.75, 6.35)              # and stands over the two bags
+T_LOOK_BAGS = (6.4, 6.82)          # his RED look at the bags (on, off) ...
+T_TURN = (6.9, 7.1)                # ... he turns (a cut-paper turn) ...
+T_LOOK_DOOR = 7.1                  # ... and looks at the open door, held
+T_X = 8.0                          # cut: the X-split
 
-# ---------------------------------------------------------------------------- beats: the X (6-10)
-X_IN = (6.0, 3.0 / 24.0, 0.22)     # the panels cut in round the clock: first, the stagger, the slide
+# ---------------------------------------------------------------------------- beats: the ruby, close (1.5-4.0)
+T_IN_HAND = (2.0, 2.5)             # her gloved hand comes in, open ...
+T_PINCH = (2.5, 2.7)               # ... finger and thumb close on it ...
+T_LIFT_R = (2.7, 3.3)              # ... she lifts it out into the light ...
+T_FLARE = 3.0                      # ... where it flares ...
+T_AWAY = (3.65, 4.0)               # ... and her hand takes it away, down to her pocket
+
+# ---------------------------------------------------------------------------- beats: the X (8-12)
+X_IN = (8.0, 3.0 / 24.0, 0.22)     # the panels cut in round the clock: first, the stagger, the slide
 X_ORDER = ("top", "right", "bottom", "left")
-T_LIFT = (6.35, 7.2)               # top: he heaves the two bags up
-T_SHUT_BOX = (6.45, 6.95)          # left: she shuts the little box ...
-T_PAT = (7.3, 7.65)                # ... and pats her pocket (a red glint)
-T_GLEAM = (7.35, 7.8)              # right: the Cracker turns a bar in the light: it gleams
-T_MOVES = 8.5                      # he moves off toward the door: the seams turn RED
-T_SHADOW = (9.2, 10.0)             # bottom: his shadow comes out of the gold onto the corridor floor
-T_X_OUT = (10.0, 10.26)            # the panels fly off: the bottom one is the frame
+T_LIFT = (8.35, 9.2)               # top: he heaves the two bags up
+T_SHUT_BOX = (8.45, 8.95)          # left: she shuts the little box ...
+T_PAT = (9.3, 9.65)                # ... and pats her pocket (a red glint)
+T_GLEAM = (9.35, 9.8)              # right: the Cracker turns a bar in the light: it gleams
+T_MOVES = 10.5                     # he moves off toward the door: the seams turn RED
+T_SHADOW = (11.2, 12.0)            # bottom: his shadow comes out of the gold onto the corridor floor
+T_X_OUT = (12.0, 12.26)            # the panels fly off: the bottom one is the frame
 
-# ---------------------------------------------------------------------------- beats: the door (10-12)
-T_PUSH = 10.0                      # his hands on the door: it begins to swing
-T_SHOVE = (10.0, 10.6)             # he drives it with a lunge ...
-T_STEP_BACK = (10.7, 11.1)         # ... lets go and steps back to watch it swing
-T_TURN_IN = {"cracker": (10.55, 10.73), "architect": (10.9, 11.08)}   # the two inside turn: too late
-T_SLAM = 12.0                      # BOOM on the bar line: black
+# ---------------------------------------------------------------------------- beats: the door (12-14)
+T_PUSH = 12.0                      # his hands on the door: it begins to swing
+T_SHOVE = (12.0, 12.6)             # he drives it with a lunge ...
+T_STEP_BACK = (12.7, 13.1)         # ... lets go and steps back to watch it swing
+T_TURN_IN = {"cracker": (12.55, 12.73), "architect": (12.9, 13.08)}   # the two inside turn: too late
+T_SLAM = 14.0                      # BOOM on the bar line: black
 
-# ---------------------------------------------------------------------------- beats: the dial (12.2-13)
-T_DIAL = 12.2
-S6_KEYS = ((12.2, 10.0), (12.25, 10.0), (12.33, 9.55), (12.42, 8.85), (12.9, 3.4))   # s07 t -> s06 t
-T_CLANK = 12.32                    # the lock's bolt shoots home (s06's T_BOLT[0], run backwards)
-T_HAND_ON = (12.2, 12.26)          # his hand onto the knob ...
-T_HAND_OFF = (12.88, 13.0)         # ... and off it
+# ---------------------------------------------------------------------------- beats: the dial (14.2-15)
+T_DIAL = 14.2
+S6_KEYS = ((14.2, 10.0), (14.25, 10.0), (14.33, 9.55), (14.42, 8.85), (14.9, 3.4))   # s07 t -> s06 t
+T_CLANK = 14.32                    # the lock's bolt shoots home (s06's T_BOLT[0], run backwards)
+T_HAND_ON = (14.2, 14.26)          # his hand onto the knob ...
+T_HAND_OFF = (14.88, 15.0)         # ... and off it
 CU_PUSH = 1.05                     # the close-up's slow push (its last frame is the plan's first)
 
-# ---------------------------------------------------------------------------- beats: his L (13-16)
-T_PLAN = 13.0
-T_LENS = (13.0, 13.32)             # cut to the plan: the dial in a RED lens shrinks into the plan's chalk dial
-T_GLIDE = (13.3, 15.5)             # the camera glides after him
-HOPS = ((13.2, 0.0), (13.35, 200.0), (13.5, 400.0), (13.75, 492.5), (14.0, 585.0), (14.25, 677.5),
-        (14.5, 770.0), (14.75, 877.0), (15.0, 984.0), (15.25, 1092.0))   # (lands, arc length along his route)
-T_BELL = 14.5                      # he lands at the side door: the alarm bell, rung on every beat
-T_END = 16.0
+# ---------------------------------------------------------------------------- beats: his L (15-17)
+T_PLAN = 15.0
+T_LENS = (15.0, 15.32)             # cut to the plan: the dial in a RED lens shrinks into the plan's chalk dial
+T_GLIDE = (15.3, 17.5)             # the camera glides after him
+HOPS = ((15.2, 0.0), (15.35, 200.0), (15.5, 400.0), (15.75, 492.5), (16.0, 585.0), (16.25, 677.5),
+        (16.5, 770.0), (16.75, 877.0), (17.0, 984.0), (17.25, 1092.0))   # (lands, arc length along his route)
+T_BELL = 16.5                      # he lands at the side door: the alarm bell, rung on every beat
+
+# ---------------------------------------------------------------------------- beats: the alarm (17-20, v5)
+T_SIDE = 17.0                      # cut to the side door: it bursts open, the bell ringing ...
+T_RUN_OUT = 17.0                   # ... he charges out with the bags and runs for the street (left)
+T_BELL_PUSH = (17.7, 20.0)         # the camera pushes in on the ringing bell
+T_END = 20.0
 
 # ---------------------------------------------------------------------------- places (east-looking set px)
 ARCH_AT = 552.0                    # the Architect at the deposit wall behind the gold, facing north (left)
@@ -416,7 +437,7 @@ def shot_vault(c, t):
                          gap=25.0, head=30.0, seed=72)
 
 
-# ============================================================================ the X (6-10)
+# ============================================================================ the X (8-12)
 @lru_cache(maxsize=None)
 def x_perfs():
     d = {}
@@ -425,8 +446,8 @@ def x_perfs():
                                          blend=0.1),
                                     _seg("17_08", 5.7, 6.0, T_LIFT[1] + 0.1, 0.2, travel=0.0, blend=0.4),
                                     _seg("17_08", 1.5, 4.0, T_MOVES, 1.15, blend=0.3)], facing=1)
-    d["architect"] = C.perf("architect", [_seg("104_02", 5.7, 7.3, 4.0, 0.12, travel=0.0)], facing=-1)
-    d["cracker"] = C.perf("cracker", [_seg("22_03", 2.6, 3.6, 5.0, 0.12, travel=0.0)], facing=-1)
+    d["architect"] = C.perf("architect", [_seg("104_02", 5.7, 7.3, X_IN[0] - 2.0, 0.12, travel=0.0)], facing=-1)
+    d["cracker"] = C.perf("cracker", [_seg("22_03", 2.6, 3.6, X_IN[0] - 1.0, 0.12, travel=0.0)], facing=-1)
     return d
 
 
@@ -605,20 +626,20 @@ def _face_x(g, k=0.75):
 @lru_cache(maxsize=None)
 def door_perfs():
     d = {}
-    d["knight"] = C.perf("knight", [_seg("81_05", 6.0, 6.08, 9.0, 0.08, travel=0.0),
+    d["knight"] = C.perf("knight", [_seg("81_05", 6.0, 6.08, T_SHOVE[0] - 1.0, 0.08, travel=0.0),
                                     _seg("81_05", 6.08, 7.1, T_SHOVE[0], 1.02 / (T_SHOVE[1] - T_SHOVE[0]),
                                          travel=0.0, blend=0.08),
                                     _seg("17_08", 5.7, 6.0, T_SHOVE[1] + 0.05, 0.25, travel=0.0, blend=0.3)],
                          facing=-1)
-    d["architect"] = C.perf("architect", [_seg("104_02", 5.7, 7.3, 8.0, 0.12, travel=0.0)], facing=-1)
-    d["cracker"] = C.perf("cracker", [_seg("22_03", 2.6, 3.6, 8.0, 0.12, travel=0.0)], facing=-1)
+    d["architect"] = C.perf("architect", [_seg("104_02", 5.7, 7.3, T_PUSH - 2.0, 0.12, travel=0.0)], facing=-1)
+    d["cracker"] = C.perf("cracker", [_seg("22_03", 2.6, 3.6, T_PUSH - 2.0, 0.12, travel=0.0)], facing=-1)
     return d
 
 
 @lru_cache(maxsize=1)
 def _push_reach():
     """How far ahead of him his hands are in the push (set px at FV)."""
-    st, pose = door_perfs()["knight"](9.5)
+    st, pose = door_perfs()["knight"](T_SHOVE[0] - 0.5)
     j = _dry("knight", st, pose, 0.0, -1, FV)
     return -0.5 * (j["hand_near"][0] + j["hand_far"][0])
 
@@ -682,7 +703,7 @@ def cam_door(t):
         return CAM_XB
     u = ease("inout", clamp((t - T_X_OUT[0]) / 0.5))
     a = Bk.Cam.lerp(CAM_XB, CAM_D1, u)
-    return Bk.Cam.toward(a, CAM_D2, ease("inout", clamp((t - 10.5) / (T_SLAM - 10.5))), S6.OPENING)
+    return Bk.Cam.toward(a, CAM_D2, ease("inout", clamp((t - (T_SLAM - 1.5)) / 1.5)), S6.OPENING)
 
 
 def _his_shadow(c, t):
@@ -714,7 +735,7 @@ def shot_door(c, t, cam=None):
                    light=(lerp(-0.6, 0.0, g), lerp(-0.8, -1.0, g)))
 
 
-# ============================================================================ the dial (12.2-13)
+# ============================================================================ the dial (14.2-15)
 def s6_time(t):
     """The s06 time whose lock this frame shows: s06's lock run backwards."""
     for (a, sa), (b, sb) in zip(S6_KEYS, S6_KEYS[1:]):
@@ -766,7 +787,7 @@ def shot_dial(c, t):
     _knob_hand(c, t, lk["dial"], zoom)
 
 
-# ============================================================================ his L (13-16)
+# ============================================================================ his L (15-17)
 def plan_cam(t):
     """The plan's chalk dial where the close-up's dial was; then a glide after him."""
     return P.PlanCam.lerp(PLAN_P0, PLAN_P2, ease("inout", _u(t, T_GLIDE)))
@@ -827,7 +848,7 @@ def shot_plan(c, t):
         ring = 0.0
         if rung:
             ring = 24.0 * math.sin(2.0 * math.pi * 9.0 * (t - T_BELL)) * (0.6 + 0.4 * ease("out", clamp((t - T_BELL) / 0.1)))
-        K.bell(cc, P.BELL_AT, 1.0 + 0.25 * math.sin(math.pi * clamp((t - T_BELL) / 0.2)) if rung else 1.0,
+        K.bell(cc, P.BELL_AT, P.BELL_S * (1.0 + 0.25 * math.sin(math.pi * clamp((t - T_BELL) / 0.2)) if rung else 1.0),
                K.RED if rung else K.PAPER, seed=120, ring=ring)
 
     P.table(c, cam, 1.0, 1.0, 0.0, on_plan=lambda cc: (P.draw_plan_a(cc, 1.0, prog={"bell": 0.0}), on_plan(cc)))
@@ -856,6 +877,191 @@ def shot_plan(c, t):
             K.ripple(c, b, t, T_BELL + k * K.BEAT, K.RED, n=3, every=0.12, life=1.1, r0=24.0, r1=560.0, width=8.0,
                      seed=740 + 3 * k, alpha=0.9)
     _dial_lens(c, t, cam)
+
+
+# ============================================================================ the ruby, close (v5)
+RUBY_CAM = (Bk.Cam(RUBY_C[0], RUBY_C[1] + 1.0, 15.0), Bk.Cam(RUBY_C[0] - 1.0, RUBY_C[1] - 3.0, 17.5))
+RUBY_SEAT = (RUBY_C[0], RUBY_C[1] + 7.0)   # it lies on a little cushion in the box (set px)
+RUBY_SET_R = 4.4                           # its radius there (set px)
+CUSHION = lerp(K.RED, K.INK, 0.72)
+
+
+def ruby_cam(t):
+    return Bk.Cam.lerp(RUBY_CAM[0], RUBY_CAM[1], ease("inout", _u(t, T_RUBY)))
+
+
+def ruby_close(t, cam):
+    """(centre, radius) of the ruby in the close-up (frame px): on its cushion, lifted out toward
+    us in her fingers, then away down to the lower left with her hand."""
+    seat = cam.to_frame(RUBY_SEAT)
+    lift = ease("inout", _u(t, T_LIFT_R))
+    away = ease("in", _u(t, T_AWAY))
+    p = (seat[0] - 40.0 * lift - 560.0 * away, seat[1] - 170.0 * lift + 820.0 * away)
+    return p, RUBY_SET_R * cam.zoom * (1.0 + 0.35 * lift + 0.2 * away)
+
+
+def _ruby_hand(c, t, p, r):
+    """Her gloved hand: in from the lower left, open; finger and thumb close on the ruby's crown;
+    up into the light with it, then away."""
+    come = ease("out3", _u(t, T_IN_HAND))
+    if come <= 0.0:
+        return
+    off = 1.0 - come
+    grip = (p[0] + 0.1 * r - 560.0 * off, p[1] - 0.7 * r + 640.0 * off)
+    wrist = (grip[0] - 760.0, grip[1] + 700.0)
+    s = 1.9 * (1.0 + 0.3 * ease("inout", _u(t, T_LIFT_R)))
+    F.hand(c, "architect", wrist, grip, s, open_u=1.0 - 0.85 * ease("inout", _u(t, T_PINCH)))
+
+
+def shot_ruby(c, t):
+    """Close on the open box in the deposit wall: the ruby on its cushion, glowing; it glints; her
+    gloved fingers take it up into the light, where it flares, and away."""
+    cam = ruby_cam(t)
+    Bk.vault(c, cam, t, light=None, door=0.0, box=1.0, glint=0.0, gold=0.0)
+    seat = cam.to_frame(RUBY_SEAT)
+    r0 = RUBY_SET_R * cam.zoom
+    Bk.ellipse(c, (seat[0], seat[1] + 0.85 * r0), 1.9 * r0, 0.55 * r0, CUSHION)
+    p, r = ruby_close(t, cam)
+    K.pool(c, p, 3.4 * r, 3.4 * r, K.RED, 0.1, steps=4)
+    S11._ruby(c, p, r, math.radians(22.5 + 25.0 * ease("inout", _u(t, (T_LIFT_R[0], T_AWAY[0])))),
+              flash=math.sin(math.pi * clamp((t - T_FLARE) / 0.4)) if t >= T_FLARE else 0.0, px=1.0)
+    g = math.sin(math.pi * _u(t, (T_GLINT[0] + 0.05, T_GLINT[1] + 0.1)))
+    if g > 0.0:                                          # it glints in the box
+        K.twinkle(c, (p[0] + 0.3 * r, p[1] - 0.3 * r), 2.2 * r * g, lerp(K.RED, K.PAPER, 0.45), rot=15.0 + 40.0 * g)
+    f = (t - T_FLARE) / 0.45
+    if 0.0 < f < 1.0:                                    # up in the light it flares
+        K.twinkle(c, (p[0] - 0.25 * r, p[1] - 0.3 * r), 3.4 * r * math.sin(math.pi * f), K.PAPER, rot=20.0 * f)
+    _ruby_hand(c, t, p, r)
+
+
+# ============================================================================ the alarm: the side door (v5)
+SD_DOOR = (-36.0, -132.0, 36.0, 0.0)       # the steel door in the bank's east wall (west-looking set px)
+SD_BELL = (0.0, -182.0)                    # the alarm bell, on the wall over the door
+SD_BELL_S = 1.2
+SD_CAM0 = Bk.Cam(-30.0, -96.0, 4.9)        # the door, the bell over it, the alley floor
+SD_CAM1 = Bk.Cam(0.0, -178.0, 8.0)         # in on the ringing bell
+SD_LIGHT = lerp(K.GOLD, K.PAPER, 0.3)      # the light inside, through the open door
+SD_PIPE = 86.0                             # a drainpipe down the wall
+_SD = {}
+
+
+def _sd_run():
+    """(perf, x0): his run out of the door (s10's run), his pelvis in the doorway at T_RUN_OUT."""
+    if "run" not in _SD:
+        perf = C.perf("knight", [_seg("16_08", 0.0, 1.75, T_RUN_OUT)], facing=-1)
+        _SD["run"] = (perf, 4.0 - perf(T_RUN_OUT)[0]["pelvis"][0] * FS)
+    return _SD["run"]
+
+
+def sd_door(t):
+    """The side door's swing (deg, 0 shut): flung open past square, then swinging on its hinges."""
+    u = t - T_SIDE
+    if u < 0.0:
+        return 0.0
+    if u < 0.1:
+        return 55.0 + 60.0 * ease("out", u / 0.1)
+    return 92.0 + 23.0 * math.exp(-1.6 * (u - 0.1)) * math.cos(5.0 * (u - 0.1))
+
+
+@lru_cache(maxsize=1)
+def _sd_wall():
+    """The bank's east wall in the alley: coursed stone in shadow, the door's stone surround, a
+    drainpipe; the alley's floor."""
+    out = [([bass.cut_rect(-420.0, -760.0, 420.0, 0.0, seed=760, amp=0.6)], Bk.STONE_SH)]
+    joints = []
+    for i in range(1, 32):
+        y = -24.0 * i
+        joints.append(bass.cut_rect(-420.0, y - 1.3, 420.0, y + 1.3, seed=761 + i, amp=0.3))
+        for k in range(-7, 8):
+            xx = 64.0 * k + (32.0 if i % 2 else 0.0)
+            joints.append(bass.cut_rect(xx - 1.2, y, xx + 1.2, y + 24.0, seed=800 + i * 17 + k, amp=0.2))
+    out.append((joints, Bk.STONE_DK))
+    x0, y0, x1, y1 = SD_DOOR
+    out.append(([bass.cut_rect(x0 - 12.0, y0 - 14.0, x1 + 12.0, 0.0, seed=840, amp=0.4)], Bk.STONE))
+    out.append(([bass.cut_rect(x0 - 3.0, y0 - 3.0, x1 + 3.0, 0.0, seed=841, amp=0.3)], K.INK))
+    pipe = [bass.cut_rect(SD_PIPE - 4.0, -760.0, SD_PIPE + 4.0, -10.0, seed=842, amp=0.2),
+            bass.cut_rect(SD_PIPE - 4.0, -14.0, SD_PIPE + 14.0, -6.0, seed=843, amp=0.2)]
+    pipe += [bass.cut_rect(SD_PIPE - 7.0, y - 3.0, SD_PIPE + 7.0, y + 3.0, seed=844 + k, amp=0.2)
+             for k, y in enumerate((-110.0, -250.0, -390.0, -530.0))]
+    out.append((pipe, lerp(K.STEEL, K.INK, 0.35)))
+    out.append(([bass.cut_rect(-420.0, 0.0, 420.0, 260.0, seed=850, amp=0.3)], Bk.SLAB))
+    out.append(([bass.cut_rect(-420.0, -6.0, 420.0, 2.0, seed=851, amp=0.3)], lerp(Bk.STONE_SH, K.INK, 0.4)))
+    return out
+
+
+def _sd_panel(c, th):
+    """The steel door, hinged on its north (right) jamb, swung th degrees out toward us."""
+    x0, y0, x1, y1 = SD_DOOR
+    a = math.radians(th)
+    fx = x1 - (x1 - x0) * math.cos(a)                  # its free edge, projected
+    near = 12.0 * math.sin(a)                          # swinging toward us, the free edge looms
+    face = Bk.IRON if math.cos(a) > 0.0 else lerp(Bk.IRON, K.INK, 0.45)
+    pts = [(x1, y0), (fx, y0 - near), (fx, y1 + 0.6 * near), (x1, y1)]
+    if abs(fx - x1) > 0.5:
+        Bk.poly(c, pts, face, seed=861, amp=0.2)
+        if math.cos(a) > 0.0:                          # its rivets and push plate
+            for k in range(3):
+                for yy in (y0 + 14.0, y1 - 14.0):
+                    q = (x1 + (fx - x1) * (0.2 + 0.3 * k), yy + (near * 0.8 if yy < -60 else -near * 0.5) * (0.2 + 0.3 * k))
+                    Bk.disc(c, q, 2.2, lerp(Bk.IRON, K.PAPER, 0.25), seed=862 + k, n=8)
+    Bk.band(c, (fx, y0 - near), (fx, y1 + 0.6 * near), 5.0, lerp(Bk.IRON, SD_LIGHT, 0.35), seed=866)
+
+
+def _sd_bell(c, t):
+    """The alarm bell over the door: still, then ringing red (it rocks)."""
+    ring = 1.0 if t >= T_SIDE else 0.0
+    rock = 16.0 * math.sin(2.0 * math.pi * 9.0 * (t - T_SIDE)) * ring
+    bx, by = SD_BELL
+    Bk.band(c, (bx - 24.0, by - 24.0), (bx + 24.0, by - 24.0), 5.0, K.INK, seed=871)
+    K.bell(c, SD_BELL, SD_BELL_S, lerp(K.STEEL, K.RED, ring), seed=872, ring=rock)
+
+
+def sd_cam(t):
+    cam = Bk.Cam.toward(SD_CAM0, SD_CAM1, ease("inout", _u(t, T_BELL_PUSH)), SD_BELL)
+    k = clamp((t - T_SIDE) / 0.22)
+    if 0.0 < k < 1.0:                                  # the bang shakes the frame
+        cam = Bk.Cam(cam.x + 3.0 * math.sin(t * 97.0) * (1.0 - k), cam.y + 2.0 * math.sin(t * 71.0) * (1.0 - k), cam.zoom)
+    return cam
+
+
+def sd_knight(tt):
+    """(st, pose, x0): running out with a full bag in each fist, the bags swinging."""
+    perf, x0 = _sd_run()
+    st, pose = perf(max(tt, T_RUN_OUT))
+    sw = 10.0 * math.sin(2.0 * math.pi * 3.0 * (tt - T_RUN_OUT))
+    pose.arms["near"] = ("ang", 12.0 + sw, 14.0)
+    pose.arms["far"] = ("ang", 4.0 + sw, 20.0)
+    pose.lean = pose.lean + 6.0
+    pose.hold = {"near": Bk.hold_sack(1.0, seed=41), "far": Bk.hold_sack(1.0, seed=42)}
+    return st, pose, x0
+
+
+def shot_side(c, t):
+    """The side door from the alley: flung open, the Knight out with the bags and away for the
+    street; over the door the alarm bell rings red, ripples on every beat; the camera pushes in."""
+    tt = K.twos(t)
+    cam = sd_cam(t)
+    th = sd_door(tt)
+    x0, y0, x1, y1 = SD_DOOR
+    with cam.on(c):
+        Bk.fill_all(c, K.INK)
+        for polys, col in _sd_wall():
+            bass.fill_polys(c, polys, col)
+        if th > 0.0:                                   # the light inside, and its spill on the alley floor
+            Bk.rect(c, (x0, y0, x1, 0.0), SD_LIGHT, amp=0.0)
+            Bk.poly(c, [(x0, 0.0), (x1, 0.0), (x1 + 70.0, 150.0), (x0 - 70.0, 150.0)], lerp(Bk.SLAB, K.GOLD, 0.4),
+                    seed=880, amp=0.3, alpha=0.85)
+        _sd_bell(c, t)
+        if T_RUN_OUT <= tt < T_RUN_OUT + 1.2:
+            st, pose, xk = sd_knight(tt)
+            C.draw(c, "knight", st, pose, xk, 0.0, FS, -1, bg=K.NAVY, rim_w=4.0 / cam.zoom, light=(0.6, -0.8))
+        _sd_panel(c, th)
+    if t >= T_SIDE:                                    # the alarm: red ripples off the bell, on every beat
+        b = cam.to_frame(SD_BELL)
+        n = int((t - T_SIDE) / K.BEAT) + 1
+        for k in range(max(0, n - 3), n):
+            K.ripple(c, b, t, T_SIDE + k * K.BEAT, K.RED, n=3, every=0.12, life=1.1, r0=24.0 * cam.zoom,
+                     r1=720.0, width=9.0, seed=890 + 3 * k, alpha=0.9)
 
 
 # ============================================================================ the slam, as a shape
@@ -909,7 +1115,9 @@ def render(f, t, T):
 def render_plain(f, t, T):
     K.scene_setup(f, K.DEEP)
     with f.screen() as c:
-        if t < X_IN[0]:
+        if T_RUBY[0] <= t < T_RUBY[1]:
+            shot_ruby(c, t)
+        elif t < X_IN[0]:
             shot_vault(c, t)
         elif t < T_X_OUT[0]:
             shot_x(c, t, under=(lambda cc: shot_vault(cc, t)) if t < X_IN[0] + 4 * X_IN[1] + X_IN[2] else None)
@@ -921,8 +1129,10 @@ def render_plain(f, t, T):
             Bk.fill_all(c, K.INK)
         elif t < T_PLAN:
             shot_dial(c, t)
-        else:
+        elif t < T_SIDE:
             shot_plan(c, t)
+        else:
+            shot_side(c, t)
         ft = FILM_T0 + t
         K.stopwatch(c, STOPWATCH[0], STOPWATCH[1], K.heist_beats(ft), hand=K.RED if ft >= K.HEIST_STOP else None)
 
@@ -934,7 +1144,7 @@ T_SPLIT = T_X
 T_RED = T_MOVES
 T_SHUT = (T_PUSH, T_SLAM)
 T_BOOM = T_SLAM
-T_BOLTS = (12.04, 12.18)           # in the black: the rim's bolts shoot home, one after another
+T_BOLTS = (T_SLAM + 0.04, T_SLAM + 0.18)   # in the black: the rim's bolts shoot home, one after another
 T_SPINS = tuple((round(T_DIAL_SPIN(b), 3), round(T_DIAL_SPIN(a), 3)) for a, b in reversed(S6.TURNS))
 T_DIAL_RED = T_SPINS[0][0]
 T_ROUTE_L = (HOPS[0][0], HOPS[-1][0])
@@ -965,8 +1175,16 @@ def cues(T):
                    gain_db=-19, pan=_pan_set(cam_vault(T_BOX[0]), RUBY_C), dur=T_BOX[1] - T_BOX[0]))
     out.append(Cue(T_GLINT[0], "a tiny red glint in the open box: a faint high ting", gain_db=-20,
                    pan=_pan_set(cam_vault(T_GLINT[0]), RUBY_C)))
-    out.append(Cue(T_TAKE[0] + 0.25, "she lifts something small out of the box: the faintest tick of stone on steel",
-                   gain_db=-30, pan=_pan_set(cam_vault(T_TAKE[0] + 0.25), RUBY_C)))
+    out.append(Cue(T_RUBY[0], "cut in close on the open box: a ruby on a dark cushion, glowing red", gain_db=-24,
+                   pan=0.0))
+    out.append(Cue(T_IN_HAND[0], "her gloved hand comes in: a soft leather creak", gain_db=-26, pan=-0.4))
+    out.append(Cue(T_PINCH[0] + 0.1, "her finger and thumb close on the ruby: a tiny tick of stone on leather",
+                   gain_db=-24, pan=0.0))
+    out.append(Cue(T_LIFT_R[0], "she lifts it out into the light: a soft rising string harmonic", gain_db=-22,
+                   pan=0.0, dur=T_LIFT_R[1] - T_LIFT_R[0]))
+    out.append(Cue(T_FLARE, "the ruby flares in the light: a bright glassy shimmer (not the celesta)", gain_db=-18,
+                   pan=-0.05))
+    out.append(Cue(T_AWAY[0], "her hand takes it away: a quick cloth swish", gain_db=-24, pan=-0.5))
     out.append(Cue(T_POCKET[0] + 0.4, "she slips it into her coat pocket: a soft cloth rustle", gain_db=-26,
                    pan=_pan_set(cam_vault(T_POCKET[0] + 0.4), POCKET)))
     out.append(Cue(T_CINCH[0], "he pulls the bag's neck shut: canvas cinched tight on gold", gain_db=-20,
@@ -1047,4 +1265,15 @@ def cues(T):
                    pan=0.72))
     out.append(Cue(T_BELL, "alarm bell: the bell on the side door rings and rings; red ripples over the plan",
                    gain_db=-6, pan=_pan_x(plan_cam(T_BELL).to_view(P.BELL_AT)[0]), dur=T.duration - T_BELL))
+    # ---- the alarm: the side door
+    out.append(Cue(T_SIDE, "BANG: the side door flung open against the wall, the alarm bell right over it",
+                   gain_db=-4, pan=0.1))
+    perf, x0 = _sd_run()
+    for t, side, fx in Bk.footfalls(perf, T_RUN_OUT, T_RUN_OUT + 1.0):
+        out.append(Cue(t, "footstep: the Knight's heavy run on the alley's cobbles, two full bags swinging",
+                       gain_db=-18, pan=_pan_set(SD_CAM0, (x0 + fx * FS, 0.0))))
+    out.append(Cue(T_RUN_OUT + 0.1, "the two bags swing, the gold clinking in them", gain_db=-20, pan=-0.4,
+                   dur=0.9))
+    out.append(Cue(T_BELL_PUSH[0], "the camera pushes in on the ringing bell (the bell louder, nearer)", gain_db=-10,
+                   pan=0.0, dur=T_BELL_PUSH[1] - T_BELL_PUSH[0]))
     return sorted(out, key=lambda q: q["t"])
