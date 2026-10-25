@@ -592,8 +592,8 @@ def motion_blur(t, T):
 
 def cues(T):
     out = [
-        Cue(0.0, "wind_low", gain_db=-28, dur=T, dc="a faint winter wind over the snow; the snowfall is over"),
-        Cue(0.0, "searchlight_hum", gain_db=-26, dur=T,
+        Cue(0.0, "wind_low", gain_db=-28, dur=T.duration, dc="a faint winter wind over the snow; the snowfall is over"),
+        Cue(0.0, "searchlight_hum", gain_db=-26, dur=T.duration,
             dc="the searchlight's motor, far: it swells as the beam passes them (5.0, 11.0) and fades as it swings away "
                "west (from 13.0)"),
         Cue(0.0, "her_breath", gain_db=-26, dur=T_HOLD, dc="the mother's quiet, frightened breathing; it stops at 3.3"),

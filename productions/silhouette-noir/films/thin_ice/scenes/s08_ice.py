@@ -733,8 +733,8 @@ def cues(T):
         Cue(T_CU, "panting_man", gain_db=-8, dur=T_PAGE - T_CU, dc="his breath coming hard and ragged, close"),
         Cue(T_CU, "ice_scrape", gain_db=-14, dur=T_PAGE - T_CU, dc="gloved fingers clawing and scraping at ice"),
         Cue(T_CHUNK, "ice_crack_small", gain_db=-9, dc="a piece of the edge cracks and breaks away"),
-        Cue(T_PAGE, "water_lap", gain_db=-18, dur=T - T_PAGE, dc="water slopping in the hole as he clings"),
-        Cue(T_PAGE, "wind_low", gain_db=-24, dur=T - T_PAGE, dc="the night wind over the river, low"),
-        Cue(T_PAGE + 0.4, "panting_man", gain_db=-20, dur=T - T_PAGE - 0.4, dc="his gasps, smaller, far off"),
-        Cue(T_EYES, "heartbeat", gain_db=-12, dur=T - T_EYES, dc="her heartbeat, quick and close"),
+        Cue(T_PAGE, "water_lap", gain_db=-18, dur=T.duration - T_PAGE, dc="water slopping in the hole as he clings"),
+        Cue(T_PAGE, "wind_low", gain_db=-24, dur=T.duration - T_PAGE, dc="the night wind over the river, low"),
+        Cue(T_PAGE + 0.4, "panting_man", gain_db=-20, dur=T.duration - T_PAGE - 0.4, dc="his gasps, smaller, far off"),
+        Cue(T_EYES, "heartbeat", gain_db=-12, dur=T.duration - T_EYES, dc="her heartbeat, quick and close"),
     ]
