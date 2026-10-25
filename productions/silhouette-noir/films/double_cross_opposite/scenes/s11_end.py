@@ -408,7 +408,8 @@ def draw_elev(c, t):
             win[key] = PAPER
         elif state == "gone":
             win[key] = INK
-    St.draw_elevation(c, t, city=True, sky_lit=0.35, windows=win, low=0.6, clock=CLOCK_END, side_door=1.0)
+    St.draw_elevation(c, t, city=True, sky_lit=0.35, windows=win, low=0.6, clock=CLOCK_END, side_door=1.0, lid_a=1.0,
+                      lid_b=1.0)                              # both manholes open, as the night left them
     if clock is not None:                                     # the clock was CROSS's O
         bass.fill_polys(c, [draw.circle_pts(St.CLOCK_E, 25.0, n=48)], PAPER if clock == "paper" else INK)
     u = k(t, T_BLACK[0], T_BLACK[1], "linear")

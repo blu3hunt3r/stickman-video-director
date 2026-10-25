@@ -171,7 +171,7 @@ bible says, consistently.
 | **Heartbeat** | `K.heartbeat(c, p, t, color, bpm)` | A heart: the Cracker's (`AMBER`) past the guard and locked in; the Knight's (`RED`) boxed in. |
 | **Numerals** | `K.numeral(c, "4", p, h, color)` | The dial's numbers, the clocks, floor numbers. Hand-cut figures. No other text in picture except the title. |
 | **Callout** | `K.callout(c, anchor, centre, r, inside, u)` | A lens on a leader line: the bell (s02), the hatch (s04), the cat's eyes (s05), the grating (s09). |
-| **Clock** | `K.clock_face(c, p, r, hh, mm)` | The crew's wall clock, 11:58 (s02); the bank's clock, 11:59 → 12:00 (s04). |
+| **Clock** | `K.clock_face(c, p, r, hh, mm)` | The crew's wall clock, 11:58 (s02); the bank's clock, 11:59 → 12:00 (s04), 12:19 (s07), 12:20 (s08–s09), 12:21 (s10), 12:25 (s11). |
 | **Golden arm** | `bass.jagged_arm` | Bass's Man with the Golden Arm: his greed, once (s03). |
 
 ## The world (`street.py`; the bank's interiors in `bank.py`)
@@ -348,6 +348,14 @@ Times are scene-local seconds. *Sound cues are in italics.*
    - 11.5–13.0 they climb up into the hall's dark corner by the side door, one per beat. The
      guard's `PAPER` cone sweeps the hall. Hold on them, pressed in the dark.
 
+**As built (s04).** The Knight hooks the lid at 2.55 and has it up on edge at 2.75, before the
+cut; it drops aside with the CLANK at 3.25, and they go down the Knight first (3.5), then her
+(4.0), then the Cracker (4.5). The 12:00 chime has a `PAPER` ripple. Three splashes in the shaft
+(5.5, 6.0, 6.5). The hatch callout is `RED` (his hand): the hatch cracks at 9.75 and opens at
+10.9. They climb up at 11.5, 12.0 and 12.5. The Cracker shuts the hatch behind them (12.65–12.95),
+and it stays shut for the rest of the film. The guard's flashlight goes off at 13.6, so that s05
+can click it on. The section's hall lamp is at 0.55 here to keep the corner dark.
+
 ### s05 GUARD (62–80)
 
 The hall, framed close (`bank.corridor` in this palette): the figures about half the frame's
@@ -372,6 +380,11 @@ height, the camera easing with the action, jump-ins on the beat.
 4. **15.5–18.0:** The crew slip out of the mouth's dark to the vault door; the camera pushes in on
    its dial (16.0–18.0). s06 opens on the dial.
 
+**As built (s05).** The hall is `bank.corridor` drawn mirrored, to keep s04's screen direction:
+the corner on the left, the guard on the right, the crew travelling right. The light's patch
+stops at the Knight's nose (3.0). The crossings: her 5.15–5.85, the Knight 6.15–6.85, the Cracker
+7.15–7.885; the guard turns to his desk at 7.9–8.3. Her light finds the dial at 17.0.
+
 ### s06 SAFE (80–94)
 
 1. **0.0–3.0:** The vault door fills the frame (`bank.vault_door`). The Cracker kneels and sets the
@@ -385,6 +398,14 @@ height, the camera easing with the action, jump-ins on the beat.
    wheel; the door swings (the circle narrows to an ellipse) and `AMBER` light floods out over
    three silhouettes. Three looks go in: `RED` to the gold, `AMBER` to the gold, `PAPER` to the
    deposit boxes (*a string swell*).
+
+**As built (s06).** The cast stand at DOUBLE CROSS's door scale (FIG_V 0.27) so the kneeling
+Cracker reaches the dial, his hand already on the knob in the wide. The stethoscope ticks at 3.5
+and 4.0. The dial turns from 4.75, 6.25 and 7.75; the gates click at 6.0, 7.5 and 9.0; the fence
+drops at 9.5 and the lock's bolt draws back at 9.6. The wheel turns at 10.45, the twelve bolts
+withdraw 10.53–10.89, an `AMBER` line of light breaks at the seal, and the door swings from 11.1
+and settles at 12.9; her light goes off at 11.3. The looks: `RED` 12.5, `AMBER` 13.0, `PAPER`
+13.5. A string swell, no brass.
 
 ### s07 CROSS (94–114)
 
@@ -412,6 +433,18 @@ height, the camera easing with the action, jump-ins on the beat.
    frame shakes once) and the Knight charges out with the two sacks; over the door the alarm
    bell rings and rings, `RED` ripples on every beat (*the bell, loud*); he runs for the car, and
    the camera pushes in on the bell (17.7–20.0).
+
+**As built (s07).** The vault is drawn mirrored, the gold scooped on `T_SCOOPS` and her box at
+column 0, row 2, beside her. The ruby goes into her pocket at 4.4. The Cracker gets up and turns
+to the boxes (4.75–5.45), so both have their backs to the Knight when his look reaches them
+(7.6). For the door look his head turns over his shoulder (7.0–7.5) while his body stays on the
+sacks. His POV: his gloved hands flat on the door's edge drive it; inside, the Cracker starts back
+and she only turns, the last thing the slot shows, and the gap of gold closes exactly at 14.0
+(BOOM). 14.0–14.25 is black with the twelve bolts. The `RED` dial: a small right turn (the CLANK,
+14.4), then one 400° spin left (14.45–14.95); faster spins made the numerals strobe. The section
+shows the bank's clock at 12:19 (s08 and s09 show 12:20, s10 12:21). His dots fall on the eighth
+notes, 15.5–16.75. At the BANG (17.0) the door is a third open on the first frame, and he runs out
+left behind the car.
 
 ### s08 LOCKED (114–128)
 

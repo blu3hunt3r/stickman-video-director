@@ -79,8 +79,8 @@ T_SWEEP = 16.0                            # the police lights begin to sweep (a 
 BEATS = tuple(T_WIDE + 0.5 * i for i in range(22))      # the bell's strokes, on the beat
 
 AFTER = dict(lit={}, hall_lamp=1.0, vault_lit=0.0, gold_glow=0.0, gold=0.0, ruby_box=1.0, ruby=False, vault_door=0.0,
-             side_door=1.0, hatch=1.0, tile=0.0, trap_shaft=True, beams=False, sky_lit=0.0, lamp_on=1.0,
-             clock=(12, 20), drips=True)
+             side_door=1.0, hatch=0.0, lid_a=1.0, tile=0.0, trap_shaft=True, beams=False, sky_lit=0.0, lamp_on=1.0,
+             clock=(12, 20), drips=True)      # the hatch shut and manhole A open, as s04 left them
 
 
 def motion_blur(t, T):

@@ -51,8 +51,8 @@ HER_X = St.TRAP_C - 4.0                   # she stands on the tile
 CR_X = St.VAULT_IN[0] + 18.0              # the Cracker, at the door
 MATCH_REL = (15.0, -108.0)                # the match in her raised hand, from her floor point (section px)
 AFTER = dict(lit={}, hall_lamp=1.0, vault_lit=0.0, gold_glow=0.0, gold=0.0, ruby_box=1.0, ruby=False, vault_door=0.0,
-             side_door=1.0, hatch=1.0, trap_shaft=True, bell_ring=1.0, car=dict(lights=1.0), beams=False, sky_lit=0.0,
-             lamp_on=1.0, clock=(12, 20), drips=True)
+             side_door=1.0, hatch=0.0, lid_a=1.0, trap_shaft=True, bell_ring=1.0, car=dict(lights=1.0), beams=False,
+             sky_lit=0.0, lamp_on=1.0, clock=(12, 20), drips=True)      # the hatch shut and manhole A open, as s04 left them
 
 
 def motion_blur(t, T):

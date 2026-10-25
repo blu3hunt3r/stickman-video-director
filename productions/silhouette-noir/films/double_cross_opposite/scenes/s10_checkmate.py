@@ -612,7 +612,7 @@ def draw_arrest(c, t):
     K.fill(c, NIGHT)
     police = (dict(x=POL_A_X, facing=1, headlights=1.0), dict(x=POL_B_X, facing=-1, headlights=1.0))
     St.bank_front(c, cam, tf, clock=(12, 21), bell_ring=1.0, side_door=1.0, low=1.0, guard_x=None, car=True,
-                  car_x=CAR_X, car_door=min(door, 1.0), headlights=1.0, police=police, road="section", moon=True)
+                  car_x=CAR_X, car_door=min(door, 1.0), headlights=1.0, police=police, lid=1.0, road="section", moon=True)
     with cam.on(c):
         # the light bars' beams over the bank's wall, the halos on the bars
         c.save()
