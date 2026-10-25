@@ -9,17 +9,13 @@
     (W, N, E, S: exactly as she chalked them in Plan B), bars flashing. A red marker ring
     closes round him: checkmate. The camera rolls (his panic).
   His face in the car window, washed red and blue, eyes darting.
-  Behind the bank, the back street (full frame, north-looking, the ground cut open below it):
-    the wall across the street flickers red and blue above the bank's roof shadow. Up manhole
-    B's shaft she climbs, shoves the lid up and slides it aside, steps out and walks off west
-    under the street lamp; the Cracker climbs out after her. Her white route lights behind them.
-  The board again, pulling back: two small figures walking west from manhole B. Then his red
-    route and her white one straighten into two strokes crossing over the bank: an X.
+  The pull-back: manhole B's lid slides off, two small chalk figures climb out and walk west
+    along the back street, her white route lighting behind them. Then his red route and her
+    white one straighten into two strokes crossing over the bank: an X.
 """
 import math
 
 from engine import bass
-from engine import paperdoll as pd
 from engine.core import clamp, ease, hash01, lerp
 from engine.timing import Cue
 from films.double_cross import bank as Bk
@@ -51,14 +47,9 @@ T_COPS = (4.0, 4.5, 5.0, 5.5)    # the police slide in, one per beat
 T_MATE = 6.0                     # the red ring: checkmate
 T_ROLL = (6.0, 6.42)             # the camera rolls: his panic
 T_FACE = (6.42, 7.2)
-T_BACK = 7.2                     # cut from his face to the back street: her way out
-T_ESC = (7.2, 9.5)               # the escape, full frame
-T_LID = (7.6, 7.88)              # she slides manhole B's lid off east (it rose on her hand from 7.47)
-CLIMB = {"architect": (7.2, 0.0, 7.47, 36.0, 7.88, 8.06),      # (t0, h0, t at the lid, h, t1, out on the road)
-         "cracker": (7.95, 0.0, 8.35, 36.0, 8.65, 8.86)}
-T_GO = {"architect": 8.12, "cracker": 8.98}                     # they set off west, in file
-T_BOARD_BACK = 9.5               # the board again, pulling back
-T_UP = (8.6, 8.9)                # on the board: when the two small walkers are out (in file, west)
+T_BACK = 7.2                     # the pull-back
+T_LID = (7.95, 8.25)             # manhole B's lid slides off
+T_UP = (8.2, 8.45)               # she climbs out; he follows
 T_X = (10.0, 11.2)               # the routes straighten into the X
 CAR_HOME = P.CAR
 CAR_STOP = (P.CAR[0] - 30.0, P.CAR[1])
@@ -70,8 +61,7 @@ STREETS_Y = tuple(280.0 + 1120.0 * k for k in range(-3, 5))    # the east-west s
 STREET_W = 100.0
 BOARD_KEYS = ((2.92, (560.0, 1150.0, 0.36, 0.0)), (3.6, (690.0, 1260.0, 0.42, 0.0)),
               (5.9, (900.0, 1400.0, 1.0, 0.0)), (6.42, (900.0, 1400.0, 1.16, -10.0)))
-BACK_KEYS = ((T_BOARD_BACK, (420.0, 560.0, 1.3, 0.0)), (10.35, (556.0, 900.0, 0.6, 0.0)),
-             (12.0, (548.0, 880.0, 0.56, 0.0)))
+BACK_KEYS = ((7.2, (900.0, 1400.0, 1.16, -10.0)), (8.5, (560.0, 920.0, 0.6, 0.0)), (12.0, (548.0, 880.0, 0.56, 0.0)))
 WALK_V = 150.0                   # plan px / s: two small figures walking west
 HER_ROUTE = P.ROUTE_B
 HIS_ROUTE = list(P.ROUTE_KNIGHT) + [CAR_STOP]
@@ -384,185 +374,28 @@ def _her_route(c, t):
     K.route(c, HER_ROUTE, clamp(s / L), K.PAPER, solid=True, width=7.0, head=26.0, seed=380)
 
 
-# ============================================================================ her way out (north-looking)
-HOLE = P.MANHOLE_B[0]            # set x = plan x: the back street runs west, to the left
-SHAFT = (HOLE - 22.0, HOLE + 22.0)
-FOOT = 170.0                     # the shaft's foot: the branch pipe, seen end on below it
-PIPE_C, PIPE_R = (HOLE, 214.0), 42.0
-LID_W = 52.0
-LAMP_AT = 330.0                  # the street lamp, west of the hole: she walks in under it
-LAMP_S = 0.72
-ROOF = -205.0                    # the bank's roof line, its shadow across the wall: above, the police light
-ROUTE_H = -30.0                  # her route at shin height (as s09 left it, up out of the shaft)
-WALK_SET = 0.2 * 430.0           # set px / s
-ESC_CAMS = (Bk.Cam(398.0, -65.0, 3.4), Bk.Cam(352.0, -65.0, 3.4))
-WINDOWS = ((196.0, 246.0), (366.0, 416.0), (520.0, 570.0), (690.0, 740.0))
+T_LENS = (7.85, 9.85)            # a lens on manhole B: the two climbing out
 
 
-def esc_cam(t):
-    return Bk.Cam.lerp(ESC_CAMS[0], ESC_CAMS[1], ease("inout", clamp((t - T_ESC[0]) / (T_ESC[1] - T_ESC[0]))))
+def _lens(c, t, cam):
+    """A lens on manhole B while they climb out and walk off west (the board, closer)."""
+    u = clamp((t - T_LENS[0]) / 0.3) * (1.0 - clamp((t - (T_LENS[1] - 0.25)) / 0.25))
+    if u <= 0.0:
+        return
+    anchor = cam.to_view(P.MANHOLE_B)
+    centre = (300.0, 330.0)
 
-
-_ESC_WALK = {}
-
-
-def _esc_walker(who):
-    if who not in _ESC_WALK:
-        t0 = T_GO[who]
-        _ESC_WALK[who] = pd.Walker(C.fig(who), 0.0, speed=((t0, 0.0), (t0 + 0.3, 430.0), (13.0, 430.0)), t0=t0 - 1.0,
-                                   t1=13.0)
-    return _ESC_WALK[who]
-
-
-def climb_h(who, t):
-    """How far up the rungs `who` has climbed at t (set px): to the lid, a pause on it, then out."""
-    t0, h0, tl, hl, t1, tout = CLIMB[who]
-    if t < tl:
-        return lerp(h0, hl, clamp((t - t0) / (tl - t0)))
-    if t < t1 - 0.18:
-        return hl + 6.0 * clamp((t - tl) / 0.3)
-    return lerp(hl + 6.0, FOOT - 12.0, ease("inout", clamp((t - (t1 - 0.18)) / (tout - t1 + 0.18))))
-
-
-def esc_state(who, t):
-    """(x, floor y, state, pose) of `who` in the back street, drawn facing east and mirrored about x
-    (so they face west): up the rungs, out onto the road, then walking west."""
-    t0, h0, tl, hl, t1, tout = CLIMB[who]
-    x_rungs = HOLE + (4.0 if who == "architect" else -4.0)
-    if t < tout:
-        h = climb_h(who, t)
-        st, pose = Bk.ladder_pose(who, max(0.0, h), 1)
-        if who == "architect" and tl - 0.05 <= t < t1:              # her near hand flat on the lid, shoving
-            pose.arms["near"] = ("ik", (40.0, -(h * 5.0) - 640.0))
-        if t >= t1 - 0.18:                                          # out: both hands on the road, pushing up
-            road = -FOOT / Bk.FIG_S + 10.0
-            pose.arms["near"] = ("ik", (150.0, road))
-            pose.arms["far"] = ("ik", (-110.0, road))
-        below = 0.0 if who == "architect" else 90.0 * (1.0 - ease("out", clamp((t - t0) / 0.3)))   # up out of the pipe
-        return x_rungs, FOOT + below, st, pose
-    wk = _esc_walker(who)
-    st = wk.state(max(t, T_GO[who] - 0.5))
-    rise = clamp((t - tout) / 0.22)
-    pose = pd.Pose(lean=lerp(22.0, 4.0, rise), head=lerp(10.0, -6.0, rise), crouch=110.0 * (1.0 - ease("out", rise)))
-    pose.arms["near"] = ("ang", lerp(40.0, 10.0, rise), 22.0)
-    pose.arms["far"] = ("ang", lerp(-10.0, 4.0, rise), 16.0)
-    return x_rungs - 8.0, 0.0, st, pose
-
-
-def esc_steps(who):
-    """[(t, set x)]: their footfalls on the back street, on into the board's pull-back (the cues)."""
-    wk = _esc_walker(who)
-    x0 = HOLE + (4.0 if who == "architect" else -4.0) - 8.0
-    return [(tt, x0 - fx * Bk.FIG_S) for tt, side, fx in Bk.footfalls(lambda u: (wk.state(u), None), T_GO[who],
-                                                                       T_X[0])]
-
-
-def rung_times(who):
-    """When a boot comes down on the next rung (one a rung of the climb)."""
-    t0, h0, tl, hl, t1, tout = CLIMB[who]
-    out, k = [], int(h0 // Bk.RUNG_STEP) + 1
-    for i in range(1, 241):
-        t = t0 + (tout - t0) * i / 240.0
-        if climb_h(who, t) >= k * Bk.RUNG_STEP:
-            out.append(round(t, 3))
-            k += 1
-    return out
-
-
-def _lid_b(c, t):
-    """Manhole B's lid: pushed up off its seat on her hand, slid off east, dropped on the road."""
-    lift = 9.0 * ease("out", clamp((t - (T_LID[0] - 0.13)) / 0.13)) * (1.0 - ease("in", clamp((t - T_LID[1]) / 0.06)))
-    slide = 60.0 * ease("inout", clamp((t - T_LID[0]) / (T_LID[1] - T_LID[0])))
-    x0 = HOLE - LID_W / 2.0 + slide
-    Bk.rect(c, (x0, -6.0 - lift, x0 + LID_W, -0.5 - lift), lerp(K.STEEL, K.INK, 0.25), amp=0.2)
-    Bk.band(c, (x0 + 2.0, -6.5 - lift), (x0 + LID_W - 2.0, -6.5 - lift), 1.6, lerp(K.STEEL, K.PAPER, 0.35), seed=5011)
-
-
-def _back_street(c, t):
-    """The set (set px): the wall across the back street, police light above the bank's roof
-    shadow, a door, windows, a drainpipe; the lamp; the road; the ground cut open under it,
-    manhole B's shaft and the branch pipe end on."""
-    x0, x1 = -300.0, 1300.0
-    Bk.rect(c, (x0, -900.0, x1, 0.0), lerp(K.INK, K.NAVY, 0.55), amp=0.0)            # the wall
-    for k in range(9):                                                                # its courses
-        y = -40.0 - 52.0 * k
-        Bk.band(c, (x0, y), (x1, y), 1.4, lerp(K.INK, K.NAVY, 0.3), seed=5020 + k)
-    for i, (wa, wb) in enumerate(WINDOWS):
-        lit = i == 2
-        Bk.rect(c, (wa, -300.0, wb, -228.0), lerp(K.INK, K.GOLD, 0.35) if lit else K.INK, amp=0.3)
-        Bk.band(c, ((wa + wb) / 2.0, -300.0), ((wa + wb) / 2.0, -228.0), 2.0, lerp(K.INK, K.NAVY, 0.5), seed=5030 + i)
-        Bk.band(c, (wa - 5.0, -225.0), (wb + 5.0, -225.0), 3.0, lerp(K.NAVY, K.STEEL, 0.4), seed=5034 + i)
-    Bk.rect(c, (226.0, -122.0, 278.0, -6.0), K.INK, amp=0.3)                        # a back door, shut
-    Bk.band(c, (222.0, -125.0), (282.0, -125.0), 3.0, lerp(K.NAVY, K.STEEL, 0.4), seed=5038)
-    Bk.band(c, (566.0, -900.0), (566.0, -8.0), 4.0, lerp(K.INK, K.STEEL, 0.4), seed=5039)   # the drainpipe
-    tt = K.twos(t)                                           # the police at the front: their light over the roof
-    blue = (tt * 3.0) % 1.0 < 0.5
-    with Bk.clipped(c, (x0, -900.0, x1, ROOF + 6.0 * math.sin(tt * 2.0))):
-        sweep = lerp(-200.0, 1200.0, (tt * 1.5) % 1.0)
-        K.pool(c, (sweep, ROOF - 70.0), 300.0, 120.0, K.POLICE if blue else K.RED, 0.26, steps=4)
-        K.pool(c, (sweep - 620.0, ROOF - 90.0), 240.0, 100.0, K.RED if blue else K.POLICE, 0.16, steps=3)
-    Bk.band(c, (x0, ROOF), (x1, ROOF + 12.0), 2.0, lerp(K.INK, K.NAVY, 0.2), seed=5040)
-    Bk.rect(c, (x0, -12.0, x1, 0.0), lerp(K.NAVY, K.STEEL, 0.35), amp=0.0)           # the far pavement
-    Bk.band(c, (x0, -12.0), (x1, -12.0), 2.0, lerp(K.STEEL, K.PAPER, 0.2), seed=5041)
-    c.save()
-    c.translate(LAMP_AT, 0.0)
-    c.scale(LAMP_S, LAMP_S)
-    c.translate(-Bk.LAMP_X, 0.0)
-    Bk.street_lamp(c, 1.0, 1.0)
-    c.restore()
-    # the ground in section: earth, the road slab, the shaft and its rungs, the pipe end on
-    Bk.rect(c, (x0, 0.0, x1, 900.0), Bk.EARTH, amp=0.0)
-    Bk.rect(c, (x0, 2.0, x1, Bk.ROAD), Bk.SLAB, amp=0.0)
-    Bk.disc(c, PIPE_C, PIPE_R + 9.0, Bk.LINING, seed=5050)
-    Bk.disc(c, PIPE_C, PIPE_R, Bk.TUNNEL, seed=5051)
-    with Bk.clipped(c, (PIPE_C[0] - PIPE_R - 2.0, PIPE_C[1] + 22.0, PIPE_C[0] + PIPE_R + 2.0, PIPE_C[1] + PIPE_R + 2.0)):
-        Bk.disc(c, PIPE_C, PIPE_R, K.INK, seed=5052)                                 # the water in it
-    Bk.rect(c, (SHAFT[0], -1.0, SHAFT[1], FOOT + 8.0), Bk.TUNNEL, amp=0.0)
-    Bk._rungs(c, SHAFT[0], SHAFT[1], 4.0, FOOT, seed=5053)
-    Bk.band(c, (x0, 1.0), (x1, 1.0), 4.0, lerp(K.STEEL, K.NAVY, 0.25), seed=5054)   # the road's surface
-    for xx in (SHAFT[0], SHAFT[1]):
-        Bk.band(c, (xx, 0.0), (xx, FOOT), 2.0, lerp(K.STEEL, K.NAVY, 0.3), seed=5055 + int(xx) % 7)
-
-
-def _esc_route(c, t):
-    """Her white route: lit up the shaft to the street already (s09 lit it), then west along the
-    street behind her at shin height."""
-    pts = [(HOLE, FOOT + 20.0), (HOLE, ROUTE_H)]
-    if t >= T_GO["architect"]:
-        x, _, st, _ = esc_state("architect", t)
-        pts.append((min(HOLE - 1.0, x - st["pelvis"][0] * Bk.FIG_S + 30.0), ROUTE_H))
-    K.route(c, pts, 1.0, K.PAPER, solid=True, width=3.4, head=13.0, r=3.0, seed=5060)
-
-
-def _esc_fig(c, who, t, cam):
-    """Drawn facing east and mirrored about x (so facing west), rimmed toward the lamp; in the
-    shaft, clipped to it."""
-    x, y, st, pose = esc_state(who, t)
-    with cam.on(c):
-        c.new_path()
-        c.rectangle(-1000.0, -2000.0, 3000.0, 2000.0)                 # above the road ...
-        c.rectangle(SHAFT[0] + 1.0, 0.0, SHAFT[1] - SHAFT[0] - 2.0, FOOT + 70.0)   # ... and down the shaft
-        c.clip()
-        c.translate(x, 0.0)
-        c.scale(-1.0, 1.0)
-        c.translate(-x, 0.0)
-        C.draw(c, who, st, pose, x, y, Bk.FIG_S, 1, bg=K.INK, rim_w=4.0 / cam.zoom, light=(0.6, -0.8))
-
-
-def escape_shot(c, t):
-    cam = esc_cam(t)
-    K.fill(c, K.INK)
-    with cam.on(c):
-        _back_street(c, t)
-        _esc_route(c, t)
-    for who in ("cracker", "architect"):
-        if t >= CLIMB[who][0]:
-            _esc_fig(c, who, t, cam)
-    with cam.on(c):
-        _lid_b(c, t)
-    f = 1.0 - clamp((t - T_ESC[0]) / 0.12)                  # out of his red and blue
-    if f > 0.0:
-        K.fill(c, K.INK, alpha=f)
+    def inside(cc):
+        p, _ = walker_at(0, t)
+        lx = min(P.MANHOLE_B[0] - 50.0, p[0] + 10.0) if p is not None else P.MANHOLE_B[0] - 50.0
+        lc = P.PlanCam(lx, P.MANHOLE_B[1], 2.3, 90.0, 0.0, fx=centre[0], fy=centre[1])
+        K.fill(cc, K.INK)
+        with lc.ground(cc):
+            draw_board(cc, t)
+            _her_route(cc, t)
+            _lid(cc, t)
+            _walkers(cc, t)
+    K.callout(c, anchor, centre, 210.0, inside, u=u, color=K.PAPER, ring_w=9.0, dot_r=8.0, line_w=4.0, seed=95)
 
 
 def _resample(pts, n):
@@ -602,6 +435,8 @@ def board_shot(c, t):
         _his_car(c, t, cam)
         _cops(c, t)
         _ring(c, t)
+    if T_LENS[0] <= t < T_LENS[1]:
+        _lens(c, t, cam)
     if t >= T_X[0]:
         _x_strokes(c, t, cam)
     f = 1.0 - clamp((t - T_BOARD) / 0.3)                   # out of the headlight's white
@@ -672,8 +507,6 @@ def render_plain(f, t, T):
     with f.screen() as c:
         if T_FACE[0] <= t < T_FACE[1]:
             face_shot(c, t)
-        elif T_ESC[0] <= t < T_ESC[1]:
-            escape_shot(c, t)
         else:
             board_shot(c, t)
 
@@ -701,19 +534,9 @@ def cues(T):
             Cue(T_COPS[0], "sirens braiding together, rising", gain_db=-13, dur=T.duration - T_COPS[0]),
             Cue(T_MATE, "checkmate: a hard low stab and a choked cymbal", gain_db=-5),
             Cue(T_FACE[0], "a heartbeat thump; his breath catching", gain_db=-10, dur=T_FACE[1] - T_FACE[0]),
-            Cue(T_BACK, "cut to the back street: night air, the sirens far off behind the bank; a drip down the shaft",
-                gain_db=-22, dur=T_ESC[1] - T_BACK),
-            Cue(CLIMB["architect"][2], "an iron clunk: manhole B's lid knocked up off its seat", gain_db=-13, pan=0.25),
-            Cue(T_LID[0], "an iron manhole cover dragged aside", gain_db=-12, pan=0.3),
+            Cue(T_LID[0], "an iron manhole cover dragged aside", gain_db=-12, pan=-0.2),
+            Cue(T_UP[0] + 0.3, "two pairs of soft footsteps walking away on the cobbles", gain_db=-17, pan=-0.3,
+                dur=T_X[0] - T_UP[0]),
             Cue(T_X[0], "two long strokes of chalk swelling into a held chord", gain_db=-10, dur=T_X[1] - T_X[0]),
             Cue(T_X[1], "the theme's last phrase, resolving", gain_db=-12, dur=T.duration - T_X[1])]
-    for who in ("architect", "cracker"):                    # up the rungs, then away west on the cobbles
-        for tt in rung_times(who):
-            out.append(Cue(tt, "a boot on an iron rung (a soft clank in the shaft)", gain_db=-23 if who == "architect" else -21,
-                           pan=0.25))
-        for tt, x in esc_steps(who):
-            cam = esc_cam(tt) if tt < T_ESC[1] else None
-            pan = clamp((cam.to_frame((x, 0.0))[0] / K.W) * 2.0 - 1.0, -0.8, 0.8) if cam else -0.3
-            out.append(Cue(tt, f"a soft footstep on the cobbles ({'hers' if who == 'architect' else 'the Cracker'})",
-                           gain_db=-19 if who == "architect" else -18, pan=pan))
     return out

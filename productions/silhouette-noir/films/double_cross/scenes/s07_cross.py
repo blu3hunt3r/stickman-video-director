@@ -44,7 +44,7 @@ from films.double_cross import plan as P
 from films.double_cross import shots as S
 from films.double_cross.scenes import s06_safe as S6
 
-FILM_T0 = 80.0
+FILM_T0 = K.film_start("s07")
 STOPWATCH = ((930.0, 190.0), 62.0)
 FS = Bk.FIG_S
 FV = S6.FIG_V                      # the cast at the vault door (s06's cheat)

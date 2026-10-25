@@ -4,7 +4,9 @@ The shot vocabulary of these films: what we already had (Part A), what we took f
 edit the user shared on 10-24 and what we left (Part B), and how each adopted type is built in code
 for DOUBLE CROSS v2 (Part C).
 
-Film times are m:ss.ss (film seconds); "local" means scene seconds. Paths are relative to
+Film times are m:ss.ss (film seconds); "local" means scene seconds. DOUBLE CROSS times are v4's
+(2:32) in Parts A and B, and v2's (2:24) in Part C, which records what v2 built: from 0:24 add 4 s
+up to s05 and 8 s from s06 to get v4's (s05's punch-in is at 1:09.49 in v4). Paths are relative to
 `productions/silhouette-noir/`. A bare `sNN` is a DOUBLE CROSS scene; a scene of any other film
 carries the film's name. In DOUBLE CROSS, scene modules are `films/double_cross/scenes/sNN_*.py`
 and `K`, `P`, `C`, `F`, `Bk`, `S` are `kit`, `plan`, `cast`, `faces`, `bank` and `shots`.
@@ -18,34 +20,34 @@ and `K`, `P`, `C`, `F`, `Bk`, `S` are `kit`, `plan`, `cast`, `faces`, `bank` and
 | Shot | What it is | Examples | Built with |
 |---|---|---|---|
 | **Profile cameo** (silhouette on a bold field) | A face in profile, cut like a cameo, alone on one flat colour | DOUBLE CROSS s02: her on the lamp's gold (0:13.5–0:15.5), the Cracker on steel (0:16.5–0:18.5), the Knight in the dark lit by his ember (0:19.5–0:21.0). OPPOSITE Bass cut: her sip on her window's amber (0:05.6). OPPOSITE full s05: her profile and his, mirrored across a red split (0:57.5) | `F.her`, `F.cracker`, `F.knight` (each returns its landmarks in frame px: eye, mouth, nose and ear, or the Knight's cigarette tip in place of the ear); s02 `face_shot`; OPPOSITE `films/opposite_full/gaze.py` |
-| **Extreme close-up on a mechanism** | A dial, a lock, a hand, filling the frame | s06 the dial with the lock cut away beneath it (1:09.0–1:16.0); s07 the same dial in RED, the lock run backwards (1:32.2–1:33.0; from 1:32.29 in v2); OPPOSITE full s09 the rotary dial from above (1:49.0–1:54.0) | s06 `closeup`, `Bk.dial_face`, `Bk.lock_cutaway`; s07 `shot_dial` |
-| **Hand insert** | A hand doing the one thing that matters | s02 the three hands setting the pieces (0:13.0, 0:16.0, 0:19.0); s11 her fist opening on the ruby (2:16.55–2:18.45); OPPOSITE full s09 the victim's fingers closing on hers (1:47.85) | `F.hand`; s11 `palm_shot` |
-| **The plan, top-down** | The blueprint seen straight down, pieces as discs or standing | s03 the whole glide (0:24–0:40); s05 the stealth map (0:56.0–1:00.5); s07 his red L (1:33.0–1:36.0); s09 Plan B (1:54.6–1:58.9); s10 the city as a chessboard (2:06.92–2:16.0) | `P.PlanCam(cx, cy, zoom, phi, yaw)`, `P.draw_plan`, `P.draw_plan_a`, `P.draw_pieces`, `K.route`, `K.circled`; s10 `board_shot`, `draw_board` |
-| **The tilt** (plan ↔ world) | One camera tilting between the diagram and the place | s01 up off the night street to the plan as the street folds flat (v3, 0:02.75–0:04.0); s01 → s02 down to the table (0:10.55–0:12.0); s03 → s04 down into the street (0:38.0–0:43.0, the walls rising out of their chalk lines on the way down); s05 up to the map and back (0:56.0–0:57.0, 1:00.5–1:01.5) | `PlanCam.lerp`, `P.draw_walls_3d`, `P.HANDOFF_34`; s04 `tilt_cam`; s05 `_tilt` |
-| **Elevation** (a set seen side-on) | The night world as a flat stage | s01 the bank's front at night (v3, 0:00–0:02.75); s04 the front street (0:43.0–0:45.75); s05 the corridor (0:52.0–0:56.0, 1:01.5–1:06.0); s06 the vault door (1:06.0–1:09.0, 1:16.0–1:20.0); s10 the street (2:04.0–2:05.46) and, in v3, the back street looking north (2:11.2–2:13.5) | `Bk.front_street`, `Bk.corridor`, `Bk.vault_door`, each placed by `Bk.Cam(x, y, zoom)`; s10 `escape_shot`, `_back_street` |
-| **Section** (the ground cut open) | A cutaway through the street or floor | s04 the street opens into the sewer (0:45.75–0:47.1); s08 the floor opens under her heel (1:42.25–1:42.85); s09 down through the trapdoor (from 2:00.66); OPPOSITE full s07, both buildings cut open for the race (1:16–1:30) | s04 `_cut`, `Bk.sewer`; s08 `floor_shot`, `_section`; OPPOSITE `K.draw_section` |
-| **Split screen** | The frame cut into panels that run at once | s07 the X-split, the frame cut on both diagonals into four triangles (1:26.0–1:30.26); OPPOSITE full s05 the mirror split down a red line (0:57.5–1:00.0) | `K.x_split(c, panels, ...)`; s07 `shot_x`, `x_out` |
+| **Extreme close-up on a mechanism** | A dial, a lock, a hand, filling the frame | s06 the dial with the lock cut away beneath it (1:17.0–1:24.0); s07 the same dial in RED, the lock run backwards (from 1:40.29, after v2's sunburst, to 1:41.0); OPPOSITE full s09 the rotary dial from above (1:49.0–1:54.0) | s06 `closeup`, `Bk.dial_face`, `Bk.lock_cutaway`; s07 `shot_dial` |
+| **Hand insert** | A hand doing the one thing that matters | s02 the three hands setting the pieces (0:13.0, 0:16.0, 0:19.0); s11 her fist opening on the ruby (2:24.55–2:26.45); OPPOSITE full s09 the victim's fingers closing on hers (1:47.85) | `F.hand`; s11 `palm_shot` |
+| **The plan, top-down** | The blueprint seen straight down, pieces as discs or standing | s03 the whole glide (0:28–0:44); s05 the stealth map (1:00.0–1:05.5); s07 his red L (1:41.0–1:44.0); s09 Plan B (2:02.6–2:06.9); s10 the city as a chessboard (2:14.92–2:24.0) | `P.PlanCam(cx, cy, zoom, phi, yaw)`, `P.draw_plan`, `P.draw_plan_a`, `P.draw_pieces`, `K.route`, `K.circled`; s10 `board_shot`, `draw_board` |
+| **The tilt** (plan ↔ world) | One camera tilting between the diagram and the place | s01 → s02 down to the table (0:10.55–0:12.0); s02 → s03 from the table's side down onto the plan, landing on s03's first frame (v4, 0:26.0–0:28.0); s03 → s04 down into the street (0:42.0–0:47.0, the walls rising out of their chalk lines on the way down); s05 up to the map and back (1:00.0–1:01.0, 1:04.5–1:05.5) | `PlanCam.lerp`, `P.draw_walls_3d`, `P.HANDOFF_34`; s02 `tilt_cam`, `side_shot`; s04 `tilt_cam`; s05 `_tilt` |
+| **Elevation** (a set seen side-on) | The night world as a flat stage | s04 the front street (0:47.0–0:49.75); s05 the corridor, framed close, the camera moving with the action (v4: 0:56.0–1:00.0, 1:05.5–1:14.0); s06 the vault door (1:14.0–1:17.0, 1:24.0–1:28.0); s10 the street (2:12.0–2:13.46) | `Bk.front_street`, `Bk.corridor`, `Bk.vault_door`, each placed by `Bk.Cam(x, y, zoom)`; s05 `cam_e` |
+| **Section** (the ground cut open) | A cutaway through the street or floor | s04 the street opens into the sewer (0:49.75–0:51.1); s08 the floor opens under her heel (1:50.25–1:50.85); s09 down through the trapdoor (from 2:08.66); OPPOSITE full s07, both buildings cut open for the race (1:16–1:30) | s04 `_cut`, `Bk.sewer`; s08 `floor_shot`, `_section`; OPPOSITE `K.draw_section` |
+| **Split screen** | The frame cut into panels that run at once | s07 the X-split, the frame cut on both diagonals into four triangles (1:34.0–1:38.26); OPPOSITE full s05 the mirror split down a red line (0:57.5–1:00.0) | `K.x_split(c, panels, ...)`; s07 `shot_x`, `x_out` |
 | **Over the shoulder** | A head and shoulders filling one side, the subject through a window | OPPOSITE full s02, hers (0:22.0); s10, his, the mirror of it (2:01.5) | OPPOSITE scenes |
 | **POV** | What a character sees, shaped by what they see through | OPPOSITE full s08 through the keyhole (1:39.0–1:42.5); the Bass cut's keyhole (0:31.5) | OPPOSITE scenes |
-| **Callout lens** | A detail magnified in a ring on a leader line | s01 the gold under the landed X (v3, from 0:11.1); s02 face → piece; s03 steps ① and ③ (v3: manhole A's lid 0:25.05–0:26.3, the guard and his light 0:29.55–0:30.75) and the dial (0:31.0–0:32.06); s08 the heel's dot → the plan (1:43.25); s09 the dot (from 1:51.55) and her eye (from 1:54.05); s10 manhole B in v1–v2 (2:11.85–2:13.85; v3 cuts to the back street instead); OPPOSITE full s07 the near miss (1:18.3–1:19.9) | `K.callout(c, anchor, center, r, inside, u=1.0, ...)`, defined in `films/opposite_full/kit.py` and re-exported by the DOUBLE CROSS kit |
-| **Freeze** | A held frame with a lens snapping onto it | s09: 1:48.0–1:48.15, 1:51.5–1:52.2, 1:54.15–1:54.6 | s09 `FREEZES`, `shown` |
-| **Rewind** | The film running backwards under chalk streaks and a double chevron | s09 1:48.15–1:50.75 and 1:52.2–1:52.45 | s09 `REWIND`, `shown` and its own `_rewind_marks` (streaks, chevrons, the heist clock running back; the kit's `K.rewind_marks` is not called anywhere); the earlier scenes' own `render_plain` at decreasing times |
-| **Light fills the frame** | A light grows until it is the whole frame, and we come out of it elsewhere | s10 the headlight (2:06.68–2:06.92) into the chessboard | s10 `nose_shot` |
-| **Black** | A cut to black as punctuation | s07 after the BOOM in v1 (1:32.0–1:32.2; v2 fills it, see Part C); s11 the end (2:23.5) | s07 `Bk.fill_all(c, K.INK)`; s11 `K.fill(c, K.INK)` with the red dot (`_dot`) drawn over it |
-| **Title graphics** | Hand-cut letters and strips | DOUBLE CROSS s01 (0:08.0–0:11.0) and its reprise in s11 (2:21.5–2:23.0); OPPOSITE's bars, letters and red slash | s01 `_strips`, `_words`; `bass.draw_title`, `bass.bars`, `bass.slash` |
+| **Callout lens** | A detail magnified in a ring on a leader line | s02 face → piece; s03 the dial (0:35.0–0:36.06); s08 the heel's dot → the plan (1:51.25); s09 the dot (from 1:59.55) and her eye (from 2:02.05); s10 manhole B (2:19.85–2:21.85); OPPOSITE full s07 the near miss (1:18.3–1:19.9) | `K.callout(c, anchor, center, r, inside, u=1.0, ...)`, defined in `films/opposite_full/kit.py` and re-exported by the DOUBLE CROSS kit |
+| **Freeze** | A held frame with a lens snapping onto it | s09: 1:56.0–1:56.15, 1:59.5–2:00.2, 2:02.15–2:02.6 | s09 `FREEZES`, `shown` |
+| **Rewind** | The film running backwards under chalk streaks and a double chevron | s09 1:56.15–1:58.75 and 2:00.2–2:00.45 | s09 `REWIND`, `shown` and its own `_rewind_marks` (streaks, chevrons, the heist clock running back; the kit's `K.rewind_marks` is not called anywhere); the earlier scenes' own `render_plain` at decreasing times |
+| **Light fills the frame** | A light grows until it is the whole frame, and we come out of it elsewhere | s10 the headlight (2:14.68–2:14.92) into the chessboard | s10 `nose_shot` |
+| **Black** | A cut to black as punctuation | s07 after the BOOM in v1 (0.2 s; v2 fills it, see Part C); s11 the end (2:31.5) | s07 `Bk.fill_all(c, K.INK)`; s11 `K.fill(c, K.INK)` with the red dot (`_dot`) drawn over it |
+| **Title graphics** | Hand-cut letters and strips | DOUBLE CROSS s01 (0:08.0–0:11.0) and its reprise in s11 (2:29.5–2:31.0); OPPOSITE's bars, letters and red slash | s01 `_strips`, `_words`; `bass.draw_title`, `bass.bars`, `bass.slash` |
 
 ### A.2 Camera moves and accents
 
 | Move | Use | Examples |
 |---|---|---|
-| **Glide** | Follow the action continuously | s03 follows her chalk (0:24–0:40); s07 after the red knight (1:33.3–1:35.5) |
-| **Push-in** | Lean into the beat; eased | s05 down the corridor to the dial (1:04.8–1:05.75); s06 onto the gold (1:17.2–1:20.0); OPPOSITE full s01 into her room, ending at zoom 3.2 on the section (0:10.5–0:12.0, `rooms.S01_END`) |
+| **Glide** | Follow the action continuously | s03 follows her chalk (0:28–0:44); s05 along the guard's beam to the crew in the doorway, and back to the doorway after the cat (v4, 0:57.9–0:59.4, 1:10.6–1:11.5); s07 after the red knight (1:41.3–1:43.5) |
+| **Push-in** | Lean into the beat; eased | s05 down the corridor to the dial (1:11.5–1:13.0); s06 onto the gold (1:25.2–1:28.0); OPPOSITE full s01 into her room, ending at zoom 3.2 on the section (0:10.5–0:12.0, `rooms.S01_END`) |
 | **Jump in on the beat** | A cut closer, timed to the music | OPPOSITE full s03, the quarrel (`JUMPS`, from 0:27.5); OPPOSITE full s05 onto him (0:53.5) and into her window (1:01.5); OPPOSITE full s09 onto her eye (1:55.5) |
-| **Pull-back** | Reveal the whole situation | s09 off the red X to both plans (v3, 1:58.58–1:58.8); s10 from his face back to the board, where manhole B opens (v1–v2, from 2:11.2; v3 cuts to the back street first and returns to the board at 2:13.5); OPPOSITE full s10 to the whole block (2:12.5–2:15.5) |
-| **Whip** | Follow a look or jump between marks | s08 down after her glance (1:41.1–1:41.35, `whip_shot`); s09 between Plan B's marks; OPPOSITE (`films/opposite`) s02, back to her as the mug falls |
+| **Pull-back** | Reveal the whole situation | s10 from his face back to the board, where manhole B opens (from 2:19.2); OPPOSITE full s10 to the whole block (2:12.5–2:15.5) |
+| **Whip** | Follow a look or jump between marks | s05 left to the guard on the clank, following the sound (v4, 1:06.62–1:06.9, smeared by `motion_blur`); s08 down after her glance (1:49.1–1:49.35, `whip_shot`); s09 between Plan B's marks; OPPOSITE (`films/opposite`) s02, back to her as the mug falls |
 | **Dive** | Fall into an eye or reflection (Vertigo) | OPPOSITE full s03 into her eye's reflection (0:35.5); OPPOSITE full s08 into his pupil at the keyhole (1:38.45) |
-| **Roll (Dutch)** | Panic, once per film | OPPOSITE full s04 to -7° (from 0:44.6); DOUBLE CROSS s10 (2:10.0–2:10.42) |
-| **Shake** | An impact | s08 with each blow on the door (1:38.85, 1:39.3, 1:39.75) |
+| **Roll (Dutch)** | Panic, once per film | OPPOSITE full s04 to -7° (from 0:44.6); DOUBLE CROSS s10 (2:18.0–2:18.42) |
+| **Shake** | An impact | s08 with each blow on the door (1:46.85, 1:47.3, 1:47.75) |
 
 ### A.3 Joins between shots inside a scene
 
@@ -54,15 +56,14 @@ on the beat, and the transitions happen inside the scenes.
 
 | Join | Example |
 |---|---|
-| **The world folds into the plan** | v3 s01: the night street folds flat, back to front (s04's pop-up run backwards), as the camera tilts up, and the bank's chalk outline lies down onto the blueprint that was under the street all along (0:02.5–0:03.95). |
-| **Match on a point** | The title X lands on the vault (0:11.0) and becomes the plan's chalk X; s07's red dial shrinks to a lens on the plan's chalk dial in the same place (1:33.0–1:33.32). |
-| **Camera carried across the cut** | s03 ends tilting at 15°/s; s04 starts from `P.HANDOFF_34` at the same rate (0:40.0). |
-| **The last frame held** | s09 opens on s08's last frame, held (`FREEZES[0]`: s08 at 12.0, drawn by s08's own `render_plain`, 1:48.0–1:48.15), then runs it backwards. |
-| **Split along a shape** | s11 splits s10's last frame along its X and the four triangles fly off (2:16.0–2:16.62, s11 `_split`). |
-| **Panels fly off** | The X-split's panels fly away and the bottom one becomes the frame (1:30.0–1:30.26, s07 `x_out`). |
+| **Match on a point** | The title X lands on the vault (0:11.0) and becomes the plan's chalk X; s07's red dial shrinks to a lens on the plan's chalk dial in the same place (1:41.0–1:41.32). |
+| **Camera carried across the cut** | s03 ends tilting at 15°/s; s04 starts from `P.HANDOFF_34` at the same rate (0:44.0). In v4 s02's tilt ends exactly on s03's first camera (`S3.cam_at(0.0)`, 0:28.0). |
+| **The last frame held** | s09 opens on s08's last frame, held (`FREEZES[0]`: s08 at 12.0, drawn by s08's own `render_plain`, 1:56.0–1:56.15), then runs it backwards. |
+| **Split along a shape** | s11 splits s10's last frame along its X and the four triangles fly off (2:24.0–2:24.62, s11 `_split`). |
+| **Panels fly off** | The X-split's panels fly away and the bottom one becomes the frame (1:38.0–1:38.26, s07 `x_out`). |
 | **The window becomes the frame** | OPPOSITE full s03: along her look into his window until it is the room (0:26.0–0:27.5). |
 | **Iris out of a shape** | THE LANTERN: the title's flame opens into the forest (0:06.0). |
-| **Out of a light** | s10's headlight whites out into the chessboard (2:06.92). |
+| **Out of a light** | s10's headlight whites out into the chessboard (2:14.92). |
 
 ### A.4 Composited scene transitions (`engine/transitions.py`)
 
@@ -101,17 +102,17 @@ spends RED on one person.
 
 | Reference item | Verdict | What we do instead, and why |
 |---|---|---|
-| **Silhouette over a bold background** | **ADOPT** (already ours) | It is the profile cameo (Part A): s02's three faces each alone on one flat colour. New in v2: at the slam, five frames of the Knight black on a red sunburst, held in the lunge that shut them in (1:32.08). |
+| **Silhouette over a bold background** | **ADOPT** (already ours) | It is the profile cameo (Part A): s02's three faces each alone on one flat colour. New in v2: at the slam, five frames of the Knight black on a red sunburst, held in the lunge that shut them in (1:40.08). |
 | **Extreme close-up with speed lines and shake, 4–6 frames** | **ADAPT** | Five-frame punch-ins on four hits. No manga speed lines: cut-paper wedges rush in from the frame's edges (Bass's radiating strips). The scene is re-rendered as vectors at the zoom rather than enlarged as pixels, so its lines thicken as it comes in. It shakes hard on the hit and settles. |
 | **Manga cut-out over a new background** | **SKIP** | Our figures are already cut-outs, and lifting one onto a pasted-in background is a comic-book idiom, not Bass. The one place we want a figure on a new ground, the slam, is the sunburst insert above. |
 | **Flash frame, 2–6 frames of flat colour with a sound word** | **ADAPT** | Two frames of one flat palette colour (gold, red, black) on the hit, with the film's paper and grain. No sound words: there is no lettering in a wordless film. |
 | **Storm panel** | **SKIP** | There is no storm in this story, and nothing in the palette for one. Its job (chaos in one image) is done by the X-split and the rewind. |
 | **Glitch, 1–4 frames** | **ADAPT** | Only inside the s09 rewind, where the film is literally being scrubbed: strips of the frame slip sideways like a bad splice, two frames at each join, heavier the further back it goes. No colour split: the palette holds. Nowhere else in the film. |
-| **Cuts one frame before the beat** | **SKIP** | Picture and sound run on one clock. Scenes start on bar lines of the 120 bpm score (`K.BPM`), the big hits are placed on the grid (the BOOM on the bar line at 1:32.0, checkmate at 2:10.0), and the mix places every sound at the scene's own time constants. The inserts start on the frame of the hit they belong to, so cutting a frame early would only pull the picture off its own sound. |
-| **Rings blooming onto the title** | **SKIP** | Our title is built from the plan (chalk dots, ruled lines, two crossing strips) and returns the same way at the end. Rings already bloom where they mean something: the match's light (1:37.4), the alarm's red ripples (from 1:34.5). |
-| **Red dots flooding the screen** | **SKIP** | RED belongs to the Knight and what he does, and the bible keeps it "small and burning". Our one red dot is the ruby landing at the crossing of the X (2:23.0). |
+| **Cuts one frame before the beat** | **SKIP** | Picture and sound run on one clock. Scenes start on bar lines of the 120 bpm score (`K.BPM`), the big hits are placed on the grid (the BOOM on the bar line at 1:40.0, checkmate at 2:18.0), and the mix places every sound at the scene's own time constants. The inserts start on the frame of the hit they belong to, so cutting a frame early would only pull the picture off its own sound. |
+| **Rings blooming onto the title** | **SKIP** | Our title is built from the plan (chalk dots, ruled lines, two crossing strips) and returns the same way at the end. Rings already bloom where they mean something: the match's light (1:45.4), the alarm's red ripples (from 1:42.5). |
+| **Red dots flooding the screen** | **SKIP** | RED belongs to the Knight and what he does, and the bible keeps it "small and burning". Our one red dot is the ruby landing at the crossing of the X (2:31.0). |
 | **The storm shrinking into the sun** | **SKIP** | Goes with the storm panel. |
-| **Dissolving to blank paper dot by dot** | **SKIP** | We keep our ending: black, with the ruby's red dot a breath longer (2:23.5–2:23.9). |
+| **Dissolving to blank paper dot by dot** | **SKIP** | We keep our ending: black, with the ruby's red dot a breath longer (2:31.5–2:31.9). |
 
 ---
 
@@ -233,7 +234,8 @@ the only `Insert`:
 
 ### C.6 Where they are
 
-Exact frames, as `frame_k` resolves them (film frame times; each frame lasts 1/24 s):
+Exact frames, as `frame_k` resolves them (v2's film times; each frame lasts 1/24 s). In v4 the
+s05 punch-in is at 1:09.49 (s05 13.49, `T_CLATTER - 0.01`), and every later row is 8 s later:
 
 | Film time | Scene, local | Shot | Detail | What is on screen |
 |---|---|---|---|---|

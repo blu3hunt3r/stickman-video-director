@@ -27,23 +27,24 @@ Both full films turn on a reversal you watch happen.
   street with his phone at her ear. Her look flies to him (2:02.0), his to her (2:02.4), and the two
   sight lines meet tip to tip (2:02.82).
 - **DOUBLE CROSS.** He crosses the crew; she had crossed him first. The proof is a frame we already
-  saw. The rewind (1:48.15–1:50.75) runs the film backwards, catches at his slam, plays it forward
-  (1:50.75–1:51.5) and freezes; a lens snaps round her chalk dot on the sewer line under the vault
-  (1:51.5–1:52.2). The twist is not explained, it is replayed.
+  saw. The rewind (1:56.15–1:58.75) runs the film backwards, catches at his slam, plays it forward
+  (1:58.75–1:59.5) and freezes; a lens snaps round her chalk dot on the sewer line under the vault
+  (1:59.5–2:00.2). The twist is not explained, it is replayed.
 
 ### Plants and payoffs, played fair
 
 A twist only satisfies if the audience could have seen it coming. Every payoff in DOUBLE CROSS is
-planted on screen earlier, usually hidden by something louder:
+planted on screen earlier, usually hidden by something louder (DOUBLE CROSS times here and below
+are v4's, 2:32):
 
 - The sewer branch is ruled running under the vault in the title (0:06.5). It pays off as the hollow
-  knock (1:42.25) and the trapdoor (1:58.9).
-- Her dot is laid at 0:34.75, in the same instant the Knight slams his piece down. Everyone is
+  knock (1:50.25) and the trapdoor (2:06.9).
+- Her dot is laid at 0:38.75, in the same instant the Knight slams his piece down. Everyone is
   looking at him, and in the mix her chalk tap is buried under the thud. The rewind shows it.
 - His slam in s02 (0:19.0) makes the other pieces jump. At the end her queen knocks his knight over
-  quietly (2:19.85): the same gesture, reversed in force.
+  quietly (2:27.85): the same gesture, reversed in force.
 - The white title strip lands first and the red crosses over it (0:08.0, 0:08.5). At the end the X
-  returns with the white over the red (2:21.5–2:22.0): she crossed him last.
+  returns with the white over the red (2:29.5–2:30.0): she crossed him last.
 
 We write the plants into the bible as a table before we draw anything (`films/double_cross/docs/BIBLE.md`,
 "Plants and payoffs").
@@ -70,7 +71,8 @@ swapped.
 
 ### Size and shape
 
-The two full films are 2:24 (144 s) in 11 scenes of 8–20 s, cut to a 120 bpm grid. That gives us
+OPPOSITE full is 2:24 (144 s) and DOUBLE CROSS 2:32 (152 s; 2:24 until v4), each in 11 scenes of
+8–20 s, cut to a 120 bpm grid. That gives us
 about one story beat every bar or two, which suits a phone screen: big, readable, quick.
 
 ---
@@ -115,7 +117,7 @@ A film gets a handful of named colours, and each colour has one job.
 
 When a colour means a person, it means that person everywhere: in DOUBLE CROSS his look, his route,
 his piece, the alarm, the arrest ring and the ruby's glow are all RED. That is why the ruby's red
-light leaking through her fingers (2:18.45) reads as a victory: she has taken the colour from him.
+light leaking through her fingers (2:26.45) reads as a victory: she has taken the colour from him.
 
 ### Grain and paper
 
@@ -142,13 +144,16 @@ Two shots share a point, a shape or a motion, and the cut lands on it.
 
 - **s01 → s02 (0:12.0).** The title's X shrinks onto the vault and lands as the plan's chalk X
   (0:11.0) while the camera tilts down to the table; s02 opens on that table.
-- **s03 → s04 (0:40.0).** The camera is still moving at the cut: s03 ends with its elevation falling
+- **s02 → s03 (0:28.0, v4).** The camera tilts down over the table from its side onto the plan
+  (0:26.0–0:28.0) and lands exactly on s03's first camera, so the people and their plan are one
+  place.
+- **s03 → s04 (0:44.0).** The camera is still moving at the cut: s03 ends with its elevation falling
   at 15° a second, and s04 starts from the same camera (`P.HANDOFF_34`) at the same rate.
-- **The dial (1:33.0).** s07's red close-up of the dial shrinks into a lens and closes onto the
+- **The dial (1:41.0).** s07's red close-up of the dial shrinks into a lens and closes onto the
   plan's chalk dial in the same place, and the camera glides off after the red knight.
-- **s08 → s09 (1:48.0).** s08 ends with her tracing sheet held up to the match; s09 holds that exact
+- **s08 → s09 (1:56.0).** s08 ends with her tracing sheet held up to the match; s09 holds that exact
   frame (s08 drawn at its last moment, 12.0, from s09's `FREEZES` table) before the rewind starts.
-- **s10 → s11 (2:16.0).** The two routes straighten into an X (2:14.0–2:15.2); s11 splits s10's last
+- **s10 → s11 (2:24.0).** The two routes straighten into an X (2:22.0–2:23.2); s11 splits s10's last
   frame along that X and the pieces fly apart onto her fist.
 - **THE LANTERN (0:06.0).** The title's flame is the iris the forest opens through.
 - **OPPOSITE full s01 → s02 (0:12.0).** The push-in on her room ends where s02's first frame begins,
@@ -158,35 +163,35 @@ Two shots share a point, a shape or a motion, and the cut lands on it.
 
 A look is drawn: dots fly from the eye to what it sees, led by an arrowhead, then march while the
 look lasts (`K.sight_line`). Her looks are PAPER, his are RED. In DOUBLE CROSS s02 his red look goes
-down to the X (0:21.6) and her white look goes across to him (0:22.5); nothing else is needed for
-the audience to know she has seen him. A **lens on a leader line** (`K.callout`) joins a detail to
-its place: in s02 each face is joined to its piece on the plan; in s08 (1:43.25) a lens joins the
-glowing dot under her heel to the dot on the plan. In v3 s03 the lenses also open on the steps
-themselves: manhole A's lid in the road at ① (0:25.05) and the guard with his light at ③ (0:29.55).
-A hand must read as its owner at a glance: her chalk hand carries a bold white edge, three times
-the others' rim, so the plan is visibly hers.
+down to the X (0:23.5) and her white look goes across to him (0:24.5); nothing else is needed for
+the audience to know she has seen him. Before the looks, the same shot shows what they are doing
+there: she leans in over the plan and taps it twice beside the pieces, on the beat (0:22.0,
+0:22.5), and the Cracker nods (v4). A **lens on a leader line** (`K.callout`) joins a detail to its
+place: in s02 each face is joined to its piece on the plan; in s08 (1:51.25) a lens joins the
+glowing dot under her heel to the dot on the plan.
 
 ### Numbered callouts
 
 The plan's steps are circled numerals ① to ⑤, chalked as she explains the route in s03. When the
 crew carries out a step in the world, the same numeral is circled on the world: step ③ in s05
-(1:01.65), step ④ in s06 (1:15.0), the step marks on the section in s04. Plan B's steps are solid
+(1:05.75), step ④ in s06 (1:23.0), the step marks on the section in s04. Plan B's steps are solid
 discs where Plan A's are rings, so the two plans never get confused.
 
 ### Chalk as the thread
 
 The chalk route stays on screen when the plan becomes the world: in s04 the dotted route is a ghost
 layer on the street and its dots brighten as the crew reaches them. The heist stopwatch (top right
-from 0:46.0) ties s04–s07 into one continuous clock, stops dead when he crosses them (1:33.5) and
+from 0:50.0) ties s04–s07 into one continuous clock, stops dead when he crosses them (1:41.5) and
 spins back in the rewind.
 
 ### The plan as a map
 
 The single most useful idea in DOUBLE CROSS: the plan is the world seen from above, and the world is
-the plan seen from the side. So the film can tilt between them instead of cutting: down into the
-street (s03 → s04), up into the stealth map (0:56.0) and back down (1:00.5), up into the plan for his
-L (1:33.0). Later the same top view becomes Plan B's overlay (1:54.6) and the city as a chessboard
-(2:06.92), where the police cars move like rooks.
+the plan seen from the side. So the film can tilt between them instead of cutting: from the table
+down onto the plan (s02 → s03, v4), down into the street (s03 → s04), up into the stealth map
+(1:00.0) and back down (1:04.5), up into the plan for his L (1:41.0). Later the same top view becomes
+Plan B's overlay (2:02.6) and the city as a chessboard (2:14.92), where the police cars move like
+rooks.
 
 ---
 
@@ -196,18 +201,22 @@ L (1:33.0). Later the same top view becomes Plan B's overlay (1:54.6) and the ci
   elevation and the section of two buildings. THE LANTERN and OPPOSITE v1–v3 have one continuous
   camera.
 - **Each angle is chosen for a reason.** Profile close-ups for faces (the three cameos in s02; her
-  calm eye in s08 at 1:39.9). Extreme close-ups for mechanisms (the dial and the lock cutaway in s06,
-  1:09.0–1:16.0). Sections to show what is under the ground (s04's street opening into the sewer at
-  0:45.75; s09's floor cut away at 2:00.66). Elevation for a corridor (s05). Top-down for strategy
+  calm eye in s08 at 1:47.9). Extreme close-ups for mechanisms (the dial and the lock cutaway in s06,
+  1:17.0–1:24.0). Sections to show what is under the ground (s04's street opening into the sewer at
+  0:49.75; s09's floor cut away at 2:08.66). Elevation for a corridor (s05), framed close enough that
+  its people read at phone size, with the camera moving to follow the action (v4). Top-down for strategy
   (s05's stealth map, s10's chessboard).
 - **Moves are eased, never linear.** Push-ins either snap on the beat or glide. The trilogy rule
   (`STYLE.md` rule 7) still holds: slow, continuous, eased starts and stops.
 - **The Dutch tilt is for panic only, once.** OPPOSITE full rolls to -7° as she reels (s04, from
-  0:44.6). DOUBLE CROSS rolls once, when the red ring snaps round the Knight (2:10.0–2:10.42).
+  0:44.6). DOUBLE CROSS rolls once, when the red ring snaps round the Knight (2:18.0–2:18.42).
 - **Shake is earned by an impact.** In s08 the camera shakes with each blow of the Cracker's fists
-  (1:38.85, 1:39.3, 1:39.75) and dust falls from the door.
-- **Whips follow a look.** In s08 the camera whips down after her glance to the floor
-  (1:41.1–1:41.35); in s09 it whips from one Plan B chalk mark to the next.
+  (1:46.85, 1:47.3, 1:47.75) and dust falls from the door.
+- **Whips follow a look or a sound.** In s08 the camera whips down after her glance to the floor
+  (1:49.1–1:49.35); in s09 it whips from one Plan B chalk mark to the next; in v4's s05 it whips to
+  the guard on the stethoscope's clank (1:06.62–1:06.9), so we see him hear it. Only the fastest
+  camera moves are smeared over the frame (the whips, and s05's pans in v4); a figure's own motion
+  is never blurred.
 
 ---
 
@@ -217,40 +226,46 @@ L (1:33.0). Later the same top view becomes Plan B's overlay (1:54.6) and the ci
   on a bar line. Snaps land on beats; hard cuts land on beats.
 - **Stagger.** Repeated actions take one beat each so the eye can count them: the bank's parts rule
   in one per beat (0:04.0–0:07.0); the pieces hop along the route; the four police cars slide in on
-  2:08.0, 2:08.5, 2:09.0, 2:09.5. When we want urgency we halve it: Plan B's cars arrive on half
-  beats (1:57.15–1:57.75). v3's review found the opposite fault too: a mark that arrives with no
-  time to land. So Plan B's red X now gets its own hold (1:58.12–1:58.58), and a pull back to both
-  plans, before the cut.
+  2:16.0, 2:16.5, 2:17.0, 2:17.5. When we want urgency we halve it: Plan B's cars arrive on half
+  beats (2:05.15–2:05.75).
 - **Anticipation and settle.** Snaps use `outback`; the stopwatch's hand snaps to each tick with a
   short settle (`K.heist_beats`).
-- **Holds and black.** The strongest beats get air. In v1 the vault door's BOOM (1:32.0) cut to black
-  for 0.2 s while the bolts shot home in the dark. In v2 we spend those frames differently: two flat
-  red frames, then five of the Knight cut out against a red sunburst (1:32.00–1:32.29), so the stop
+- **Holds and black.** The strongest beats get air. In v1 the vault door's BOOM cut to black for
+  0.2 s while the bolts shot home in the dark. In v2 we spend those frames differently: two flat
+  red frames, then five of the Knight cut out against a red sunburst (1:40.00–1:40.29), so the stop
   also says who did it. s08 opens on black and breath for almost a second before the first spark
-  (1:36.85). The film ends on black with the red dot alive a breath longer
-  (2:23.5–2:23.9).
+  (1:44.85). The film ends on black with the red dot alive a breath longer
+  (2:31.5–2:31.9).
 - **Density.** Big, readable ideas rather than a constant stream (the restart pitch asked for about
   10–12 big readable shots in a short film): each beat must read in one glance at phone size.
+- **Time before content.** When a beat does not read, first give it time; do not add to it.
+  - DOUBLE CROSS v3 answered "ease up the first 20 seconds" by adding shots (a bank opening, a gold
+    lens, step lenses) to the same seconds, and the user found it too fast.
+  - v4 added two bars to s02 instead and gave each part of the briefing its own beat: the lean, the
+    two taps, the nod, each look a bar. It ends on the film's own tilt.
+  - The guard got the same treatment: two more bars, and a near miss (from the Cracker's step to
+    the guard's sigh) spread over nine beats where it had five.
+  - Bars are cheap. The grid absorbs them, because every later scene simply starts later.
 
 ---
 
 ## 6. Sound
 
 - **The score tells the story's structure.** DOUBLE CROSS's theme is heard plainly while the plan is
-  made (s02–s03); at the betrayal it returns in exact mirror inversion, low and minor (from 1:24), and
-  its close lands with the vault door's BOOM on the bar line (1:32.0); after the rewind it returns
+  made (s02–s03); at the betrayal it returns in exact mirror inversion, low and minor (from 1:32), and
+  its close lands with the vault door's BOOM on the bar line (1:40.0); after the rewind it returns
   inverted again, upright, in D major. You can hear the double cross even with your eyes closed.
-- **Diegetic sound becomes music.** The stopwatch is a woodblock on every beat (0:46.0–1:33.5). The
+- **Diegetic sound becomes music.** The stopwatch is a woodblock on every beat (0:50.0–1:41.5). The
   lock's gates click on D, F and A, the notes of the key chord. The police stabs rise a semitone per
   car, and the sirens are tuned D to A.
 - **Silence is punctuation.** In s05 the score drops away to the tick and the building's hum while
   the crew hides; after the stethoscope's clank it "holds its breath" on one low note. In s02 the band
-  stops on a held low D at 0:22.0, the moment she knows. Once the picture is black (2:23.5) the sound
+  stops on a held low D at 0:24.5, the moment she knows. Once the picture is black (2:31.5) the sound
   is digital silence.
 - **Every visible event has a sound.** Scenes write their own cues in plain words (`Cue(t, "a fist on
   the vault door: a huge muffled steel BOOM", ...)`), and the mix answers every one, either by design
   or by spotting it from its words.
-- **Sound can hide a plant.** The chalk tap that leaves her dot (0:34.75) is mixed under the Knight's
+- **Sound can hide a plant.** The chalk tap that leaves her dot (0:38.75) is mixed under the Knight's
   thud, exactly as the picture hides it under his slam.
 - **The film's own sound is material.** The rewind plays the film's mix backwards, so what you hear
   rewinding is what you heard happening.
@@ -260,15 +275,17 @@ L (1:33.0). Later the same top view becomes Plan B's overlay (1:54.6) and the ci
   only after telling the user. DOUBLE CROSS v1 and v2 used none: everything was synthesised or
   reused from OPPOSITE's recordings. v3's voices cost 114 credits, inside the 200–250 the user
   approved for them.
-- **Voices without words.** A wordless film can still have people in the room. DOUBLE CROSS v3's
-  briefing is murmured by the three voices (s02 0:21.05; s03 0:24.1–0:34.7):
+- **Voices without words.** A wordless film can still have people in the room. From v3 DOUBLE
+  CROSS's briefing is murmured by the three voices: in s02 as she leans in and taps the plan
+  (0:21.25–0:23.3, with the Cracker's hum at 0:22.75), and in s03 over the plan (0:28.1–0:38.7):
   - each line is cut at the dips in its level and its inner syllables are shuffled, so it keeps
     its speaker, pace and cadence but says nothing;
-  - it is low-passed and set about 13–16 dB under the score;
+  - it is low-passed and set under the score; under the briefing (v4) the band drops to a murmur
+    of its own, so her voice carries;
   - who speaks follows the picture, and his slam cuts it off.
   
   Effort and feeling can be real voice: the Knight's strained grunts at the bags and the vault
-  door (1:26.4, 1:30.12), and her breath of a laugh as the corner of her mouth lifts (1:40.59).
+  door (1:34.4, 1:38.12), and her breath of a laugh as the corner of her mouth lifts (1:48.59).
 
 ---
 
@@ -316,7 +333,20 @@ needs more air. The limits are what keep that freedom from turning into noise.
     joined-up sound;
   - "fix it, and do you think voice should be used?" after a whole-film review: DOUBLE CROSS v3's
     six picture fixes (the bank folding into the blueprint, the gold under the X, a briefing you
-    can see, the step lenses, one beat per Plan B mark, her escape full frame) and its voices.
+    can see, the step lenses, one beat per Plan B mark, her escape full frame) and its voices;
+  - "too fast … skips the guard part … downgraded rather than upgraded … drifting away from our
+    system": DOUBLE CROSS v4. It went back to v2's picture, gave the briefing and the guard two
+    bars each, reframed the guard to read at phone size, kept the voices, and made every change
+    with the film's own devices.
+- **An upgrade starts from the version the user liked.** v3 was built on v2 but replaced its
+  opening, its plan and its ending with new ideas; v4 went back to v2's code and changed only what
+  the notes named. Compare against that version too: v4's glitch scan is aligned to v2's preview,
+  and nothing outside the two changed scenes differs.
+- **Do the whole fix that was asked.** When the user says "fix it" after a review, every fix in
+  that review is in scope. v3 left the guard's reframing out as if it had been agreed; it had not.
+- **A new idea must come from the film's own grammar.** The tilt, the plan as a map, the lens, the
+  punch-in. v3's bank at night and its back street were good shots from a different film, and the
+  user felt it drift.
 - **Watch for shapes that read as something else.** In v3 a manhole lid drawn with two pick holes
   and steam read as a face. Cast lettering (SEWER) and a lighter iron made it a lid.
 - **Fix causes, then neighbours.** A fix to a scene another scene imports (s06's dial, s02 and s03, s08's

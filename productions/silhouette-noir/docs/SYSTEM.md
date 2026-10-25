@@ -89,7 +89,7 @@ and only the mocap clips a film uses (force-added). Ignored: `out/`, `qa/`, `__p
 | `opposite` | 0:34.5 (828) | 2 | cut | `opposite_test`, `opposite_v2`, `opposite_v3` previews |
 | `opposite_bass` | 0:36 (864) | 1 | none | `opposite_bass_cut_preview.mp4` |
 | `opposite_full` | 2:24 (3,456) | 11 | hard cuts | `opposite_full_preview.mp4` |
-| `double_cross` | 2:24 (3,456) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2) |
+| `double_cross` | 2:32 (3,648; 2:24 until v4) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2), `double_cross_v3_preview.mp4` (v3), `double_cross_v4_preview.mp4` (v4) |
 
 The `--film` choices come from `PALETTES` in `engine/palette.py`. (`engine/timing.py` also has a
 `FILMS` tuple of five names; no tool reads it.)
@@ -348,10 +348,12 @@ as a table. Treat a locked timeline as read-only; agents never edit it.
 - **Scenes start on bar lines** (every DOUBLE CROSS and OPPOSITE full scene starts on an even
   second). The DOUBLE CROSS mix warns about any scene that does not.
 - **Picture beats sit on the grid or on deliberate offsets**: DOUBLE CROSS s07's door BOOM is at
-  scene 12.0 (film 92.0, a bar line); s10's police cars arrive on 4.0, 4.5, 5.0 and 5.5; s09's Plan
+  scene 12.0 (film 100.0 in v4, a bar line); s10's police cars arrive on 4.0, 4.5, 5.0 and 5.5; s09's Plan
   B police cars arrive on half beats, 9.15–9.75.
-- **Film-wide beats** live in the kit: `K.HEIST_T0 = 46.0` (the stopwatch starts) and
-  `K.HEIST_STOP = 93.5` (it stops dead). `K.heist_beats(ft)` turns film time into ticks, one per
+- **Film-wide beats** live in the kit, derived from the timeline since v4: `K.film_start(sid)` reads
+  a scene's start, `K.HEIST_T0 = K.film_start("s04") + 6.0` (the stopwatch starts; 50.0) and
+  `K.HEIST_STOP = K.film_start("s07") + 13.5` (it stops dead; 101.5). s06 and s07 take their
+  `FILM_T0` from `K.film_start` too, so lengthening a scene in `build_timeline.py` moves them all. `K.heist_beats(ft)` turns film time into ticks, one per
   beat, each a quick snap with an `outback` settle.
 - **Film time = scene start + scene time.** Scene modules work in scene seconds; the mix converts.
 
@@ -426,7 +428,7 @@ With hard cuts only (OPPOSITE full, DOUBLE CROSS) there is exactly one segment p
 ### 7.3 Wordless films (OPPOSITE onward)
 
 Each has one `audio/mix.py` that reads the scene modules and is the score, the foley and the mix at
-once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 5,862 (v3).
+once: LANTERN 169 lines, OPPOSITE 330, the Bass cut 298, OPPOSITE full 2,772, DOUBLE CROSS 5,868 (v4).
 Every wordless mix targets **-16 LUFS**. The true-peak limiter's ceiling is -1.0 dBTP in LANTERN,
 OPPOSITE and the Bass cut, -1.2 in OPPOSITE full and -1.3 in DOUBLE CROSS.
 
@@ -443,8 +445,8 @@ python3 films/double_cross/audio/mix.py --without s06    # treat s06 as missing 
 python3 films/double_cross/audio/mix.py --skip-missing   # leave missing scenes silent instead
 ```
 
-**Output.** 48 kHz stereo, 24-bit PCM, exactly the timeline's 144 s, digital silence from s11's
-`T_BLACK` (film 143.5) to the end.
+**Output.** 48 kHz stereo, 24-bit PCM, exactly the timeline's length (152 s in v4), digital silence
+from s11's `T_BLACK` (film 151.5) to the end.
 
 **How a scene is played.** One `section(sid)` function per scene (`s01` … `s11`) places sounds
 against that scene's beats.
@@ -502,7 +504,7 @@ loudness is within 0.05 LU of the target.
 beat): walking pizzicato bass, brushes, vibraphone, Harmon-muted trumpets, a cup-muted trombone and
 a low felt piano. THE THEME is four bars on the vibraphone; at the betrayal it returns as its exact
 mirror inversion about D4 (Phrygian, low); in s09 the inversion is inverted again, upright, in D
-major. A dry woodblock ticks every beat from 46.0 to 93.5 (`clock`). The bar-by-bar plan is the
+major. A dry woodblock ticks every beat from `HEIST_T0` to `HEIST_STOP` (50.0 to 101.5 in v4; `clock`). The bar-by-bar plan is the
 module docstring.
 
 **The QA report** (`--qa DIR`) prints:
@@ -530,6 +532,10 @@ It writes `DIR/qa.json` and `DIR/overview.png`.
 **v3 numbers:** -16.01 LUFS, true peak -1.30 dBTP, 0 clipped samples; 449 cues, 421 realised by the
 sections, 28 auto-spotted (all in s07: the two grunts are now claimed), 0 missed; worst cue-to-event
 offset 25 ms, and no measured onset more than a frame out.
+
+**v4 numbers** (152 s): -16.01 LUFS, true peak -1.30 dBTP, 0 clipped samples; 429 cues, 401
+realised by the sections, 28 auto-spotted (all in s07), 0 missed; worst cue-to-event offset 25 ms,
+worst measured onset 20.1 ms; 103 clock ticks, all within 0.5 ms of the beat.
 
 ---
 
@@ -580,7 +586,8 @@ ffmpeg -v error -y -i films/F/out/F_master.mp4 -i films/F/out/audio_master.wav -
 
 Measured on the delivered DOUBLE CROSS preview: 1080×1920, 24 fps, 3,456 frames, 144.000 s, H.264
 High at about 7.51 Mb/s, AAC-LC 48 kHz at about 199 kb/s, 7.71 Mb/s overall, 133 MiB (139 MB). After
-the AAC encode it measured -16.1 LUFS with a peak of -0.6 dBFS.
+the AAC encode it measured -16.1 LUFS with a peak of -0.6 dBFS. The v4 preview: 3,648 frames,
+152.000 s, 7.71 Mb/s overall, 146.6 MB, -16.1 LUFS with a true peak of -1.1 dBFS after AAC.
 
 **The trilogy's delivery script** is `tools/deliver.py --film {salvage,shadowplay,red}
 video|audio|captions|mux|poster|qa|all`. `captions` writes `final/<film>.en.srt` (and an ASS file
@@ -605,6 +612,7 @@ scenes or the sound.
 | OPPOSITE full | 3 scene agents + 1 audio agent | |
 | DOUBLE CROSS | at most 2 at a time (the user's limit) | One animator for s04–s07 and one audio agent; the director made s01–s03 and s08–s11. |
 | DOUBLE CROSS v2 (the shot types) | at most 2 in total | The director builds `shots.py` and wires it; a documentation fork writes these docs. |
+| DOUBLE CROSS v4 | none | The director alone: v2's picture restored, s02 and s05 rebuilt, the mix re-timed, the docs. |
 
 Rules that came out of it (most are in `ANIMATOR_BRIEF.md`):
 

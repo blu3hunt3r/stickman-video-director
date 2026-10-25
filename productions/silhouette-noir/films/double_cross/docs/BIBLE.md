@@ -1,6 +1,6 @@
 # DOUBLE CROSS
 
-A 2:24 vertical (1080×1920, 24 fps) heist thriller in the trilogy's cut-paper Saul Bass language.
+A 2:32 vertical (1080×1920, 24 fps; 2:24 in v1–v3) heist thriller in the trilogy's cut-paper Saul Bass language.
 Wordless, scored. The film is told through its own blueprint: the plan is drawn in chalk, the plan
 rises off the paper into the night, and the story is what happens when someone leaves the line.
 
@@ -106,7 +106,8 @@ the plan:
   (`P.draw_walls_3d`).
 
 The film tilts down into the world (s04), up into the plan (s05's stealth map, s07's L), and
-back again. Cuts between plan and world match on a point: a manhole, the vault door, the X.
+back again. From v4 the briefing ends on the same move, from the table's side down onto the plan
+(s02 into s03). Cuts between plan and world match on a point: a manhole, the vault door, the X.
 
 Other angles, each used deliberately:
 - Profile close-ups (the three faces in s02, her calm in s08).
@@ -124,7 +125,10 @@ Rules for camera moves:
 
 ### Motion
 
-- Cut paper moves crisply. No motion blur (`motion_blur` returns 1).
+- Cut paper moves crisply, and a figure's own motion is never blurred. Only the fastest camera
+  moves are smeared over the frame: the whips (s08's `whip_shot`, s09's whips, box-averaged in the scene)
+  and, from v4, s05's pans and whip (its `motion_blur` averages 6 sub-frames on the pans and 10
+  on the whip). Every other scene's `motion_blur` returns 1.
 - Figures move on twos (`K.twos(t)`); graphics, routes and the camera move on ones.
 - Snaps land on the beat (120 bpm, beat = 0.5 s). Anticipation and settle use `outback`.
 
@@ -211,22 +215,24 @@ Routes (`P.ROUTE_IN`, `P.ROUTE_OUT`, `P.ROUTE_KNIGHT`, `P.ROUTE_B`):
 ## The timeline
 
 All scenes run back to back with hard cuts on the beat. Film time = scene start + scene time.
+These are v4's starts (2:32, 3,648 frames): s02 and s05 each gained two bars, so from s03 every
+scene starts 4 s later than in v1–v3, and from s06 8 s later.
 Each scene module defines its beats as module-level constants and exports `cues(T)`
 (`engine.timing.Cue`) for the sound.
 
 | id | slug | film start | length | who | what happens |
 |---|---|---|---|---|---|
 | s01 | title | 0.0 | 12.0 | me | ticks; the blueprint unrolls; the bank rules itself in chalk; the title strips cross into an X; the X lands on the vault |
-| s02 | crew | 12.0 | 12.0 | me | three hands set three pieces; three profiles; the table in elevation; his red look at the X, her white look at him |
-| s03 | plan | 24.0 | 16.0 | me | she chalks the route ①–⑤ and the pieces hop along it; the guard's cone and its timing; the car; the bell; the dot under the vault |
-| s04 | night | 40.0 | 12.0 | animator | the pop-up: the plan rises into the night street; the manhole; the descent; the sewer section; up through the hatch; the stopwatch starts |
-| s05 | guard | 52.0 | 14.0 | animator | the corridor: the guard's cone; hiding; the stealth map from above; the clank; the near miss; the cat |
-| s06 | safe | 66.0 | 14.0 | animator | the vault door; the stethoscope; the lock's gates line up; the bolts; the door swings onto gold |
-| s07 | cross | 80.0 | 16.0 | animator | the gold; her deposit box (a red glint); his look; the X-split; the door slams; the dial; his red L on the plan; the alarm |
-| s08 | locked | 96.0 | 12.0 | me | black; a match; the Cracker pounds; her smile; the hollow knock; the tracing paper |
-| s09 | plan_b | 108.0 | 16.0 | me | the rewind to the dot (callout) and her look; the overlay: trapdoor, her route, police at his car, the ruby; down through the floor |
-| s10 | checkmate | 124.0 | 12.0 | me | the Knight to the car; the city as a chessboard; four police cars close like rooks; the red ring; his face; pull back: her line walks away; the routes cross into an X |
-| s11 | end | 136.0 | 8.0 | me | the X splits open on her palm: the ruby; the queen takes the knight; the X lifts off the plan into the title; the red dot; black |
+| s02 | crew | 12.0 | 16.0 | me | three hands set three pieces; three profiles; the table in elevation: her briefing (she leans in and taps the plan, the Cracker nods); his red look at the X, her white look at him; the tilt down onto the plan |
+| s03 | plan | 28.0 | 16.0 | me | she chalks the route ①–⑤ and the pieces hop along it; the guard's cone and its timing; the car; the bell; the dot under the vault |
+| s04 | night | 44.0 | 12.0 | animator | the pop-up: the plan rises into the night street; the manhole; the descent; the sewer section; up through the hatch; the stopwatch starts |
+| s05 | guard | 56.0 | 18.0 | animator, rebuilt in v4 | the corridor framed close: the guard's light; the crew hiding; the stealth map from above; the clank; the near miss, one beat at a time; the cat; the push to the dial |
+| s06 | safe | 74.0 | 14.0 | animator | the vault door; the stethoscope; the lock's gates line up; the bolts; the door swings onto gold |
+| s07 | cross | 88.0 | 16.0 | animator | the gold; her deposit box (a red glint); his look; the X-split; the door slams; the dial; his red L on the plan; the alarm |
+| s08 | locked | 104.0 | 12.0 | me | black; a match; the Cracker pounds; her smile; the hollow knock; the tracing paper |
+| s09 | plan_b | 116.0 | 16.0 | me | the rewind to the dot (callout) and her look; the overlay: trapdoor, her route, police at his car, the ruby; down through the floor |
+| s10 | checkmate | 132.0 | 12.0 | me | the Knight to the car; the city as a chessboard; four police cars close like rooks; the red ring; his face; pull back: her line walks away; the routes cross into an X |
+| s11 | end | 144.0 | 8.0 | me | the X splits open on her palm: the ruby; the queen takes the knight; the X lifts off the plan into the title; the red dot; black |
 
 ## Scene by scene
 
@@ -254,150 +260,177 @@ Times are scene-local seconds. *Sound cues are in italics.*
   *thud*). The camera tilts from 90° to the table angle, and the lamp's gold pool fades up on
   the paper. The cut matches into s02.
 
-### s02 CREW (12–24)
+### s02 CREW (12–28)
 
-- **12.0–13.0:** The table view (`phi ≈ 55`): the plan under the lamp's pool.
-- **13.0:** Her gloved hand (`PAPER` rim) sets the white queen on manhole A. *Clack.*
-  - 13.5–15.5: Her profile close-up on gold: the chignon and pencil, her eye on the plan.
-- **15.5:** An old hand (`GOLD` rim) sets the gold bishop. *Clack.*
-  - 16.0–18.0: The Cracker's profile: bowler, spectacles (a glint crosses the lens),
+The times are the module's (v4).
+
+- **12.0–13.5:** The table, close, under the lamp's pool. Her gloved hand (`PAPER` rim) sets the
+  white queen on manhole A (13.0). *Clack.*
+  - 13.5–15.5: Her profile close-up on gold: the chignon and pencil, her eye on the plan; a
+    lens joins her to her queen (14.0).
+- **15.5–16.5:** An old hand (`GOLD` rim) sets the gold bishop (16.0). *Clack.*
+  - 16.5–18.5: The Cracker's profile: bowler, spectacles (a glint crosses the lens, 17.5),
     stethoscope.
-- **18.0:** A heavy hand (`RED` rim) slams the red knight down, and the other pieces jump.
-  *Thud.*
-  - 18.5–20.5: His profile: flat cap, the ember brightens as he draws, smoke curls.
-- **20.5–24.0:** The table in elevation: three silhouettes round the plan under the swinging
-  lamp. His `RED` sight line runs down to the X; her `PAPER` sight line runs across to his
-  face (22.0). *A low held note: she knows.* She picks up the chalk.
+- **18.5–19.5:** A heavy hand (`RED` rim) slams the red knight down (19.0), and the other pieces
+  jump. *Thud.*
+  - 19.5–21.0: His profile in the dark: the ember brightens as he draws (20.0), smoke curls.
+- **21.0–28.0:** The table from the side under the swinging lamp, the three pieces standing on
+  the plan between them.
+  - The briefing: she leans in over the plan (21.4–21.95), murmuring, and taps it twice beside
+    the pieces, on the beat (22.0, 22.5): here. She straightens (22.7–23.2) and the Cracker nods.
+    *Her low voice, no words; two finger taps; his low hum.*
+  - His `RED` sight line runs down to the X (23.5). Her `PAPER` sight line runs across to his
+    face (24.5). *A low held note: she knows.*
+  - She reaches for the chalk (25.5) and has it (26.0). The camera tilts down over the table
+    onto the plan (26.0–28.0) and lands on s03's first frame. *A rising paper whoosh; the bass
+    walks up into the theme.*
 
-### s03 PLAN (24–40)
+### s03 PLAN (28–44)
 
 The plan from above (`phi` 64 → 72), one continuous glide that follows her chalk. The pieces
 hop along the route in file (bishop, queen, knight), landing on the beat. Hands are about one
 and a half pieces tall.
 
-- **24.0–27.6:** ① Her chalk taps a 'down here' chevron on manhole A (24.5). The route runs
+- **28.0–31.6:** ① Her chalk taps a 'down here' chevron on manhole A (28.5). The route runs
   east along the sewer and north up the branch to the store-room hatch. The pieces join the
   line one by one and hop along behind the chalk.
-- **27.6–29.0:** ② Through the store room to the corridor. The Cracker's old hand (gold rim,
-  shirt cuff) sets a black pawn, the guard, on his post (28.5). *Clack.*
-- **29.0–30.0:** She sweeps his light out from the pawn. A timing ring goes round him, with
+- **31.6–33.0:** ② Through the store room to the corridor. The Cracker's old hand (gold rim,
+  shirt cuff) sets a black pawn, the guard, on his post (32.5). *Clack.*
+- **33.0–34.0:** She sweeps his light out from the pawn. A timing ring goes round him, with
   four ticks and a dot that runs round once per swing. The light swings 32° each way, a full
-  swing every two seconds, so the crossing is dark on 30.5, 31.5, 32.5 and so on. *A low
+  swing every two seconds, so the crossing is dark on 34.5, 35.5, 36.5 and so on. *A low
   wooden tock at each end of the swing.*
-- **29.5–32.5:** ③ The route crosses the corridor, and ④ runs north to the vault door. The
-  pieces cross one per dark gap: the bishop (30.5), the queen (31.5), the knight (32.5).
-- **31.0–32.1:** The bishop reaches the door. A gold lens on a leader line opens on the dial,
+- **33.5–36.5:** ③ The route crosses the corridor, and ④ runs north to the vault door. The
+  pieces cross one per dark gap: the bishop (34.5), the queen (35.5), the knight (36.5).
+- **35.0–36.1:** The bishop reaches the door. A gold lens on a leader line opens on the dial,
   which turns right, left, right (a numbered gold arrow for each turn: s06's three gates).
-  *Clunk* (32.0): the door swings open. The chalk runs in to the X (32.4), and the bishop and
+  *Clunk* (36.0): the door swings open. The chalk runs in to the X (36.4), and the bishop and
   the queen hop in.
-- **34.2–34.75:** The Knight's own red hand snatches his piece off the route at the door and
-  slams it down out on the street (34.75, *THUD*). The others jump, and the vault door on the
+- **38.2–38.75:** The Knight's own red hand snatches his piece off the route at the door and
+  slams it down out on the street (38.75, *THUD*). The others jump, and the vault door on the
   plan claps shut on them. In that same instant her hand, lifting away from the vault,
   touches the sewer line under it and leaves a dot. That is the plant, hidden by the slam:
   everyone is looking at him, and the tap is buried under the thud.
-- **35.5–37.3:** ⑤ She draws the way out along the street to him, a chalk car beside him, and
-  a small bell on the side door (37.0, no one remarks it).
-- **38.0–40.0:** The plan is done and the light settles. The camera starts to tilt down (phi
+- **39.5–41.3:** ⑤ She draws the way out along the street to him, a chalk car beside him, and
+  a small bell on the side door (41.0, no one remarks it).
+- **42.0–44.0:** The plan is done and the light settles. The camera starts to tilt down (phi
   is falling at 15°/s at the cut), and s04 carries on the move from `P.HANDOFF_34`.
 
-### s04 NIGHT (40–52)
+### s04 NIGHT (44–56)
 
-- **40.0–43.0:** The pop-up. The camera tilts from about 50° to eye level. The walls extrude
+- **44.0–47.0:** The pop-up. The camera tilts from about 50° to eye level. The walls extrude
   from the chalk lines (`P.draw_walls_3d`), the paper darkens to `NAVY` night, the moon pops
   up, and the street lamps stand. The plan's dotted route remains as a ghost layer on the
   world.
-- **43.0–46.0:** Front street. The three arrive along the curb: she stealthily, the Cracker
+- **47.0–50.0:** Front street. The three arrive along the curb: she stealthily, the Cracker
   creeping, the Knight heavy with empty bags. He lifts manhole A (*iron scrape, clank*), and
   they go down one per beat.
-- **46.0–52.0:** The camera sinks through the road into the section. The tunnel. They move
+- **50.0–56.0:** The camera sinks through the road into the section. The tunnel. They move
   along the pipe while the chalk dots of the route brighten as they reach them. *Drips;
   their steps in water.* Up the rungs, and the hatch opens (*creak*). The stopwatch appears
-  top right and starts at 46.0 (one tick per beat).
+  top right and starts at 50.0 (one tick per beat).
 
-### s05 GUARD (52–66)
+### s05 GUARD (56–74)
 
-- **52.0–56.0:** The corridor in side elevation. The guard walks with his flashlight. The cone
-  slides over the wall and the crew stand in an alcove, black on black, only their rims
-  showing. The cone passes the alcove's edge. *The score drops to the tick.*
-- **56.0–61.0:** The stealth map: the camera tilts up to top-down. The guard is the black
-  pawn and his cone sweeps the intersection. The three pieces cross in the cone's shadow
-  gaps, one per beat.
-- **61.0–66.0:** Back in elevation. The Cracker's stethoscope swings and clanks on a pipe
-  (*clank*, with a ripple). The guard spins and the cone swings at them. From a crate in the
-  beam a cat leaps (two gold eyes) and a can rolls (*clatter*). The guard breathes out and
-  walks on, and the crew slips through.
+Rebuilt in v4 to read at phone size. A 9:16 frame cannot hold the guard and the crew at a size
+that reads, so the corridor is framed close (the figures half the frame's height, the corridor
+floor to ceiling filling it) and the camera moves with the action, in one continuous shot. The
+times are the module's.
 
-### s06 SAFE (66–80)
+- **56.0–60.0:** The corridor in side elevation, dark, close on the guard. He walks out to his
+  post and his flashlight clicks on (56.5); it sweeps on the plan's clock (a full swing every
+  2 s). The camera pans right along his beam to the dark doorway (57.9–59.4), where the crew
+  stand pressed in file, black on black, only their rims showing, as its patch slides up to the
+  doorway's edge (59.0) and falls away. *The score drops to the tick; a breath held.*
+- **60.0–65.5:** The stealth map: the camera tilts up into the plan (60.0–61.0). The crew sink
+  into their pieces and the guard into his pawn, whose cone sweeps the intersection. In the dark
+  gaps they hop across one at a time, on the beat (she 61.5, the Knight 62.5, the Cracker 63.5).
+  The camera tilts back down, close on the doorway (64.5–65.5). *A tiptoe bass; a vibraphone note
+  for each piece.*
+- **65.5–71.5:** The near miss, one beat at a time:
+  - the Cracker, last in, steps to the mouth (65.5) and stops to get his breath (66.0); his
+    stethoscope swings and CLANKS on the pipe (66.5, a ripple);
+  - the camera whips left to the guard as he spins round (66.62–67.3); his light swings toward
+    the noise and stops on the crates: two gold eyes (68.0);
+  - the cat arches (68.5) and leaps down past him (69.0), its tail tipping the tin can, which
+    hits the floor (69.5, *clatter*, the v2 punch-in) as the cat streaks between his feet;
+  - he breathes out, half a laugh (70.0), lowers his light, turns away and walks off west
+    (70.5); the camera drifts back to the doorway as the crew slip into the dark.
+- **71.5–74.0:** The camera pushes down the black corridor to the far door (71.5–73.0): a chalk
+  dot and the plan's ring on its dial (step 4, 72.5). s06 opens on that dial. *The band creeps
+  back.*
 
-- **66.0–69.0:** The vault door fills the frame. The Cracker kneels and sets the stethoscope
+### s06 SAFE (74–88)
+
+- **74.0–77.0:** The vault door fills the frame. The Cracker kneels and sets the stethoscope
   to the door.
-- **69.0–76.0:** The dial in close-up, with the lock in cutaway under it: three wheels with
+- **77.0–84.0:** The dial in close-up, with the lock in cutaway under it: three wheels with
   their gates. The dial turns right, left, right. As each gate comes under the fence a chalk
   dot pops. *Clicks pitched low, mid, high; a ripple into his ear each time.* When the third
   gate arrives, the three dots join in a straight chalk line and the fence drops. *Clunk.*
-- **76.0–80.0:** The bolts withdraw round the rim (*a rolling metallic run*). The door swings
+- **84.0–88.0:** The bolts withdraw round the rim (*a rolling metallic run*). The door swings
   (the circle narrows to an ellipse) and gold light floods out over three silhouettes.
   *A brass swell.*
 
-### s07 CROSS (80–96)
+### s07 CROSS (88–104)
 
-- **80.0–84.0:** Inside the vault, on gold. The Knight fills the bags with bars while the
+- **88.0–92.0:** Inside the vault, on gold. The Knight fills the bags with bars while the
   Cracker stacks them. She goes to the deposit wall and opens one small box. A tiny `RED`
   glint shows, she pockets it with her back to them, and no one sees.
-- **84.0–86.0:** His `RED` sight line goes from the bags to the open door.
-- **86.0–90.0:** The X-split. The frame is cut on both diagonals:
+- **92.0–94.0:** His `RED` sight line goes from the bags to the open door.
+- **94.0–98.0:** The X-split. The frame is cut on both diagonals:
   - top: him lifting two full bags;
   - left: her at the box wall;
   - right: the Cracker admiring a bar;
   - bottom: the door's edge.
 
   He moves, and the X seams turn `RED`.
-- **90.0–93.0:** He swings the door shut from outside. The ellipse widens back to a circle,
+- **98.0–101.0:** He swings the door shut from outside. The ellipse widens back to a circle,
   the two inside turn too late, and BOOM: black. The dial spins in `RED` and the cutaway
   bolts shoot home (s06's diagram run backwards).
-- **93.0–96.0:** The plan, top-down. His `RED` route leaves the chalk route in an L: south,
+- **101.0–104.0:** The plan, top-down. His `RED` route leaves the chalk route in an L: south,
   east, then down the alley to the car. The red knight hops along it. As he passes the bell
   on the side door, the alarm sends red ripples over the plan (*alarm bell*). The stopwatch
   stops and its hand turns `RED`. *The theme, inverted.*
 
-### s08 LOCKED (96–108)
+### s08 LOCKED (104–116)
 
-- **96.0–98.85:** Black, and the Cracker's ragged breath. A match scratches (sparks, no
+- **104.0–106.85:** Black, and the Cracker's ragged breath. A match scratches (sparks, no
   flame), then strikes (*flare*), and gold rings of light open on her profile, calm, with the
   Cracker beyond her, leaning on the round door. He rears back, fists up.
-- **98.85–99.9:** We cut on his first blow to the shot from behind him: his back and bowler,
+- **106.85–107.9:** We cut on his first blow to the shot from behind him: his back and bowler,
   both fists pounding the door at head height (*three muffled BOOMs*). Each blow rings on the
   steel and shakes dust down; the camera shakes. His shadow looms over him on the door. The
   flame shivers.
-- **99.9–101.35:** Her eye in close-up, steady. Her look drops to the floor as a white dotted
+- **107.9–109.35:** Her eye in close-up, steady. Her look drops to the floor as a white dotted
   sight line and the corner of her mouth lifts (*vibraphone, upright*). The camera whips down
   after the look.
-- **101.35–104.0:** At floor level, the sight line lands in a chalk ring at her heel. She taps:
+- **109.35–112.0:** At floor level, the sight line lands in a chalk ring at her heel. She taps:
   a click, then a hollow knock. The floor opens top-down into a blueprint section (the slab,
   the earth, the sewer pipe) and the knock rings down through it. A gold plumb line drops from
   her heel to the chalk dot on the pipe, and a lens joins it to the dot on the plan (the vault,
   its X and the dot).
-- **104.0–108.0:** The two-shot. The Cracker turns round to her (a cut-paper turn). She brings
+- **112.0–116.0:** The two-shot. The Cracker turns round to her (a cut-paper turn). She brings
   a roll up from her coat to her eye and lets it fall open before her face, then lifts the
   sheet toward the camera until it fills the frame, the match glowing through the paper. s09
   begins on this sheet (`S8.roll_shot(c, S8.T_END)`).
 
-### s09 PLAN B (108–124)
+### s09 PLAN B (116–132)
 
 The scene's `REWIND` and `FREEZES` tables say which scene is on screen when, so the mix can run
 that scene's own sound backwards and forwards with the picture.
 
-- **108.0–108.15:** Held on s08's last frame (the sheet held up to the match).
-- **108.15–110.75:** The rewind. The film runs backwards through s08, s07, s06, s05 and s04,
+- **116.0–116.15:** Held on s08's last frame (the sheet held up to the match).
+- **116.15–118.75:** The rewind. The film runs backwards through s08, s07, s06, s05 and s04,
   0.4 s each, and into s03, under chalk streaks and a double chevron, with the heist stopwatch
   spinning back (its hand red while past the stop). *Tape-rewind whoosh.*
-- **110.75–111.5:** Played forward (chalk corners round the frame): the Knight slams his piece
+- **118.75–119.5:** Played forward (chalk corners round the frame): the Knight slams his piece
   down and her chalk, lifting off the vault, leaves the dot. *A tape click.*
-- **111.5–112.2:** Freeze. A lens snaps round the dot. Magnified, it sits on the sewer line
+- **119.5–120.2:** Freeze. A lens snaps round the dot. Magnified, it sits on the sewer line
   inside the vault, with a gold ripple on it. *A ting.*
-- **112.2–114.6:** Back again into s02, then played: his red look at the X, her white look at
+- **120.2–122.6:** Back again into s02, then played: his red look at the X, her white look at
   him. Freeze, and a lens on her eye with his red look glinting in it.
-- **114.6–118.9:** The plan from above. Her tracing sheet unrolls down over it (*paper*). Plan B
+- **122.6–126.9:** The plan from above. Her tracing sheet unrolls down over it (*paper*). Plan B
   is chalked on it in solid lines and numbered in solid discs (Plan A's numbers are rings).
   The camera whips to each:
   1. the trapdoor square at the dot;
@@ -407,19 +440,19 @@ that scene's own sound backwards and forwards with the picture.
   4. a `RED` X on the ruby box.
 
   Pull back: both plans at once. *The theme returns upright, in the major.*
-- **118.9–119.92:** The vault by match light, close. Kneeling, she lifts the floor tile on its
+- **126.9–127.92:** The vault by match light, close. Kneeling, she lifts the floor tile on its
   south edge and lays it aside: below is black. The match grazes the floor and the tile's
   underside.
-- **119.92–120.66:** The Cracker's face, lit from below. He stares, the light crosses his
+- **127.92–128.66:** The Cracker's face, lit from below. He stares, the light crosses his
   spectacles (*ting*), and he grins (*a dry chuckle*).
-- **120.66–124.0:** Section. The floor is cut away under the vault: the shaft under the
+- **128.66–132.0:** Section. The floor is cut away under the vault: the shaft under the
   trapdoor, its iron ladder, the branch pipe and its water. The camera pulls back as she steps
   into the hole, slides down the ladder with the match held up and splashes into the pipe; he
   follows. She turns north and they wade off left, with Plan B's solid line lighting the way
   ahead of them. The cut runs on north along the pipe to manhole B, and the line lights up its
   shaft to the back street and rings there.
 
-### s10 CHECKMATE (124–136)
+### s10 CHECKMATE (132–144)
 
 - **0.0–1.46:** The front street at night, the alarm bell ringing red ripples over the side
   door. The Knight bursts round the car's tail (the mocap's run and sudden stop, 0.2), swings
@@ -441,7 +474,7 @@ that scene's own sound backwards and forwards with the picture.
   10.0 to 11.2 the two routes, his red and her white, straighten into two strokes crossing over
   the bank: an X, held to the cut.
 
-### s11 END (136–144)
+### s11 END (144–152)
 
 - **0.0–0.62:** The X splits the frame along its own strokes: s10's last frame breaks into four
   triangles that crack apart and fly off, each carrying half of the strokes on its edges. *A paper
@@ -465,6 +498,9 @@ that scene's own sound backwards and forwards with the picture.
 - **7.5:** Black, the red dot a breath longer, gone by 7.9.
 
 ## v2: the borrowed shot types
+
+The times in this section are v2's. In v4 the inserts from s05 on play later: s05's punch-in at
+1:09.5 (s05 13.49), and the rest 8 s later than listed.
 
 Four of the reference edit's shot types, cut to this film's paper (the reasoning, and what was
 left out, is in `docs/SHOT_TYPES.md`). The helpers are `films/double_cross/shots.py`. Each scene
@@ -490,6 +526,9 @@ plain, so each insert plays once, in its own scene.
 - **Sound:** every insert lands on a hit that is already in the mix, so the sound is unchanged.
 
 ## v3: the review fixes and the voices
+
+**Withdrawn in v4** (below): v4 restored v2's picture and kept only v3's voices. The times in this
+section are v3's.
 
 After v2 the user asked for the whole-film review's fixes, and whether the film should have
 voices. The picture changes are in s01, s02, s03, s09 and s10 (s11 is re-rendered because it
@@ -529,6 +568,38 @@ record.
   mouth lifts, just ahead of the theme's two notes.
 - **The rewind.** The rewind carries the voices too: s09 plays the briefing backwards, and plays
   it forward at his slam.
+
+## v4: slower, the guard rebuilt, back on the system
+
+The user's verdict on v3: it was too fast, it skipped the guard part, it was a downgrade rather
+than an upgrade, and it drifted away from the system. They were right on all four. v3 packed new
+content into the same seconds (a bank opening, a gold lens, step lenses, a back street), and it
+left the guard's reframing undone although they had asked for it.
+
+So v4 starts again from v2's picture: s01–s03 and s09–s10 are v2's code (`9ea5f1b`), and s08
+keeps only v3's laugh cue. It keeps v3's voices, and makes two changes. Each gives a beat time
+instead of more content:
+
+| Film time | Scene | What changed |
+|---|---|---|
+| 0:21–0:28 | s02, 9.0–16.0 | s02 runs 16 s (two more bars), and the side shot carries the briefing. The pieces stand on the plan between them. She leans in, murmuring, and taps it twice beside the pieces on the beat (10.0, 10.5); she straightens and the Cracker nods (10.75). His look (11.5) and hers (12.5) each get a bar. She takes the chalk (14.0), and the camera tilts down over the table onto the plan (14.0–16.0), landing on s03's first frame: the film's own tilt, so the people and the plan are one place. |
+| 0:56–1:14 | s05 | s05 runs 18 s (two more bars) and is rebuilt to read at phone size (see s05 above). It is framed close, with the camera moving with the action: the pan along his beam to the crew, the map, the whip to the guard on the clank, his light on the cat, the drift back, and the push to the dial. The near miss, from the Cracker's step to the guard's sigh, takes 4.5 s on the beat grid, where v2 had 2.4 s. |
+
+- **The edit.** From s03 every scene starts 4 s later, and from s06 8 s later. The film is 2:32
+  (3,648 frames). The heist clock is derived from the timeline (`K.film_start`): it starts at
+  0:50 and stops dead at 1:41.5, and s06 and s07 take their film times from it too. s09's
+  rewind rows and freezes follow s02's and s05's new lengths.
+- **The sound.** The score is re-timed to the new bars:
+  - bar 11, the briefing: the band drops to a murmur of its own under her voice;
+  - bar 12, her look: the low held D;
+  - bar 13: a rising paper whoosh under the tilt, and the bass walks up into s03's theme;
+  - s05: the tiptoe bass runs from bar 30 and walks up to the clank; a whip whoosh; the held
+    breath as his light finds the cat; the band creeps back at bar 36.
+  - Two new cues in s05: a breath held in the doorway as the light's patch touches its edge
+    (2.9), and the whip's whoosh (10.62).
+- **The voices in v4.** Her murmur under the briefing (s02 9.25–11.3, line 0) and the Cracker's
+  hum at his nod (10.75, his "Hm."); the murmur over the plan (s03 0.1–10.7, now a module beat,
+  `T_MURMUR`); the Knight's grunts (s07 6.4, 10.12); her breath of a laugh (s08 4.59).
 
 ## Sound plan (for the mix)
 

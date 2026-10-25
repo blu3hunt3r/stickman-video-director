@@ -31,7 +31,7 @@ from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import shots as S
 
-FILM_T0 = 66.0
+FILM_T0 = K.film_start("s06")
 STOPWATCH = ((930.0, 190.0), 62.0)
 FIG_V = 0.27                       # the cast at the vault door: FIG_S x 1.35 (the door is a giant)
 RS = FIG_V / Bk.FIG_S              # their props and rims scale with them

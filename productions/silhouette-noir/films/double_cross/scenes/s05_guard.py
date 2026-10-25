@@ -1,19 +1,27 @@
-"""s05 GUARD (52-66). The corridor, the guard's light, the stealth map, the clank and the cat.
-  The corridor (0-4): the cross corridor in side elevation, dark. The guard walks out to his post
-    and his flashlight sweeps the corridor on the plan's clock (a full swing every 2 s): its patch
-    slides along the far wall to the edge of the dark doorway where the crew stand pressed in file,
-    black on black, only their rims showing, and falls away. The score drops to the tick.
+"""s05 GUARD (56-74). The corridor, the guard's light, the stealth map, the clank and the cat.
+The corridor is framed close, the figures half the frame's height and the corridor floor to
+ceiling filling it, and the camera moves with the action, because a 9:16 frame cannot hold the
+guard and the crew at a size that reads.
+  The corridor (0-4): the cross corridor in side elevation, dark, close on the guard. He walks out
+    to his post and his flashlight clicks on (0.5); it sweeps the corridor on the plan's clock (a
+    full swing every 2 s). The camera pans right along his beam to the dark doorway where the crew
+    stand pressed in file, black on black, only their rims showing, as its patch slides up to the
+    doorway's edge and falls away. The score drops to the tick.
   The stealth map (4-9.5): the camera tilts up into the plan. The world folds down onto its chalk:
     the crew sink into their pieces and the guard into his pawn, whose cone sweeps the
     intersection between its walls, its timing ring running. In the dark gaps they hop across one
     at a time, landing on the beat (she 5.5, the Knight 6.5, the Cracker 7.5), the route's dots
-    brightening under her. The camera tilts back down.
-  The near miss (9.5-14): back in elevation, across now. The Cracker, last in, stops at the mouth
-    to get his breath; his stethoscope swings and CLANKS on the pipe (a ripple). The guard spins
-    round, his light sweeps up over the doorway and lands on the crates: two gold eyes, a cat
-    leaps, the tin can falls and rolls (clatter). The guard breathes out and walks on; the crew
-    slip into the dark. The camera pushes down the black corridor to the far door: a chalk dot and
-    the plan's ring on its dial (step 4). s06 opens on that dial.
+    brightening under her. The camera tilts back down, close on the doorway.
+  The near miss (9.5-15.5), one beat at a time: the Cracker, last in, steps to the mouth (9.5) and
+    stops to get his breath (10.0); his stethoscope swings and CLANKS on the pipe (10.5, a
+    ripple). The camera whips left to the guard as he spins round (11.0); his light swings toward
+    the noise and stops on the crates: two gold eyes (12.0). The cat arches (12.5) and leaps down
+    past him (13.0), its tail tipping the tin can, which hits the floor (13.5, clatter) as the cat
+    streaks between his feet. He breathes out, half a laugh (14.0), lowers his light, turns away
+    and walks off west (14.5); the camera drifts back to the doorway as the crew slip into the
+    dark.
+  The dial (15.5-18): the camera pushes down the black corridor to the far door: a chalk dot and
+    the plan's ring on its dial (step 4, 16.5). s06 opens on that dial.
 """
 import math
 from functools import lru_cache
@@ -27,38 +35,41 @@ from films.double_cross import cast as C
 from films.double_cross import kit as K
 from films.double_cross import plan as P
 from films.double_cross import shots as S
+from films.double_cross.scenes import s03_plan as S3
 
 # ---------------------------------------------------------------------------- beats
-FILM_T0 = 52.0
+FILM_T0 = K.film_start("s05")
 SHOTS = ((0.0, "the corridor"), (4.0, "tilt up: the stealth map"), (8.5, "tilt down"), (9.5, "the near miss"),
-         (12.8, "down the corridor to the dial"))
-SWEEP_PHASE = 29.0              # film time his light began to swing in s03 (its SWEEP_T0): the same clock
+         (15.5, "down the corridor to the dial"))
+SWEEP_PHASE = K.film_start("s03") + S3.SWEEP_T0   # film time his light began to swing in s03: the same clock
 SWEEP_AMP = 32.0                # degrees each way, a full swing every 2 s
 CONE_SPREAD = 22.0              # its half-angle: the crossing is dark only when |sweep| > CONE_SPREAD
-T_CLICK = 0.35                  # the guard's flashlight clicks on
+T_CLICK = 0.5                   # the guard's flashlight clicks on
 T_TILT_UP = (4.0, 5.0)
 T_TILT_DOWN = (8.5, 9.5)
 CROSS = {"architect": 5.5, "knight": 6.5, "cracker": 7.5}     # each crossing lands in a dark gap, on the beat
 HOP = 0.25
-T_STEP = (9.5, 9.75)            # the Cracker, last in, steps to the mouth ...
-T_BEND = (9.7, 9.9)             # ... bends to get his breath ...
-T_CLANK = 10.0                  # ... and his stethoscope swings into the pipe: CLANK
-T_SPIN = (10.15, 10.4)          # the guard spins round (a paper turn)
-T_AIM = (10.3, 10.65)           # his light swings toward the noise and stops on the crates ...
-T_EYES = 10.65                  # ... two gold eyes in the beam
-T_ARCH = (10.72, 10.95)         # the cat arches ...
-T_LEAP = (10.95, 11.25)         # ... and leaps down past him ...
-T_TIP = (11.0, 11.12)           # ... its tail tips the can ...
-T_CLATTER = 11.38               # ... which falls off the crate: clatter, and rolls
-T_STARTLE = 11.3                # the cat streaks between his feet: he jumps back
-T_SIGH = 11.9                   # the guard breathes out
-T_LOWER = (12.0, 12.3)          # lowers his light
-T_TURN_BACK = (12.3, 12.55)     # turns away ...
+T_STEP = (9.5, 9.8)             # the Cracker, last in, steps to the mouth ...
+T_BEND = (10.0, 10.3)           # ... bends to get his breath ...
+T_CLANK = 10.5                  # ... and his stethoscope swings into the pipe: CLANK
+T_WHIP = (10.62, 10.9)          # the camera whips left to the guard ...
+T_SPIN = (11.0, 11.3)           # ... as he spins round (a paper turn)
+T_AIM = (11.25, 12.0)           # his light swings toward the noise, slowing, and stops on the crates ...
+T_EYES = 12.0                   # ... two gold eyes in the beam
+T_ARCH = (12.5, 12.8)           # the cat arches ...
+T_LEAP = (13.0, 13.3)           # ... and leaps down past him ...
+T_TIP = (13.05, 13.17)          # ... its tail tips the can ...
+T_CLATTER = 13.5                # ... which falls off the crate: clatter, and rolls
+T_STARTLE = 13.4                # the cat streaks between his feet: he jumps back
+T_SIGH = 14.0                   # the guard breathes out, half a laugh
+T_LOWER = (14.2, 14.5)          # lowers his light
+T_TURN_BACK = (14.5, 14.75)     # turns away ...
 T_TURN_MID = 0.5 * (T_TURN_BACK[0] + T_TURN_BACK[1])   # edge-on in that turn: his walk away takes over
-T_SLIP = {"architect": (12.4, 12.8), "knight": (12.6, 13.0), "cracker": (12.85, 13.3)}   # they slip into the dark
-T_PUSH = (12.8, 13.75)          # the camera pushes down the corridor to the far door's dial
-T_DIAL = 13.35                  # a chalk dot on the dial, the plan's ring round it (step 4)
-T_THREE = 9.65                  # step 3, circled on the world: they are across
+T_STRAIGHT = (14.0, 14.6)       # the Cracker straightens up as the guard breathes out
+T_SLIP = {"architect": (14.6, 15.0), "knight": (14.8, 15.2), "cracker": (15.0, 15.5)}   # they slip into the dark
+T_PUSH = (15.5, 17.0)           # the camera pushes down the corridor to the far door's dial
+T_DIAL = 16.5                   # a chalk dot on the dial, the plan's ring round it (step 4)
+T_THREE = 9.75                  # step 3, circled on the world: they are across
 
 # ---------------------------------------------------------------------------- places (set px; depths are plan y)
 GUARD_X = 250.0                 # his post (the plan's GUARD_POST is at x 240)
@@ -79,15 +90,29 @@ CAN_FLOOR = 7.0                 # the can lying on the floor: its centre this fa
 PIPE_HIT = Bk.PIPE_X - 5.0      # the pipe's west face
 STOPWATCH = ((930.0, 190.0), 62.0)
 
-CAM_E1 = ((0.0, (398.0, -125.0, 2.15)), (3.6, (410.0, -122.0, 2.35)))
-CAM_E2 = Bk.Cam(402.0, -125.0, 2.3)
+# the set camera in elevation, close: zoom 4.8 puts the corridor floor to ceiling across most of
+# the frame and a figure at a third of its height, the floor at the safe area's foot. Keys:
+# (t, (x, y, zoom), ease into this key)
+Y_C = -112.0
+CAM_E1 = ((0.0, (236.0, Y_C, 4.8), None),           # the guard walks out to his post ...
+          (1.9, (262.0, Y_C, 4.8), "inout"),
+          (3.4, (538.0, Y_C, 4.8), "inout"),         # ... the camera pans along his beam to the crew
+          (4.0, (538.0, Y_C, 4.8), "inout"))
+CAM_E2 = ((T_TILT_DOWN[1], (552.0, Y_C, 4.8), None),  # the Cracker at the mouth
+          (T_WHIP[0], (556.0, Y_C, 4.8), "inout"),
+          (T_WHIP[1], (282.0, Y_C, 4.6), "inout5"),  # the whip to the guard
+          (T_AIM[0], (288.0, Y_C, 4.5), "out"),
+          (T_EYES + 0.15, (352.0, Y_C, 4.25), "inout"),   # with his light to the crates
+          (T_TURN_BACK[0] + 0.1, (346.0, Y_C, 4.25), "inout"),
+          (T_PUSH[0], (548.0, Y_C, 4.8), "inout"))   # back to the doorway as they slip away
 CAM_END = Bk.Cam(Bk.DIAL_C[0], Bk.DIAL_C[1], 7.0)    # the far door's dial: s06 opens on this frame
 MAP0 = (540.0, 900.0, 1.25, 78.0, 0.0, 540.0, 1000.0)    # the stealth map
 MAP1 = (540.0, 900.0, 1.33, 80.0, 0.0, 540.0, 990.0)
+PANS = (((1.9, 3.4), 6), (T_WHIP, 10), ((T_TURN_BACK[0] + 0.1, T_PUSH[0]), 6))   # fast moves: sub-frames to blur
 
 
 def motion_blur(t, T):
-    return 1
+    return next((n for (a, b), n in PANS if a <= t < b), 1)
 
 
 def _seg(name, s0, s1, at, speed=1.0, **kw):
@@ -105,18 +130,29 @@ def dark(ft):
 
 
 # ============================================================================ cameras
+def _keyed(keys, t):
+    """The set camera along keys [(t, (x, y, zoom), ease into it)]: held outside them, the zoom
+    geometric."""
+    if t <= keys[0][0]:
+        return Bk.Cam(*keys[0][1])
+    for (t0, a, _), (t1, b, e) in zip(keys, keys[1:]):
+        if t <= t1:
+            return Bk.Cam.lerp(Bk.Cam(*a), Bk.Cam(*b), ease(e, (t - t0) / (t1 - t0)))
+    return Bk.Cam(*keys[-1][1])
+
+
 def cam_e(t):
     """The set camera in elevation."""
     if t < T_TILT_UP[0]:
-        (t0, a), (t1, b) = CAM_E1
-        return Bk.Cam.lerp(Bk.Cam(*a), Bk.Cam(*b), ease("inout", clamp((t - t0) / (t1 - t0))))
+        return _keyed(CAM_E1, t)
     if t < T_PUSH[0]:
-        return CAM_E2
-    return Bk.Cam.toward(CAM_E2, CAM_END, ease("inout", clamp((t - T_PUSH[0]) / (T_PUSH[1] - T_PUSH[0]))), Bk.DIAL_C)
+        return _keyed(CAM_E2, t)
+    return Bk.Cam.toward(Bk.Cam(*CAM_E2[-1][1]), CAM_END, ease("inout", clamp((t - T_PUSH[0]) / (T_PUSH[1] - T_PUSH[0]))),
+                         Bk.DIAL_C)
 
 
-E1_PC = Bk.plan_cam_for(Bk.Cam(*CAM_E1[1][1]), GUARD_DEPTH)
-E2_PC = Bk.plan_cam_for(CAM_E2, GUARD_DEPTH)
+E1_PC = Bk.plan_cam_for(Bk.Cam(*CAM_E1[-1][1]), GUARD_DEPTH)
+E2_PC = Bk.plan_cam_for(Bk.Cam(*CAM_E2[0][1]), GUARD_DEPTH)
 
 
 def _lerp_pc(a, b, u):
@@ -149,7 +185,7 @@ def perfs():
                                     _seg("77_05", 0.6, 4.2, 1.44, 0.75, travel=0.0, blend=0.45)], facing=1)
     d["guard_x"] = GUARD_X - d["guard_w"](1.44)[0]["pelvis"][0] * Bk.FIG_S
     # after the crossing: at his desk, then round to the noise, then away west
-    d["guard_d"] = C.perf("guard", [_seg("77_05", 0.4, 4.2, 9.0, 0.8, travel=0.0)], facing=1)
+    d["guard_d"] = C.perf("guard", [_seg("77_05", 0.4, 4.2, 9.0, 0.62, travel=0.0)], facing=1)
     d["guard_off"] = C.perf("guard", [_seg("77_05", 2.0, 2.2, 0.0, 0.2, travel=0.0),     # (the walk starts as
                                       _seg("104_02", 1.38, 3.2, T_TURN_MID - 0.05, 1.0, blend=0.15)],  # he turns
                             facing=-1)                                                     # edge-on: no skid)
@@ -352,7 +388,7 @@ def crew_e(t, tt):
             st, pose = d["cracker_e"](tt)
             x += CR_STEP * ease("inout", clamp((t - T_STEP[0]) / (T_STEP[1] - T_STEP[0])))
             x -= 16.0 * _smooth(t, a, a + 0.3)                      # he backs into the doorway
-            bend = _smooth(t, T_BEND[0], T_BEND[1]) * (1.0 - _smooth(t, 11.6, 12.2))
+            bend = _smooth(t, T_BEND[0], T_BEND[1]) * (1.0 - _smooth(t, T_STRAIGHT[0], T_STRAIGHT[1]))
             pose.lean += 12.0 * bend + 1.0 * math.sin(2.0 * math.pi * tt * 1.6) * bend
             pose.head -= 10.0 * bend
             out.append((who, st, pose, x - st["pelvis"][0] * Bk.FIG_S, 1, depth, rim_k, t >= a + 0.3))
@@ -559,7 +595,7 @@ def _elevation(c, t, tt):
                  width=4.5, seed=52, alpha=0.8)
     if t >= T_THREE:
         u = clamp((t - T_THREE) / 0.45)
-        K.circled(c, "3", cam.to_frame((566.0, 66.0)), 30.0, u, K.PAPER, width=5.0, seed=12, alpha=0.9)
+        K.circled(c, "3", cam.to_frame((624.0, -40.0)), 30.0, u, K.PAPER, width=5.0, seed=12, alpha=0.9)
     if t >= T_DIAL:                                           # step 4's mark: the plan's ring on the dial
         u = clamp((t - T_DIAL) / 0.35)
         p = cam.to_frame(Bk.DIAL_C)
@@ -706,6 +742,8 @@ def cues(T):
                        pan=_pan(t0, d["guard_x"] + fx * Bk.FIG_S)))
     out.append(Cue(1.0, "the faint creak of the guard's leather belt as his light swings (it repeats softly)",
                    gain_db=-30, pan=_pan(1.0, GUARD_X), dur=3.0))
+    out.append(Cue(2.9, "a breath held in the doorway: his light's patch slides up to its edge", gain_db=-26,
+                   pan=_pan(3.0, Bk.MOUTH_X[0])))
     out.append(Cue(T_TILT_UP[0], "a paper fold and a soft whoosh: the corridor folds down into the plan as the "
                                  "camera tilts up", gain_db=-16, dur=1.0))
     for k in range(4, 9):                                   # the plan's clock: a tock at each end of the swing
@@ -723,6 +761,8 @@ def cues(T):
             Cue(T_BEND[0], "an old man's wheezing breath, held in", gain_db=-22, pan=_pan(9.7, 560.0)),
             Cue(T_CLANK, "CLANK: the stethoscope's steel chest-piece swings into an iron pipe (it rings down the "
                          "pipe)", gain_db=-6, pan=_pan(T_CLANK, Bk.PIPE_X)),
+            Cue(T_WHIP[0], "a whip whoosh: the camera whips left to the guard", gain_db=-18,
+                dur=T_WHIP[1] - T_WHIP[0]),
             Cue(T_SPIN[0], "a heavy coat swishes: the guard spins round", gain_db=-15, pan=_pan(T_SPIN[0], GUARD_X)),
             Cue(T_EYES - 0.05, "the score's held breath: a single low muted-trumpet note", gain_db=-20),
             Cue(T_ARCH[0], "a cat's hiss", gain_db=-14, pan=_pan(T_ARCH[0], CAT_SEAT[0])),
@@ -738,7 +778,7 @@ def cues(T):
     perf = d["guard_off"]
     x0 = d["guard_off_x"]
     out.append(Cue(T_TURN_MID, "a heel scuffs on stone: the guard pivots away", gain_db=-24, pan=_pan(T_TURN_MID, GUARD_X)))
-    for t0, side, fx in Bk.footfalls(perf, T_TURN_MID, T.duration - 0.2):
+    for t0, side, fx in Bk.footfalls(perf, T_TURN_MID, T_PUSH[0] + 0.5):
         out.append(Cue(t0, "footstep: the guard walks off down the corridor (going away)", gain_db=-22,
                        pan=_pan(t0, x0 + fx * Bk.FIG_S)))
     for who, (a, b) in T_SLIP.items():

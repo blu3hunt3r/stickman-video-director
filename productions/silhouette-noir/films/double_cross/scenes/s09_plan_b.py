@@ -20,6 +20,8 @@ import math
 import os
 from functools import lru_cache
 
+import cairo
+
 from engine import bass
 from engine import paperdoll as pd
 from engine.core import clamp, ease, hash01, lerp
@@ -41,16 +43,16 @@ FILM = "double_cross"
 REWIND = ((0.15, 0.55, "s08", 12.0, 0.0),
           (0.55, 0.95, "s07", 16.0, 0.0),
           (0.95, 1.35, "s06", 14.0, 0.0),
-          (1.35, 1.75, "s05", 14.0, 0.0),
+          (1.35, 1.75, "s05", 18.0, 0.0),
           (1.75, 2.15, "s04", 12.0, 0.0),
           (2.15, 2.45, "s03", 16.0, 12.0),
           (2.45, 2.75, "s03", 12.0, 10.05),
           (2.75, 3.5, "s03", 10.05, 10.8),         # played: his slam, her dot
           (4.2, 4.33, "s03", 10.8, 0.0),
-          (4.33, 4.45, "s02", 12.0, 9.3),
-          (4.45, 6.15, "s02", 9.3, 11.0))          # played: his look at the X, hers at him
+          (4.33, 4.45, "s02", 16.0, 11.3),
+          (4.45, 6.15, "s02", 11.3, 13.0))         # played: his look at the X, hers at him
 # (t0, t1, scene, scene t): a frame held
-FREEZES = ((0.0, 0.15, "s08", 12.0), (3.5, 4.2, "s03", 10.8), (6.15, 6.6, "s02", 11.0))
+FREEZES = ((0.0, 0.15, "s08", 12.0), (3.5, 4.2, "s03", 10.8), (6.15, 6.6, "s02", 13.0))
 T_PLAY = 2.75
 T_LENS1 = 3.55          # the lens on the dot
 T_LENS2 = 6.05          # the lens on her eye
@@ -61,12 +63,11 @@ T_SHEET = (6.6, 7.15)                    # the tracing sheet unrolls down over t
 T_B1 = (7.4, 7.85)                       # (1) the trapdoor
 T_B2 = (7.95, 8.9)                       # (2) her route
 T_COPS = (9.15, 9.35, 9.55, 9.75)        # (3) the police cars, on the half beats
-T_B4 = (10.12, 10.32)                    # (4) the red X, held a beat (it is what she is there for)
-T_BACK = (10.58, 10.8)                   # then a quick pull back to both plans (a breath on them, then the cut)
+T_B4 = (10.12, 10.32)                    # (4) the red X
 PLAN_KEYS = ((6.6, (540.0, 960.0, 1.0)), (7.1, (540.0, 960.0, 1.0)), (7.4, (455.0, 620.0, 2.1)),
              (7.95, (455.0, 620.0, 2.1)), (8.9, (300.0, 430.0, 1.85)), (9.1, (905.0, 1385.0, 1.8)),
-             (9.95, (905.0, 1385.0, 1.8)), (10.12, (672.0, 534.0, 2.3)), (T_BACK[0], (672.0, 534.0, 2.3)),
-             (T_BACK[1], (540.0, 960.0, 1.04)))
+             (9.95, (905.0, 1385.0, 1.8)), (10.12, (672.0, 534.0, 2.3)), (10.4, (672.0, 534.0, 2.3)),
+             (10.9, (540.0, 960.0, 1.04)))
 SHEET_B = (40.0, 120.0, 1064.0, 1800.0)  # her tracing sheet (plan px)
 COPS = ((-1.0, 0.0, 100.0), (0.0, -1.0, 80.0), (1.0, 0.0, 100.0), (0.0, 1.0, 80.0))   # W, N, E, S of his car
 
@@ -193,7 +194,9 @@ def _dot_lens(c, t):
 
 @lru_cache(maxsize=1)
 def _her_eye_s02():
-    return S2.eyes(11.0)[0]
+    s = cairo.ImageSurface(cairo.FORMAT_ARGB32, 8, 8)
+    h = S2._people(cairo.Context(s), FREEZES[2][3])["architect"]["head"]
+    return (h[0] + 44.0, h[1] + 78.0)
 
 
 def _eye_lens(c, t):
@@ -333,7 +336,7 @@ def _ruby_b(c, t):
         return
     K.xmark(c, P.RUBY, 44.0, u, K.RED, width=10.0, seed=2251)
     if t >= T_B4[1]:
-        K.ripple(c, P.RUBY, t, T_B4[1], K.RED, n=3, every=0.16, life=0.6, r0=20.0, r1=90.0, width=5.0)
+        K.ripple(c, P.RUBY, t, T_B4[1], K.RED, n=2, every=0.16, life=0.6, r0=20.0, r1=90.0, width=5.0)
     _badge(c, "4", (P.RUBY[0] + 76.0, P.RUBY[1] - 60.0), (u - 0.4) / 0.6, 2252)
 
 
@@ -684,8 +687,6 @@ def cues(T):
         out.append(Cue(tc, "a muted trumpet stab: a police car chalked in", gain_db=-10 - i, pan=0.4))
     out += [Cue(9.95, "a whip whoosh", gain_db=-14, dur=0.17),
             Cue(T_B4[0], "two hard chalk slashes and a low stab: the red X on the ruby box", gain_db=-8, pan=0.2),
-            Cue(T_BACK[0], "a whip whoosh: the camera pulls back off the X to both plans", gain_db=-16,
-                dur=T_BACK[1] - T_BACK[0]),
             Cue(10.4, "the theme returns upright, in the major (vibraphone and walking bass)", gain_db=-11,
                 dur=T.duration - 10.4),
             Cue(T_VAULT, "the match's small hiss in the dark vault", gain_db=-22, dur=T.duration - T_VAULT),

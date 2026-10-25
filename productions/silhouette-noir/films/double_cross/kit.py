@@ -21,6 +21,7 @@ import cairo
 from engine import bass, draw
 from engine.core import clamp, ease, hash01, lerp
 from engine.palette import RED
+from engine.timing import timeline
 from films.opposite_bass import world as B
 from films.opposite_full import kit as OK
 
@@ -60,9 +61,15 @@ callout = OK.callout
 heartbeat = OK.heartbeat
 path_points = OK.path_points
 
+
+def film_start(sid):
+    """Film time (s) of scene sid's first frame, from the timeline."""
+    return float(next(s["start"] for s in timeline("double_cross")["scenes"] if s["id"] == sid))
+
+
 # film-time beats every scene agrees on
-HEIST_T0 = 46.0                    # the stopwatch starts (s04, the sewer)
-HEIST_STOP = 93.5                  # it stops dead: he has crossed them (s07)
+HEIST_T0 = film_start("s04") + 6.0       # the stopwatch starts (s04, the sewer)
+HEIST_STOP = film_start("s07") + 13.5    # it stops dead: he has crossed them (s07)
 
 
 def _sn(*a):

@@ -1,18 +1,18 @@
-"""s02 CREW (12-24). Three hands set three pieces at the start of the route, and after each, the
+"""s02 CREW (12-28). Three hands set three pieces at the start of the route, and after each, the
 face that goes with it, each in its own light, a lens on a leader line joining the face to its
 piece on the plan:
   the Architect, her gloved hand, the white queen; her profile on the lamp's gold;
   the Cracker, an old hand in a shirt cuff, the gold bishop; his profile on steel, a glint;
   the Knight, a heavy hand that slams the red knight down (the others jump); his profile in the
   dark, lit red by his cigarette.
-Then the briefing, wide: the table a little from above under the swinging lamp, the plan on it,
-the three round it. Her chalk is on the X and taps it twice (the target); his red look goes down
-to it, and hers goes across to him. She knows. She takes the chalk off the X and in toward
-manhole A, the way in (s03 picks it up there, from above).
+Then the table from the side under the swinging lamp, with time to read it (9-16): the three
+pieces stand on the plan at her end. She leans in, talking low, and taps the plan beside them
+twice: here (10.0, 10.5); the Cracker nods. His red look goes down to the X (11.5) and hers goes
+across to him (12.5). She knows. She picks up the chalk (14.0), and the camera tilts down over
+the table onto the plan (14-16), the pieces where they stand and her chalk coming in: s03 begins
+on that frame.
 """
 import math
-
-import cairo
 
 from engine import bass
 from engine import paperdoll as pd
@@ -22,7 +22,6 @@ from films.double_cross import cast as C
 from films.double_cross import faces as F
 from films.double_cross import kit as K
 from films.double_cross import plan as P
-from films.double_cross.scenes import s01_title as S1
 
 # shots
 SHOTS = ((0.0, "table_q"), (1.5, "her"), (3.5, "table_b"), (4.5, "cracker"), (6.5, "table_k"), (7.5, "knight"),
@@ -36,9 +35,16 @@ T_KNIGHT = 7.0            # the knight slams down (thud); the others jump
 T_DRAW = 8.0              # he draws on the cigarette (the ember flares)
 T_KN_CALL = 7.9
 T_EXHALE = 8.5
-T_HIS_LOOK = 9.6          # his red look to the X
-T_HER_LOOK = 10.5         # her white look to him: she knows
-T_MURMUR = (9.05, 10.45)  # her low voice under the X: the briefing begins (a murmur, no words), until her look
+T_LEAN = (9.4, 9.95)      # she leans in over the plan, talking low ...
+T_MURMUR = (9.25, 11.3)   # (her voice, murmured: the briefing begins)
+T_TAPS = (10.0, 10.5)     # ... and taps it beside the pieces, twice: here
+T_BACK = (10.7, 11.2)     # she straightens
+T_NOD = 10.75             # the Cracker nods
+T_HIS_LOOK = 11.5         # his red look to the X
+T_HER_LOOK = 12.5         # her white look to him: she knows
+T_REACH = 13.5            # she reaches for the chalk
+T_CHALK = 14.0            # she has it
+T_TILT = (14.0, 16.0)     # the camera tilts down over the table onto the plan (s03's first frame)
 
 # where the pieces stand at the start of the route (plan px), round manhole A
 Q_AT = (214.0, 1414.0)
@@ -193,24 +199,19 @@ def face_shot(c, t, who, t0):
                   line_w=4.0, seed=31)
 
 
-# ============================================================================ the briefing, wide
-# The table from its south side, a little above it: the plan on its top, the crew round it under
-# the swinging lamp (her at the west end, the Cracker bent over it from the far side, the Knight
-# at the east end). Her chalk is on the X and taps it twice: the target. His red look goes down
-# to it; her white look goes across to him: she knows. She takes the chalk off the X, back to her
-# side, and in toward manhole A, the way in (s03's first move: it lands there, from above).
+# ============================================================================ the table from the side
 SIDE_FLOOR = 2010.0
 SIDE_S = 1.95
-SIDE_CAM = P.PlanCam(540.0, 1770.0, 0.72, 32.0, 0.0, fx=546.0, fy=1560.0)     # the plan on the table top
-TABLE_TOP = (20.0, 90.0, 1060.0, 1840.0)         # the table top round the sheet (plan px)
+TABLE_TOP = 1430.0
+TABLE_X = (236.0, 852.0)
 LAMP_PIVOT = (545.0, -80.0)
 LAMP_LEN = 520.0
-HER_X, KNIGHT_X, CRACKER_X = 116.0, 976.0, 860.0
-CRACKER_FLOOR = 1920.0                           # beyond the table: cut off at its far edge
-T_TAPS = (9.25, 9.5)                             # her chalk taps the X twice
-LEN = 12.0                                       # the scene's length (the timeline's)
-GO = (11.0, 12.45, P.X_VAULT, 3.0, P.MANHOLE_A, 6.0, 30.0)     # off the X and in to manhole A, the way in: (t0, t1,
-#                                                  p0, z0, p1, z1, bump), s02 time; s03's first move (there -1.0..0.45)
+HER_X, KNIGHT_X, CRACKER_X = 116.0, 976.0, 700.0
+# the plan on the table, edge-on, as a plan camera sees it (the tilt starts from this): its sheet
+# spans the blue strip, the table's middle (plan y 1345) the pivot
+SIDE_PC = P.PlanCam(545.0, 1345.0, 0.606, 0.0, 0.0, 540.0, TABLE_TOP - 4.0)
+X_SIDE = (SIDE_PC.to_view(P.X_VAULT)[0], TABLE_TOP - 8.0)    # the X on the plan, seen edge-on
+TAP_AT = (SIDE_PC.to_view(Q_AT)[0] - 24.0, TABLE_TOP - 4.0)  # where she taps: beside the pieces
 
 
 def lamp_angle(t):
@@ -235,143 +236,133 @@ def _lamp(c, t):
     return shade
 
 
-def chalk_tip(t):
-    """Her chalk tip: (plan point, height over the paper); s03's her_tip carries GO on."""
-    t0, t1, p0, z0, p1, z1, bump = GO
-    if t < t0:
-        z = z0
-        for tt in T_TAPS:                                # up, and down on the beat
-            u = (t - (tt - 0.18)) / 0.18
-            if 0.0 <= u < 1.0:
-                z += 44.0 * math.sin(math.pi * u)
-        return p0, z
-    u = clamp((t - t0) / (t1 - t0))
-    e = ease("inout", u)
-    return (lerp(p0[0], p1[0], e), lerp(p0[1], p1[1], e)), lerp(z0, z1, e) + bump * math.sin(math.pi * u)
+def _table(c):
+    """The table side-on: the blueprint on its top, a heavy cloth hanging to the floor in front."""
+    x0, x1 = TABLE_X
+    bass.fill_polys(c, [bass.cut_rect(x0, TABLE_TOP, x1, SIDE_FLOOR + 40.0, seed=53, amp=0.6)], K.INK)
+    bass.line_band(c, [(x0, TABLE_TOP + 2.0), (x1, TABLE_TOP + 2.0)], K.STEEL, width=4.0, seed=54, alpha=0.8)
+    for x in (x0 + 4.0, x1 - 4.0):                       # the cloth's folds at the corners
+        bass.line_band(c, [(x, TABLE_TOP + 10.0), (x + (6.0 if x < 500 else -6.0), SIDE_FLOOR)], K.DEEP, width=5.0,
+                       seed=55 + int(x))
+    # the blueprint on it, edge-on: a thin blue strip curling up at the far end
+    bass.fill_polys(c, [bass.cut_rect(x0 + 16.0, TABLE_TOP - 7.0, x1 - 30.0, TABLE_TOP + 1.0, seed=56, amp=0.4)], K.BLUE)
+    bass.line_band(c, [(x1 - 32.0, TABLE_TOP - 4.0), (x1 - 12.0, TABLE_TOP - 22.0), (x1 - 18.0, TABLE_TOP - 44.0),
+                       (x1 - 34.0, TABLE_TOP - 46.0)], K.BLUE, width=7.0, seed=57)
 
 
-def _her_pose(t):
-    """Her standing state and pose (no arm yet): leaning in as far as the chalk goes, her head
-    down at the plan, then up to him on her look."""
+def _people(c, t):
+    """Her (left end of the table, facing right), the Cracker (behind it, bent over the plan,
+    facing left), the Knight (right end, facing left). Returns their joints."""
+    out = {}
+    # the Cracker, behind the table: only his head and shoulders show above it; he nods
+    st = C.standing("cracker")
+    pose = pd.Pose(lean=24.0, head=-28.0 - 9.0 * math.sin(math.pi * clamp((t - T_NOD) / 0.4)))
+    pose.arms["near"] = ("ang", 64.0, 40.0)
+    pose.arms["far"] = ("ang", 70.0, 34.0)
+    out["cracker"] = C.draw(c, "cracker", st, pose, CRACKER_X, SIDE_FLOOR + 250.0, SIDE_S * 0.92, -1, bg=K.DEEP, rim_w=5.0)
+    _table(c)
+    # her: standing; she leans in and taps the plan beside the pieces (here), straightens; later
+    # she bends to take the chalk from the table's edge, and straightens with it
     st = C.standing("architect")
-    tip = SIDE_CAM.to_view(*chalk_tip(t))
-    lean = 12.0 * clamp((tip[0] - 330.0) / 220.0)
-    up = ease("inout", clamp((t - T_HER_LOOK) / 0.25))
-    pose = pd.Pose(lean=lean, crouch=0.3 * lean, head=lerp(-20.0, 4.0, up))
-    pose.arms["far"] = ("ang", -14.0, 20.0)
-    return st, pose, tip
-
-
-def _knight_pose(t):
+    pose = pd.Pose(head=-6.0 if t < T_HER_LOOK else 0.0)
+    tap = ease("inout", clamp((t - T_LEAN[0]) / (T_LEAN[1] - T_LEAN[0]))) * \
+        (1.0 - ease("inout", clamp((t - T_BACK[0]) / (T_BACK[1] - T_BACK[0]))))
+    lift = 18.0 * (1.0 - max(math.exp(-((t - tt) / 0.08) ** 2) for tt in T_TAPS))   # the finger comes down twice
+    reach = ease("inout", clamp((t - T_REACH) / 0.5)) * (1.0 - ease("inout", clamp((t - T_CHALK) / 0.45)))
+    rest = (36.0, -290.0)
+    tap_at = ((TAP_AT[0] - HER_X) / SIDE_S, (TAP_AT[1] - lift - SIDE_FLOOR) / SIDE_S)
+    chalk_at = ((TABLE_X[0] + 40.0 - HER_X) / SIDE_S, (TABLE_TOP - 6.0 - SIDE_FLOOR) / SIDE_S)
+    pose.lean = 24.0 * tap + 17.0 * reach
+    pose.crouch = 26.0 * tap + 34.0 * reach
+    pose.head -= 6.0 * tap
+    target = (lerp(lerp(rest[0], tap_at[0], tap), chalk_at[0], reach), lerp(lerp(rest[1], tap_at[1], tap), chalk_at[1], reach))
+    pose.arms["near"] = ("ik", target)
+    pose.arms["far"] = ("ang", 8.0, 10.0)
+    if t >= T_CHALK - 0.05:
+        pose.hold["near"] = C.hold_chalk()
+    out["architect"] = C.draw(c, "architect", st, pose, HER_X, SIDE_FLOOR, SIDE_S, 1, bg=K.DEEP, rim_w=5.0)
+    # the Knight: heavy, still, smoking; his head goes down to the X
     st = C.standing("knight")
     pose = pd.Pose(head=-16.0 * ease("inout", clamp((t - (T_HIS_LOOK - 0.4)) / 0.4)))
     pose.arms["near"] = ("ang", -6.0, 16.0)
     pose.arms["far"] = ("ang", 4.0, 12.0)
-    return st, pose
-
-
-def eyes(t):
-    """Her eye and his (frame px) in the briefing at t: where the looks start."""
-    st, pose, _ = _her_pose(t)
-    her = C.eye_at("architect", st, pose, HER_X, SIDE_FLOOR, SIDE_S, 1)
-    st, pose = _knight_pose(t)
-    return her, C.eye_at("knight", st, pose, KNIGHT_X, SIDE_FLOOR, SIDE_S, -1)
-
-
-def _chalk_hold(where):
-    """Her chalk, noting where its tip is drawn (frame px)."""
-    base = C.hold_chalk()
-
-    def fn(c, info):
-        base(c, info)
-        if not info.get("rim"):
-            hc, u = info["hc"], info["u"]
-            where["tip"] = c.user_to_device(hc[0] + u[0] * 38.0, hc[1] + u[1] * 38.0)
-    return fn
-
-
-def _her(c, t):
-    """Her, the chalk's tip on its mark: her hand is aimed so the chalk (not the hand) lands there."""
-    st, pose, tip = _her_pose(t)
-    probe = {}
-    scratch = cairo.Context(cairo.ImageSurface(cairo.FORMAT_ARGB32, 4, 4))
-    pose.arms["near"] = ("ik", ((tip[0] - HER_X) / SIDE_S, (tip[1] - SIDE_FLOOR) / SIDE_S))
-    pose.hold["near"] = _chalk_hold(probe)
-    j = C.draw(scratch, "architect", st, pose, HER_X, SIDE_FLOOR, SIDE_S, 1, bg=K.DEEP, rim_w=5.0)
-    if "tip" in probe:                                   # back the hand off by the chalk's length
-        hx = j["hand_near"][0] - (probe["tip"][0] - tip[0])
-        hy = j["hand_near"][1] - (probe["tip"][1] - tip[1])
-        pose.arms["near"] = ("ik", ((hx - HER_X) / SIDE_S, (hy - SIDE_FLOOR) / SIDE_S))
-    pose.hold["near"] = C.hold_chalk()
-    return C.draw(c, "architect", st, pose, HER_X, SIDE_FLOOR, SIDE_S, 1, bg=K.DEEP, rim_w=5.0)
-
-
-def _table(c, t):
-    """The table top (the plan on it, the pieces at the start of the route) and its front, a
-    heavy cloth to the floor."""
-    x0, y0, x1, y1 = TABLE_TOP
-    top = [SIDE_CAM.to_view(p) for p in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
-    bass.fill_polys(c, [bass.orient(top, True)], lerp(K.INK, K.DEEP, 0.5))
-    sway = 900.0 * math.sin(math.radians(lamp_angle(t)))
-    P.table(c, SIDE_CAM, 1.0, 1.0, 0.0, on_plan=lambda cc: (_plan_as_titled(cc),
-                                                            P.lamp(cc, 0.5, (P.LAMP_AT[0] + sway, P.LAMP_AT[1]))))
-    for kind, p, col, fc in sorted((("queen", Q_AT, K.PAPER, 1), ("bishop", B_AT, K.GOLD, -1), ("knight", N_AT, K.RED, 1)),
-                                   key=lambda it: SIDE_CAM.depth(it[1])):
-        P.piece_on(c, SIDE_CAM, kind, p, PIECE_H, col, K.INK, facing=fc)
-    a, b = top[3], top[2]
-    bass.fill_polys(c, [bass.cut([a, b, (b[0], SIDE_FLOOR + 40.0), (a[0], SIDE_FLOOR + 40.0)], seed=53, amp=0.6)], K.INK)
-    bass.line_band(c, [(a[0], a[1] + 2.0), (b[0], b[1] + 2.0)], K.STEEL, width=4.0, seed=54, alpha=0.8)
-    for x in (a[0] + 4.0, b[0] - 4.0):                   # the cloth's folds at the corners
-        bass.line_band(c, [(x, a[1] + 10.0), (x + (6.0 if x < 500 else -6.0), SIDE_FLOOR)], K.DEEP, width=5.0,
-                       seed=55 + int(x))
-
-
-def _cracker(c, t):
-    """The Cracker, bent over the plan from the far side (his legs behind the table)."""
-    far = SIDE_CAM.to_view((0.0, TABLE_TOP[1]))[1]
-    s = SIDE_S * 0.92
-    st = C.standing("cracker")
-    pose = pd.Pose(lean=24.0, head=-28.0)
-    pose.arms["near"] = ("ang", 64.0, 40.0)
-    pose.arms["far"] = ("ang", 70.0, 34.0)
-    c.save()
-    c.new_path()
-    c.rectangle(0.0, -400.0, K.W, far + 400.0 + 30.0)
-    c.clip()
-    j = C.draw(c, "cracker", st, pose, CRACKER_X, CRACKER_FLOOR, s, -1, bg=K.DEEP, rim_w=5.0)
-    c.restore()
-    return j
-
-
-def _people(c, t):
-    """The table and the crew round it: the Cracker beyond it, her at its west end (her chalk on
-    the plan), the Knight at its east end, smoking. Returns their joints, and their eyes."""
-    out = {}
-    _table(c, t)
-    out["cracker"] = _cracker(c, t)
-    out["architect"] = _her(c, t)
-    st, pose = _knight_pose(t)
     out["knight"] = C.draw(c, "knight", st, pose, KNIGHT_X, SIDE_FLOOR, SIDE_S, -1, bg=K.DEEP, rim_w=5.0)
     C.cigarette(c, out["knight"], t, SIDE_S * 0.6, facing=-1)
-    out["her_eye"], out["his_eye"] = eyes(t)
     return out
+
+
+def tilt_cam(t):
+    """The plan camera in the tilt: from the plan edge-on (SIDE_PC) up over the table to s03's
+    first frame, the zoom geometric."""
+    from films.double_cross.scenes import s03_plan as S3
+    a, b = SIDE_PC, S3.cam_at(0.0)
+    u = ease("inout", clamp((t - T_TILT[0]) / (T_TILT[1] - T_TILT[0])))
+    v = [lerp(x, y, u) for x, y in zip(a.tuple(), b.tuple())]
+    v[2] = math.exp(lerp(math.log(a.zoom), math.log(b.zoom), u))
+    return P.PlanCam(*v)
+
+
+def _pieces_on_table(c, cam):
+    for kind, p, col, fc in sorted((("queen", Q_AT, K.PAPER, 1), ("bishop", B_AT, K.GOLD, -1), ("knight", N_AT, K.RED, 1)),
+                                   key=lambda it: cam.depth(it[1])):
+        P.piece_on(c, cam, kind, p, PIECE_H, col, K.INK, facing=fc, shadow=0.0)
+
+
+def _side(c, t):
+    """The table from the side, in frame px as the side shot frames it."""
+    _lamp(c, t)
+    heads = _people(c, t)
+    if t < T_TILT[0]:
+        _pieces_on_table(c, SIDE_PC)
+    # the X, raised off the plan as a little chalk mark (we see the plan edge-on); it lies down
+    # onto the plan as the camera starts to rise
+    xu = clamp((t - (T_HIS_LOOK + 0.35)) / 0.3)
+    down = 1.0 - ease("in", clamp((t - T_TILT[0]) / 0.25))
+    xp = (X_SIDE[0], X_SIDE[1] - 46.0 * down)
+    if down > 0.0:
+        c.save()
+        c.translate(xp[0], xp[1])
+        c.scale(1.0, down)
+        c.translate(-xp[0], -xp[1])
+        K.xmark(c, xp, 40.0, xu, K.PAPER, width=8.0, seed=57)
+        c.restore()
+    if T_HIS_LOOK + 0.5 <= t < T_TILT[0]:
+        K.ripple(c, xp, t, T_HIS_LOOK + 0.5, K.RED, n=1, life=0.6, r0=20.0, r1=70.0, width=4.0)
+    his_eye = (heads["knight"]["head"][0] - 50.0, heads["knight"]["head"][1] + 78.0)
+    her_eye = (heads["architect"]["head"][0] + 44.0, heads["architect"]["head"][1] + 78.0)
+    K.sight_line(c, his_eye, (xp[0] + 26.0, xp[1] - 26.0), t, T_HIS_LOOK, K.RED, dur=0.45, r=9.0, gap=30.0,
+                 head=34.0, seed=58)
+    K.sight_line(c, her_eye, (his_eye[0] - 50.0, his_eye[1] + 6.0), t, T_HER_LOOK, K.PAPER, dur=0.5, r=9.0, gap=30.0,
+                 head=34.0, seed=59)
 
 
 def side_shot(c, t):
     K.fill(c, K.DEEP)
-    _lamp(c, t)
-    heads = _people(c, t)
-    xp = SIDE_CAM.to_view(P.X_VAULT)
-    for tt in T_TAPS:                                    # chalk dust off each tap
-        if tt <= t < tt + 0.45:
-            K.ripple(c, xp, t, tt, K.PAPER, n=1, life=0.45, r0=14.0, r1=56.0, width=3.5)
-    if t >= T_HIS_LOOK + 0.45:
-        K.ripple(c, xp, t, T_HIS_LOOK + 0.45, K.RED, n=1, life=0.6, r0=22.0, r1=74.0, width=4.0)
-    his_eye, her_eye = heads["his_eye"], heads["her_eye"]
-    K.sight_line(c, his_eye, (xp[0] + 20.0, xp[1] - 20.0), t, T_HIS_LOOK, K.RED, dur=0.45, r=9.0, gap=30.0,
-                 head=34.0, seed=58)
-    K.sight_line(c, her_eye, (his_eye[0] - 40.0, his_eye[1] + 4.0), t, T_HER_LOOK, K.PAPER, dur=0.5, r=9.0, gap=30.0,
-                 head=34.0, seed=59)
+    if t < T_TILT[0]:
+        _side(c, t)
+        return
+    # the tilt: the room stays pinned to the table's middle as the camera rises and pushes in,
+    # and the plan opens up over it from edge-on; then the pieces, and her chalk coming in
+    from films.double_cross.scenes import s03_plan as S3
+    cam = tilt_cam(t)
+    a0, a1 = SIDE_PC.to_view((SIDE_PC.cx, SIDE_PC.cy)), cam.to_view((SIDE_PC.cx, SIDE_PC.cy))
+    k = cam.zoom / SIDE_PC.zoom
+    c.save()
+    c.translate(*a1)
+    c.scale(k, k)
+    c.translate(-a0[0], -a0[1])
+    _side(c, t)
+    c.restore()
+    if cam.flat() < 1e-3:                    # the paper still edge-on: the strip is all there is
+        _pieces_on_table(c, cam)
+        return
+
+    def on_plan(cc):
+        P.draw_plan_a(cc, 1.0, S3.sweep(0.0), S3.plan_prog(0.0), S3.door_at(0.0))
+
+    P.table(c, cam, 1.0, 1.0, 0.0, on_plan=on_plan)
+    S3._draw_pieces(c, cam, 0.0)
+    S3._chalk_hand(c, cam, t - T_TILT[1])
 
 
 # ============================================================================ render
@@ -381,9 +372,6 @@ def render(f, t, T):
     with f.screen() as c:
         if name.startswith("table"):
             table_shot(c, t)
-            if t < S1.GOLD_SHUT[1]:                       # s01's gold lens off the X, closing
-                u = 1.0 - clamp((t - S1.GOLD_SHUT[0]) / (S1.GOLD_SHUT[1] - S1.GOLD_SHUT[0]))
-                S1.gold_lens(c, table_cam(t).to_view(P.X_VAULT), u, T.start + t)
         elif name == "side":
             side_shot(c, t)
         else:
@@ -405,13 +393,15 @@ def cues(T):
         Cue(7.5, "cut to the Knight in the dark: a low muted trumpet note", gain_db=-14),
         Cue(T_DRAW, "the cigarette crackles as he draws on it", gain_db=-16, pan=-0.2),
         Cue(T_EXHALE, "he breathes the smoke out", gain_db=-20),
-        Cue(9.0, "the table from the side: the lamp's chain creaks as it swings", gain_db=-22, dur=3.0),
+        Cue(9.0, "the table from the side: the lamp's chain creaks as it swings", gain_db=-22, dur=T_TILT[0] - 9.0),
+        Cue(T_MURMUR[0], "her low voice: the briefing begins (a murmur, no words)", gain_db=-20, pan=-0.25,
+            dur=T_MURMUR[1] - T_MURMUR[0]),
+        Cue(T_TAPS[0], "her gloved finger taps the plan: here", gain_db=-16, pan=-0.35),
+        Cue(T_TAPS[1], "her gloved finger taps the plan again", gain_db=-18, pan=-0.35),
+        Cue(T_NOD, "the Cracker hums: hm (his voice, low)", gain_db=-22, pan=0.25),
         Cue(T_HIS_LOOK, "his look to the X: a low muted note, a semitone off", gain_db=-14),
-        Cue(T_HER_LOOK, "her look to him: a low held note (she knows)", gain_db=-12, dur=T.duration - T_HER_LOOK),
-        Cue(T_TAPS[0], "chalk tap on the X: tap (her chalk on the plan: the target)", gain_db=-13, pan=0.0),
-        Cue(T_TAPS[1], "chalk tap on the X: tap", gain_db=-12, pan=0.0),
-        Cue(T_MURMUR[0], "her low voice under the X: the briefing begins (a murmur, no words, under the score)",
-            gain_db=-30, pan=-0.25, dur=T_MURMUR[1] - T_MURMUR[0]),
-        Cue(GO[0], "the chalk lifts off the X and glides over the plan toward manhole A (her sleeve, soft cloth)",
-            gain_db=-24, pan=-0.3, dur=T.duration - GO[0]),
+        Cue(T_HER_LOOK, "her look to him: a low held note (she knows)", gain_db=-12, dur=T_TILT[0] - T_HER_LOOK),
+        Cue(T_CHALK, "she picks up the chalk (a tiny scrape on the table)", gain_db=-16, pan=-0.6),
+        Cue(T_TILT[0], "a rising paper whoosh: the camera tilts down over the table onto the plan", gain_db=-16,
+            dur=T_TILT[1] - T_TILT[0]),
     ]

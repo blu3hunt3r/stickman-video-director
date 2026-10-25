@@ -18,7 +18,7 @@ dates (UTC).
 | 6 | OPPOSITE v1–v3 | 10-23 | 0:32–0:34.5 | Wordless thriller test, one continuous camera | Three previews |
 | 7 | OPPOSITE, the Bass cut | 10-23 | 0:36 | Pure Saul Bass graphic retelling, one scene | Delivered, two review passes |
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
-| 9 | DOUBLE CROSS | 10-23 | 2:24 | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`) and v3 (the review fixes and the voices) delivered |
+| 9 | DOUBLE CROSS | 10-23 | 2:32 (v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices) and v4 (v2's picture again, slower, the guard rebuilt) delivered |
 
 ---
 
@@ -223,10 +223,14 @@ detailing and colors and … markers and arrows and dots".
 
 ---
 
-## 9. DOUBLE CROSS (2:24), in depth
+## 9. DOUBLE CROSS (2:32), in depth
 
 The user liked "the way you are connecting things and camera motion and sound effects" and asked
 for a new crime thriller, more innovative, with no more than two agents at a time.
+
+**Film times.** Sections 9.2–9.11 give v1–v3's times (2:24). v4 (9.12) runs 2:32: s02's side
+shot (0:21–0:28) and s05 (0:56–1:14) are re-timed, and every other time from 0:24 is later, by 4 s
+up to s05 and by 8 s from s06 (v1's 1:06).
 
 ### 9.1 The story
 
@@ -317,7 +321,7 @@ The bible's casting table also named clips the code does not use (18_08, 13_33, 
 ### 9.6 Scene by scene (film times from the scene modules' constants)
 
 This is the v1 picture. The v2 inserts that play over it are listed in 9.10, and v3's changes to
-s01–s03, s09 and s10 in 9.11.
+s01–s03, s09 and s10 in 9.11 (withdrawn in v4). v4's s02 and s05 are in 9.12.
 
 **s01 TITLE (0:00–0:12).** Four chalk dots tick in at the sheet's corners (0:00.5–0:02.0) and dotted
 lines join them; the blueprint unrolls (0:02.5–0:04.0); the bank rules itself in, one group per beat
@@ -479,6 +483,8 @@ glitch scan raised 35 flags: v1's 27 and 8 at the new inserts, all deliberate.
 
 ### 9.11 v3: the review fixes and the voices
 
+**Withdrawn in v4** (9.12), except the voices.
+
 On 10-24 the user had me review the whole film, then asked "fix it, and do you think voice should
 be used?". They chose a murmured briefing plus two touches of voice, and approved 200–250 credits
 for it.
@@ -519,7 +525,53 @@ Delivered as `final/double_cross_v3_preview.mp4`, encoded as in SYSTEM.md sectio
 (run on v2's preview too, for comparison) flags 37 frames against v2's 39. All are at deliberate
 cuts, inserts, rewind slips and whips, and none is at a v3 change.
 
-### 9.12 Files
+### 9.12 v4: slower, the guard rebuilt, back on the system
+
+On 10-25 the user said of v3: "This version is too fast and it also skips the guard part we kind
+of downgraded rather than upgraded also drifting away from our system". They were right on all
+four:
+
+- v3 packed new content (a bank opening, a gold lens, step lenses, a back street) into the same
+  seconds;
+- it skipped the guard's reframing although they had asked for the review's fixes;
+- its new shots were not the film's own devices.
+
+**Back to v2's picture.** s01–s03 and s09–s10 are v2's code again (`9ea5f1b`), and s11 is
+re-rendered after them. s08 keeps only v3's laugh cue. v3's voices stay.
+
+**Two changes, each made with time, not content.** Both scenes gained two bars.
+
+| Film time | Scene | Change |
+|---|---|---|
+| 0:21–0:28 | s02 (16 s) | The side shot carries the briefing. The three pieces stand on the plan between them. She leans in, murmuring, and taps the plan twice beside them on the beat (0:22.0, 0:22.5); she straightens, and the Cracker nods with a low hum (0:22.75). His red look (0:23.5) and her white look (0:24.5) each get a bar. She takes the chalk (0:26.0), and the camera tilts down over the table onto the plan (0:26.0–0:28.0), landing on s03's first frame. It is the film's own plan-as-map tilt, so the people and the plan are one place. |
+| 0:56–1:14 | s05 (18 s) | Rebuilt to read at phone size: framed close (the figures half the frame, the corridor filling it), one continuous shot with the camera moving with the action. His light clicks on (0:56.5) and the camera pans along the beam to the crew in the doorway as its patch touches the edge (0:59.0). The stealth map (1:00.0–1:05.5) shows the hops (1:01.5, 1:02.5, 1:03.5). The near miss is one beat at a time, 4.5 s from the step to the sigh where v2 had 2.4 s: the step (1:05.5), the breath (1:06.0), the CLANK (1:06.5), a whip to the guard as he spins (1:06.62–1:07.3), his light on two gold eyes (1:08.0), the arch (1:08.5), the leap (1:09.0), the clatter (1:09.5, v2's punch-in), his sigh (1:10.0), and the walk-off as the crew slip into the dark (1:10.5). Then the push to the dial (1:11.5–1:13.0, step 4 at 1:12.5). |
+
+- **The edit.** 2:32, 3,648 frames. The heist clock is now derived from the timeline
+  (`K.film_start`), and runs from 0:50.0 to 1:41.5; s06 and s07 take their film times from it.
+  s09's rewind rows and freezes follow the new lengths.
+- **The sound.** The score is re-timed to the new bars:
+  - bar 11: the band drops to a murmur under the briefing;
+  - bar 12: the low held D on her look;
+  - bar 13: a rising paper whoosh under the tilt, and the bass walks up into the theme;
+  - s05: the tiptoe bass from bar 30, walking up to the clank; a whip whoosh; the held breath as
+    his light finds the cat; the band back at bar 36.
+
+  Two new s05 cues: a breath held in the doorway (0:58.9) and the whip's whoosh (1:06.62). The
+  voices are v3's, placed on v4's picture: her murmur (0:21.25–0:23.3) and the Cracker's hum
+  (0:22.75) in s02, the murmur over the plan (0:28.1–0:38.7), the Knight's grunts (1:34.4, 1:38.12)
+  and her breath of a laugh (1:48.59).
+- **Measured.** -16.01 LUFS, true peak -1.30 dBTP, no clipped samples. 429 cues: 401 realised by
+  the sections, 28 auto-spotted (all in s07, as in v2), 0 missed. The worst cue-to-event offset is
+  25 ms, and no measured onset is more than a frame out (worst 20.1 ms). The clock's 103 ticks are
+  all within 0.5 ms of the beat.
+
+Delivered as `final/double_cross_v4_preview.mp4`, encoded as in SYSTEM.md section 9: 3,648 frames,
+152.0 s, 7.71 Mb/s, 146.6 MB, -16.1 LUFS with a true peak of -1.1 dBFS after AAC. The glitch scan
+flags 36 frames. Outside s02 and s05 every flag is at a frame v2's preview also flags (aligned to
+v4's times), and nothing is new. In s02 the six flags are its designed cuts (table, faces, the
+side shot). s05, one continuous shot, has none.
+
+### 9.13 Files
 
 | Path | What it is |
 |---|---|
@@ -536,3 +588,4 @@ cuts, inserts, rewind slips and whips, and none is at a v3 change.
 | `films/double_cross/final/double_cross_preview.mp4` | The delivered v1 preview (not in git). |
 | `films/double_cross/final/double_cross_v2_preview.mp4` | The delivered v2 preview, with the shot types (not in git). |
 | `films/double_cross/final/double_cross_v3_preview.mp4` | The delivered v3 preview, with the review fixes and the voices (not in git). |
+| `films/double_cross/final/double_cross_v4_preview.mp4` | The delivered v4 preview: v2's picture, the briefing given time, the guard rebuilt (not in git). |

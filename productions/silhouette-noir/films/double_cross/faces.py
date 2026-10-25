@@ -262,9 +262,9 @@ def _smoke(c, tip, t, s, a):
 
 
 # ============================================================================ hands
-HANDS = {"architect": dict(w=1.0, rim=K.PAPER, cuff=None, sleeve=(0.07, 0.08, 0.11), rim_k=3.0, cuff_w=8.0),  # hers: a bold white edge
-         "cracker": dict(w=0.86, rim=K.GOLD, cuff=lerp(K.PAPER, K.GOLD, 0.65), sleeve=K.INK, rim_k=1.0),
-         "knight": dict(w=1.3, rim=K.RED, cuff=None, sleeve=K.INK, rim_k=1.0)}
+HANDS = {"architect": dict(w=1.0, rim=K.PAPER, cuff=None, sleeve=(0.07, 0.08, 0.11)),
+         "cracker": dict(w=0.86, rim=K.GOLD, cuff=K.PAPER, sleeve=K.INK),
+         "knight": dict(w=1.3, rim=K.RED, cuff=None, sleeve=K.INK)}
 # a pinch seen from the side, the forearm coming from -x, the grip (a piece's crown) at (0, 0):
 # the back of the hand, the knuckles, the index finger curling down to the grip, the thumb
 # meeting it, the other fingers curled under the palm
@@ -285,8 +285,8 @@ def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.0
     a hand is about one and a half chess pieces tall). rim: the rim's colour (default: the
     owner's; GOLD by a match)."""
     spec = dict(HANDS[who])
-    if rim is not None:                          # a light's rim (a match): the light's own fine edge
-        spec.update(rim=rim, rim_k=1.0, cuff_w=4.0)
+    if rim is not None:
+        spec["rim"] = rim
     k = s * spec["w"]
     dx, dy = grip[0] - wrist[0], grip[1] - wrist[1]
     ang = math.atan2(dy, dx)
@@ -304,15 +304,15 @@ def hand(c, who, wrist, grip, s=1.0, open_u=0.0, rim_off=(-3.0, -3.0), flare=0.0
     sleeve = bass.orient([(far, -132.0 - fl), (-150.0, -132.0), (-146.0, -22.0), (far, -22.0 + fl)], True)
     handp = bass.orient(pts, True)
     c.save()
-    c.translate(rim_off[0] * spec["rim_k"] / k * flip, rim_off[1] * spec["rim_k"] / k)
+    c.translate(rim_off[0] / k * flip, rim_off[1] / k)
     bass.fill_polys(c, [sleeve, handp], spec["rim"])
     c.restore()
     bass.fill_polys(c, [handp], K.INK)
     bass.fill_polys(c, [sleeve], spec["sleeve"])
-    if spec["cuff"] is not None:                 # the old man's shirt cuff (in his gold) and a gold link
+    if spec["cuff"] is not None:                 # the old man's shirt cuff and a gold link
         bass.fill_polys(c, [bass.orient([(-200, -136), (-150, -130), (-150, -24), (-200, -18)], True)], spec["cuff"])
-        K.dot(c, (-176, -76), 9.0, lerp(K.GOLD, K.INK, 0.55))
+        K.dot(c, (-176, -76), 9.0, K.GOLD)
     elif who == "architect":                     # the glove's flared cuff
         bass.fill_polys(c, [bass.orient([(-180, -140), (-148, -126), (-146, -24), (-180, -10)], True)], K.INK)
-        bass.line_band(c, [(-180, -140), (-180, -10)], spec["rim"], width=spec["cuff_w"])
+        bass.line_band(c, [(-180, -140), (-180, -10)], spec["rim"], width=4.0)
     c.restore()
