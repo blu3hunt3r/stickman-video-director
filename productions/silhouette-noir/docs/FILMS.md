@@ -19,7 +19,7 @@ dates (UTC).
 | 7 | OPPOSITE, the Bass cut | 10-23 | 0:36 | Pure Saul Bass graphic retelling, one scene | Delivered, two review passes |
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
 | 9 | DOUBLE CROSS | 10-23 | 2:54 (v4 2:32, v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices), v4 (v2's picture again, slower, the guard rebuilt) and v5 (the double cross made easy to follow) delivered |
-| 10 | DOUBLE CROSS, the OPPOSITE cut | 10-25 | 2:54 | DOUBLE CROSS v5's story in OPPOSITE's grammar, wordless, 11 scenes | In progress (s07 and the mix being made) |
+| 10 | DOUBLE CROSS, the OPPOSITE cut | 10-25 | 2:54 | DOUBLE CROSS v5's story in OPPOSITE's grammar, wordless, 11 scenes | Delivered |
 
 ---
 
@@ -798,7 +798,21 @@ section uses is read on every run from its scene's constants, or else from its o
 - **Scenes calling scenes.** s10 turns heads with s09's `_turn`; s11 builds its title from s01's
   glyphs.
 
-TODO-delivery
+**Delivery.** `final/double_cross_opposite_preview.mp4` uses SYSTEM.md's two-pass encode:
+- 1080×1920, 24 fps, 4,176 frames, 174.000 s;
+- H.264 High at about 7.50 Mb/s, AAC-LC 48 kHz stereo at about 198 kb/s, 7.70 Mb/s overall;
+- 167.5 MB;
+- after the AAC encode, -16.1 LUFS with a true peak of -0.9 dBFS.
+
+Workflow notes:
+- While the agents worked, the director's seven finished scenes were rendered to full-size film
+  segments ahead of time (named as `engine.render ... all` names them). The final `all --only
+  s08,s09,s10,s11` then drew only s04–s07 plus the four scenes the continuity fixes touched.
+- The master's glitch scan flagged 49 frames away from the scene cuts, and each one is designed:
+  - 31 are cuts or snaps between shots inside scenes;
+  - 18 are fast moves: the title's last bar and its paper strip racing in (0:02.5), the dive into
+    her eye and out of it (2:02.25–2:02.46, 2:05.79–2:06.0), and the end title's halves flying
+    apart (2:50.67–2:50.83).
 
 ### 10.7 Files
 

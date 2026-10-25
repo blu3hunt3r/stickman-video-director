@@ -608,7 +608,8 @@ High at about 7.51 Mb/s, AAC-LC 48 kHz at about 199 kb/s, 7.71 Mb/s overall, 133
 the AAC encode it measured -16.1 LUFS with a peak of -0.6 dBFS. The v4 preview: 3,648 frames,
 152.000 s, 7.71 Mb/s overall, 146.6 MB, -16.1 LUFS with a true peak of -1.1 dBFS after AAC. The
 v5 preview: 4,176 frames, 174.000 s, 7.71 Mb/s overall, 167.7 MB, -16.1 LUFS with a true peak of
--0.8 dBFS after AAC.
+-0.8 dBFS after AAC. DOUBLE CROSS's OPPOSITE cut: 4,176 frames, 174.000 s, 7.70 Mb/s overall,
+167.5 MB, -16.1 LUFS with a true peak of -0.9 dBFS after AAC.
 
 **When a preview plays silent on the phone.** The v4 preview played without sound in the Claude
 app on the user's phone, and so did a 99 MB copy encoded at 5000k
