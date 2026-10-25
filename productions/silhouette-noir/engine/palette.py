@@ -144,6 +144,23 @@ DOUBLE_CROSS = Palette(
     grain=0.045, vignette=0.5,
 )
 
+# --------------------------------------------------------------------------- THIN ICE
+# A border river on a winter night, in cut paper: moonlit snow is the page, ink silhouettes on it,
+# a deep blue night; the guard's lantern and the farmhouse are AMBER; RED is the girl's scarf only.
+THIN_ICE = Palette(
+    "thin_ice",
+    ink=(0.020, 0.022, 0.030),
+    sky_top=(0.075, 0.115, 0.185), sky_bottom=(0.075, 0.115, 0.185),
+    fog_stops=[(0.0, (0.22, 0.29, 0.38)), (0.5, (0.50, 0.57, 0.67)), (1.0, (0.74, 0.78, 0.84))],
+    haze_gamma=0.75,
+    light=(0.95, 0.66, 0.24),
+    flame=(1.0, 0.88, 0.62),
+    accent=RED,
+    paper=PAPER,
+    grade=dict(lift=(0.006, 0.008, 0.012), gain=(1.0, 1.0, 1.0), gamma=(1.0, 1.0, 1.0)),
+    grain=0.045, vignette=0.5,
+)
+
 PALETTES = {"salvage": SALVAGE, "shadowplay": SHADOWPLAY, "red": RED_FILM, "lantern": LANTERN, "opposite": OPPOSITE,
             "opposite_bass": OPPOSITE, "opposite_full": OPPOSITE,
-            "double_cross": DOUBLE_CROSS, "double_cross_opposite": OPPOSITE}
+            "double_cross": DOUBLE_CROSS, "double_cross_opposite": OPPOSITE, "thin_ice": THIN_ICE}
