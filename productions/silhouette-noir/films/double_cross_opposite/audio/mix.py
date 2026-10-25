@@ -111,7 +111,7 @@ LENGTH = {sid: d for sid, _, d in SCENES}
 BEAT, BAR, E8, E16 = 0.5, 2.0, 0.25, 0.125      # 120 bpm
 
 # scene trims (dB, every bus but the clocks): the film's arc, set by meter (see --qa's per-scene table)
-TRIM = dict(s01=0.0, s02=0.0, s03=0.0, s04=0.0, s05=0.0, s06=0.0, s07=0.0, s08=0.0, s09=0.0, s10=0.0, s11=0.0)
+TRIM = dict(s01=0.0, s02=0.0, s03=-3.0, s04=1.0, s05=0.0, s06=0.0, s07=0.0, s08=0.0, s09=-1.5, s10=-1.5, s11=-1.5)
 CUE_TRIM = -2.0              # a cue's gain_db, as the scenes write it, to this mix's levels
 
 ARGS = argparse.Namespace(stand_ins=True, only=None, qa=None, without=set())
@@ -1046,7 +1046,7 @@ def wall_clock(m, t0, t1, level, pan=0.2):
 BANK_TICK = (60.0, 91.0)     # film: the hall's clock heard from s04 12.0 to the door's swing (s06 11.0)
 
 
-def bank_clock(m, gain=-27.0):
+def bank_clock(m, gain=-24.0):
     """The beat's tick in the bank (the hall's clock): every beat inside BANK_TICK and this scene."""
     a, b = max(BANK_TICK[0], m.t0), min(BANK_TICK[1], m.t0 + m.len)
     k = math.ceil(a / BEAT - 1e-9)
@@ -1493,7 +1493,7 @@ def s05(m, S):
         x = bed("room_tone", L - t, 51, lp=1800.0)
         hum = 0.25 * np.sin(2 * np.pi * hz(26) * tax(len(x))) + 0.1 * np.sin(2 * np.pi * hz(38) * tax(len(x)))
         x = x + dsp.fade(hum, 0.5, 0.5)[:, None]
-        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 8.0, label="the hall at night", align=None)
+        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 5.0, label="the hall at night", align=None)
         break
     # his belt creaks as the light swings, softly, every swing
     for t, d, c in cues_with(m, "belt"):
@@ -1519,7 +1519,7 @@ def s05(m, S):
     # the near miss: his wheeze held in; CLANK on the pipe, ringing down it; the guard spins round
     m.put("vox", roomed(m, wheeze(1), T_BREATH), T_BREATH, cgain(m, T_BREATH, "wheez", default=-20.0) - 2.0,
           pan=cpan(m, T_BREATH, "wheez", default=0.25), label="his wheeze", align=None, key=True)
-    m.put("efx", roomed(m, DC.steth_clank(1), T_CLANK), T_CLANK, cgain(m, T_CLANK, "clank", default=-6.0),
+    m.put("efx", roomed(m, DC.steth_clank(1), T_CLANK), T_CLANK, cgain(m, T_CLANK, "clank", default=-6.0) - 2.5,
           pan=cpan(m, T_CLANK, "clank"), label="CLANK on the pipe")
     m.put("efx", roomed(m, DC.ripple(1, 92.0, 1.3), T_CLANK), T_CLANK + 0.02, -14.0)
     m.put("efx", roomed(m, DC.cloth(0.45, 2, 1.0), T_SPIN), T_SPIN, cgain(m, T_SPIN, "swish", default=-15.0),
@@ -1555,7 +1555,7 @@ def s06(m, S):
     for t, d, c in cues_with(m, "vault tone", "hush"):
         x = bed("room_tone", L - t, 61, lp=1500.0)
         x = env(x, [(0.0, 1.0), (max(0.1, s0 - t), 1.0), (max(0.2, s0 - t + 1.0), 0.5), (len(x) / SR, 0.5)])
-        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 6.0, label="the hush at the vault door", align=None)
+        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 3.0, label="the hush at the vault door", align=None)
         break
     # the dial: each gate's click (pitched D, F, A), a pizzicato answer on the off-beat; the fence:
     # the chord together
@@ -1565,7 +1565,7 @@ def s06(m, S):
         kk = 0 if c is None or "low" in c["text"] else 2 if "high" in c["text"] else 1 if "mid" in c["text"] else k
         m.put("efx", roomed(m, DC.gate_click(kk, k), t, wet=-18.0), t, lvl, label=f"gate click {('low', 'mid', 'high')[kk]}")
         m.put("music", pz((50, 53, 57)[kk], 0.6, 40 + k), t + BEAT / 2, -22.0, pan=0.15)
-    m.put("efx", roomed(m, DC.fence_clunk(1), T_FENCE), T_FENCE, cgain(m, T_FENCE, "clunk", default=-5.0),
+    m.put("efx", roomed(m, DC.fence_clunk(1), T_FENCE), T_FENCE, cgain(m, T_FENCE, "clunk", default=-5.0) - 2.5,
           label="CLUNK: the fence")
     for j, p in enumerate((38, 50, 53, 57, 61)):
         m.put("music", pz(p, 0.75, 50 + j), T_FENCE + 0.004 * j, -17.0, pan=-0.2 + 0.1 * j)
@@ -1656,8 +1656,8 @@ def s07(m, S):
                         env_=[(0.0, 0.35), (dp, 1.0)]), t_p, gi - 5.0, align=None, fades=False)
     m.put("music", env(trem((74, 75), dp + 0.05, 0.6, 10), [(0.0, 0.15), (dp - 0.02, 1.0), (dp + 0.05, 0.0)]), t_p,
           gi - 9.0, pan=0.2, align=None, fades=False)
-    m.put("music", stab(PSY, 2, low=True), T_BOOM, -9.0, label="BOOM: a low stab")
-    m.put("music", bow([(0.0, 26)], 1.4, 0.8, 11, octaves=(0, 1), attack=0.01, release=1.2), T_BOOM, -15.0, align=None)
+    m.put("music", stab(PSY, 2, low=True), T_BOOM, -11.0, label="BOOM: a low stab")
+    m.put("music", bow([(0.0, 26)], 1.4, 0.8, 11, octaves=(0, 1), attack=0.01, release=1.2), T_BOOM, -18.0, align=None)
     # the section: the ring's low stab; an ostinato under his run, sixteenths, into the BANG
     for t, d, c in each("low stab"):
         m.put("music", stab(PSY, 3, low=True), t, cg(c, 1.0), label="the ring: a low stab")
@@ -1665,7 +1665,7 @@ def s07(m, S):
              gain=-16.0, seed=10, label="his run: the ostinato")
     # 17.0 BANG: the bell, loud, swelling on every beat; the strings' tremolo on the Psycho chord
     # under it, rising as the camera pushes in; cut dead at the cut
-    m.put("music", stab(PSY, 4), T_BANG, -9.0)
+    m.put("music", stab(PSY, 4), T_BANG, -12.0)
     db = L - T_BANG
     m.put("music", env(trem(PSY, db + 0.05, 0.7, 11), [(0.0, 0.45), (db - 0.03, 1.0), (db, 0.0)]), T_BANG, -19.0,
           align=None, fades=False)
@@ -1720,7 +1720,7 @@ def s07(m, S):
         cutp = (c.get("params") or {}).get("cut")
         k = 1 if ((isinstance(cutp, (tuple, list)) and len(cutp) and float(cutp[0]) < 1.0)
                   or "weight" in c["text"] or "held" in c["text"]) else 0
-        grunt(m, t, cg(c, 1.0), k, pan=c["pan"], label="his grunt" + (", held" if k == 1 else ""))
+        grunt(m, t, cg(c, -2.0), k, pan=c["pan"], label="his grunt" + (", held" if k == 1 else ""))
         if "bags" in c["text"] or "sacks" in c["text"] or "gold" in c["text"]:
             for j in range(3):
                 m.put("efx", roomed(m, DC.gold_clink(10 + j, 0.8), t + 0.06 + 0.07 * j), t + 0.06 + 0.07 * j,
@@ -1740,12 +1740,14 @@ def s07(m, S):
         m.put("vox", roomed(m, x, t), t, cg(c, 2.0), pan=c["pan"], label="inside: his gasp (muffled)", align=None,
               key=True)
     for t, d, c in each("boom") or [(T_BOOM, 0.0, {"gain_db": -2.0, "pan": 0.0})]:
-        m.put("efx", DC.vault_boom(1), t, cg(c, -3.0), pan=c["pan"], label="BOOM: the door shut")
+        # its sub-bass (half its energy under 40 Hz, inaudible on most speakers) only drives the limiter
+        m.put("efx", dsp.sos(DC.vault_boom(1), "highpass", 42.0, 2), t, cg(c, -5.0), pan=c["pan"],
+              label="BOOM: the door shut")
     for k, (t, d, c) in enumerate(each("bolt clack")):
         m.put("efx", roomed(m, DC.bolt_one(k % 12), t), t - DC.BOLT_PRE, cg(c, -1.0), pan=c["pan"],
               label="a bolt shoots home", sync=t, align="peak")
     for t, d, c in each("clank"):
-        m.put("efx", roomed(m, DC.fence_clunk(1), t), t, cg(c, -1.0), pan=c["pan"], label="CLANK: the lock's bolt home")
+        m.put("efx", roomed(m, DC.fence_clunk(1), t), t, cg(c, -7.0), pan=c["pan"], label="CLANK: the lock's bolt home")
         m.put("efx", roomed(m, DC.bolt_one(5), t), t - DC.BOLT_PRE, cg(c, -8.0), pan=c["pan"])
     for t, d, c in each("dial spin"):
         dd = round(max(0.3, d or 0.5), 2)
@@ -1764,8 +1766,8 @@ def s07(m, S):
             m.put("efx", roomed(m, DC.gold_clink(60 + 7 * k + j, 0.6), t + dt), t + dt, cg(c, -1.5 * (j % 2)),
                   pan=c["pan"], label="the bags swing, the gold clinking" if j == 0 else None)
     for t, d, c in each("bang") or [(T_BANG, 0.0, {"gain_db": -4.0, "pan": 0.05})]:
-        m.put("efx", fx("impact", seed=12), t, cg(c, -2.0), pan=c["pan"], label="BANG: the side door")
-        m.put("efx", roomed(m, DC.door_thud(1), t), t, cg(c, -3.0), pan=c["pan"])
+        m.put("efx", fx("impact", seed=12), t, cg(c, -5.0), pan=c["pan"], label="BANG: the side door")
+        m.put("efx", roomed(m, DC.door_thud(1), t), t, cg(c, -6.0), pan=c["pan"])
     bell = next(((t, d, c) for t, d, c in each("alarm bell")), (T_BANG, L - T_BANG, {"gain_db": -6.0, "pan": 0.05}))
     t, d, c = bell
     db = max(0.5, L - t)
@@ -1773,7 +1775,7 @@ def s07(m, S):
     x = alarm(db + 0.05, t, 1, depth=0.35)
     x = dsp.reverb(x, "street", wet_db=-10.0, seed=3)[: n_of(db + 0.05)]
     x = env(x, [(0.0, 0.78), (pu, 0.8), (db - 0.03, 1.0), (db, 0.0)])
-    m.put("efx", x, t, cg(c, -2.0), pan=c["pan"], label="the alarm bell, loud", align=None, fades=False)
+    m.put("efx", x, t, cg(c, -4.0), pan=c["pan"], label="the alarm bell, loud", align=None, fades=False)
     m.mark(q0, "the push in on the bell (the bell nearer)")
 
 
@@ -1817,7 +1819,7 @@ def s08(m, S):
     # the panic: his heart on the picture's rings (150 bpm, the film's clock); a high string rising
     # (the Dutch tilt), his C# a semitone under her D up there
     for t, d, c in cues_with(m, "heartbeat"):
-        heart_rings(m, t, t + (d or 4.0), 150.0, film=True, gain=c["gain_db"] + CUE_TRIM - 3.0,
+        heart_rings(m, t, t + (d or 4.0), 150.0, film=True, gain=c["gain_db"] + CUE_TRIM - 7.0,
                     shape=lambda u: -3.0 + 3.0 * min(1.0, u / 0.4))
         m.mark(t, "his heart")
         break
@@ -1829,7 +1831,7 @@ def s08(m, S):
               t + 0.5, c["gain_db"] + CUE_TRIM - 12.0, pan=-0.15)
     # his fists: three muffled BOOMs; he sags (a breath, his coat on the steel)
     for k, t in enumerate(T_BLOWS[:3]):
-        m.put("efx", DC.pound(k), t, cgain(m, t, "boom", default=-4.0) - 4.0, pan=cpan(m, t, "boom", default=-0.4),
+        m.put("efx", DC.pound(k), t, cgain(m, t, "boom", default=-4.0) - 7.0, pan=cpan(m, t, "boom", default=-0.4),
               label="a fist on the door: BOOM")
     ts = m.at("", 5.0, "sags")
     breath(m, "out", ts, cgain(m, ts, "sags", default=-16.0), pan=-0.4, semis=-2.0, label="he sags")
@@ -1889,7 +1891,7 @@ def s08(m, S):
                                                              (L - T_BACK, 0.0)]), T_BACK, -34.0, pan=0.3)
     m.put("efx", roomed(m, DC.heel_tap(1), T_TAP), T_TAP, cgain(m, T_TAP, "click", default=-10.0) - 1.0,
           pan=cpan(m, T_TAP, "click", default=0.2), label="her heel: a click")
-    m.put("efx", DC.hollow_knock(1), T_KNOCK, cgain(m, T_KNOCK, "knock", default=-4.0) - 1.0,
+    m.put("efx", DC.hollow_knock(1), T_KNOCK, cgain(m, T_KNOCK, "knock", default=-4.0) - 3.0,
           pan=cpan(m, T_KNOCK, "knock", default=0.2), label="a HOLLOW knock")
     m.put("efx", DC.ripple(2, 62.0, 1.4), T_KNOCK + 0.03, -12.0)
     breath(m, "in", T_TURN - 0.25, cgain(m, T_TURN, "intake", default=-14.0), pan=-0.3, label="his sharp intake")
@@ -1968,8 +1970,8 @@ def s09(m, S):
         break
     for k, (t, d, c) in enumerate(cues_with(m, "slide", "squeal down", "squeak")):
         heavy = 0.8 if "slower" in c["text"] or "his" in c["text"] else 0.4
-        m.put("efx", roomed(m, DC.ladder_slide(round(max(0.3, d or 1.0), 2), k, heavy), t), t, c["gain_db"] + CUE_TRIM,
-              pan=c["pan"], label="a slide down the rails", align=None)
+        m.put("efx", roomed(m, DC.ladder_slide(round(max(0.3, d or 1.0), 2), k, heavy), t), t,
+              c["gain_db"] + CUE_TRIM - 1.5, pan=c["pan"], label="a slide down the rails", align=None)
     for k, (t, d, c) in enumerate(cues_with(m, "splash")):
         m.put("efx", DC.splash_drop(k), t, c["gain_db"] + CUE_TRIM - 2.0, pan=c["pan"], label="a splash")
         if "heavier" in c["text"]:
@@ -2062,10 +2064,10 @@ def s09(m, S):
         dd = max(0.5, L - t)
         x = far(DC.siren(dd + 0.3, hz(69), hz(74), 2.0, 7, 0.75), 1600.0)
         x = env(x, [(0.0, 0.0), (dd, 1.0), (dd + 0.3, 1.0)])[: n_of(dd)]
-        m.put("efx", street(x, -4.0, 6)[: n_of(dd)], t, c["gain_db"] + CUE_TRIM - 3.0, pan=c["pan"],
-              label="the first siren, far", align=None, fades=False)
-        m.put("music", held(PSY, dd, 0.6, 28, octaves=(0, 1), attack=dd * 0.9, release=0.05), t, -20.0, align=None,
-              fades=False)
+        m.put("efx", dsp.fade(street(x, -4.0, 6)[: n_of(dd)], 0.0, 0.012), t, c["gain_db"] + CUE_TRIM - 3.0,
+              pan=c["pan"], label="the first siren, far", align=None, fades=False)    # cut on the cut (no click)
+        m.put("music", dsp.fade(held(PSY, dd, 0.6, 28, octaves=(0, 1), attack=dd * 0.9, release=0.05), 0.0, 0.012), t,
+              -20.0, align=None, fades=False)
         break
 
 
@@ -2233,14 +2235,14 @@ def s10(m, S):
               key=True)
     dh_ = (m.cue_near(T_HER, "high held", win=0.1) or {}).get("dur") or 1.5
     m.put("music", harm(HER, dh_ + 0.3, 0.75, 10, attack=0.25, release=1.0), T_HER,
-          cgain(m, T_HER, "high held", default=-10.0) - 4.0, label="her look: her D, high", align=None)
+          cgain(m, T_HER, "high held", default=-10.0) - 6.0, label="her look: her D, high", align=None)
     dc2 = (m.cue_near(T_HIS, "low c#", win=0.1) or {}).get("dur") or 1.1
     m.put("music", bow([(0.0, HIS)], dc2 + 0.3, 0.8, 11, octaves=(0, 1), attack=0.2, release=1.0), T_HIS,
-          cgain(m, T_HIS, "low c#", default=-10.0) - 4.0, label="his look: his C#, low", align=None)
+          cgain(m, T_HIS, "low c#", default=-10.0) - 6.0, label="his look: his C#, low", align=None)
     gm_ = cgain(m, T_MEET, "looks meet", default=-8.0)
-    m.put("music", OF.chime(hz(HER), 3, 4.0) + 0.8 * OF.chime(hz(HER - 1), 4, 4.0), T_MEET, gm_ - 3.0,
+    m.put("music", OF.chime(hz(HER), 3, 4.0) + 0.8 * OF.chime(hz(HER - 1), 4, 4.0), T_MEET, gm_ - 7.0,
           label="the looks meet: her D and his C#, struck together", hall=-10.0)
-    m.put("music", pz(HIS, 0.8, 12), T_MEET, gm_ - 4.0)
+    m.put("music", pz(HIS, 0.8, 12), T_MEET, gm_ - 6.0)
     for t, d, c in cues_with(m, "pats"):
         p0, p1 = m.span("T_PAT", (t, t + 0.3))
         for j, tp in enumerate((t, t + 0.5 * (p1 - p0) if p1 - p0 > 0.1 else t + 0.15)):
@@ -2303,7 +2305,7 @@ def s11(m, S):
         m.put("music", harm(93, (d or 0.9) + 0.4, 0.6, 3, attack=0.3, release=0.8), t, cg(c, 1.0),
               label="the ruby's red: a high harmonic", align=None)
     # 1.5 THE CELESTA: the one note of it in the whole film, her D, high, on the ruby's glint
-    the_celesta(m, T_PING, cgain(m, T_PING, "celesta", default=-9.0) + 2.0, label="the ruby glints: THE celesta")
+    the_celesta(m, T_PING, cgain(m, T_PING, "celesta", default=-9.0) - 1.0, label="the ruby glints: THE celesta")
     # THE THEME in D major goes on from s10 (beats 6-14; its last D on T_CUT); the violins pp under
     # her fist, up with the windows; the harp leaves the glint to the celesta
     t_m = T_CUT - 14 * BEAT
@@ -2327,7 +2329,7 @@ def s11(m, S):
     m.put("music", held((33, 49, 55, 57, 61), T_CUT - T_STAMP + 0.05, 0.85, 5, octaves=(0, 1), attack=0.01, release=0.08),
           T_STAMP, -17.0, label="A7 under the stamp", fades=False)
     for t, d, c in cues_with(m, "stamps down") or [(T_STAMP, 0.0, {"gain_db": -4.0})]:
-        m.put("efx", DC.stamp(1), t, cg(c, -1.0), label="the title stamps down")
+        m.put("efx", DC.stamp(1), t, cg(c, -2.0), label="the title stamps down")
         m.put("efx", sfx._thump(n_of(0.4), 90.0, 45.0, 0.01, 0.15), t, cg(c, -6.0))
     for i, t in enumerate(T_STRIPS[:2]):
         c = m.cue_near(t, "strip", win=0.05) or {"gain_db": -6.0 + i}
@@ -2685,7 +2687,7 @@ def realize(m, c):
         put(DC.manhole_scrape(round(max(0.3, d or 0.6), 2), seed % 3), align=None, gain=-4.0 if has("across") else 0.0)
         return "auto: the manhole lid scraped"
     if hd("manhole clank") or (word("lid") and word("clank", "clanks")):
-        put(DC.manhole_clank(seed % 3))
+        put(DC.manhole_clank(seed % 3), gain=-3.0)
         return "auto: the manhole lid's clank"
     if hd("rung run", "rung up") or has("iron rungs", "rung steps"):
         dd = max(0.3, d or 1.0)
@@ -3092,7 +3094,7 @@ def mixdown(m):
     return mix
 
 
-def master(mix, t_silence, target=-16.0, ceiling=-1.3):
+def master(mix, t_silence, target=-16.0, ceiling=-1.4):     # 0.1 dB under the -1.3 dBTP spec: meters differ
     """High-pass; a short fade into digital silence at t_silence; loudness to target; a true-peak
     limiter (iterated: it takes a little loudness back)."""
     mix = dsp.sos(np.asarray(mix, np.float64), "highpass", 30.0, 2)
@@ -3441,7 +3443,7 @@ def main(argv=None):
         path = os.path.join(out_dir, "audio_only.wav")
         mix = dsp.sos(mix, "highpass", 30.0, 2)
         lu = dsp.loudness_integrated(mix)
-        mix = dsp.limiter(mix * db2lin(-16.0 - lu if np.isfinite(lu) else 0.0), ceiling_db=-1.3)
+        mix = dsp.limiter(mix * db2lin(-16.0 - lu if np.isfinite(lu) else 0.0), ceiling_db=-1.4)
         sf.write(path, mix[:N].astype(np.float32), SR, subtype="PCM_24")
         print(path)
         return
