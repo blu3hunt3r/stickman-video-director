@@ -240,6 +240,9 @@ _GU_FACE = ((470, 196), (498, 228), (516, 262), (512, 282), (500, 298), (508, 32
             (540, 430), (528, 478), (534, 492), (522, 510), (526, 536), (510, 562), (480, 580), (440, 592), (424, 640),
             (414, 740), (404, 860), (230, 860), (236, 720), (240, 620), (180, 560), (110, 480), (80, 380), (86, 280),
             (130, 190), (220, 140), (330, 128), (420, 148))
+# bareheaded (s08-s11): the same face, the skull smaller and flatter under wet hair
+_GU_FACE_BARE = _GU_FACE[:21] + ((240, 620), (196, 566), (150, 490), (128, 400), (130, 312), (160, 236), (226, 186),
+                                 (318, 168), (408, 176), (452, 192))
 _GU_MOUSTACHE = ((514, 432), (546, 430), (568, 444), (576, 474), (558, 470), (540, 482), (520, 476), (506, 462))
 _GU_BROW = ((436, 262), (500, 246), (530, 260), (502, 278), (452, 280))
 _GU_CROWN = ((50, 236), (40, 140), (70, 60), (150, 16), (290, 0), (420, 14), (490, 56), (512, 140), (500, 220),
@@ -259,13 +262,13 @@ def guard(c, at, s=1.0, look=0.3, lid=1.0, fear=0.0, down=0.0, t=0.0, facing=1, 
     cropped hair, wet (s08). wet 0..1: water running off him. mouth_open: gasping."""
     c.save()
     _place(c, at, s, facing, (400, 860))
-    polys = [_shape(_GU_FACE, 931), _shape(_GU_MOUSTACHE, 932, max_len=24.0), _shape(_GU_BROW, 933, max_len=24.0),
-             _shape(_GU_COLLAR, 934)]
+    polys = [_shape(_GU_FACE if hat else _GU_FACE_BARE, 931), _shape(_GU_MOUSTACHE, 932, max_len=24.0),
+             _shape(_GU_BROW, 933, max_len=24.0), _shape(_GU_COLLAR, 934)]
     if hat:
         polys += [_fur(_GU_CROWN, 935), _fur(_GU_FLAP, 936, depth=5.0), _fur(_GU_EARFLAP, 937, depth=5.0)]
         polys.append(bass.orient(D.circle_pts((262, 8), 30, n=16), True))
     else:
-        polys.append(_fur(_GU_HAIR, 938, depth=6.0, step=7.0))
+        polys.append(_fur(tuple((x, y + 40.0) for x, y in _GU_HAIR), 938, depth=6.0, step=7.0))
     if coat:
         polys.append(_poly(_GU_COAT, 939))
     _rimmed(c, polys, rim, (light[0] * facing, light[1]), rim_w / max(s, 1e-3))
@@ -286,7 +289,7 @@ def guard(c, at, s=1.0, look=0.3, lid=1.0, fear=0.0, down=0.0, t=0.0, facing=1, 
         _breath_drops(c, [(560, 420), (526, 540), (496, 576), (430, 140), (300, 120), (180, 170)][: max(1, int(6 * wet))], t,
                       1.0, 939)
     m = _marks(c, {"eye": (466.0, 302.0), "mouth": (540.0, 486.0), "nose": (562.0, 410.0), "chin": (520.0, 540.0),
-                   "top": (280.0, 10.0) if hat else (300.0, 110.0), "ear": (300.0, 400.0)})
+                   "top": (280.0, 10.0) if hat else (310.0, 150.0), "ear": (300.0, 400.0)})
     c.restore()
     return _back(c, m)
 

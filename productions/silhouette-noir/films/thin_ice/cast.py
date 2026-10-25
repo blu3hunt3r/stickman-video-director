@@ -170,6 +170,13 @@ def fig(who):
         foot = _cut([(-18, -10), (14, -10), (22, 4), (48, 8), (50, 22), (-20, 22)], s + 12)
         return replace(f, name=who, torso=torso, head=head, foot=foot, leg_w=(46.0, 40.0, 34.0), arm_w=(42.0, 35.0, 27.0),
                        hand_r=18.0, eye=((38.0, -342.0), 5.0, 3.6))
+    if who == "guard_wet":
+        # out of the river (s08-s11): the ushanka and the rifle gone, his cropped hair wet and
+        # flat in clumps; the same body as the guard (and the same scale: m_per_unit)
+        F = fig("guard")
+        hair = (_cut([(44, -364), (30, -382), (6, -392), (-18, -388), (-36, -370), (-44, -342), (-40, -310), (-30, -296),
+                      (-26, -312), (-20, -306), (-18, -330), (-8, -352), (4, -364), (20, -360), (32, -370)], 11315), "ink")
+        return replace(F, name=who, torso=F.torso[:3], head=F.head[:3] + [hair])
     if who == "farmwife":
         f = pd.woman(None, 14)
         s = 11400
@@ -207,6 +214,8 @@ def height_units(who):
 
 @lru_cache(maxsize=None)
 def m_per_unit(who):
+    if who == "guard_wet":
+        return m_per_unit("guard")
     return HEIGHT_M[who] / height_units(who)
 
 
@@ -226,6 +235,10 @@ WALK = {"mother": (420.0, 0.62, 40.0), "girl": (360.0, 0.6, 40.0), "guard": (440
         "farmwife": (380.0, 0.62, 30.0)}
 RUN = {"mother": (700.0, 0.38, 70.0), "girl": (520.0, 0.36, 66.0), "guard": (760.0, 0.38, 70.0),
        "farmwife": (600.0, 0.38, 56.0)}
+
+# the wet guard (s08-s11) moves and breathes with the guard's body
+for _d in (HEIGHT_M, MOUTH, SKIRT, WALK, RUN, M_PER_UNIT):
+    _d["guard_wet"] = _d["guard"]
 
 
 def walker(who, speed, x0=0.0, t0=-2.0, t1=24.0, walk=None, run=None):

@@ -437,13 +437,17 @@ moon is out, every shadow comes toward us.
    glowing, turning, its pool of light shrinking as it goes down into the dark; the rifle slides
    off his back and follows. Bubbles rise. He looks up, sees the hole, kicks for it (*muffled
    underwater roar; bubbles; his heartbeat, slow and huge*).
-5. **7.0–9.0:** He bursts up through the hole (*a gasp, recorded*), grabs the edge; it breaks off;
-   he goes under, comes up, grabs again.
-6. **9.0–11.0:** Profile CU: his face at the edge, hat gone, breath clouds coming hard, gloves
-   clawing at ice that cracks under them.
-7. **11.0–14.0:** The page: the black hole in the black band, the trail of prints running right
-   into it, his head and arms in it, his hat floating. At the bottom of the frame, in the reeds,
-   her eyes. Last frame: that view.
+5. **7.0–9.0:** Profile section, the eye low on the water: he bursts up through the hole (*a gasp,
+   recorded*), thrashing, and grabs the far edge; the thin edge snaps off under him and he goes
+   under with it; he comes up again, turns, and grabs the near edge, where the band meets the
+   thick white ice. It holds.
+6. **9.0–11.0:** Profile CU: his face at the edge, hat gone, wet hair plastered down, breath
+   clouds coming hard, big gloves clawing at the white slab; cracks run out from under his fingers
+   and a chunk breaks away under one glove (*a slip; a splash*).
+7. **11.0–14.0:** The page, close on him from above: his head and shoulders in the black hole,
+   arms spread on the ice, gloves clawing, his hat floating, the tip of the trunk in the corner.
+   Pulling back: the trail of prints running right into the hole, the trunk, and at the bottom of
+   the frame, in the reeds, her eyes; a blink. Last frame: that view.
 
 ### s09 CHOICE (122–136)
 

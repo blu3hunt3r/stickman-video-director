@@ -1,5 +1,7 @@
 """THIN ICE: what the director's scenes share (s01-s03, s08-s12): the title and its crack, the
-searchlight's clock, the guard's lantern hold, small helpers.
+searchlight's clock, the fence view's space, figures from behind, and the river scenes' kit
+(keyed cameras, a Dutch tilt, bodies that turn, water: bubbles, spray, the waterline, moonlight
+shafts; the guard's hat and rifle as props).
 
 The searchlight sweeps the zone between the fence and the woods on one clock for the whole film
 (film time): its lit patch creeps over the crossing at film 19 (going east) and 25 (going west),
@@ -7,11 +9,12 @@ s02's two near misses, reversing with a clank at the east end of its swing in be
 Through s01 it sweeps the far west end of the zone, by the tower.
 """
 import math
+from contextlib import contextmanager
 from functools import lru_cache
 
 from engine import bass
 from engine.core import clamp, ease, hash01, lerp
-from films.thin_ice import kit as K, world as W
+from films.thin_ice import cast as C, kit as K, world as W
 
 # ============================================================================ the searchlight's clock
 SWEEP_P = 24.0          # s per full swing (there and back)
@@ -391,3 +394,258 @@ def back_breath(c, head, s, t, rate=0.9, phase=0.0, stop=None, strength=1.0):
         r = (0.05 + 0.12 * ease("out", a)) * s
         p = (head[0] + (0.06 + 0.22 * a) * s, head[1] - (0.12 + 0.2 * a) * s)
         K.disc(c, p, r, K.PAPER, seed=int(n) % 97, alpha=0.4 * strength * (1.0 - a) ** 1.4)
+
+
+# ============================================================================ the river scenes (s08-s12)
+# Profile views look west through the river's section (world.draw_river): north to the right,
+# the moon up and to the right. Pages are plans (world.draw_page), north up.
+LIGHT = (0.8, -0.6)
+RIM = lerp(K.SNOW, K.PAPER, 0.4)              # the moon's edge on a figure
+RIM_WET = lerp(K.WATER, K.PAPER, 0.55)        # ... under the water
+
+
+def _seg(t, keys):
+    """The keys either side of t and the eased fraction between them (the ease of the key moved
+    toward: keys [(t, v), ...] or [(t, v, ease), ...])."""
+    if t <= keys[0][0]:
+        return keys[0], keys[0], 0.0
+    for a, b in zip(keys, keys[1:]):
+        if t <= b[0]:
+            e = b[2] if len(b) > 2 else "inout"
+            return a, b, ease(e, (t - a[0]) / max(b[0] - a[0], 1e-9))
+    return keys[-1], keys[-1], 0.0
+
+
+def track(t, keys):
+    """A keyed value at t (a number or a tuple of numbers), eased between keys."""
+    a, b, u = _seg(t, keys)
+    if isinstance(a[1], tuple):
+        return tuple(lerp(x, y, u) for x, y in zip(a[1], b[1]))
+    return lerp(a[1], b[1], u)
+
+
+def dio_at(t, keys):
+    """A diorama camera eased between keys [(t, W.Dio(...)[, ease]), ...] (zoom in log space)."""
+    a, b, u = _seg(t, keys)
+    return W.dio_lerp(a[1], b[1], u)
+
+
+def plan_at(t, keys):
+    """A page camera eased between keys [(t, W.Plan(...)[, ease]), ...]."""
+    a, b, u = _seg(t, keys)
+    return W.plan_lerp(a[1], b[1], u)
+
+
+def shake(t, t0, amp=14.0, dur=0.35):
+    """A camera shake at t0 (px), dying out over dur."""
+    u = (t - t0) / dur
+    if u < 0.0 or u > 1.0:
+        return (0.0, 0.0)
+    a = amp * (1.0 - u) ** 2
+    return (a * math.sin(t * 91.0), a * 0.6 * math.cos(t * 77.0))
+
+
+@contextmanager
+def tilted(c, deg):
+    """A Dutch tilt: the frame turned `deg` about its centre and zoomed just enough that the
+    turned frame stays inside what was drawn for it."""
+    a = math.radians(abs(deg))
+    k = math.cos(a) + (1920.0 / 1080.0) * math.sin(a)
+    c.save()
+    c.translate(540.0, 960.0)
+    c.rotate(math.radians(deg))
+    c.scale(k, k)
+    c.translate(-540.0, -960.0)
+    try:
+        yield
+    finally:
+        c.restore()
+
+
+def stance(who, step=0.0, spread=16.0, sink=0.0):
+    """A standing state with the near foot `step` m ahead of the far one (the pelvis sinks a
+    little in a long stance; `sink` m more)."""
+    st = C.standing(who, 0.0, spread)
+    m = C.M_PER_UNIT[who]
+    h = step / m * 0.5
+    F = C.fig(who)
+    drop = F.leg * 0.965 - math.sqrt(max((F.leg * 0.95) ** 2 - h * h, 1.0)) + sink / m
+    P = st["pelvis"]
+    n, f = st["feet"]["near"], st["feet"]["far"]
+    return dict(st, pelvis=(P[0], P[1] + max(drop, 0.0)), feet={"near": (n[0] + h, n[1], n[2]), "far": (f[0] - h, f[1], f[2])})
+
+
+def free_state(who, near, far, pitch=(0.0, 0.0), skirt=True):
+    """A state for a body off the ground (falling, swimming, clinging): its feet at `near` and
+    `far` (m from the pelvis, x forward, y down), the pelvis where the root is drawn."""
+    m = C.M_PER_UNIT[who]
+    return dict(pelvis=(0.0, 0.0), feet={"near": (near[0] / m, near[1] / m, pitch[0]), "far": (far[0] / m, far[1] / m, pitch[1])},
+                phase=0.0, speed=0.0, run=0.0, stride=0.0, skirt=skirt)
+
+
+def figure(c, cam, who, st, pose, u, z, d=0.0, facing=1, roll=0.0, rim=RIM, light=LIGHT, **kw):
+    """cast.draw at the diorama point (u, z, d), the whole body turned `roll` degrees (clockwise on
+    screen) about its pelvis: a body falling, sinking, swimming; the moon's rim stays up and to
+    the right. Returns the joints in frame px, 'scale' and 'pivot' (the pelvis)."""
+    s = C.scale(who, cam.scale(d))
+    at = cam.px(u, z, d)
+    return figure_at(c, who, st, pose, at, s, facing, roll, rim, light, **kw)
+
+
+def figure_at(c, who, st, pose, at, s, facing=1, roll=0.0, rim=RIM, light=LIGHT, **kw):
+    """figure() at a frame point (the root) and a scale (px per figure unit)."""
+    pv = (at[0], at[1] + s * (st["pelvis"][1] + pose.crouch))
+    if abs(roll) < 1e-6:
+        j = C.draw(c, who, st, pose, at, s, facing, rim=rim, light=light, **kw)
+        j["pivot"] = pv
+        return j
+    a = math.radians(roll)
+    lt = (light[0] * math.cos(a) + light[1] * math.sin(a), -light[0] * math.sin(a) + light[1] * math.cos(a))
+    c.save()
+    c.translate(*pv)
+    c.rotate(a)
+    c.translate(-pv[0], -pv[1])
+    j = C.draw(c, who, st, pose, at, s, facing, rim=rim, light=lt, **kw)
+    dev = {k: c.user_to_device(*v) for k, v in j.items() if isinstance(v, tuple)}
+    c.restore()
+    out = {k: c.device_to_user(*v) for k, v in dev.items()}
+    out["scale"] = s
+    out["pivot"] = pv
+    return out
+
+
+def turn_pt(p, pivot, deg):
+    """p turned deg degrees (clockwise on screen) about pivot."""
+    a = math.radians(deg)
+    x, y = p[0] - pivot[0], p[1] - pivot[1]
+    return (pivot[0] + x * math.cos(a) - y * math.sin(a), pivot[1] + x * math.sin(a) + y * math.cos(a))
+
+
+# ---------------------------------------------------------------------------- the guard's hat and rifle
+@lru_cache(maxsize=None)
+def _prop(kind):
+    F = C.fig("guard")
+    if kind == "hat":
+        polys, pivot = [p for p, _ in F.head[3:6]], (8.0, -398.0)
+    else:
+        polys, pivot = [p for p, _ in F.torso[3:5]], (-55.0, -216.0)
+    return pivot, tuple(tuple((x - pivot[0], y - pivot[1]) for x, y in q) for q in polys)
+
+
+def prop_home(kind, st, pose, at, s, facing=1, roll=0.0, pivot=None):
+    """Where the guard's hat or rifle sits on him (frame px of its pivot, its angle in degrees)
+    when he is drawn by figure_at(..., at, s, facing, roll) with the head held straight."""
+    pv, _ = _prop(kind)
+    p = C.frame_point("guard", st, pose, pv, at, s, facing)
+    ang = pose.lean * facing
+    if roll and pivot is not None:
+        p = turn_pt(p, pivot, roll)
+        ang += roll
+    return p, ang
+
+
+def prop(c, kind, p, s, ang=0.0, facing=1, color=K.INK, rim=None, rim_w=2.5, light=LIGHT):
+    """The guard's hat or rifle on its own: its pivot at p (frame px), s px per figure unit, turned
+    ang degrees."""
+    _, polys = _prop(kind)
+    a = math.radians(ang)
+    ca, sa = math.cos(a), math.sin(a)
+    out = [[(p[0] + (facing * x * ca - y * sa) * s, p[1] + (facing * x * sa + y * ca) * s) for x, y in q] for q in polys]
+    if rim is not None:
+        K.polys(c, [[(x + light[0] * rim_w, y + light[1] * rim_w) for x, y in q] for q in out], rim)
+    K.polys(c, out, color)
+
+
+# ---------------------------------------------------------------------------- water
+def water_poly(cam, n0, n1, top=None, m=40):
+    """The river's water in the section between n0 and n1 (frame px): from `top` (z; default the
+    ice's top) down to the riverbed."""
+    zt = W.ICE_Z if top is None else top
+    ns = [n0 + (n1 - n0) * i / m for i in range(m + 1)]
+    return [cam.px(n, zt) for n in ns] + [cam.px(n, W.bed_z(n)) for n in ns[::-1]]
+
+
+def wash(c, cam, n0, n1, top=None, alpha=0.55):
+    """A translucent layer of the river over whatever is in it (a body half under)."""
+    K.poly(c, water_poly(cam, n0, n1, top), K.WATER, alpha)
+
+
+def waterline(c, cam, n0, n1, t, z=None, seed=0, amp=1.0, alpha=0.8):
+    """The water's surface in a hole: a thin PAPER line, lapping."""
+    zz = W.ICE_Z if z is None else z
+    m = 24
+    pts = []
+    for i in range(m + 1):
+        n = n0 + (n1 - n0) * i / m
+        w = 0.012 * amp * math.sin(n * 9.0 - t * 7.0 + seed) + 0.008 * amp * math.sin(n * 21.0 + t * 11.0)
+        pts.append(cam.px(n, zz + w))
+    K.band(c, pts, K.PAPER, max(1.5, 0.012 * cam.ppm), seed=seed, alpha=alpha)
+
+
+def rings(c, p, t, t0, rx, ry, n=3, every=0.35, life=1.2, width=3.0, seed=0, alpha=0.7, color=K.PAPER):
+    """Rings spreading on water from p (flat ellipses rx x ry at their widest), one every `every`
+    s from t0."""
+    if t < t0:
+        return
+    k = math.floor((t - t0) / every)
+    for j in range(k - n + 1, k + 1):
+        if j < 0:
+            continue
+        a = (t - t0 - j * every) / life
+        if 0.0 <= a < 1.0:
+            g = ease("out3", a)
+            pts = [(p[0] + rx * g * math.cos(q), p[1] + ry * g * math.sin(q)) for q in [6.283 * i / 40 for i in range(41)]]
+            K.band(c, pts, color, width * (1.0 - 0.7 * a), seed=seed + j, alpha=alpha * (1.0 - a))
+
+
+def bubbles(c, src, t, t0, t1, top_y, ppm, rate=8.0, seed=0, rise=1.0, size=1.0, alpha=0.85, spread=0.05):
+    """Bubbles rising from src(t) (frame px), born `rate` a second between t0 and t1: each wobbles
+    up at about `rise` m/s, swelling a little, and is gone at top_y (the ice above)."""
+    n = int((t1 - t0) * rate) + 1
+    for i in range(n):
+        tb = t0 + (i + 0.8 * hash01(seed, i)) / rate
+        if tb > t or tb > t1:
+            continue
+        age = t - tb
+        p0 = src(tb)
+        v = rise * (0.7 + 0.6 * hash01(seed, i, 1)) * ppm
+        y = p0[1] - v * age - 0.25 * ppm * age * age
+        if y < top_y:
+            continue
+        wob = 0.04 * ppm * math.sin(age * (6.0 + 4.0 * hash01(seed, i, 2)) + 6.28 * hash01(seed, i, 3))
+        x = p0[0] + spread * ppm * K._sn(seed, i, 5) * (1.0 + age) + wob
+        r = (0.012 + 0.03 * hash01(seed, i, 4) ** 2) * ppm * size * (1.0 + 0.35 * age)
+        if r > 6.0:
+            bass.ring(c, (x, y), r, max(1.2, r * 0.28), K.PAPER, seed=seed + i, alpha=alpha)
+            K.dot(c, (x + r * 0.3, y - r * 0.35), max(1.0, r * 0.22), K.PAPER, seed=seed + i, alpha=alpha)
+        else:
+            K.dot(c, (x, y), max(1.2, r), K.PAPER, seed=seed + i, alpha=alpha * 0.9)
+
+
+def spray(c, p, t, t0, ppm, n=18, seed=0, power=1.0, life=0.8, spread=1.0, up=1.0, color=K.PAPER, alpha=0.95):
+    """Water thrown up at p (frame px) at t0: drops flying up and out, falling back, gone."""
+    a = (t - t0) / life
+    if not 0.0 <= a < 1.0:
+        return
+    tt = a * life
+    for i in range(n):
+        ang = math.radians(-90.0 + 70.0 * spread * K._sn(seed, i, 1))
+        v = (1.2 + 2.2 * hash01(seed, i, 2)) * power
+        x = p[0] + math.cos(ang) * v * tt * ppm
+        y = p[1] + (math.sin(ang) * v * up * tt + 4.9 * tt * tt) * ppm
+        r = ppm * (0.012 + 0.03 * hash01(seed, i, 3)) * (1.0 - 0.3 * a)
+        K.ellipse(c, (x, y), r * 0.8, r * 1.3, color, angle=math.degrees(ang) + 90.0, alpha=alpha * (1.0 - a) ** 1.2)
+
+
+def shafts(c, top_l, top_r, length, t, strength=1.0, lean=0.55, seed=0):
+    """Moonlight slanting down through a hole into the water (from the upper right to the lower
+    left): flat wedges from the hole's span top_l..top_r (frame px), wavering a little."""
+    for i in range(4):
+        f = 1.0 - i / 4.0
+        w = 0.15 * math.sin(t * (0.9 + 0.3 * i) + seed + i)
+        a = (lerp(top_l[0], top_r[0], 0.5 - 0.5 * f), lerp(top_l[1], top_r[1], 0.5 - 0.5 * f))
+        b = (lerp(top_l[0], top_r[0], 0.5 + 0.5 * f), lerp(top_l[1], top_r[1], 0.5 + 0.5 * f))
+        dx = -lean * length * (1.0 + w * 0.3)
+        spread_ = (b[0] - a[0]) * (0.35 + 0.25 * f)
+        K.poly(c, [a, b, (b[0] + dx + spread_, b[1] + length), (a[0] + dx - spread_, a[1] + length)], K.PAPER,
+               0.045 * strength * (0.6 + 0.4 * f))
