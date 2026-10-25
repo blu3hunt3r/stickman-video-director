@@ -482,21 +482,31 @@ moon is out, every shadow comes toward us.
 
 ### s10 SCARF (136–154)
 
-1. **0.0–2.0:** She sets the girl behind the trunk's root plate, a flat palm: stay.
-2. **2.0–5.0:** Profile: she climbs onto the trunk, lies flat and crawls out along it toward the
-   hole (*the trunk creaks; ice groans*).
-3. **5.0–7.0:** At the trunk's end she winds one end of the scarf round her wrist and throws the
-   other: a red line flies out over the black ice and falls short (7.0).
-4. **7.0–9.0:** She draws it back and throws again; it lands across the black ice to the hole; his
-   glove grabs it (9.0).
-5. **9.0–11.0:** He winds it round his fist; she pulls and slides on the trunk; CU her boot hooks
-   behind the branch stub (10.25): it holds.
-6. **11.0–14.0:** Hand over hand, the red line taut. He comes up onto the edge; the ice breaks
-   under his chest; he pushes on and slides out flat over the black ice onto the white (the page:
-   his body sliding along the red line toward the trunk).
-7. **14.0–16.0:** He reaches the trunk; she drags him onto it; they crawl back to the bank.
-8. **16.0–18.0:** On the bank: he rolls onto his back, gasping, steaming breath; she scrambles back
-   to the girl, the scarf in her hand. Last frame: the three on the bank.
+1. **0.0–1.8:** CU two-shot at the root plate: the girl's red scarf is round the mother's neck;
+   her flat mitten comes up between them: stay (0.42). She rises out of frame; the girl's eyes
+   follow her up.
+2. **1.8–3.3:** The section at the root: she steps up onto the trunk, drops flat on it and crawls
+   out down the bank; the girl, her neck bare now, peeks round the roots (*the trunk creaks*).
+3. **3.3–5.0:** The page, turned so the trunk runs straight up the frame to the hole: she crawls up
+   it toward him; the false trail beside her goes into the hole (*the ice groans*).
+4. **5.0–7.1:** The section at the tip: she pulls the scarf off her neck, winds one end round her
+   wrist and throws: the red line flies out over the ice and falls short (6.39); his glove lunges
+   for it (6.42); the edge breaks under his other glove (6.74); he grips again.
+5. **7.1–8.7:** She draws it back hand over hand, edges out to the tip and throws again (8.0): it
+   lands across his arm (8.48).
+6. **8.7–9.4:** CU from above: his glove creeps onto the red and closes on it (8.86); a tug.
+7. **9.4–10.1:** The section: he winds it round his fist and heaves (9.72); his weight drags her
+   along the trunk toward the hole.
+8. **10.1–10.9:** CU: her boot slides toes first along the bark, scraping the snow off it, and
+   slams into the branch stub (10.38). It holds (*one string stab, then silence*).
+9. **10.9–14.0:** The page: hand over hand, the red line taut. He comes up onto the edge (11.1);
+   it breaks under his chest (11.75); he pushes on and slides out over the ice on his belly along
+   the red line, leaving a wet track, to the trunk; she has him by the collar (13.62).
+10. **14.0–15.4:** The section at the tip: she backs up the trunk hauling him over its tip, his
+    legs coming out of the water; they work back along it.
+11. **15.4–18.0:** The section at the bank: off the trunk; he rolls onto his back in the snow,
+    gasping, his breath steaming; she scrambles back to the girl at the roots, the scarf hanging
+    from her hand. Last frame: the three on the bank.
 
 ### s11 MERCY (154–172)
 
