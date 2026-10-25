@@ -33,7 +33,7 @@ a small photograph of a girl in a pompom hat. He closes it, takes his lantern an
 out on his round. At the fence his lantern finds the scrap on the wire, then the prints, big and
 small. He blows his whistle; far off, lanterns wake. He follows the prints into the woods.
 
-The girl falls in the deep snow. Her mother lifts her onto her hip and the small prints end; the
+The girl falls in the deep snow. Her mother lifts her onto her back and the small prints end; the
 big ones go on, deeper. The guard's lantern finds the place and understands. The mother breaks
 out of the trees at the river. Across the ice is the farmhouse light. In the middle of the white
 river runs a band of black ice. She throws a stone onto it and it punches straight through:
@@ -100,8 +100,8 @@ is quick puffs; holding the breath is no puffs).
 
 | Who | Silhouette | Notes | Motion |
 |---|---|---|---|
-| **The mother** | a long coat flaring to mid-calf; a headscarf knotted under the chin, its point down her back; felt boots; mittens; a cloth bundle on a strap | about 1.70 m. Local: she knows the river. | paperdoll Walker (planted feet), carrying pose; 17_03 stealth walk; 22_03 kneeling; 69_70 squat; crawl and pull are posed by hand |
-| **The girl** | a knitted pompom hat; a short padded coat; the **red scarf**, wound once with both ends trailing; boots; mittens | about 1.15 m, seven years old. The music box in her pocket. | Walker (child gait); carried on the mother's hip |
+| **The mother** | a long coat flaring to mid-calf; a headscarf knotted under the chin, its point down her back; felt boots; mittens | about 1.70 m. Local: she knows the river. | paperdoll Walker (planted feet), carrying pose; 17_03 stealth walk; 22_03 kneeling; 69_70 squat; crawl and pull are posed by hand |
+| **The girl** | a knitted pompom hat; a short padded coat; the **red scarf**, wound once with both ends trailing; boots; mittens | about 1.15 m, seven years old. The music box in her pocket. | Walker (child gait); carried piggyback on her mother's back (`C.piggyback`) |
 | **The guard** | a greatcoat to the shins, belted; an ushanka with its flaps tied up; a moustache; a rifle slung across his back; a lantern; hobnailed boots | about 1.85 m, heavy. Not local. A whistle on a chain. | 17_08 heavyset walk; 77_05 looking round with a light; 22_03 kneeling; swimming and clinging posed by hand |
 | **The other guards** | the same coat and hat, smaller, lanterns | three; far lanterns until s11 | 17_08, 77_05 |
 | **The farm woman** | a shawl over her head and shoulders, in the lit doorway | s12 only | a wave |
@@ -121,7 +121,7 @@ Each colour has one job. No gradients.
 | `SHADOW` | (0.50, 0.57, 0.67) | footprints, cast shadows on snow |
 | `ICE` | (0.60, 0.70, 0.78) | the river's white ice (snow-dusted), cooler than the land so the river reads |
 | `THIN` | (0.22, 0.30, 0.37) | the thin black band of ice over the current |
-| `WATER` | (0.020, 0.035, 0.060) | open water, under the ice |
+| `WATER` | (0.035, 0.075, 0.125) | open water, under the ice: a deep blue, apart from the earth's `INK` |
 | `PAPER` | (0.94, 0.91, 0.84) | the moon, the searchlight, breath, the title paper |
 | `AMBER` | (0.95, 0.66, 0.24) | the guard's lantern, the stove, lit windows, the farmhouse door |
 | `RED` | (0.84, 0.10, 0.09) | **the girl's scarf only** (and the title's thread, which is the scarf) |
@@ -193,18 +193,18 @@ camera (`world.py` converts).
 | The river | n 0 (south bank) to 25 (north bank) | white ice (`ICE`), banks 0.9 m above it |
 | The black band | n 10 to 16, from x = −22 downstream | thin ice over the current (`THIN`); upstream of x = −22 the ice is white all the way across |
 | The crossing | x ≈ −32 | where she crosses at the end; the searchlight sweeps it |
-| The false trail | x = 13.2, from the bank (n −0.5) to n 9.4 | 13 prints out; she backtracks in them to n ≈ 5.0 |
-| The fallen trunk | root plate at (11.0, −2.0) on the bank, tip at (12.4, 8.6) on the ice | bare, takes no prints; a branch stub near the tip |
-| The stone's hole | (15.6, 12.8) | small (r 0.35 m), s05 |
-| The guard's hole | (13.2, 10.9) | r 1.0 m, breaking out to 1.3 m |
+| The false trail | x ≈ 13.2, from the bank (n −1.85) to the band's edge (n 9.0) | 19 prints out (`W.FALSE_TRAIL`); she backtracks in them to print 12, beside the trunk |
+| The fallen trunk | root plate at (11.6, −2.0) on the bank, tip at (12.6, 8.6) on the ice (`W.TRUNK`) | bare, takes no prints; a branch stub at n 7.4 (`W.stub_point()`) |
+| The stone's hole | (12.2, 14.4) | small (r 0.35 m), s05; 1.2 m behind the section, so the cut shows it |
+| The guard's hole | (13.3, 11.05), r 0.95 m (`"guard_small"`) | breaking out to (13.3, 11.3), r 1.2 m (`"guard"`) |
 | The reeds | x 2 to 10, n −4 to −0.5 | where she hides, at (7.5, −2.5) |
 | The woods | n −120 to −8 | tall pines; the path winds through |
 | The stumble | (21, −48) | where the small prints end |
 | The fence | n = −130, east to west | she crosses at (40, −130) |
-| The watchtower | (5, −126) | its searchlight sweeps the zone, the woods' edge and, from s05, the crossing |
-| The guardhouse | (75, −127) | stove, window |
+| The watchtower | (24, −125) | its searchlight sweeps the zone, the woods' edge and, from s05, the crossing |
+| The guardhouse | (62, −126.5) | stove, window |
 | The farmhouse | (−30, 38), on the north bank | one lit window facing the river; the door opens in s12 |
-| The moon | in the north, low (about 25°) | shadows fall south: behind the walkers, toward the fence |
+| The moon | in the north, low (33°) | shadows fall south: behind the walkers, toward the fence |
 
 ### The elevations (the story views)
 
@@ -340,7 +340,7 @@ The fence view, from behind them, looking north. Their shadows come toward us.
    trunks (moving right). The searchlight crosses high in the trees; trunk shadows swing over the
    snow (*their breath, steps, the wind in the pines*).
 2. **3.0–5.0:** The girl falls, waist deep (3.5, *a muffled fall*). The mother hauls her out and
-   lifts her onto her hip (5.0).
+   lifts her onto her back, piggyback (5.0).
 3. **5.0–8.0:** The page: two lines of prints side by side; at a trampled patch the small line
    ends; only the big prints go on, deeper and closer together (heavier, slower). The mother (from
    above, the girl at her shoulder) climbs out of the frame.
@@ -375,14 +375,14 @@ The fence view, from behind them, looking north. Their shadows come toward us.
 ### s06 FALSE TRAIL (78–94) · animator
 
 1. **0.0–4.0:** The page: carrying the girl, she walks from the bank straight out across the white
-   ice to the edge of the black band; her prints march behind her (13 steps). She stops at the
+   ice to the edge of the black band; her prints march behind her (19 steps). She stops at the
    edge (4.0).
 2. **4.0–6.0:** CU, profile at boot level: her boot lifts and steps **back**, and lowers exactly
    into its own print: a perfect fit (6.0). Hold on it (*one soft crunch, deliberately quiet*).
 3. **6.0–10.0:** The page: she walks backward in her own prints toward the bank; each print she
    reuses flashes with a small ring (the step pulse). Beside the trunk she stops and steps sideways
    up onto it (10.0): no print.
-4. **10.0–13.0:** Profile: she walks along the trunk, balancing, the girl on her hip, down onto the
+4. **10.0–13.0:** Profile: she walks along the trunk, balancing, the girl on her back, down onto the
    bank and into the reeds; she crouches and pulls her coat round the girl.
 5. **13.0–16.0:** The page, rising: the whole lie at a glance: one line of prints from the woods
    out across the ice, ending at the black band. The bare trunk beside it. In the reeds, two pairs
