@@ -763,6 +763,17 @@ def pad(m, t0, prog, gain=-20.0, seed=0, start=0.0, stop=None, octaves=(0,), att
         m.put("music", x, t0 + b * BEAT, gain, label=label if i == 0 else None, align=None)
 
 
+def stealth(m, t0, t1, seed, gain=-18.5, fin=1.0, fout=0.6):
+    """The hush's floor under the stealth: violas and cellos sul tasto on an open fifth (D-A) and a
+    faint high harmonic A over them, equal-power fades. Never an event: it only keeps a hush
+    audible on a phone speaker (the short-term loudness about -29 LUFS, not a drop-out)."""
+    d = max(0.5, t1 - t0)
+    lo = dsp.fade(held((50, 57), d, 0.5, seed, octaves=(0,), attack=0.05, release=0.05, bright=2500.0), fin, fout)
+    hi = dsp.fade(harm(81, d, 0.35, seed + 1, attack=0.05, release=0.05, vib=0.002), fin * 1.5, fout)
+    m.put("music", lo, t0, gain, align=None)
+    m.put("music", hi, t0, gain - 14.0, pan=0.15, align=None)
+
+
 def the_celesta(m, t, gain, pan=0.0, label=None):
     """THE celesta: one note in the whole film, the ruby's glint. A second is refused."""
     if m.celesta:
@@ -1046,7 +1057,7 @@ def wall_clock(m, t0, t1, level, pan=0.2):
 BANK_TICK = (60.0, 91.0)     # film: the hall's clock heard from s04 12.0 to the door's swing (s06 11.0)
 
 
-def bank_clock(m, gain=-24.0):
+def bank_clock(m, gain=-21.0):
     """The beat's tick in the bank (the hall's clock): every beat inside BANK_TICK and this scene."""
     a, b = max(BANK_TICK[0], m.t0), min(BANK_TICK[1], m.t0 + m.len)
     k = math.ceil(a / BEAT - 1e-9)
@@ -1205,7 +1216,7 @@ def s01(m, S):
 
 # ============================================================================ s02 CREW (14-30)
 def clock_level_s02(t):
-    return -19.0 if t < 2.0 else -23.0 if t < 6.5 else -26.0 if t < 11.5 else -21.0
+    return -19.0 if t < 2.0 else -21.0 if t < 6.5 else -26.0 if t < 11.5 else -21.0
 
 
 @section("s02")
@@ -1225,7 +1236,7 @@ def s02(m, S):
     m.put("efx", roomed(m, DC.chain_creak(2.0, 1), 0.0), 0.0, cgain(m, 0.0, "chain", default=-16.0) - 8.0, pan=0.1,
           label="the lamp's chain", align=None)
     m.put("efx", roomed(m, DC.chain_creak(2.4, 2), 11.6), 11.6, -27.0, pan=0.1)
-    m.put("amb", bed("room_tone", L, 21, lp=2500.0), 0.0, -38.0)
+    m.put("amb", bed("room_tone", L, 21, lp=2500.0), 0.0, -34.0)
     tc = m.at("", 0.6, "cigarette", "faint crackle")
     m.put("efx", cut(fx("ember_sizzle", seed=2), 0.9, 0.3), tc, cgain(m, tc, "crackle", default=-22.0) - 2.0, pan=0.35,
           label="the cigarette's crackle", align=None)
@@ -1460,8 +1471,9 @@ def s04(m, S):
     while t < 11.0:
         m.put("music", pz(38, 0.6, int(t)), t, -24.0)
         t += BAR
-    # the hall: its clock, the beat's tick
+    # the hall: its clock, the beat's tick; the hold in the corner keeps a floor (over the cut)
     bank_clock(m)
+    stealth(m, 12.5, L + 0.35, 40, fin=1.0, fout=0.35)
 
 
 # ============================================================================ s05 GUARD (62-80)
@@ -1493,8 +1505,9 @@ def s05(m, S):
         x = bed("room_tone", L - t, 51, lp=1800.0)
         hum = 0.25 * np.sin(2 * np.pi * hz(26) * tax(len(x))) + 0.1 * np.sin(2 * np.pi * hz(38) * tax(len(x)))
         x = x + dsp.fade(hum, 0.5, 0.5)[:, None]
-        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 5.0, label="the hall at night", align=None)
+        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 2.0, label="the hall at night", align=None)
         break
+    stealth(m, 0.0, T_CLANK - 0.15, 41, fin=0.35, fout=0.7)          # the floor under the crossings: the CLANK breaks it
     # his belt creaks as the light swings, softly, every swing
     for t, d, c in cues_with(m, "belt"):
         k = 0
@@ -1555,8 +1568,9 @@ def s06(m, S):
     for t, d, c in cues_with(m, "vault tone", "hush"):
         x = bed("room_tone", L - t, 61, lp=1500.0)
         x = env(x, [(0.0, 1.0), (max(0.1, s0 - t), 1.0), (max(0.2, s0 - t + 1.0), 0.5), (len(x) / SR, 0.5)])
-        m.put("amb", x, t, c["gain_db"] + CUE_TRIM - 3.0, label="the hush at the vault door", align=None)
+        m.put("amb", x, t, c["gain_db"] + CUE_TRIM, label="the hush at the vault door", align=None)
         break
+    stealth(m, 0.0, T_FENCE - 0.05, 42, fin=0.5, fout=0.5)           # the floor under the dial: the CLUNK ends it
     # the dial: each gate's click (pitched D, F, A), a pizzicato answer on the off-beat; the fence:
     # the chord together
     for k, t in enumerate(GATES[:3]):
