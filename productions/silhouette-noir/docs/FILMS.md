@@ -571,6 +571,10 @@ flags 36 frames. Outside s02 and s05 every flag is at a frame v2's preview also 
 v4's times), and nothing is new. In s02 the six flags are its designed cuts (table, faces, the
 side shot). s05, one continuous shot, has none.
 
+That file played without sound in the Claude app on the user's phone, though its soundtrack
+measures normal, so v4 was re-sent as `final/double_cross_v4_phone_preview.mp4`: the same master
+and soundtrack encoded at 5 Mb/s video, 99.0 MB (SYSTEM.md section 9).
+
 ### 9.13 Files
 
 | Path | What it is |
@@ -589,3 +593,4 @@ side shot). s05, one continuous shot, has none.
 | `films/double_cross/final/double_cross_v2_preview.mp4` | The delivered v2 preview, with the shot types (not in git). |
 | `films/double_cross/final/double_cross_v3_preview.mp4` | The delivered v3 preview, with the review fixes and the voices (not in git). |
 | `films/double_cross/final/double_cross_v4_preview.mp4` | The delivered v4 preview: v2's picture, the briefing given time, the guard rebuilt (not in git). |
+| `films/double_cross/final/double_cross_v4_phone_preview.mp4` | The v4 preview re-encoded at 5 Mb/s (99.0 MB) after the 146.6 MB file played without sound on the user's phone (not in git). |
