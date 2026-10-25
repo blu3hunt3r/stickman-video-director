@@ -174,7 +174,7 @@ the crack and the break (s08). **One rising crane**, at the very end, as the pag
 |---|---|
 | Step pulses: a print flashes with a small ring as a foot lands in it | a foot landing in a print (s06's backtrack: every reused print flashes) |
 | Sight line (`K.sight_line`, dotted) | who is looking at what (the guard to the far light; the mother to the hole) |
-| The heartbeat ring | fear (s07 the guard passing the reeds; s09 the choice); it stops when she takes the scarf |
+| The heartbeat ring (`PAPER`, lub-dub pairs; never red) | fear (s07 the guard passing the reeds; s09 the choice, 96 bpm); it stops when she takes the scarf |
 | Breath puffs | breathing; none while a breath is held |
 | Crack lines (`PAPER` on `THIN`, jagged, branching) | the ice failing |
 | Whistle rays (short `PAPER` strokes) | the whistle; answered by far lanterns |
@@ -221,6 +221,15 @@ camera (`world.py` converts).
   the moon over it.
 - **Under the ice** (s08): the black water; the ice ceiling above; the hole of light; the
   riverbed.
+- **The bank view** (s09–s11, `L.Bank` in `scenes/_lib_dir.py`): low, from behind the reeds on
+  the south bank, looking **north-north-east** across the river. Upstream (the way out) is
+  screen **left**; the trunk runs out from the root plate on the right to the hole; the far bank
+  and its spruces close the frame. Near reeds are drawn in front of the figures by depth. Figures
+  are seen from behind (`L.back`) until they turn, then in profile.
+- **The split** (s09): three bands. Top, the way out (a river view upstream: the crossing, the
+  searchlight patch on it, the farmhouse window); middle, a black strip with her eyes; bottom,
+  the hole from above with south up, his gloves at the edge. Sight lines run from the eyes up or
+  down; the heartbeat rings spread from the eyes over all three.
 - **The guardhouse inside** (s03) and **the farmhouse door and window** (s12): sections and
   elevations in my scenes.
 
@@ -451,18 +460,25 @@ moon is out, every shadow comes toward us.
 
 ### s09 CHOICE (122–136)
 
-1. **0.0–2.0:** CU in the reeds: the mother's profile, eyes wide; the girl beside her.
-2. **2.0–6.0:** **The split** (a horizontal mirror). Top: upstream, the white crossing in the dark
-   and the farmhouse light: the way out. Bottom: the hole, his hands slipping. Her eyes go up,
-   then down (sight lines). The heartbeat ring pulses.
-3. **6.0–8.0:** Profile: she rises, takes the girl's hand and turns upstream (left) to go. Two
-   steps.
-4. **8.0–10.0:** The girl doesn't move. Their arms stretch between them. The girl is looking at
-   the hole, where one glove slips under.
-5. **10.0–12.0:** The girl unwinds her red scarf and holds it up to her mother. CU: the red scarf
-   in her small mittens.
-6. **12.0–14.0:** The mother looks at the scarf, at the hole, and takes it. The heartbeat stops.
-   Last frame: her hand closing on the red.
+1. **0.0–2.0:** CU in the reeds: the mother's profile (left, facing right), eyes wide; the girl
+   in front of her, low right, the red scarf at her neck. A breath let go (1.3); the mother flicks
+   a look back over her shoulder (1.55–1.9). The heartbeat ring starts at the left.
+2. **2.0–6.0:** **The split.** Her eyes go up (2.45): a sight line to the farmhouse window, the way
+   out. Down (3.75): a sight line to his gloves at the edge of the hole. One glove slips (4.35;
+   scratch marks). Up again (5.15); her lids drop (5.65). The heartbeat rings spread from her eyes
+   over all three bands.
+3. **6.0–8.7:** The bank view, from behind them. Crouched in the reeds; she rises (6.1–6.7), takes
+   the girl's hand (6.5), turns upstream to the left (6.86) and takes two steps (7.0–7.95). Their
+   arms go taut (7.88): the girl hasn't moved. The girl is looking at the hole (8.05, sight line).
+4. **8.7–9.7:** From above, the hole: one glove slides off the edge and goes under; his head dips
+   (8.86–9.4); rings.
+5. **9.7–12.2:** CU the girl, facing left: she unwinds her red scarf (9.9–10.9), round and off,
+   and lifts it up to her mother (10.9–11.45), all of it hanging from her small mitten. She looks
+   up.
+6. **12.2–14.0:** CU the mother, facing right: the scarf hangs in front of her from the girl's
+   mitten, swinging. She sees it (12.3), looks at the hole (12.9), and her mitten comes up and
+   closes on the red (13.1–13.45). The heartbeat stops (13.45); one music-box note; her held
+   breath goes out. Last frame: her hand on the red.
 
 ### s10 SCARF (136–154)
 

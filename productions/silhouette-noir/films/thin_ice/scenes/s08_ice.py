@@ -663,10 +663,6 @@ def _cu_face(c, t):
 # ============================================================================ the page, pulling back (11-14)
 CAM_F0 = W.Plan(13.32, 10.2, 330.0)          # on him in the hole, the trunk's tip in the corner
 CAM_F1 = W.Plan(11.0, 4.5, 98.0)
-G_IN_HOLE = (13.32, 10.3)                # his head, at the near edge of the hole
-HAT_AT = (13.55, 11.85)
-
-
 def _prints_out_of_hole(prints):
     (hx, hn), r = W.HOLE_BIG, W.HOLE_R[1]
     return tuple(p for p in prints if math.hypot(p[0] - hx, p[1] - hn) > r * 1.05)
@@ -675,113 +671,13 @@ def _prints_out_of_hole(prints):
 PRINTS_F = _prints_out_of_hole(PRINTS + (PRINT2,))
 
 
-def guard_in_hole(c, cam, t, slip=0.0):
-    """Him in the hole from above: his bare head and shoulders at the near edge, his arms out on
-    the ice, the gloves clawing (slip 0..1 drags them back toward the water) and scoring it; a
-    pale wet line where he comes out of the water; rings."""
-    ppm = cam.ppm
-    hx, hn = G_IN_HOLE
-    P = lambda x, n: cam.px((x, n))
-    L.rings(c, P(hx, hn + 0.15), t, 0.0, 0.9 * ppm, 0.9 * ppm, n=3, every=0.6, life=1.8, width=max(1.2, 0.015 * ppm),
-            seed=3, alpha=0.5)
-    rw = max(2.0, 0.02 * ppm)
-    arms, hands = [], []
-    for k, side in enumerate((-1, 1)):
-        claw = 0.5 + 0.5 * math.sin(t * 5.0 + k * 1.9)
-        drag = 0.05 * claw + 0.25 * slip                  # how far back toward the water the hand is
-        # spread wide, his weight on the ice: shoulder, elbow out, wrist
-        sh = (hx + 0.2 * side, hn + 0.06)
-        el = (hx + 0.4 * side, hn - 0.12 + 0.5 * drag)
-        wr = (hx + 0.42 * side, hn - 0.36 + drag)
-        arms.append(bass.capsule_pts(P(*sh), P(*el), 0.07 * ppm, 0.06 * ppm, cap=4))
-        arms.append(bass.capsule_pts(P(*el), P(*wr), 0.06 * ppm, 0.05 * ppm, cap=4))
-        palm = (wr[0], wr[1] - 0.055)
-        hands.append(D_ell(P(*palm), 0.05 * ppm, 0.058 * ppm))
-        curl = 0.25 + 0.6 * claw
-        digits = [(side * (-24.0 + 16.0 * i) * (1.0 - 0.4 * curl), (0.075 - 0.01 * abs(i - 1.5)) * (1.0 - 0.45 * curl))
-                  for i in range(4)] + [(-side * 62.0, 0.05)]          # four fingers toward the bank; the thumb in
-        for i, (a, ln) in enumerate(digits):
-            a = math.radians(a)
-            base = (palm[0] + 0.035 * math.sin(a), palm[1] - 0.04 * math.cos(a))
-            tip = (base[0] + ln * math.sin(a), base[1] - ln * math.cos(a))
-            hands.append(bass.capsule_pts(P(*base), P(*tip), 0.016 * ppm, 0.013 * ppm, cap=3))
-            if i < 4 and drag > 0.01:
-                # the fingers score the ice as they drag: from where they bit to where they are
-                K.band(c, [P(tip[0], tip[1] - drag), P(*tip)], lerp(W.ICE, K.INK, 0.45), max(1.0, 0.008 * ppm),
-                       seed=40 + 4 * k + i, alpha=0.8)
-    shoulders = (P(hx, hn + 0.1), 0.3 * ppm, 0.17 * ppm)
-    head = (P(hx, hn), 0.12 * ppm, 0.13 * ppm)
-    # where he comes out of the water: a wet, pale line round his head and shoulders
-    K.polys(c, [D_ell(p, rx + 1.6 * rw, ry + 1.6 * rw) for p, rx, ry in (shoulders, head)], L.RIM_WET, 0.9)
-    polys = arms + hands + [D_ell(*shoulders)]
-    K.polys(c, [[(x, y - rw) for x, y in q] for q in polys], L.RIM)
-    K.polys(c, polys, K.INK)
-    # his skull from above, wet hair in clumps, its own moonlit rim so it stands off his shoulders
-    hair = []
-    for i in range(18):
-        q = 6.283 * i / 18
-        r = 1.0 + 0.12 * hash01(i, 77)
-        hair.append((head[0][0] + head[1] * r * math.cos(q), head[0][1] + head[2] * r * math.sin(q)))
-    K.poly(c, [(x + 0.8 * rw, y - 0.9 * rw) for x, y in hair], L.RIM)
-    K.poly(c, hair, K.INK)
-
-
-def D_ell(p, rx, ry, n=20):
-    return [(p[0] + rx * math.cos(6.283 * i / n), p[1] + ry * math.sin(6.283 * i / n)) for i in range(n)]
-
-
-def hat_top(c, cam, t, at=HAT_AT):
-    """His ushanka floating in the hole, turning slowly."""
-    ppm = cam.ppm
-    a = 0.35 * t
-    p = cam.px((at[0] + 0.05 * math.sin(t * 0.7), at[1] + 0.03 * math.cos(t * 0.9)))
-    pts = []
-    for i in range(30):
-        q = 6.283 * i / 30
-        r = 0.17 * ppm * (1.0 + 0.1 * (0.5 + 0.5 * math.cos(3.0 * q * 3.0)))
-        pts.append((p[0] + r * math.cos(q + a), p[1] + r * 0.92 * math.sin(q + a)))
-    K.poly(c, pts, K.INK)
-    K.ellipse(c, (p[0] + 0.04 * ppm * math.cos(a), p[1] + 0.04 * ppm * math.sin(a)), 0.05 * ppm, 0.035 * ppm,
-              lerp(K.INK, K.STEEL, 0.6), angle=math.degrees(a))
-    L.rings(c, p, t, 0.3, 0.4 * ppm, 0.4 * ppm, n=2, every=1.1, life=2.0, width=max(1.0, 0.01 * ppm), seed=9, alpha=0.4)
-
-
-def reed_eyes(c, cam, t, t0, look=(0.0, -0.6), blink=None, size=1.0):
-    """Two pairs of eyes in the reeds at the hiding place (hers, wider; the girl's, rounder) on the
-    dark of the two of them crouched there, opening at t0; a blink at `blink`."""
-    if t < t0 - 0.3:
-        return
-    k = size * max(1.0, cam.ppm / 110.0)
-    for dx, dn, r in ((-0.3, 0.05, 0.36), (0.3, -0.06, 0.28)):
-        cx, cy = cam.px((W.HIDE[0] + dx, W.HIDE[1] + dn))
-        pts = [(cx + r * cam.ppm * (1.0 + 0.12 * K._sn(i, 531)) * math.cos(6.283 * i / 18),
-                cy + r * cam.ppm * 0.8 * (1.0 + 0.12 * K._sn(i, 532)) * math.sin(6.283 * i / 18)) for i in range(18)]
-        K.poly(c, pts, K.INK)
-    W.draw_reeds(c, cam, (W.HIDE[0] - 0.9, W.HIDE[0] + 0.9, W.HIDE[1] - 0.7, W.HIDE[1] + 0.7))
-    if t < t0:
-        return
-    lid = ease("out3", clamp((t - t0) / 0.2))
-    if blink is not None and blink <= t < blink + 0.18:
-        lid *= abs(math.cos(math.pi * (t - blink) / 0.18))
-    for (dx, dn, w, h, gap) in ((-0.3, 0.05, 26.0, 12.0, 40.0), (0.3, -0.06, 22.0, 17.0, 36.0)):
-        cx, cy = cam.px((W.HIDE[0] + dx, W.HIDE[1] + dn))
-        for side in (-1, 1):
-            x = cx + side * gap * 0.5 * k
-            hh = h * k * lid
-            if hh < 1.5:
-                continue
-            K.ellipse(c, (x, cy), w * k * 0.5, hh * 0.5, K.PAPER)
-            K.ellipse(c, (x + look[0] * w * 0.2 * k, cy + look[1] * hh * 0.22), h * 0.3 * k, min(hh, h * k) * 0.3,
-                      K.INK)
-
-
 def _page_wide(c, t):
     u = ease("inout", clamp((t - T_PAGE - 0.45) / 2.4))
     cam = W.plan_lerp(CAM_F0, CAM_F1, u)
     W.draw_page(c, cam, FILM_T0 + t, prints=PRINTS_F, holes=("stone", "guard"))
-    hat_top(c, cam, t)
-    guard_in_hole(c, cam, t, slip=0.3 * clamp((t - 12.8) / 0.4) * (1.0 - clamp((t - 13.3) / 0.3)))
-    reed_eyes(c, cam, t, T_EYES, look=(0.15, -0.7), blink=13.4)
+    L.hat_top(c, cam, t)
+    L.hole_guard(c, cam, t, slip=0.3 * clamp((t - 12.8) / 0.4) * (1.0 - clamp((t - 13.3) / 0.3)))
+    L.reed_eyes(c, cam, t, T_EYES, look=(0.15, -0.7), blink=13.4)
 
 
 # ============================================================================ render

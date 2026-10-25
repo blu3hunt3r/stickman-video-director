@@ -274,12 +274,13 @@ _COAT_FLAT = [(-0.24, 0.0), (-0.04, 0.0), (0.0, 0.045), (0.04, 0.0), (0.24, 0.0)
 
 
 def back(c, who, at, s, pose="crouch", t=0.0, u=1.0, rim=None, rim_w=3.0, hand=None, color=K.INK, red=K.RED,
-         wind=1.0):
+         wind=1.0, hand_side=1):
     """The mother or the girl from behind, facing into the frame. at: the ground point under them
     (frame px); s: px per metre. pose 'stand', 'crouch' (u 0..1 from standing to squatting),
     'kneel', 'flat' (lying flat, boots toward us: the high camera sees a low mound), 'drop' (u 0..1
     from a squat down to flat), 'crawl' (on her belly, elbows working) and 'run' (u: the cycle's phase).
-    hand: a frame point her right hand reaches for (the wire). rim: the moon's colour along the
+    hand: a frame point her right hand (hand_side -1: her left) reaches for (the wire, her
+    mother's hand). rim: the moon's colour along the
     upper edges (it is in front of them, behind the fence) or None. Returns frame marks:
     head, top, nape, hand_r, base."""
     g = 1.0 if who == "mother" else 0.66
@@ -363,7 +364,7 @@ def back(c, who, at, s, pose="crouch", t=0.0, u=1.0, rim=None, rim_w=3.0, hand=N
     fp = [[X(p) for p in q] for q in polys]
     hand_px = None
     if hand is not None:
-        sh = X((0.2, top_y - 0.06))
+        sh = X((0.2 * hand_side, top_y - 0.06))
         fp.append(_cap(sh, hand, 0.05 * g * s, 0.045 * g * s))
         fp.append(_e(hand[0], hand[1], 0.055 * g * s, 0.06 * g * s))
         hand_px = hand
@@ -649,3 +650,396 @@ def shafts(c, top_l, top_r, length, t, strength=1.0, lean=0.55, seed=0):
         spread_ = (b[0] - a[0]) * (0.35 + 0.25 * f)
         K.poly(c, [a, b, (b[0] + dx + spread_, b[1] + length), (a[0] + dx - spread_, a[1] + length)], K.PAPER,
                0.045 * strength * (0.6 + 0.4 * f))
+
+# ============================================================================ him in the hole, from above (s08-s10)
+G_IN_HOLE = (13.32, 10.3)                # his head, at the near (south) edge of the big hole
+HAT_AT = (13.55, 11.85)                  # his ushanka, floating
+
+
+def hole_guard(c, cam, t, slip=0.0, drags=(0.0, 0.0), under=(0.0, 0.0), dip=0.0):
+    """Him in the hole from above (a plan camera, any turn): his bare head and shoulders at the
+    near edge, his arms out on the ice, the gloves clawing (slip 0..1 drags both back toward the
+    water) and scoring it; a pale wet line where he comes out of the water; rings. drags: each
+    hand's own drag (m; the west hand first); under: each hand slipping off the edge (0..1: by
+    0.5 it is at the water, at 1 that arm has gone under); dip: his head sinking (0..1)."""
+    ppm = cam.ppm
+    hx, hn = G_IN_HOLE
+    P = lambda x, n: cam.px((x, n))
+    rings(c, P(hx, hn + 0.15), t, 0.0, 0.9 * ppm, 0.9 * ppm, n=3, every=0.6, life=1.8, width=max(1.2, 0.015 * ppm),
+            seed=3, alpha=0.5)
+    rw = max(2.0, 0.02 * ppm)
+    arms, hands = [], []
+    for k, side in enumerate((-1, 1)):
+        claw = 0.5 + 0.5 * math.sin(t * 5.0 + k * 1.9)
+        go = clamp(under[k])
+        drag_k = 0.05 * claw + 0.25 * slip + drags[k]      # how far back toward the water the hand is
+        drag_k = lerp(drag_k, 0.4, ease("in", clamp(go / 0.5)))
+        # spread wide, his weight on the ice: shoulder, elbow out, wrist
+        sh = (hx + 0.2 * side, hn + 0.06)
+        el = (hx + 0.4 * side, hn - 0.12 + 0.5 * drag_k)
+        wr = (hx + 0.42 * side, hn - 0.36 + drag_k)
+        if go >= 0.5:
+            # gone over the edge: the arm sinks back into the water after it
+            el = (lerp(el[0], sh[0], (go - 0.5) * 2.0), lerp(el[1], sh[1], (go - 0.5) * 2.0))
+            if go < 1.0:
+                arms.append(bass.capsule_pts(P(*sh), P(*el), 0.07 * ppm, 0.06 * ppm, cap=4))
+            continue
+        drag = drag_k
+        arms.append(bass.capsule_pts(P(*sh), P(*el), 0.07 * ppm, 0.06 * ppm, cap=4))
+        arms.append(bass.capsule_pts(P(*el), P(*wr), 0.06 * ppm, 0.05 * ppm, cap=4))
+        palm = (wr[0], wr[1] - 0.055)
+        hands.append(ell(P(*palm), 0.05 * ppm, 0.058 * ppm))
+        curl = 0.25 + 0.6 * claw
+        digits = [(side * (-24.0 + 16.0 * i) * (1.0 - 0.4 * curl), (0.075 - 0.01 * abs(i - 1.5)) * (1.0 - 0.45 * curl))
+                  for i in range(4)] + [(-side * 62.0, 0.05)]          # four fingers toward the bank; the thumb in
+        for i, (a, ln) in enumerate(digits):
+            a = math.radians(a)
+            base = (palm[0] + 0.035 * math.sin(a), palm[1] - 0.04 * math.cos(a))
+            tip = (base[0] + ln * math.sin(a), base[1] - ln * math.cos(a))
+            hands.append(bass.capsule_pts(P(*base), P(*tip), 0.016 * ppm, 0.013 * ppm, cap=3))
+            if i < 4 and drag > 0.01:
+                # the fingers score the ice as they drag: from where they bit to where they are
+                K.band(c, [P(tip[0], tip[1] - drag), P(*tip)], lerp(W.ICE, K.INK, 0.45), max(1.0, 0.008 * ppm),
+                       seed=40 + 4 * k + i, alpha=0.8)
+    dk = 1.0 - 0.3 * clamp(dip)
+    shoulders = (P(hx, hn + 0.1), 0.3 * ppm * dk, 0.17 * ppm * dk)
+    head = (P(hx, hn), 0.12 * ppm * dk, 0.13 * ppm * dk)
+    # where he comes out of the water: a wet, pale line round his head and shoulders
+    K.polys(c, [ell(p, rx + 1.6 * rw, ry + 1.6 * rw) for p, rx, ry in (shoulders, head)], RIM_WET, 0.9)
+    polys = arms + hands + [ell(*shoulders)]
+    K.polys(c, [[(x, y - rw) for x, y in q] for q in polys], RIM)
+    K.polys(c, polys, K.INK)
+    # his skull from above, wet hair in clumps, its own moonlit rim so it stands off his shoulders
+    hair = []
+    for i in range(18):
+        q = 6.283 * i / 18
+        r = 1.0 + 0.12 * hash01(i, 77)
+        hair.append((head[0][0] + head[1] * r * math.cos(q), head[0][1] + head[2] * r * math.sin(q)))
+    K.poly(c, [(x + 0.8 * rw, y - 0.9 * rw) for x, y in hair], RIM)
+    K.poly(c, hair, K.INK)
+
+
+def ell(p, rx, ry, n=20):
+    return [(p[0] + rx * math.cos(6.283 * i / n), p[1] + ry * math.sin(6.283 * i / n)) for i in range(n)]
+
+
+def hat_top(c, cam, t, at=HAT_AT):
+    """His ushanka floating in the hole, turning slowly."""
+    ppm = cam.ppm
+    a = 0.35 * t
+    p = cam.px((at[0] + 0.05 * math.sin(t * 0.7), at[1] + 0.03 * math.cos(t * 0.9)))
+    pts = []
+    for i in range(30):
+        q = 6.283 * i / 30
+        r = 0.17 * ppm * (1.0 + 0.1 * (0.5 + 0.5 * math.cos(3.0 * q * 3.0)))
+        pts.append((p[0] + r * math.cos(q + a), p[1] + r * 0.92 * math.sin(q + a)))
+    K.poly(c, pts, K.INK)
+    K.ellipse(c, (p[0] + 0.04 * ppm * math.cos(a), p[1] + 0.04 * ppm * math.sin(a)), 0.05 * ppm, 0.035 * ppm,
+              lerp(K.INK, K.STEEL, 0.6), angle=math.degrees(a))
+    rings(c, p, t, 0.3, 0.4 * ppm, 0.4 * ppm, n=2, every=1.1, life=2.0, width=max(1.0, 0.01 * ppm), seed=9, alpha=0.4)
+
+
+def reed_eyes(c, cam, t, t0, look=(0.0, -0.6), blink=None, size=1.0):
+    """Two pairs of eyes in the reeds at the hiding place (hers, wider; the girl's, rounder) on the
+    dark of the two of them crouched there, opening at t0; a blink at `blink`."""
+    if t < t0 - 0.3:
+        return
+    k = size * max(1.0, cam.ppm / 110.0)
+    for dx, dn, r in ((-0.3, 0.05, 0.36), (0.3, -0.06, 0.28)):
+        cx, cy = cam.px((W.HIDE[0] + dx, W.HIDE[1] + dn))
+        pts = [(cx + r * cam.ppm * (1.0 + 0.12 * K._sn(i, 531)) * math.cos(6.283 * i / 18),
+                cy + r * cam.ppm * 0.8 * (1.0 + 0.12 * K._sn(i, 532)) * math.sin(6.283 * i / 18)) for i in range(18)]
+        K.poly(c, pts, K.INK)
+    W.draw_reeds(c, cam, (W.HIDE[0] - 0.9, W.HIDE[0] + 0.9, W.HIDE[1] - 0.7, W.HIDE[1] + 0.7))
+    if t < t0:
+        return
+    lid = ease("out3", clamp((t - t0) / 0.2))
+    if blink is not None and blink <= t < blink + 0.18:
+        lid *= abs(math.cos(math.pi * (t - blink) / 0.18))
+    for (dx, dn, w, h, gap) in ((-0.3, 0.05, 26.0, 12.0, 40.0), (0.3, -0.06, 22.0, 17.0, 36.0)):
+        cx, cy = cam.px((W.HIDE[0] + dx, W.HIDE[1] + dn))
+        for side in (-1, 1):
+            x = cx + side * gap * 0.5 * k
+            hh = h * k * lid
+            if hh < 1.5:
+                continue
+            K.ellipse(c, (x, cy), w * k * 0.5, hh * 0.5, K.PAPER)
+            K.ellipse(c, (x + look[0] * w * 0.2 * k, cy + look[1] * hh * 0.22), h * 0.3 * k, min(hh, h * k) * 0.3,
+                      K.INK)
+
+
+# ============================================================================ the bank view (s09-s11)
+# From the south bank behind the reeds, looking up the river toward the hole: the view's heading
+# is `hdg` degrees east of north, so upstream (west, the way out) is off to the left, the hole
+# is ahead on the right with the trunk running out to it, the far bank's trees across the top.
+# World (x, n, z) in metres through a W.Dio: u across the view, d into it. The moon is ahead of
+# them: figures here are seen from behind (back()) or in profile, rimmed along their tops.
+BANK_LIGHT = (-0.3, -0.95)
+
+
+class Bank:
+    def __init__(self, ox, on, hdg, ppm, z0, eye=2.2, D=5.0, u0=0.0):
+        self.ox, self.on, self.hdg = float(ox), float(on), float(hdg)
+        a = math.radians(hdg)
+        self.ca, self.sa = math.cos(a), math.sin(a)
+        self.dio = W.Dio(u0, z0, ppm, eye=eye, D=D)
+        self.ppm = self.dio.ppm
+
+    def ud(self, x, n):
+        dx, dn = x - self.ox, n - self.on
+        return dx * self.ca - dn * self.sa, dx * self.sa + dn * self.ca
+
+    def px(self, x, n, z=0.0):
+        u, d = self.ud(x, n)
+        return self.dio.px(u, z, d)
+
+    def scale(self, x, n):
+        return self.dio.scale(self.ud(x, n)[1])
+
+    def depth(self, x, n):
+        return self.ud(x, n)[1]
+
+    def horizon_y(self):
+        return self.dio.horizon_y()
+
+
+def bank_lerp(a, b, u):
+    d = W.dio_lerp(a.dio, b.dio, u)
+    return Bank(lerp(a.ox, b.ox, u), lerp(a.on, b.on, u), lerp(a.hdg, b.hdg, u), d.ppm, d.z0, d.eye, d.D, d.u0)
+
+
+def bank_at(t, keys):
+    """A keyed Bank camera: keys [(t, Bank[, ease]), ...]."""
+    a, b, u = _seg(t, keys)
+    return bank_lerp(a, b, u)
+
+
+def _ridge_n(x):
+    """Where the south bank's top breaks down its slope to the ice."""
+    return W.bank_s(x) - W.BANK
+
+
+def ground_z(x, n):
+    """The snow's height at a map point: the land 0, the banks' slopes, the white ice, the band."""
+    lo, hi = W.bank_s(x), W.bank_n(x)
+    if n <= lo - W.BANK:
+        return 0.0
+    if n < lo:
+        return lerp(0.0, W.ICE_Z, ease("inout", (n - lo + W.BANK) / W.BANK))
+    if n <= hi:
+        return W.ICE_Z + (0.0 if W.on_band(x, n) else W.SNOW_T)
+    if n < hi + W.BANK:
+        return lerp(W.ICE_Z, 0.0, ease("inout", (n - hi) / W.BANK))
+    return 0.0
+
+
+@lru_cache(maxsize=1)
+def _bank_trees():
+    """The far bank's spruces for the bank view: (x, n, h, seed), far first."""
+    out = []
+    for i in range(170):
+        x = -60.0 + 150.0 * hash01(i, 801)
+        n = W.bank_n(x) + W.BANK + 0.8 + 40.0 * hash01(i, 802) ** 1.6
+        out.append((x, n, 5.0 + 6.0 * hash01(i, 803), i))
+    return tuple(sorted(out, key=lambda r: -r[1]))
+
+
+@lru_cache(maxsize=1)
+def _bank_reed_list():
+    """The reed clumps in the bank view: (x, n, h, seed); tall in the middle of the bed, short
+    toward the ice, so the river shows over them."""
+    x0, x1, n0, n1 = W.REEDS
+    out = []
+    for (x, n, size, i) in W.reeds():
+        if not (x0 - 0.6 <= x <= x1 + 0.6 and n0 - 0.6 <= n <= n1 + 0.6):
+            continue
+        toward_ice = clamp((n - (n1 - 1.7)) / 1.7)
+        out.append((x, n, (1.05 + 0.6 * hash01(i, 71)) * lerp(1.0, 0.4, toward_ice), i))
+    return tuple(out)
+
+
+def bank_reeds(c, cam, t, d0=-1.0, d1=99.0, clear=(), color=K.INK, wind=1.0, rim=None):
+    """The reeds between depths d0 and d1 (m into the view), far first, none inside the clearings
+    (x, n, rx, rn): where they hide, and the line from the camera to the river."""
+    items = []
+    for (x, n, h, i) in _bank_reed_list():
+        if any(((x - cx) / rx) ** 2 + ((n - cn) / rn) ** 2 < 1.0 for cx, cn, rx, rn in clear):
+            continue
+        d = cam.depth(x, n)
+        if d0 <= d < d1 and d > -0.6 * cam.dio.D:
+            items.append((d, x, n, h, i))
+    items.sort(reverse=True)
+    for d, x, n, h, i in items:
+        base = cam.px(x, n, 0.0)
+        sc = cam.scale(x, n)
+        if base[0] < -0.8 * sc or base[0] > 1080.0 + 0.8 * sc or base[1] - h * sc > 1940.0:
+            continue
+        blades = 4 + int(4 * hash01(i, 72))
+        w = max(1.5, 0.028 * sc)
+        for b in range(blades):
+            fan = (b / max(1, blades - 1) - 0.5) * 0.55 + 0.12 * K._sn(i, b, 73)
+            hb = h * (0.72 + 0.32 * hash01(i, b, 74))
+            sway = wind * 0.05 * math.sin(t * (1.2 + 0.5 * hash01(i, b, 75)) + i + b)
+            bx = base[0] + 0.035 * sc * (b - 0.5 * blades)
+            tip = (bx + (fan + sway) * hb * 0.45 * sc, base[1] - hb * sc)
+            mid = (lerp(bx, tip[0], 0.45) + 0.02 * sc * fan, lerp(base[1], tip[1], 0.5))
+            if rim is not None:
+                K.band(c, [(bx + 0.6 * w, base[1]), (mid[0] + 0.6 * w, mid[1] - 0.6 * w), (tip[0], tip[1] - w)], rim,
+                       w, seed=i * 13 + b, taper=(1.0, 0.15), alpha=0.6)
+            K.band(c, [(bx, base[1]), mid, tip], color, w, seed=i * 13 + b, taper=(1.0, 0.15))
+            if (i + b) % 5 == 0:             # a seed head
+                K.ellipse(c, (tip[0], tip[1] + 0.05 * sc), max(1.0, 0.03 * sc), max(2.0, 0.1 * sc), color,
+                          angle=math.degrees(fan + sway) * 0.4)
+
+
+def _proj_poly(cam, pts, z):
+    return [cam.px(x, n, z(x, n) if callable(z) else z) for x, n in pts]
+
+
+def draw_bank(c, cam, t=0.0, holes=("stone", "guard"), prints=(), moon_at=(290.0, 300.0), stars_on=True, trunk=True,
+              search=None, shards=True):
+    """The bank view's world, back to front: the sky and moon, the far bank and its trees, the
+    river's white ice, the black band, the holes (shards floating), the prints, the trunk out to
+    the hole, the near bank's snow up to its ridge. Figures and the reeds are the scene's (draw
+    the reeds behind the figures, the figures, the reeds in front: bank_reeds(d0, d1))."""
+    hy = cam.horizon_y()
+    K.fill(c, K.NIGHT)
+    if stars_on:
+        K.stars(c, t, y1=hy - 40.0)
+    if moon_at is not None:
+        K.moon(c, moon_at, r=60.0)
+    # the far land up to the horizon, and the far bank's slope (in shade: it faces us, the moon behind it)
+    xs = [x * 1.0 for x in range(-70, 101)]
+    vis = [x for x in xs if cam.depth(x, W.bank_n(x)) > 0.0]
+    K.poly(c, [(-60.0, hy - 1.0), (1140.0, hy - 1.0), (1140.0, 1980.0), (-60.0, 1980.0)], lerp(W.SNOW, K.NIGHT, 0.32))
+    top = [cam.px(x, W.bank_n(x) + W.BANK, 0.0) for x in vis]
+    foot = [cam.px(x, W.bank_n(x), W.ICE_Z) for x in vis]
+    for (x, n, h, i) in _bank_trees():
+        d = cam.depth(x, n)
+        if d <= 1.0:
+            continue
+        base = cam.px(x, n, 0.0)
+        sc = cam.scale(x, n)
+        if base[0] < -6.0 * sc or base[0] > 1080.0 + 6.0 * sc:
+            continue
+        col = lerp(lerp(W.STEEL, K.INK, 0.35), lerp(W.STEEL, K.NIGHT, 0.25), clamp((n - W.RIVER[1]) / 40.0))
+        W.spruce_side(c, base, h * sc, h * 0.42 * sc, col, seed=i)
+    K.poly(c, top + foot[::-1], lerp(W.SHADOW, K.NIGHT, 0.25))
+    # the river's white ice, from the far bank's foot down past the near ridge (the near bank covers it)
+    K.poly(c, foot + [(1140.0, 1980.0), (-60.0, 1980.0)], W.ICE)
+    # the black band
+    lo, hi = [], []
+    for x in xs:
+        if x < W.BAND_X0:
+            continue
+        tp = W.band_taper(x)
+        mid = 0.5 * (W.band_lo(x) + W.band_hi(x))
+        half = 0.5 * (W.band_hi(x) - W.band_lo(x)) * tp
+        if cam.depth(x, mid - half) <= 0.5:
+            continue
+        lo.append(cam.px(x, mid - half, W.ICE_Z))
+        hi.append(cam.px(x, mid + half, W.ICE_Z))
+    if len(lo) > 1:
+        K.poly(c, lo + hi[::-1], W.THIN)
+    if search is not None:
+        sx, sn, sr = search
+        K.poly(c, [cam.px(sx + sr * 1.3 * math.cos(a), sn + sr * math.sin(a), W.ICE_Z + W.SNOW_T)
+                   for a in [6.283 * i / 28 for i in range(28)]], K.PAPER, 0.75)
+    # the holes, shards floating in them
+    for h in holes:
+        centre, r, seed = W.HOLES[h]
+        K.poly(c, _proj_poly(cam, W.hole_poly(centre, r, seed), W.ICE_Z - 0.03), K.WATER)
+        if shards:
+            K.polys(c, [_proj_poly(cam, q, W.ICE_Z - 0.02) for q in W.hole_shards(centre, r, seed)],
+                    lerp(W.THIN, W.ICE, 0.45))
+    # prints on the ice and the snow
+    groups = {}
+    for (x, n, hdg, kind, side, dep) in prints:
+        if cam.depth(x, n) < 0.3:
+            continue
+        L_ = K._PRINT[kind][0] * (1.0 + 0.22 * dep)
+        hx, hn = x - math.sin(math.radians(hdg)) * L_ / 2.0, n - math.cos(math.radians(hdg)) * L_ / 2.0
+        col = lerp(W.SHADOW, W.THIN, 0.3 * dep)
+        z = ground_z(x, n) + 0.005
+        groups.setdefault(col, []).append(_proj_poly(cam, K.print_world(kind, side, (hx, hn), hdg, 1.0 + 0.22 * dep), z))
+    for col, ps in groups.items():
+        K.polys(c, ps, col)
+    if trunk:
+        draw_trunk_bank(c, cam)
+    # the near bank's snow up to its ridge
+    near = [x for x in xs if cam.depth(x, _ridge_n(x)) > -0.5 * cam.dio.D]
+    ridge = [cam.px(x, _ridge_n(x), 0.0) for x in near]
+    K.poly(c, ridge + [(1140.0, 1980.0), (-60.0, 1980.0)], W.SNOW)
+
+
+def draw_trunk_bank(c, cam, color=K.INK):
+    """The fallen trunk in the bank view: its root plate standing up on the bank, the trunk down
+    the slope and out over the ice, the stubs."""
+    (x0, n0), (x1, n1) = W.TRUNK
+    Lt = math.hypot(x1 - x0, n1 - n0)
+    ux, un = (x1 - x0) / Lt, (n1 - n0) / Lt
+    rx, rn = un, -ux
+    top, _ = W.trunk_side_pts()
+    left, right, upper, lower = [], [], [], []
+    for (n, ztop) in top:
+        u = (n - n0) / (n1 - n0)
+        r = 0.5 * lerp(W.TRUNK_W[0], W.TRUNK_W[1], u)
+        x = lerp(x0, x1, u)
+        zc = ztop - r
+        left.append(cam.px(x - rx * r, n - rn * r, zc))
+        right.append(cam.px(x + rx * r, n + rn * r, zc))
+        upper.append(cam.px(x, n, zc + r))
+        lower.append(cam.px(x, n, zc - r))
+    K.polys(c, [left + right[::-1], upper + lower[::-1]], color)
+    _, stubs, _ = W.trunk_poly()
+    for (a, b) in stubs:
+        u = clamp((a[1] - n0) / (n1 - n0))
+        zt = W.trunk_top_z(a[1])
+        K.band(c, [cam.px(a[0], a[1], zt - 0.05), cam.px(b[0], b[1], zt + 0.1)], color,
+               max(1.5, 0.06 * cam.scale(*a)), seed=int(u * 100), taper=(1.0, 0.4))
+    # the root plate: a ragged disc standing up across the root end
+    cx, cn, zc = x0 - ux * 0.25, n0 - un * 0.25, 0.9
+    pts = []
+    for i in range(22):
+        a = 6.283 * i / 22
+        rr = 1.15 * (1.0 + 0.18 * K._sn(i, 51))
+        pts.append(cam.px(cx + rx * rr * math.cos(a), cn + rn * rr * math.cos(a), zc + rr * math.sin(a)))
+    K.poly(c, pts, color)
+
+
+def bank_guard(c, cam, t, under=0.0, dip=0.0, rim=RIM):
+    """Him in the hole, seen from the bank: head and shoulders at the near edge, his arms out on
+    the ice toward us; under (0..1): his west hand slipping off into the water."""
+    hx, hn = G_IN_HOLE
+    sc = cam.scale(hx, hn)
+    zw = W.ICE_Z - 0.03
+    bob = 0.02 * math.sin(t * 3.1)
+    polys = []
+    for k, side in enumerate((-1, 1)):
+        claw = 0.5 + 0.5 * math.sin(t * 5.0 + k * 1.9)
+        go = clamp(under) if k == 0 else 0.0
+        sh = (hx + 0.2 * side, hn + 0.06, zw + 0.12)
+        wr = (hx + 0.42 * side, hn - 0.36 + 0.05 * claw + 0.4 * ease("in", clamp(go / 0.5)), W.ICE_Z + 0.05)
+        if go >= 0.5:
+            wr = (lerp(wr[0], sh[0], (go - 0.5) * 2.0), wr[1], lerp(wr[2], zw - 0.2, (go - 0.5) * 2.0))
+            if go >= 1.0:
+                continue
+        a, b = cam.px(*sh), cam.px(*wr)
+        polys.append(bass.capsule_pts(a, b, 0.065 * sc, 0.05 * sc, cap=4))
+        if go < 0.5:
+            polys.append(ell(b, 0.07 * sc, 0.045 * sc))
+    hz = zw + 0.28 * (1.0 - 0.6 * clamp(dip)) + bob
+    polys.append(ell(cam.px(hx, hn + 0.1, zw + 0.06 + bob), 0.27 * sc, 0.09 * sc))         # shoulders at the water
+    polys.append(ell(cam.px(hx, hn, hz), 0.12 * sc, 0.14 * sc))                          # his head
+    if rim is not None:
+        K.polys(c, [[(x, y - max(1.2, 0.02 * sc)) for x, y in q] for q in polys], rim)
+    K.polys(c, polys, K.INK)
+    rings(c, cam.px(hx, hn + 0.1, zw), t, 0.0, 0.7 * sc, 0.12 * sc, n=3, every=0.6, life=1.8,
+          width=max(1.0, 0.012 * sc), seed=3, alpha=0.45)
+
+
+def cross_light(ft):
+    """The searchlight's patch on the white ice at the crossing, upstream (x, n, r), on s05's
+    clock: one swing across the river and back every 7 s, mid-river going south at film 73.5."""
+    a = 2.0 * math.pi * (ft - 70.0) / 7.0
+    return (W.CROSSING_X + 1.2 * math.sin(a * 0.5), 12.5 + 15.0 * math.sin(a), 4.0)
