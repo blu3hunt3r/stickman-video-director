@@ -2,7 +2,7 @@
 
 Every story made so far, in the order we made it: what it is, how it is built, the devices it uses,
 what it added to the system, and where its files are. DOUBLE CROSS is covered in depth in section 9,
-and its OPPOSITE cut, the latest, in section 10.
+its OPPOSITE cut in section 10, and THIN ICE, the latest, in section 11.
 
 Paths are relative to `productions/silhouette-noir/` unless they start with `productions/`.
 Film times are given as m:ss.ss (film seconds); "local" means scene seconds. Dates are commit
@@ -20,6 +20,7 @@ dates (UTC).
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
 | 9 | DOUBLE CROSS | 10-23 | 2:54 (v4 2:32, v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices), v4 (v2's picture again, slower, the guard rebuilt) and v5 (the double cross made easy to follow) delivered |
 | 10 | DOUBLE CROSS, the OPPOSITE cut | 10-25 | 2:54 | DOUBLE CROSS v5's story in OPPOSITE's grammar, wordless, 11 scenes | Delivered |
+| 11 | THIN ICE | 10-25 | 3:08 | A new story: a wordless winter thriller in Bass cut paper, 12 scenes | Picture done; the mix and the delivery in progress |
 
 ---
 
@@ -827,3 +828,199 @@ Workflow notes:
 | `films/double_cross_opposite/timeline/build_timeline.py`, `timeline.json` | The edit: eleven scenes, hard cuts. |
 | `films/double_cross_opposite/audio/mix.py` | The score, foley, voices and master, locked to the scene modules (`--qa`, `--only`, `--stems`, `--without`, `--skip-missing`). |
 | `films/double_cross_opposite/final/double_cross_opposite_preview.mp4` | The delivered preview (not in git). |
+
+---
+
+## 11. THIN ICE (3:08), in depth
+
+The user asked: "Make a completely new video a new story indepth as a expert now." THIN ICE is a
+new story with a new bible (`films/thin_ice/docs/BIBLE.md`), world, cast and score, and the first
+film to leave the city. It is a wordless winter thriller in Saul Bass cut paper, made with two
+agents in total.
+
+### 11.1 The story
+
+On a winter night a mother carries her small daughter across a frozen border river. A guard
+follows them by reading their tracks in the snow. Snow falls on the border: a fence, a watchtower
+whose searchlight sweeps the snow, a guardhouse, woods, a frozen river and, on the far bank, one
+lit farmhouse window. Two small figures crouch at the fence. **The snow stops.** The moon comes
+out, and from now on every step will show. The searchlight passes over them, the girl's music box
+springs open on three notes of a lullaby, and her mother slaps it shut. Crawling under the wire,
+the mother tears a scrap of her coat on a barb. Two lines of footprints, big and small, run into
+the woods.
+
+In the guardhouse the guard opens his pocket watch on a photograph of his own daughter in a
+pompom hat, then goes out on his round. His lantern finds the scrap and the prints, and he blows
+his whistle: far lanterns wake. In the woods the girl falls and her mother carries her, so the
+small prints end. At the river the mother throws a stone onto the band of black ice down its
+middle and it punches straight through: **the dark ice is thin.** Upstream, where the ice is white
+all the way across, the searchlight sweeps. Behind her the lantern is coming.
+
+So she writes a lie on the page. She walks out to the edge of the black band, then walks back
+**in her own footprints**, boot into print, to the fallen trunk beside the trail. She steps up
+onto it, where no print shows, and hides in the reeds. The guard follows the one line of prints to
+the black ice, sees the farmhouse light beyond it and steps on. **The ice breaks.** Under the
+water his lantern sinks away glowing; he fights up to the hole and clings to an edge that keeps
+breaking.
+
+The way upstream is open, but the girl won't go. She unwinds her red scarf and holds it up. The
+mother crawls out along the trunk and throws it: short, then across his arm. Her boot hooks a
+branch stub, and she pulls him out along the red line. On the bank he takes out the watch: it is
+wet and stopped, and in its lid is his daughter. He looks from the photograph to the girl. Whistles
+sound in the trees. He points upstream (go) and winds the scarf back round the girl's neck. When
+the other guards come he points at the hole the trail leads into and shakes his head. One takes
+off his hat. **It begins to snow.** The mother carries the girl across the white ice. A farmhouse
+door opens on warm light. In the window the lullaby plays all the way through. The snow fills
+every footprint until the page is blank, and only the red thread is left.
+
+**The title is the theme.** THIN ICE is the river, the trick and the moral ground every one of them
+stands on. The title cracks, and a red thread holds the two halves: the thread is the scarf, the
+one line in the film that joins instead of divides.
+
+### 11.2 Plants and payoffs
+
+| Plant | Payoff |
+|---|---|
+| s01–s02: the snow stops and the moon comes out: every step will show. | s02–s07: the tracks are the hunt. s11: it snows again; s12: the snow covers every track. |
+| s02: the scrap of her coat on the barb. | s03: his lantern finds it, then the prints. |
+| s02–s04: two lines of prints, big and small; s04: the small line ends where she lifts the girl. | s06: only one line, hers, so the backtrack can work. |
+| s05: the stone punches through the black band. | s07–s08: he steps onto it and breaks through. |
+| s05: the fallen trunk, which takes no prints. | s06: her way off the trail; s10: her way out to the hole. |
+| s05: upstream the ice is white all across, but the searchlight sweeps it. | s11–s12: the light goes to the guards at the hole, and she crosses there unseen. |
+| s03: his daughter's photograph in the watch's lid. | s11: the wet photograph, the girl in her pompom hat, his mercy. |
+| s01: the red thread across the cracked title; s02: the girl's red scarf. | s09–s10: it becomes the rope; s11: he gives it back; s12: the thread is the last thing on the page. |
+| s02: the music box opens on three notes and is slapped shut. | s12: safe, the girl opens it and the lullaby plays to the end. |
+| s03: his lantern, the only warm light on the hunt. | s08: it sinks in the black water; s12: the farmhouse door's light takes them in. |
+| s03: the whistle wakes the far lanterns. | s11: the lanterns arrive, and he lies to them. |
+
+### 11.3 The look
+
+- **Eleven colours, one job each** (`kit.py`): `INK` figures and trees, `NIGHT` the sky, `STEEL`
+  distance, `SNOW` the moonlit page, `SHADOW` footprints and cast shadows, `ICE` the river's white
+  ice, `THIN` the black band, `WATER` open water, `PAPER` the moon, the searchlight and breath,
+  `AMBER` the lantern and lit windows, `RED` the scarf (and the title's thread) and nothing else.
+  The colour script runs cold until the lantern sinks in s08, then the scarf, then the farmhouse
+  door's warm light, then the white page and the red thread.
+- **The snow is a page, and light reads it.** Every scene moves between two kinds of shot:
+  - **the story:** flat profile elevations and sections at eye level, with the fugitives always
+    travelling screen right (north);
+  - **the page:** straight down on the snow with north up the frame, so the journey climbs the
+    9:16 frame from the fence at the bottom to the farmhouse at the top.
+  Footprints are the film's handwriting; the moon, the searchlight and the lantern are what read
+  it. Prints show crisper inside a light.
+- **Camera rules.** Hard cuts on the beat, often matched on a point. Eased moves. One Dutch tilt
+  (the break, s08), shake only on impact (the crack and the break), one rising crane (the page
+  going blank, s12).
+- **Breath is acting.** A `PAPER` puff on every out-breath: panting is quick puffs, a held breath
+  none (her breath stops when the moon comes out, and in the reeds).
+- **The annotation layer, sparingly, one meaning each:** step pulses (a reused print flashes with
+  a ring), dotted sight lines, the heartbeat ring (`PAPER`, never red), crack lines, whistle rays.
+- **Paper.** OPPOSITE's settings, grain on twos; crisp cut edges, no blur, no gradients.
+
+### 11.4 Form and foundation
+
+- **Form.** 12 scenes, hard cuts on the beat (120 bpm), every scene starting on a bar line: s01
+  title 0:00, s02 fence 0:14, s03 guard 0:32, s04 tracks 0:48, s05 river 1:04, s06 false trail
+  1:18, s07 hunter 1:34, s08 ice 1:48, s09 choice 2:02, s10 scarf 2:16, s11 mercy 2:34, s12 other
+  side 2:52. 3:08, 4,512 frames, 94 bars.
+- **`world.py` (1,453 lines): one world in metres, seen two ways.**
+  - The page: `W.Plan(x, n, ppm)` looks straight down with north up. `W.draw_page` lays the snow,
+    the river's white ice and its banks, the black band, the holes, the reeds, the trunk, the woods
+    with their long moon shadows, the fence, the tower, the guardhouse, the farmhouse and the
+    prints.
+  - The story views: `W.Dio(u0, z0, ppm, eye, D)` is a diorama cut open along a plane, with
+    everything behind it in one-point perspective. `W.draw_river` looks west through the false
+    trail, the ice slab in section, thick and white either side of the thin dark band.
+    `W.draw_woods` looks west along the path. `W.FenceCam` looks north through the wire.
+- **The record of footprints.** `world.py` keeps every route and the prints it leaves (position,
+  heading, size, depth). A scene draws `W.prints_before(sid)` plus the prints its own action lays
+  on the same positions. So the page is continuous from scene to scene, and the backtrack lands in
+  prints that already exist.
+- **`kit.py`:** the palette, the paper and OPPOSITE's annotation layer, plus the film's devices,
+  all pure functions of time:
+  - snow, in elevation and from above, with a density clock so it can stop and start;
+  - the moon and its clouds, breath;
+  - the searchlight's beam and lit patch, the lantern and its glow;
+  - footprints, branching cracks, whistle rays, step pulses.
+- **`cast.py`, `faces.py`.**
+  - `cast.py` draws the mother, the girl and the guards as paperdoll figures whose coats swing with
+    the stride. They stand in the dioramas in metres (`C.draw_at`) and are seen from above with
+    their moon shadows (`C.top`). It also has the piggyback carry, the lantern, the stone and the
+    watch.
+  - `faces.py` has cameo profiles of all three (returning landmarks for breath and sight lines),
+    the strip of eyes, the girl face-on (the photograph and the match cut), mittens, gloves, boots,
+    the watch, the music box and its paper dancer, and the scrap.
+- **Shared scene code.**
+  - `scenes/_lib_dir.py` (the director's): the title's crack and floes, the searchlight's clock,
+    the fence view, figures from behind that turn, keyed cameras, the Dutch tilt, water (bubbles,
+    spray, the waterline, moonlight shafts) and the bank view (`L.Bank`).
+  - `scenes/_lib_s04_s07.py` (the animator's): the woods, the river's extras, walkers in metres,
+    the paper turn, print flashes, the heart rings.
+- **One searchlight clock for the whole film** (`_lib_dir.search_x`). Its lit patch creeps over
+  the crossing at 0:19 (going east) and 0:25 (going west), s02's two near misses, and reverses
+  with a clank at 0:22.
+
+### 11.5 Scene by scene (film times from the scene modules' constants)
+
+| Scene | What it shows |
+|---|---|
+| s01 TITLE (0:00–0:14) | Snow falls on `NIGHT`. THIN and ICE land letter by letter (0:00.75–0:02.25). A crack shoots across the title (0:04.0); the halves drift apart like floes over black water (0:04.25–0:05.0) and a red thread snaps taut between them (0:05.0). Paper floods out of the letters (0:05.5–0:06.3) and the crack becomes the river's black band (0:06.0–0:06.5). The map assembles on the beats: the farmhouse window (0:06.5), the woods (0:06.75–0:07.5), the fence and the tower (0:07.0), the guardhouse (0:07.5). The thread fades (0:07.5–0:08.0) as two tiny figures appear at the fence, one with a red fleck at her neck (0:08.0). The snow stops (0:09.7–0:10.0). The push in on the two of them (0:11.0–0:14.0). |
+| s02 FENCE (0:14–0:32) | They crouch at a drift, backs to us. Close on her mitten held out: nothing falls; she looks up (0:16.7). The moon slides out (0:17.0–0:17.5), the snow brightens, the posts' shadows grow toward us, and her breath stops (0:17.3). The searchlight's patch comes; she pulls the girl flat (0:18.3–0:18.75) and it rides over them. She lifts the wire and the girl crawls under (0:20.1–0:21.7). The beam reverses with a clank (0:22.0); the music box springs open on three notes (0:22.25) and her mitten slaps it shut (0:23.0). The page: the beam slides back over them, the scarf burning in it (heartbeats 0:24.75, 0:25.25). Her coat snags (0:26.4) and rips (0:26.75): the scrap stays on the barb. They run for the trees; the page: two lines of prints, big and small, into the woods. |
+| s03 GUARD (0:32–0:48) | The guardhouse in section: he warms his hands at the stove. The watch, close (0:34.4–0:36.75): it springs open (0:34.5) on 11:58 and a photograph of a girl in a pompom hat; his thumb moves over it; it shuts (0:36.5). He takes his lantern and the wind throws the door open (0:38.2). The fence view: he walks along the wire and stops at the scrap (0:40.7); his glove lifts it off the barb (0:41.45–0:41.95). The page: his lantern's pool slides over the prints; his glove on a small print (0:43.45). He whistles twice (0:44.0, 0:44.4); far lanterns wake (0:45.0, 0:45.25, 0:45.5) and the searchlight swings north (0:44.9–0:45.9). He follows the prints into the woods (0:46.0–0:48.0). |
+| s04 TRACKS (0:48–1:04) | The woods in profile: the searchlight's patch crosses among the trunks (0:48.4–0:51.0). The girl stumbles (0:51.25) and falls waist deep (0:51.5); her mother hauls her out and swings her onto her back (0:52.05–0:53.0). The page: two lines of prints; at a trampled patch the small line ends and the big prints go on, deeper; she climbs out of the top of the frame (0:55.1). The guard reaches the patch (0:57.6), crouches, and his look runs along the deeper prints (0:58.35). He goes on; far lanterns wake among the trees (0:59.5, 1:00.0, 1:00.5). She breaks out of the trees and stops at the river bank's edge (1:03.25). |
+| s05 RIVER (1:04–1:18) | The river section, wide: the near bank, the white ice, the black band, the far bank and the farmhouse window. She sets the girl down by the trunk's root plate (1:07.1–1:07.95) and looks out at the band (1:08.35–1:08.9). She digs out a stone (1:09.0) and throws it (1:09.4): it punches straight through the black ice (1:10.0); rings spread (1:10.3), the ice booms (1:11.45) and the girl flinches (1:11.5). The page pulls back (1:12.0–1:13.3): the band runs the river's length until, far upstream, the ice is white all across, and the searchlight's disc crosses there (1:13.5). The girl turns, then her mother (1:15.05–1:15.5): the lantern in the trees. Her eyes, close: the band, the trunk, her prints; a blink (1:17.45), the idea (1:17.55). |
+| s06 FALSE TRAIL (1:18–1:34) | The page: carrying the girl, she walks out across the white ice and stops at the band's edge (1:21.55). At boot level: her boot lifts straight up out of its print (1:22.3) and lowers back into the one behind, a perfect fit (1:23.55). The page: she walks backward in her own prints, each one flashing with a ring, and steps sideways up onto the trunk (1:27.5–1:27.97). Profile: along the trunk and down into the reeds; she crouches (1:30.05–1:30.4), the girl slides off her back, and from 1:30.45 there is no breath. The page rises (1:31.0–1:33.0): one line of prints out to the black band, the bare trunk beside it, two pairs of eyes in the reeds, and at the bottom the lantern's pool coming (1:32.35). |
+| s07 HUNTER (1:34–1:48) | He breaks out of the trees and lowers the lantern to the snow: the trail (1:35.0–1:35.8). The page: his pool moves along the prints, past the trunk, past the reeds. In the reeds, close: the lantern's light slides over their eyes (1:39.3–1:40.7) to the heartbeat. The page: he stops where the prints stop (1:42.65). Profile: he raises the lantern and his look crosses the band to the far window (1:43.6). He looks down at the black ice, up again, and steps onto it (1:45.0–1:45.4); in the reeds she half rises, a mitten out, a stifled gasp (1:45.72). His boot, close: a fine crack runs out from his heel (1:46.85–1:47.6). |
+| s08 ICE (1:48–2:02) | His second step: the crack bursts out round his boots (1:48.25), the shake, then a beat of silence (1:48.5–1:49.0). The section: the slab gives (1:49.08) and he drops through, with the film's one Dutch tilt. Under the ice (1:50.0): the lantern slips from his hand (1:50.55) and sinks glowing to the riverbed (1:52.75); the rifle slides off his back (1:51.7). He looks up at the hole (1:53.0) and kicks for it (1:53.5). He bursts up (1:55.0) and grabs the far edge, which breaks off (1:55.45, 1:55.62); up again (1:56.2), he grabs the near edge, and it holds (1:56.45). His face at the edge, close; a piece breaks under his glove (1:58.2). The page, close on him from above (1:59.0), pulling back to the trail running into the hole and, in the reeds, her eyes opening (2:00.4). |
+| s09 CHOICE (2:02–2:16) | In the reeds, close: her profile, the girl in front of her in the red scarf. The split (2:04.0): her eyes go up to the far window, the way out (2:04.45); down to his gloves at the hole (2:05.75), where one slips (2:06.35); up again (2:07.15); they narrow (2:07.65). The heartbeat rings spread over all three bands. The bank view (2:08.0): she rises, takes the girl's hand (2:08.5), turns upstream (2:08.86), two steps, and their arms go taut (2:09.88): the girl is looking at the hole (2:10.05). From above: his glove slides under (2:10.86–2:11.42). The girl, close: she unwinds her scarf (2:11.88–2:12.86) and holds it up (2:12.9–2:13.45). The mother, close: she sees it (2:14.32), looks at the hole (2:14.86) and takes it (2:15.12–2:15.45). The heartbeat stops. |
+| s10 SCARF (2:16–2:34) | At the root plate, the scarf round the mother's neck: her flat mitten, stay (2:16.42). The section: onto the trunk (2:17.86) and flat on it (2:18.2). The page, the trunk straight up the frame: she crawls toward him beside the false trail. At the tip: the scarf off her neck and round her wrist (2:21.0–2:21.52); the first throw falls short (2:22.39), his glove lunges and the edge breaks under the other (2:22.74). She draws it back and edges out; the second throw lands across his arm (2:24.48). From above: his glove closes on the red (2:24.86). He winds it round his fist and heaves (2:25.72), dragging her toward the hole, until her boot slams into the branch stub (2:26.38). The page: hand over hand; his chest comes up onto the edge (2:27.1), it breaks (2:27.75), and he slides out on his belly along the red line (2:28.1–2:29.5); she has him by the collar (2:29.62). Back along the trunk (2:30.05–2:31.4), off it; he rolls onto his back (2:31.9) and she scrambles back to the girl. |
+| s11 MERCY (2:34–2:52) | The bank: he lies hugging himself; she stands between them with the scarf. His glove goes into his coat (2:35.6) and she sweeps the girl behind her; something catches the moon (2:36.6). The watch, close (2:37.0): the lid springs open (2:37.42), water runs out (2:37.6–2:38.8), the hands have stopped; the push in on the wet photograph (2:38.55–2:39.6). The match cut (2:39.6): the photograph's oval becomes the moon behind the real girl, face-on; she blinks (2:40.15). His face (2:40.6); he shuts the watch (2:41.18). The river view (2:41.7): three whistles (2:41.8, 2:42.2, 2:42.62) and lanterns out of the woods; the mother spins round. He gets up on one knee and points upstream: go (2:43.85). The girl takes the scarf from her mother's fist (2:43.95) and holds it out to him; he takes it (2:44.65) and winds it round her neck (2:44.9–2:45.55). She climbs onto her mother's back and they go upstream behind the root plate (2:46.55–2:47.4), the red last to go; he stands alone. The page (2:47.4): the lanterns run down to the head of the false trail, the searchlight finds the hole, and he points at it (2:48.3). The bank view (2:49.4): four of them from behind; he shakes his head (2:49.65); the lanterns lower and the first snow falls (2:50.3); one takes off his hat (2:50.6). |
+| s12 OTHER SIDE (2:52–3:08) | The crossing in falling snow, on a long lens: the guards in the searchlight's beam at the head of the false trail, and far out on the white ice beyond them the mother carrying the girl across, her prints filling behind her. The farmhouse (2:56.0): the latch lifts (2:56.25), the door swings in on warm light (2:56.3–2:56.65), a woman in a shawl waves them in, and the door closes (2:58.6–2:58.95). The window (2:59.0): the girl lifts the music box's lid (2:59.1) and the whole lullaby plays; the strings come in under it in A major (3:01.5). The page, rising (3:01.75–3:03.9): the snow fills the trail, the holes, his drag mark and her real prints until the page goes white (3:03.4–3:04.35). The title re-forms (3:04.5–3:04.85): THIN ICE, cracked, held by the red thread. Snow settles over everything but the thread (3:05.7–3:06.5); a slow push in on it. Black and silence (3:07.75). |
+
+### 11.6 Sound
+
+In progress: the audio agent is making `films/thin_ice/audio/mix.py` to the bible's sound plan
+(strings and a music box in A minor, ending in A major; the synthesised ice; no new paid audio).
+
+### 11.7 Production and what it introduced
+
+- **Team.** The director wrote the bible and the foundation, made s01–s03 and s08–s12, reviewed
+  every frame, rendered, encoded and committed. One animator made s04–s07 and one audio agent made
+  the mix: two agents in total, the user's limit.
+- **A world in metres.** Every scene views one map, through the plan camera or a diorama, so
+  continuity is geometry, not drawing: the trunk, the hole and the reeds are where they were in
+  every shot.
+- **The page as a record.** Each scene writes footprints and the next one reads them. The story
+  turns on it: the false trail is a lie written on the page, and the snow wipes it clean.
+- **Weather as a clock.** The snow stops in s01 (from then on every step shows) and starts again
+  in s11, the mercy, on one density function.
+- **Rhymes.** The watch's oval becomes the moon behind the real girl (s11). The end title
+  rebuilds s01's floes, crack and thread (s12). The music box's three notes in s02 are the first
+  three of the lullaby played whole in s12.
+- **Found in review and fixed before the render:**
+  - in s11, the guard's breath came out of his cheek after a rotation was restored (the marks are
+    now converted through device space);
+  - his coat ended mid-frame in the close-up;
+  - the first snow appeared only at the top of the frame (the density clock; it now fades in over
+    the whole frame);
+  - the walk-away was too fast and half hidden (it now goes behind the root plate, the red last
+    to go);
+  - the lantern light tinted the figures brown (the glow is now drawn behind them);
+  - the end title had no room to breathe, so s12 got one more bar (16 s; black at 3:07.75).
+
+**Delivery.** In progress: the picture master is rendered; the sound master and the preview
+encode come next.
+
+### 11.8 Files
+
+| Path | What it is |
+|---|---|
+| `films/thin_ice/docs/BIBLE.md` | The bible: logline, story, plants and payoffs, cast, look, world, timeline, beats, sound plan. |
+| `films/thin_ice/kit.py` | The palette, the paper, the annotation layer and the film's devices (snow, moon, breath, searchlight, lantern, prints, cracks). |
+| `films/thin_ice/world.py` | The map in metres, the plan camera, the dioramas (river, woods, fence) and the record of footprints. |
+| `films/thin_ice/cast.py`, `faces.py` | The figures in profile and from above, the props; the close-ups. |
+| `films/thin_ice/scenes/_lib_dir.py`, `_lib_s04_s07.py` | The director's and the animator's shared scene code. |
+| `films/thin_ice/scenes/s01_title.py` … `s12_other_side.py` | The twelve scenes. |
+| `films/thin_ice/timeline/build_timeline.py`, `timeline.json` | The edit: twelve scenes, hard cuts. |
+| `films/thin_ice/audio/mix.py` | The score, the foley and the master, locked to the scene modules. |
+| `films/thin_ice/final/thin_ice_preview.mp4` | The delivered preview (not in git). |

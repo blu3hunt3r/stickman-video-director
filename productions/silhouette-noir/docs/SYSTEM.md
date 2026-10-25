@@ -12,13 +12,13 @@ manual are relative to ROOT unless they start with `productions/`. Run every com
 | Document | Read it for |
 |---|---|
 | [SYSTEM.md](SYSTEM.md) | This manual: layout, engine, scene contract, timing, render CLI, audio, QA, delivery, agents, gotchas. |
-| [FILMS.md](FILMS.md) | Every film so far, in order: logline, structure, devices, what it introduced, where its files are. DOUBLE CROSS in depth. |
+| [FILMS.md](FILMS.md) | Every film so far, in order: logline, structure, devices, what it introduced, where its files are. DOUBLE CROSS, its OPPOSITE cut and THIN ICE in depth. |
 | [CRAFT.md](CRAFT.md) | How we direct: choosing stories, the visual language, how shots connect, camera, rhythm, sound, freedom and its limits, review. |
 | [SHOT_TYPES.md](SHOT_TYPES.md) | The shot and transition vocabulary with timestamps, the reference shot types we adopted, adapted or skipped, and how each adopted type is built. |
 | [../STYLE.md](../STYLE.md) | The trilogy's binding style contract (ten rules: silhouettes, fog, light, eyes, the one red, Bass graphics, camera, motion, texture, performance). |
 | [../engine/API.md](../engine/API.md) | The scene author's API: contract, `SceneTiming`, `Frame` and camera, drawing, people, physics, render and QA commands. |
 | [ANIMATOR_BRIEF.md](ANIMATOR_BRIEF.md) | The brief given to animator agents on the trilogy: read order, the bar, process, rules, final report. |
-| Film bibles | `films/double_cross/docs/BIBLE.md`, `films/double_cross_opposite/docs/BIBLE.md`, `films/opposite_full/docs/BIBLE.md`, `films/salvage/docs/bible.md`, `films/shadowplay/docs/bible.md`, `films/red/docs/bible.md` (the trilogy also has `script.txt`). |
+| Film bibles | `films/thin_ice/docs/BIBLE.md`, `films/double_cross/docs/BIBLE.md`, `films/double_cross_opposite/docs/BIBLE.md`, `films/opposite_full/docs/BIBLE.md`, `films/salvage/docs/bible.md`, `films/shadowplay/docs/bible.md`, `films/red/docs/bible.md` (the trilogy also has `script.txt`). |
 | `productions/nobody-has-a-face/README.md` | The first film (stickman noir). It has its own engine, bible (`docs/production-bible.md`) and tools. |
 
 ---
@@ -91,6 +91,7 @@ and only the mocap clips a film uses (force-added). Ignored: `out/`, `qa/`, `__p
 | `opposite_full` | 2:24 (3,456) | 11 | hard cuts | `opposite_full_preview.mp4` |
 | `double_cross` | 2:54 (4,176; 2:32 in v4, 2:24 until v4) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2), `double_cross_v3_preview.mp4` (v3), `double_cross_v4_preview.mp4` (v4), `double_cross_v4_phone_preview.mp4` (v4, the 99 MB copy), `double_cross_v5_preview.mp4` (v5) |
 | `double_cross_opposite` | 2:54 (4,176) | 11 | hard cuts | `double_cross_opposite_preview.mp4` |
+| `thin_ice` | 3:08 (4,512) | 12 | hard cuts | `thin_ice_preview.mp4` (in progress) |
 
 The `--film` choices come from `PALETTES` in `engine/palette.py`. (`engine/timing.py` also has a
 `FILMS` tuple of five names; no tool reads it.)
@@ -269,7 +270,7 @@ A scene is `films/<film>/scenes/sNN_<slug>.py`. The renderer imports the first f
   module level or behind `functools.lru_cache`.
 - **Budget.** About 1.5 s per full-size frame on one core (`STYLE.md` rule 10).
 
-### The DOUBLE CROSS convention (also OPPOSITE full)
+### The DOUBLE CROSS convention (also OPPOSITE full and THIN ICE)
 
 ```python
 """sNN SLUG (film a-b). What happens, beat by beat."""
@@ -303,6 +304,10 @@ def cues(T):
   SHOT_TYPES.md, Part C). A scene that replays another calls its `render_plain` when it has one.
 - Imports: `kit as K` (palette, devices), `plan as P` (the blueprint and the tilting camera),
   `cast as C` (figures), `faces as F` (profile close-ups), `bank as Bk` (the night sets).
+- **THIN ICE** uses the same shape with `kit as K`, `world as W` (the map in metres, the plan
+  camera, the elevation cameras, the record of footprints), `cast as C`, `faces as F`, and one shared
+  scene library per author: `scenes/_lib_dir.py` (the director's scenes) and
+  `scenes/_lib_s04_s07.py` (the animator's).
 
 ---
 
@@ -581,7 +586,7 @@ How we review:
 - **Every flag is explained.** DOUBLE CROSS v1's glitch scan raised 27 flags; each was checked and
   each was deliberate (cuts inside a scene, snaps, flashes).
 - **Re-check the neighbours** after changing any scene that another imports (s06 → s07, s02/s03 →
-  s09, s08 → s09, s10 → s11).
+  s09, s08 → s09, s10 → s11 in DOUBLE CROSS; s01 → s02 → s03 and s10 → s11 in THIN ICE).
 
 ---
 
@@ -648,6 +653,7 @@ scenes or the sound.
 | DOUBLE CROSS v4 | none | The director alone: v2's picture restored, s02 and s05 rebuilt, the mix re-timed, the docs. |
 | DOUBLE CROSS v5 | none | The director alone: s01, s02, s03, s07, s09 and s10's new beats, the timeline, the mix, the docs. |
 | DOUBLE CROSS, the OPPOSITE cut | 2 in total (the user's limit) | One animator for s04–s07 and one audio agent; the director made the bible, the foundation, s01–s03 and s08–s11. |
+| THIN ICE | 2 in total (the user's limit) | One animator for s04–s07 and one audio agent; the director made the bible, the foundation (`kit.py`, `world.py`, `cast.py`, `faces.py`), s01–s03 and s08–s12. |
 
 Rules that came out of it (most are in `ANIMATOR_BRIEF.md`):
 
@@ -681,3 +687,8 @@ Rules that came out of it (most are in `ANIMATOR_BRIEF.md`):
 | Relative paths in agent shells | The working directory drifts between calls. | Use absolute paths. |
 | A scene another scene imports | Changing s06's dial, s02/s03 or s08's last frame changes s07 or s09 too. | Re-render and re-check the importer. |
 | The bible versus the code | Where they differ, the code is what renders and what the mix reads (for example, the bible's loudness note says true peak -1 dB; the master's ceiling is -1.3 dBTP). | Quote the module constants. |
+| Keyed cameras in THIN ICE | `_seg(t, keys)` in `scenes/_lib_dir.py` returns the two key tuples, not their values; `bank_at` once passed the tuples to `bank_lerp` and raised `'tuple' object has no attribute 'dio'`. | Interpolate `a[1]` and `b[1]`, as `dio_at` and `plan_at` do. |
+| Landmarks after a `restore()` | `F.guard` and the other profiles return their marks in the user space of the transform they were drawn in. Used after `c.restore()` of a rotation, the guard's breath came out of his cheek (THIN ICE s11). | Convert before the restore and back after it: `m = c.user_to_device(*mark)`, `c.restore()`, then `c.device_to_user(*m)`. |
+| Snow that starts | `K.snow(density=...)` decides each flake when it leaves the top of the frame, so a density ramping up from 0 fills the frame from the top down over several seconds. | To start snow over the whole frame at once, keep the density constant and fade `alpha` in (THIN ICE s11). |
+| Zero-length beat spans | An easing helper dividing by `span[1] - span[0]` raises `ZeroDivisionError` when two beats meet. | Guard it: `if span[1] <= span[0]: return 1.0 if t >= span[0] else 0.0`. |
+| A glow drawn over the figures | A warm pool painted after the figures tints them brown. | Draw the light as a layer behind the figures, sorted by depth with them. |
