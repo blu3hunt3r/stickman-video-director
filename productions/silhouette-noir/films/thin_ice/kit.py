@@ -9,6 +9,7 @@
   * the film's devices, all pure functions of time:
       snow(c, t, ...)               falling cut-paper flakes in three depths; `density(t)` lets it
                                     stop (flakes already falling fall out) and start again
+      snow_top(c, t, ...)           the same seen from above (flakes shrink as they fall and land)
       moon(c, p, r) / stars(c)      the moon disc; a few stars
       cloud(c, p, s)                a flat cloud (the moon goes in and out)
       breath(c, mouth, t, ...)      puffs on every out-breath
@@ -162,6 +163,36 @@ def snow(c, t, density=lambda t: 1.0, n=170, wind=18.0, fall=1.0, rect=(0.0, 0.0
     for layer, a in ((0, 0.55), (1, 0.8), (2, 0.95)):
         if polys_by_layer[layer]:
             bass.fill_polys(c, [bass.orient(q, True) for q in polys_by_layer[layer]], color, alpha * a)
+
+
+def snow_top(c, t, density=lambda t: 1.0, n=150, wind=(26.0, 10.0), life=(0.8, 1.5), rect=(0.0, 0.0, W, H), seed=17,
+             alpha=1.0, color=PAPER, size=1.0):
+    """Snow seen from above (the page): each flake appears near the camera, big, and shrinks as it
+    falls to the snow, drifting with the wind (px/s), and is gone when it lands. density(t) is
+    the snowfall when a flake starts its fall: when it drops to 0 the flakes in the air land
+    within `life` seconds, so the snow STOPS (and starts again when it rises)."""
+    x0, y0, x1, y1 = rect
+    polys = []
+    for i in range(n):
+        L = lerp(life[0], life[1], hash01(seed, i, 1))
+        P = L * (1.25 + 0.5 * hash01(seed, i, 2))
+        ph = hash01(seed, i, 3) * P
+        cyc = math.floor((t + ph) / P)
+        age = (t + ph) - cyc * P
+        if age > L:
+            continue
+        born = t - age
+        if hash01(seed, i, 4, cyc) >= density(born):
+            continue
+        u = age / L
+        bx = x0 + hash01(seed, i, 5, cyc) * (x1 - x0 + 80.0) - 40.0
+        by = y0 + hash01(seed, i, 6, cyc) * (y1 - y0 + 80.0) - 40.0
+        r = (3.0 + 6.0 * hash01(seed, i, 7)) * size * (1.7 - 1.1 * u)
+        polys.append((_flake_pts((bx + wind[0] * age, by + wind[1] * age), r, seed * 5 + i), 1.0 - 0.5 * u))
+    for a in (0.95, 0.7):
+        ps = [bass.orient(q, True) for q, w in polys if (w > 0.75) == (a > 0.8)]
+        if ps:
+            bass.fill_polys(c, ps, color, alpha * a)
 
 
 def snowfall(t0, t1, start=None, ramp=0.6):

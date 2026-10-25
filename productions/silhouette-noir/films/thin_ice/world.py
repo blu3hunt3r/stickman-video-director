@@ -411,18 +411,22 @@ HOLES = {"stone": (STONE_HOLE, STONE_R, 61), "guard": (HOLE_BIG, HOLE_R[1], 62),
 # ============================================================================ the page
 def draw_page(c, cam, t=0.0, moonlit=1.0, prints=(), cover=0.0, holes=(), clouds=None, woods_on=True,
               farm_light=1.0, guardhouse_light=1.0, door=0.0, reeds_on=True, trunk_on=True, band_cracks=(),
-              fence_on=True, scrap=True, grow=None):
+              fence_on=True, scrap=True, grow=None, shadows=1.0, woods_keep=1.0, crown_scale=1.0, woods_mass_a=0.0):
     """The page at plan camera cam. moonlit 0..1 (0: under cloud). prints: print tuples. cover:
     0..1, fresh snow filling the prints (they fade and shrink into the page). holes: names in
     HOLES or (centre, r, seed) tuples. clouds: [(x, n, rx, rn)] map ellipses of cloud shadow.
     door: 0..1 the farmhouse door open (its light falls across the snow). band_cracks: [(tree,
     u)] crack trees in map metres drawn on the band. grow: {element: 0..1} pops the map's elements
-    in (s01): 'river', 'band', 'farm', 'woods', 'fence', 'tower', 'guardhouse' (missing = 1)."""
+    in (s01): 'river', 'band', 'farm', 'woods', 'fence', 'tower', 'guardhouse' (missing = 1).
+    shadows 0..1: the moon's shadows (0 under cloud: they melt into the page). woods_keep 0..1:
+    the share of the trees drawn (the title's map thins them); crown_scale: their size;
+    woods_mass_a 0..1: the far woods' canopy under the crowns (draw_woods_mass)."""
     g = grow or {}
     x0, x1, n0, n1 = cam.bounds(3.0)
     snow_c = lerp(K.SNOW_DIM, SNOW, moonlit)
     ice_c = lerp(K.ICE_DIM, ICE, moonlit)
     shade_c = lerp(lerp(K.SNOW_DIM, SHADOW, 0.55), lerp(SNOW, SHADOW, 0.55), moonlit)
+    shade_c = lerp(snow_c, shade_c, clamp(shadows))
     K.fill(c, snow_c)
     gr = g.get("river", 1.0)
     # ---- the river
@@ -453,10 +457,6 @@ def draw_page(c, cam, t=0.0, moonlit=1.0, prints=(), cover=0.0, holes=(), clouds
     for h in holes:
         centre, r, seed = HOLES[h] if isinstance(h, str) else h
         draw_hole(c, cam, centre, r, seed)
-    # ---- cloud shadows
-    if clouds:
-        for (cx, cn, rx, rn) in clouds:
-            K.ellipse(c, cam.px((cx, cn)), rx * cam.ppm, rn * cam.ppm, NIGHT, alpha=0.28, n=64)
     # ---- the reeds and the trunk
     if reeds_on and x1 > REEDS[0] - 1 and x0 < REEDS[1] + 1 and n0 < REEDS[3] + 1 and n1 > REEDS[2] - 1:
         draw_reeds(c, cam, (x0, x1, n0, n1))
@@ -466,7 +466,9 @@ def draw_page(c, cam, t=0.0, moonlit=1.0, prints=(), cover=0.0, holes=(), clouds
         draw_trunk_top(c, cam, shade_c)
     # ---- the woods
     if woods_on and n0 < WOODS_N[1] + 2:
-        draw_woods_top(c, cam, (x0, x1, n0, n1), shade_c, g.get("woods", 1.0))
+        mass = (lambda c_: draw_woods_mass(c_, cam, snow_c, woods_mass_a)) if woods_mass_a > 0.0 else None
+        draw_woods_top(c, cam, (x0, x1, n0, n1), shade_c, g.get("woods", 1.0), keep=woods_keep, scale=crown_scale,
+                       shadows=shadows > 0.0, under=mass)
     # ---- the fence, tower, guardhouse
     if fence_on and n0 < FENCE_N + 8 and n1 > FENCE_N - 6:
         draw_fence_top(c, cam, t, shade_c, g.get("fence", 1.0), scrap=scrap)
@@ -480,6 +482,10 @@ def draw_page(c, cam, t=0.0, moonlit=1.0, prints=(), cover=0.0, holes=(), clouds
     # ---- prints
     if prints:
         draw_prints(c, cam, prints, cover=cover, page=snow_c, bounds=(x0, x1, n0, n1))
+    # ---- cloud shadows: over everything on the ground
+    if clouds:
+        for (cx, cn, rx, rn) in clouds:
+            K.ellipse(c, cam.px((cx, cn)), rx * cam.ppm, rn * cam.ppm, NIGHT, alpha=0.28, n=64)
 
 
 def draw_hole(c, cam, centre, r, seed, water=WATER, rim=None):
@@ -513,19 +519,63 @@ def draw_trunk_top(c, cam, shade_c):
     K.poly(c, cam.pts(plate), INK)
 
 
-def draw_woods_top(c, cam, b, shade_c, grow=1.0):
+def draw_woods_top(c, cam, b, shade_c, grow=1.0, keep=1.0, scale=1.0, shadows=True, under=None):
+    """The crowns from above and their moon shadows; under(c), if given, draws between the two."""
     x0, x1, n0, n1 = b
     trees = [tr for tr in woods() if x0 - 4 <= tr[0] <= x1 + 4 and n0 - 4 <= tr[1] <= n1 + 28]
     shp, crs = [], []
     for (x, n, r, h, seed) in trees:
+        if keep < 1.0 and hash01(seed, 21) > keep:
+            continue
         gz = clamp(grow * 1.6 - 0.6 * hash01(seed, 9))
         if gz <= 0.0:
             continue
-        sc = ease("outback", gz)
+        sc = ease("outback", gz) * scale
         shp.append(cam.pts([(x + px_ * sc, n + pn * sc) for px_, pn in crown_shadow(r, h, seed)]))
         crs.append(cam.pts([(x + px_ * sc, n + pn * sc) for px_, pn in crown(r, seed)]))
-    K.polys(c, shp, shade_c)
+    if shadows:
+        K.polys(c, shp, shade_c)
+    if under is not None:
+        under(c)
     K.polys(c, crs, INK)
+
+
+@lru_cache(maxsize=1)
+def woods_mass():
+    """The woods seen from far off as one cut-paper canopy (map metres): its south and north edges
+    follow the edge trees, smoothed, with a jagged fringe of spruce tips."""
+    trees = [tr for tr in woods() if tr[1] <= WOODS_N[1]]
+    xs = [-80.0 + 0.8 * i for i in range(276)]
+
+    def edge(pick, out_sign, seed):
+        raw = []
+        for x in xs:
+            near = [tn for (tx, tn, r, h, sd) in trees if abs(tx - x) <= 3.0]
+            raw.append(pick(near) if near else None)
+        last = next(v for v in raw if v is not None)
+        for i, v in enumerate(raw):
+            raw[i] = last = (v if v is not None else last)
+        pts = []
+        for i, x in enumerate(xs):
+            win = raw[max(0, i - 8): i + 9]
+            base = sum(win) / len(win)
+            tip = (1.9 if i % 2 == 0 else 0.7) + 0.45 * K._sn(seed, i)
+            pts.append((x, base + out_sign * tip))
+        return pts
+
+    south = edge(min, -1.0, 5)
+    north = edge(max, +1.0, 6)
+    return tuple(south + north[::-1])
+
+
+def draw_woods_mass(c, cam, page_c, alpha=1.0, path_w=5.0):
+    """The far woods (s01's map): the canopy in INK with the path through it in the page's colour.
+    Draw it under draw_woods_top's crowns."""
+    if alpha <= 0.0:
+        return
+    K.poly(c, cam.pts(woods_mass()), INK, alpha)
+    run = [p for p in PATH if p[1] <= WOODS_N[1] + 3.0]
+    K.band(c, cam.pts(run), page_c, max(1.5, path_w * cam.ppm), seed=23, alpha=alpha)
 
 
 def draw_fence_top(c, cam, t, shade_c, grow=1.0, scrap=True):

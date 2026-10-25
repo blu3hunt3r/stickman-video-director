@@ -272,18 +272,22 @@ Times are scene-local seconds. *Sound cues are in italics.* "Plan" means the str
 5. **4.25–5.5:** The two halves drift apart like floes; black water (`WATER`) opens between them.
    At 5.0 a thin `RED` thread snaps taut across the gap and holds them (*a single high harmonic,
    held*).
-6. **5.5–8.0:** Paper floods out from the letters to fill the frame: the white page. The crack
-   stays, and widens into **the river's black band**; the white ice (`ICE`) opens round it, and
-   the map assembles on the beats: the far bank and the farmhouse's `AMBER` window (6.0), the
-   woods from above (6.5–7.5, crowns popping in staggered), the fence along the bottom and the
-   tower, its searchlight disc starting to sweep (7.0), the guardhouse window (7.5), and two
-   tiny figures at the fence, one with a red fleck at the neck (8.0) (*a plucked note per
-   element, rising*).
-7. **8.0–10.0:** Hold on the map. The searchlight disc sweeps; snow still falls.
-8. **10.0–11.0:** **The snow stops** (the last flakes settle). Cloud shadows slide off the map and
-   the page brightens: the moon is out (*the wind drops; a soft high chord*).
-9. **11.0–14.0:** Push in (eased, about 6×) on the two figures at the fence; their long moon
-   shadows lie toward the bottom of the frame. Cut.
+6. **5.5–8.0:** Paper floods out from the letters to fill the frame: the white page (still under
+   cloud). The crack stays, and widens into **the river's black band**; the white ice (`ICE`)
+   opens round it, and the map assembles on the beats: the far bank and the farmhouse's `AMBER`
+   window (6.5), the woods from above (6.75–7.5: crowns pop in staggered, then snap together into
+   one cut-paper canopy, the path pale through it), the fence along the bottom drawn as a map
+   draws a border, the tower, its searchlight patch starting to sweep (7.0), the guardhouse window
+   (7.5), and two tiny figures at the fence, one with a red fleck at the neck (8.0) (*a plucked
+   note per element, rising*).
+7. **8.0–10.0:** Hold on the map. The searchlight's patch sweeps along the wire and passes just
+   north of them (9.0); snow still falls.
+8. **10.0–11.0:** **The snow stops** (the last flakes settle; *the wind drops away to a still,
+   cold quiet*). The moon stays behind the cloud: it comes out in s02.
+9. **11.0–14.0:** Push in (eased, about 2.3×) to everything they face, in s02's layout seen from
+   above: the woods and the path's mouth, the tower left (its beam swung away west), the
+   guardhouse window right, the wire, the two of them with the red fleck, their trail behind
+   them. Cut.
 
 ### s02 FENCE (14–32)
 
