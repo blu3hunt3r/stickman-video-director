@@ -91,7 +91,7 @@ and only the mocap clips a film uses (force-added). Ignored: `out/`, `qa/`, `__p
 | `opposite_full` | 2:24 (3,456) | 11 | hard cuts | `opposite_full_preview.mp4` |
 | `double_cross` | 2:54 (4,176; 2:32 in v4, 2:24 until v4) | 11 | hard cuts | `double_cross_preview.mp4` (v1), `double_cross_v2_preview.mp4` (v2), `double_cross_v3_preview.mp4` (v3), `double_cross_v4_preview.mp4` (v4), `double_cross_v4_phone_preview.mp4` (v4, the 99 MB copy), `double_cross_v5_preview.mp4` (v5) |
 | `double_cross_opposite` | 2:54 (4,176) | 11 | hard cuts | `double_cross_opposite_preview.mp4` |
-| `thin_ice` | 3:08 (4,512) | 12 | hard cuts | `thin_ice_preview.mp4` (in progress) |
+| `thin_ice` | 3:08 (4,512) | 12 | hard cuts | `thin_ice_preview.mp4` |
 
 The `--film` choices come from `PALETTES` in `engine/palette.py`. (`engine/timing.py` also has a
 `FILMS` tuple of five names; no tool reads it.)
@@ -616,6 +616,17 @@ the AAC encode it measured -16.1 LUFS with a peak of -0.6 dBFS. The v4 preview: 
 v5 preview: 4,176 frames, 174.000 s, 7.71 Mb/s overall, 167.7 MB, -16.1 LUFS with a true peak of
 -0.8 dBFS after AAC. DOUBLE CROSS's OPPOSITE cut: 4,176 frames, 174.000 s, 7.70 Mb/s overall,
 167.5 MB, -16.1 LUFS with a true peak of -0.9 dBFS after AAC.
+THIN ICE: 4,512 frames, 188.000 s, 7.76 Mb/s overall, 182.4 MB, -16.1 LUFS with a true peak of
+-1.2 dBFS after AAC, its soundtrack encoded at 256k with PNS off (below).
+
+**Sound that is mostly noise.** Snow hiss, wind and ice are noise-like, and the AAC encoder's
+perceptual noise substitution (PNS, on by default) can replace a loud noisy transient with a
+burst of made-up noise. On THIN ICE's ice break, at 192k, that made a 20 ms burst of error (-19.9
+dBFS, against about -42 for the film) and a true peak of +2.3 dBFS after a -1.4 dBTP master. For
+such films encode the sound with `-c:a aac -b:a 256k -aac_pns 0`. Check by decoding the preview
+and comparing it with the master: the true peak (4x oversampled) and the error in 10 ms windows
+(`y - x`, the two are sample-aligned). The video need not be re-encoded: mux the new soundtrack in
+with `-map 0:v:0 -map 1:a:0 -c copy -movflags +faststart`.
 
 **When a preview plays silent on the phone.** The v4 preview played without sound in the Claude
 app on the user's phone, and so did a 99 MB copy encoded at 5000k
@@ -693,3 +704,4 @@ Rules that came out of it (most are in `ANIMATOR_BRIEF.md`):
 | Snow that starts | `K.snow(density=...)` decides each flake when it leaves the top of the frame, so a density ramping up from 0 fills the frame from the top down over several seconds. | To start snow over the whole frame at once, keep the density constant and fade `alpha` in (THIN ICE s11). |
 | Zero-length beat spans | An easing helper dividing by `span[1] - span[0]` raises `ZeroDivisionError` when two beats meet. | Guard it: `if span[1] <= span[0]: return 1.0 if t >= span[0] else 0.0`. |
 | A glow drawn over the figures | A warm pool painted after the figures tints them brown. | Draw the light as a layer behind the figures, sorted by depth with them. |
+| AAC's noise substitution | On noise-like sound (snow, wind, ice) the encoder's PNS can turn a loud transient into a burst of made-up noise that overshoots: THIN ICE's ice break read +2.3 dBFS after AAC from a -1.4 dBTP master. | Encode the sound with `-b:a 256k -aac_pns 0`, and compare the decoded preview with the master before delivering (section 9). |

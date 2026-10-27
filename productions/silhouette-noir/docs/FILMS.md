@@ -20,7 +20,7 @@ dates (UTC).
 | 8 | OPPOSITE (full) | 10-23 | 2:24 | Wordless Bass cut, 11 scenes | Delivered |
 | 9 | DOUBLE CROSS | 10-23 | 2:54 (v4 2:32, v1–v3 2:24) | Wordless Bass heist, 11 scenes | v1, v2 (the shot types, `9ea5f1b`), v3 (the review fixes and the voices), v4 (v2's picture again, slower, the guard rebuilt) and v5 (the double cross made easy to follow) delivered |
 | 10 | DOUBLE CROSS, the OPPOSITE cut | 10-25 | 2:54 | DOUBLE CROSS v5's story in OPPOSITE's grammar, wordless, 11 scenes | Delivered |
-| 11 | THIN ICE | 10-25 | 3:08 | A new story: a wordless winter thriller in Bass cut paper, 12 scenes | Picture done; the mix and the delivery in progress |
+| 11 | THIN ICE | 10-25 | 3:08 | A new story: a wordless winter thriller in Bass cut paper, 12 scenes | Delivered |
 
 ---
 
@@ -1071,8 +1071,31 @@ its scene's constants or cues, and every cue no section answers is realised from
   - His last left print before the black band is missing: two right prints in a row, at n 9.25
     and 10.35, the second on the band and under the hole.
 
-**Delivery.** In progress: the picture master is rendered; the sound master and the preview
-encode come next.
+**Delivery.** `final/thin_ice_preview.mp4`:
+- 1080×1920, 24 fps, 4,512 frames, 188.000 s;
+- H.264 High at about 7.50 Mb/s (SYSTEM.md's two-pass encode), AAC-LC 48 kHz stereo at about
+  257 kb/s, 7.76 Mb/s overall;
+- 182.4 MB;
+- after the AAC encode, -16.1 LUFS with a true peak of -1.2 dBFS, in sync with the master to the
+  sample. s08's half second is still exact zeros; the end has a 50 ms tail at -54 dBFS, then zeros.
+
+**The soundtrack's encode.** At SYSTEM.md's 192 kb/s, the AAC encoder's perceptual noise
+substitution (PNS) turned the ice breaking after s08's silence into a 20 ms burst of error (-19.9
+dBFS, against about -42 for the whole film) with a true peak of +2.3 dBFS. With PNS off
+(`-aac_pns 0`) at 256 kb/s the worst burst is -32.5 dBFS and nothing passes -1 dBTP. The first
+encode's picture was kept and the new soundtrack muxed in with `-c copy`.
+
+Workflow notes:
+- The audio agent's first run was stopped by an API usage limit before it wrote anything. It was
+  resumed with a message after the reset, so the film still used two agents in total. The picture
+  master, the glitch scan and the first encode pass ran while it worked.
+- The master's glitch scan (k = 4) flagged 70 frames away from the scene cuts. Every one is a cut
+  between shots inside a scene, at its scene module's constant; there are no single-frame pops.
+  At k = 2.5 it adds six fast moves, all designed:
+  - the woods' crowns snapping into one canopy (0:07.5–0:07.58);
+  - the mitten slapping the music box shut (0:23.0);
+  - the watch springing open and shut (0:34.54, 0:36.5).
+  The preview's scan (k = 4) flags the same cuts and the watch opening.
 
 ### 11.8 Files
 
@@ -1085,5 +1108,5 @@ encode come next.
 | `films/thin_ice/scenes/_lib_dir.py`, `_lib_s04_s07.py` | The director's and the animator's shared scene code. |
 | `films/thin_ice/scenes/s01_title.py` … `s12_other_side.py` | The twelve scenes. |
 | `films/thin_ice/timeline/build_timeline.py`, `timeline.json` | The edit: twelve scenes, hard cuts. |
-| `films/thin_ice/audio/mix.py` | The score, the foley and the master, locked to the scene modules. |
+| `films/thin_ice/audio/mix.py` | The score, the foley and the master, locked to the scene modules (`--qa`, `--only`, `--stems`, `--without`, `--skip-missing`). |
 | `films/thin_ice/final/thin_ice_preview.mp4` | The delivered preview (not in git). |
