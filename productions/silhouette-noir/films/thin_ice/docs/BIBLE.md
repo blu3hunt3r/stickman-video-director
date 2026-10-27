@@ -324,7 +324,7 @@ moon is out, every shadow comes toward us.
    the mitten pressed to her lips (9.25–10.0).
 7. **10.0–12.0:** The page, from above: the girl flat beyond the wire, the mother this side. The
    beam swings back; its patch slides over them right to left; the red scarf burns in it (*the
-   heartbeat, 10.75 and 11.25*). It moves on.
+   heartbeat, 10.75 and 11.375*). It moves on.
 8. **12.0–14.0:** Closer, on the gap: the mother crawls under on her belly; her coat catches on a
    barb (12.4); she tugs twice; it rips (12.75, *rip*) and the wire springs back. CU
    (13.0–14.0): the dark scrap of cloth left on the barb, stirring; the wire still quivering.

@@ -979,8 +979,64 @@ one line in the film that joins instead of divides.
 
 ### 11.6 Sound
 
-In progress: the audio agent is making `films/thin_ice/audio/mix.py` to the bible's sound plan
-(strings and a music box in A minor, ending in A major; the synthesised ice; no new paid audio).
+`films/thin_ice/audio/mix.py` (4,359 lines, made by the audio agent) is the score, the foley and the
+master in one file, locked to the scene modules. Every beat a section uses is read on every run from
+its scene's constants or cues, and every cue no section answers is realised from its words.
+
+- **The score.** Strings and a music box at 120 bpm in A minor, ending in A major.
+  - **The lullaby** (E5 C5 | D5 B4 | C5 A4 | B4 E4 | A4 C5 | B4 G#4 | A4) is the theme. The music
+    box plays 18 notes of it in all:
+    - its first three notes in s02 (0:22.25–0:22.75), before her mitten slaps the box shut;
+    - its first note alone in s09 as she takes the scarf (2:15.5), and far off on s11's match cut
+      (2:39.6);
+    - the whole tune once, in A major, in s12 (from 2:59.25, read from the scene's `NOTES`), with
+      the strings coming in under it (3:01.5) and the last chord held under the title.
+  - **The hunt** (s03–s07): low strings in A minor, an F aching in them as it closes in; a soft
+    pulse on the film's grid that quickens with the chase (a bar, a beat, an eighth); high
+    harmonics for the ice; the lullaby's head low in the cellos under the false trail.
+  - **s08:** the crack, half a second of digital silence, the break. Under the ice: a murky drone
+    and his huge slow heart. It surfaces with him.
+  - **s09:** her heart alone at 96 bpm with one trembling E6, both cut dead as she takes the scarf.
+  - **s10:** an A pedal swelling under the throws, cut dead on the hook (one low string stab),
+    rising again under the slide and releasing on an open A when he is out.
+  - **s11:** quiet. The watch clicks open and shut but never ticks. A minor with an aching F under
+    the lie, and a glass shimmer for the first snow.
+  - **The red thread** is a string harmonic (E6), in s01 and again under s12's last chord.
+- **The ice,** the film's signature, is all synthesised:
+  - groans and booms;
+  - dispersive "pew" chirps (high to low in 0.1–0.4 s, the sound of lake ice);
+  - cracks, the break and the plunge;
+  - the stone's crack and plop.
+- **Foley.**
+  - The wind is always there: high in the pines, through the hut's walls, falling away when the
+    snow stops, quiet in the farmhouse's lee.
+  - Three snow crunches: the mother's felt boots soft and quick, the girl's smaller and quicker,
+    the guard's heavy and slow with hobnails.
+  - The searchlight's motor and clank; wire, cloth and wool; the stove, the watch, the door, the
+    lantern, the whistles; water and bubbles.
+- **Sources.** Nothing new was generated: there is no paid audio in this film.
+  - The only recordings are OPPOSITE's breaths, gasps and body fall and DOUBLE CROSS's grunt. The
+    girl's breath is OPPOSITE's pitched up 3 semitones; the guard's panting and gasps are pitched
+    down 5.
+  - Everything else is synthesised in numpy/scipy, with OPPOSITE full's strings.
+- **Cues.** All 441 scene cues are realised by the sections. Four are approximations:
+  - three far calls in s04 are a whistle and a lantern's clink, since there are no voices;
+  - s07's far dog is a synthesised bark.
+  Of 189 measured hits the worst is 20.3 ms off, none by a frame.
+- **The master.** 48 kHz stereo 24-bit, 188.000 s:
+  - -16.0 LUFS integrated, a true peak of -1.4 dBTP (the limiter's ceiling, as in the OPPOSITE cut);
+  - exact digital zeros through s08's half second after the crack (1:48.5–1:49.0) and from 3:07.75
+    to the end;
+  - a lowest short-term reading of -23.8 LUFS (the quiet after the run, about 0:29), well above the
+    -29 floor;
+  - per scene: s01 -16.4, s02 -18.3, s03 -16.4, s04 -16.6, s05 -17.5, s06 -18.3, s07 -16.8, s08
+    -13.3, s09 -14.6, s10 -14.2, s11 -16.9, s12 -15.7 LUFS: hushed through the hunt, loudest at
+    the break and the rescue.
+  Two runs give the same file, byte for byte.
+- **From the sound review.** s02's two heartbeats were 0.5 s apart, on the score's grid, so they
+  read as part of the music. The second moved to 0:25.375: her heart at 96 bpm, as in s09.
+- **On a phone speaker** the low strings and the under-ice roar mostly vanish. Everything that
+  carries the story (breath, crunches, cracks, the music box) sits above about 300 Hz.
 
 ### 11.7 Production and what it introduced
 
@@ -1007,6 +1063,13 @@ In progress: the audio agent is making `films/thin_ice/audio/mix.py` to the bibl
     to go);
   - the lantern light tinted the figures brown (the glow is now drawn behind them);
   - the end title had no room to breathe, so s12 got one more bar (16 s; black at 3:07.75).
+- **Known small issues, left as they are.** Both are a few pixels on a phone; fixing them would
+  mean re-timing the guard in s07 and re-rendering the page shots of s07–s12.
+  - On the bank, the guard's prints skip about 1.4 m where his walk out of the woods ends and his
+    walk out onto the ice begins (`world.py`: `GUARD_WOODS` ends at (13.04, -3.41), `GUARD_ICE`
+    starts at (14.03, -2.38)).
+  - His last left print before the black band is missing: two right prints in a row, at n 9.25
+    and 10.35, the second on the band and under the hole.
 
 **Delivery.** In progress: the picture master is rendered; the sound master and the preview
 encode come next.

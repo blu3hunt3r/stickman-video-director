@@ -20,7 +20,7 @@ again; the scrap on the barb; into the zone; the prints from above.
   9.25-10.0 CU, her profile: the mitten pressed to her lips.
   10.0-12.0 The page, from above: the girl flat beyond the wire, the mother this side. The patch
             slides over them right to left; the red scarf burns in it (the heartbeat, 10.75 and
-            11.25). It moves on.
+            11.375). It moves on.
   12.0-13.0 Closer, on the gap: the mother crawls under the wire; her coat catches on a barb (12.4);
             she tugs (12.5, 12.62); it rips (12.75); the wire springs back, quivering.
   13.0-14.0 CU: the scrap of her coat on the barb, stirring; the wire still quivering.
@@ -58,7 +58,7 @@ T_CLANK = 8.0
 T_OPEN = 8.25
 NOTES = (8.25, 8.5, 8.75)
 T_SLAP = 9.0
-T_BEATS = (10.75, 11.25)     # the heartbeat
+T_BEATS = (10.75, 11.375)    # the heartbeat: hers at 96 bpm, as in s09, off the score's 120 bpm grid
 T_SNAG = 12.4
 T_TUGS = (12.5, 12.62)
 T_RIP = 12.75
